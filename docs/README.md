@@ -1,0 +1,42 @@
+# Documentation Index
+
+## Brief Summary
+
+This project is a long-term memory system for AI agents. Its purpose is to store durable memory safely, retrieve only relevant memory for each task, preserve evidence for every memory, and give humans a way to review, correct, expire, or delete what the system remembers.
+
+The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first migrations, TypeScript for UI and tooling, and Python only for experiments or evaluations.
+
+## Document Index
+
+| Document | Purpose |
+| --- | --- |
+| [Project Goal](project-goal.md) | Defines the north star for the project: trustworthy, auditable, permission-aware long-term memory for AI agents. |
+| [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
+
+## Dictionary
+
+| Term | Meaning |
+| --- | --- |
+| Agent | An AI process or role that can use memory to complete tasks. |
+| Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
+| Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
+| Durable memory | Memory intended to persist beyond the current session or task. |
+| Embedding | A vector representation of text used for semantic similarity search. |
+| Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
+| Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
+| Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
+| Namespace | A path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
+| Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
+| Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
+| pgvector | PostgreSQL extension used to store and search vector embeddings. |
+| Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
+| Principal | A human, agent, or service account making a request to the memory system. |
+| Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
+| Provenance | Evidence showing where a memory came from, usually through a source event. |
+| Redaction | Removal or masking of sensitive content from facts, chunks, exports, and event payloads where policy requires erasure. |
+| Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
+| Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
+| Session memory | Temporary memory for the current task or conversation only. |
+| Supersession | The process of replacing an outdated or contradicted memory with a newer memory while preserving audit history. |
+| Trust level | Metadata that separates trusted system or human-approved content from user-scoped, agent-private, tool, web, or retrieved content. |
+| Vector index | Search index used for semantic recall. It is not the source of truth. |
