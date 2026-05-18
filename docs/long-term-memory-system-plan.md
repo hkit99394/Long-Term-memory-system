@@ -92,7 +92,7 @@ Postgres + pgvector + event log + optional vault export
 ## Recommended Solution Layout
 
 ```text
-memory_system/
+repo-root/
   src/
     MemorySystem.Api/
     MemorySystem.Application/
@@ -105,10 +105,12 @@ memory_system/
   tools/
     ui/
     vault-sync/
-migrations/
-docs/
-vault/
+  migrations/
+  docs/
+  vault/
 ```
+
+`repo-root/` means the current repository root, not a nested child folder.
 
 ### Project Responsibilities
 
@@ -688,10 +690,12 @@ The first migration should include:
 - indexes on namespace and visibility
 - indexes on `source_event_id`
 - full-text GIN index on `memory_chunks.search_vector`
-- vector index for the chosen embedding model and distance operator
+- pgvector extension and embedding tables if useful for the initial schema
 - unique idempotency index on `(principal_id, endpoint, idempotency_key)`
 - `updated_at` trigger for mutable tables
 - uniqueness or dedupe indexes for obvious duplicates, such as active memory with the same scope, subject, predicate, and object
+
+Do not require a model-specific vector index in the first migration. If embedding rows are included before the embedding provider is selected, keep `memory_embeddings.embedding` as generic `vector` and store `embedding_model` plus `embedding_dimension`. Add model-specific vector indexes only after the embedding model, dimension, distance operator, and index type are chosen before M6.
 
 ## Memory Namespaces
 
@@ -1246,7 +1250,6 @@ Then implement:
 
 Decide before or during Phase 1 implementation:
 
-- Use raw Npgsql/Dapper-style SQL, EF Core, or a hybrid?
 - Which embedding provider and vector dimension should be the default?
 - What is the first real user/project/role scenario to test?
 - What retention policy should apply to raw event payloads?
@@ -1254,8 +1257,7 @@ Decide before or during Phase 1 implementation:
 
 ## Current Recommendation On Open Decisions
 
-- Use SQL-first migrations and raw SQL for core memory queries.
-- Use EF Core only if CRUD convenience becomes more valuable than direct SQL clarity.
+- Use SQL-first migrations and raw Npgsql for core memory queries through the M1-M3 initial backend path. Dapper may be used only as a small mapping convenience if needed; defer EF Core unless CRUD convenience later outweighs direct SQL clarity.
 - Add Docker Compose in Phase 1 because pgvector setup should be repeatable.
 - Start with local API-key auth mapped to principals, then add full user auth later.
 - Make Obsidian export-only in the first version.

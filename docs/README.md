@@ -11,9 +11,13 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Document | Purpose |
 | --- | --- |
 | [Project Goal](project-goal.md) | Defines the north star for the project: trustworthy, auditable, permission-aware long-term memory for AI agents. |
+| [Architecture Overview](architecture.md) | Provides the short component, write-path, read-path, trust, and MVP architecture guide. |
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
+| [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
+| [Decision 0001: Data-Access Approach](decisions/0001-data-access-approach.md) | Records the initial backend data-access choice for the M1-M3 path. |
+| [Decision 0002: Migration Runner Approach](decisions/0002-migration-runner-approach.md) | Records the initial SQL migration runner choice for local development and integration tests. |
 
 ## Dictionary
 

@@ -61,8 +61,8 @@ Review UI, vault sync, and production operations are important, but they should 
 
 Before M1 implementation:
 
-- Choose raw SQL, EF Core, or hybrid data access for the first repositories.
-- Choose the migration runner approach.
+- Data access is decided in [Decision 0001](decisions/0001-data-access-approach.md): SQL-first migrations plus raw Npgsql for the M1-M3 initial backend path, with Dapper allowed only as a small mapping convenience and EF Core deferred.
+- Migration runner approach is decided in [Decision 0002](decisions/0002-migration-runner-approach.md): a small in-repo Npgsql-based runner applies ordered root-level SQL migrations for local development and integration tests.
 - Choose the local Docker image and pgvector version.
 
 Before M2 implementation:
@@ -94,4 +94,3 @@ Before M6 implementation:
 7. Implement `POST /api/events` with request idempotency.
 8. Implement `POST /api/memory/proposals` with a minimal broker decision.
 9. Add integration tests for migration, event append, proposal write, idempotent retry, and blocked cross-project read.
-
