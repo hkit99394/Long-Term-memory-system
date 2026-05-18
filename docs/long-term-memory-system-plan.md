@@ -203,7 +203,7 @@ Initial model:
 Rules:
 
 - Every API request resolves to one principal.
-- Every memory read is filtered by the principal's effective access.
+- Every memory read is filtered by the principal's effective access before or inside retrieval queries.
 - Every durable memory write goes through the Memory Broker.
 - The Broker may write on behalf of a principal, but must record the proposing principal and source event.
 - Namespaces are useful for grouping, but authorization must be backed by explicit membership, role assignment, or grant records.
@@ -281,11 +281,14 @@ Rules:
 - Vault exports must be regenerated or marked stale after deletion/redaction.
 - Event log retention must distinguish audit preservation from user-requested erasure.
 - Redaction records should preserve who/what/when/why without retaining the sensitive text.
+- Raw event payloads may be replaced with a hash, redaction marker, or external retained payload pointer when policy requires erasure.
 - Context Builder must exclude deleted, redacted, expired, superseded, and contradicted memory by default.
 
 ### Outbox and Idempotent Indexing
 
-Background work must be retry-safe.
+API mutations and background work must be retry-safe.
+
+Mutating API endpoints require an idempotency key and store the request fingerprint before side effects. Retries with the same key and same fingerprint return the original response. Reuse with a different fingerprint is a conflict.
 
 Use an outbox table for:
 
@@ -429,6 +432,13 @@ CREATE TABLE events (
     role_id TEXT,
     event_type TEXT NOT NULL,
     content JSONB NOT NULL,
+    content_hash TEXT,
+    external_payload_uri TEXT,
+    retention_class TEXT NOT NULL,
+    sensitivity TEXT NOT NULL,
+    redaction_status TEXT NOT NULL DEFAULT 'none',
+    redacted_at TIMESTAMPTZ,
+    redaction_event_id UUID REFERENCES events(id),
     trust_level TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (event_type IN (
@@ -449,9 +459,14 @@ CREATE TABLE events (
         'tool_output',
         'retrieved_untrusted',
         'web_content'
-    ))
+    )),
+    CHECK (retention_class IN ('ephemeral', 'standard', 'audit', 'legal_hold', 'erasure_requested')),
+    CHECK (sensitivity IN ('none', 'personal', 'secret', 'regulated')),
+    CHECK (redaction_status IN ('none', 'pending', 'redacted', 'erased'))
 );
 ```
+
+`content` holds raw evidence while retention allows it. When erasure is required, keep the event id, actor, type, trust level, timestamps, hash, and redaction metadata, then replace sensitive payload content with a minimal marker or move it behind an approved external payload pointer with its own retention policy.
 
 ### memory_facts
 
@@ -484,11 +499,21 @@ CREATE TABLE memory_facts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (scope_type IN ('global', 'org', 'user', 'project', 'role', 'agent', 'session')),
+    CHECK ((scope_type = 'global') = (scope_id = 'global')),
+    CHECK ((scope_type = 'org') = (org_id IS NOT NULL AND project_id IS NULL AND user_principal_id IS NULL AND agent_principal_id IS NULL AND role_id IS NULL)),
+    CHECK ((scope_type = 'project') = (project_id IS NOT NULL AND org_id IS NOT NULL AND user_principal_id IS NULL AND agent_principal_id IS NULL AND role_id IS NULL)),
+    CHECK ((scope_type = 'user') = (user_principal_id IS NOT NULL AND org_id IS NULL AND project_id IS NULL AND agent_principal_id IS NULL AND role_id IS NULL)),
+    CHECK ((scope_type = 'role') = (role_id IS NOT NULL AND org_id IS NULL AND project_id IS NULL AND user_principal_id IS NULL AND agent_principal_id IS NULL)),
+    CHECK ((scope_type = 'agent') = (agent_principal_id IS NOT NULL AND org_id IS NULL AND project_id IS NULL AND user_principal_id IS NULL AND role_id IS NULL)),
+    CHECK ((scope_type = 'session') = (org_id IS NULL AND project_id IS NULL AND user_principal_id IS NULL AND agent_principal_id IS NULL AND role_id IS NULL AND scope_id <> 'global')),
+    CHECK (role_id IS NULL OR role_id IN ('designer', 'developer', 'cto', 'cfo', 'coo', 'ceo')),
     CHECK (visibility IN ('private', 'role_shared', 'project_shared', 'org_shared', 'system')),
     CHECK (status IN ('active', 'tentative', 'superseded', 'contradicted', 'expired', 'deleted', 'redacted')),
     CHECK (confidence >= 0 AND confidence <= 1)
 );
 ```
+
+`scope_type`, `scope_id`, `namespace`, and the optional owner columns must agree. `scope_id` is the canonical string id for the selected scope: `global`, the org id, project id, user principal id, role id, agent principal id, or session id. A migration should add generated columns or triggers if needed so `scope_id` cannot drift from the typed UUID/text column. Namespaces must be valid for the scope, such as `/project/{project_id}/decisions` only when `scope_type = 'project'` and `project_id` matches.
 
 ### role_memory_lenses
 
@@ -512,7 +537,7 @@ CREATE TABLE role_memory_lenses (
 );
 ```
 
-When `project_id` is null, the lens is shared role memory. When `project_id` is set, the lens is project-specific role interpretation.
+Role lenses are not separate facts. They are interpretations over base facts. When `project_id` is null, the lens is a shared role principle backed only by global or organization truth. When `project_id` is set, the lens is project-specific role interpretation backed by that project's facts or its organization facts. Project-specific truth must never be used as the base for a shared role principle.
 
 ### memory_chunks
 
@@ -604,6 +629,33 @@ CREATE TABLE memory_redactions (
 );
 ```
 
+Redaction execution must update the target row, remove or replace sensitive payload fields, delete derived chunks and embeddings when required, and leave only audit-safe metadata plus hashes or external pointers needed to prove what was acted on.
+
+### api_idempotency_keys
+
+Request-level idempotency for mutating endpoints.
+
+```sql
+CREATE TABLE api_idempotency_keys (
+    id UUID PRIMARY KEY,
+    principal_id UUID NOT NULL REFERENCES principals(id),
+    endpoint TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    response_status INT,
+    response_body JSONB,
+    resource_type TEXT,
+    resource_id UUID,
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (principal_id, endpoint, idempotency_key),
+    CHECK (status IN ('processing', 'completed', 'failed'))
+);
+```
+
+Use this for `POST /api/events`, `POST /api/memory/proposals`, and all other mutating endpoints. The outbox still owns worker idempotency; this table owns client request idempotency.
+
 ### outbox_jobs
 
 Retry-safe background work queue.
@@ -637,6 +689,7 @@ The first migration should include:
 - indexes on `source_event_id`
 - full-text GIN index on `memory_chunks.search_vector`
 - vector index for the chosen embedding model and distance operator
+- unique idempotency index on `(principal_id, endpoint, idempotency_key)`
 - `updated_at` trigger for mutable tables
 - uniqueness or dedupe indexes for obvious duplicates, such as active memory with the same scope, subject, predicate, and object
 
@@ -675,7 +728,7 @@ Use namespace strings for access control, retrieval, and UI grouping.
 
 ## Role Memory Model
 
-Shared truth should be stored separately from role interpretation.
+Shared truth should be stored separately from role interpretation. Roles are lenses over shared truth, not separate realities.
 
 Example:
 
@@ -700,9 +753,9 @@ Role memory should never silently override shared project decisions, user prefer
 
 Implementation rule:
 
-- Shared role memory belongs in `/role/{role_id}/shared`.
+- Shared role principles are `role_memory_lenses` with no project id, backed by global or organization facts.
 - Project-specific role interpretation belongs in `/project/{project_id}/role/{role_id}/lens`.
-- A project-role lens must reference a base project or organization memory fact.
+- A project-role lens must reference a base memory fact from the target project or its organization.
 - Context Builder combines shared role memory and project-role lens only after confirming the caller can access both the role and the project.
 
 ## Trust Levels
@@ -794,10 +847,10 @@ Read lifecycle:
 understand request
   -> resolve user/project/org/role/agent/session scope
   -> resolve principal memberships and role assignments
-  -> retrieve structured facts
-  -> retrieve full-text matches
-  -> retrieve vector matches
-  -> filter by permissions
+  -> build authorized scope and namespace predicates
+  -> retrieve structured facts within authorized predicates
+  -> retrieve full-text matches within authorized predicates
+  -> retrieve vector matches within authorized predicates
   -> remove stale, expired, deleted, redacted, superseded, contradicted facts
   -> add shared role memory only when role access is allowed
   -> add project-role lenses only when project access is allowed
@@ -805,6 +858,8 @@ understand request
   -> compress
   -> return context packet
 ```
+
+Full-text and vector search must not produce an unauthorized candidate set and filter it later. The permission, scope, namespace, visibility, and status predicates belong in the retrieval query or in a security-barrier view/function used by the query. Candidate counts, timing, and ranking must only reflect rows the principal may read.
 
 Ranking formula for MVP:
 
@@ -838,7 +893,8 @@ API contracts should define request and response DTOs before implementation.
 
 Contract rules:
 
-- mutating endpoints accept an idempotency key
+- mutating endpoints require an idempotency key
+- idempotency is scoped by principal, endpoint, key, and request hash
 - list endpoints support pagination
 - search endpoints require explicit scope
 - write endpoints return a broker decision object
@@ -851,6 +907,7 @@ Contract rules:
 `POST /api/events`
 
 - append a raw event
+- require a request idempotency record before append
 - return event id
 
 `GET /api/events/{id}`
@@ -863,6 +920,7 @@ Contract rules:
 
 - submit a candidate memory
 - broker decides store, reject, review, or session-only
+- return the stored idempotent broker decision on retry
 
 `POST /api/memory/{id}/supersede`
 
@@ -934,7 +992,7 @@ Enforcement model:
 - ASP.NET Core authorization checks coarse endpoint access.
 - Application services check fine-grained memory access using project memberships, role assignments, and memory grants.
 - The database schema stores enough information to audit why access was allowed.
-- Search and context-building queries must apply access filters before ranking or compression.
+- Search and context-building queries must apply access filters before or inside retrieval, before ranking or compression.
 - Cross-project role memory requires both role access and target project access.
 
 ## Obsidian Vault Role
@@ -989,6 +1047,7 @@ Deliver:
 - SQL migration folder and migration runner
 - Postgres connection
 - first migration with identity, access, event, memory, chunk, review, redaction, and outbox tables
+- request idempotency table for mutating endpoints
 - local API-key authentication mapped to principals
 - coarse authorization policies
 - fine-grained access-checking service
@@ -1171,6 +1230,7 @@ Then implement:
 - local API-key to principal resolution
 - first access-checking service
 - transactional event + memory fact + chunk + outbox write
+- repeated event and memory proposal requests return the original result for the same idempotency key
 - a basic broker decision result:
 
 ```json

@@ -12,6 +12,8 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | --- | --- |
 | [Project Goal](project-goal.md) | Defines the north star for the project: trustworthy, auditable, permission-aware long-term memory for AI agents. |
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
+| [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
+| [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
 
 ## Dictionary
 

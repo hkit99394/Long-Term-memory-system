@@ -1,0 +1,97 @@
+# Long-Term Memory System Roadmap
+
+## Roadmap Purpose
+
+This roadmap turns the architecture plan into delivery milestones. The milestones are ordered around risk reduction: prove the durable write path first, then retrieval, role-aware context, human review, and operations.
+
+## Current Track
+
+Current milestone: M0 Planning Baseline.
+
+Next milestone: M1 Foundation Slice.
+
+The first production-shaped win is not a polished UI. It is a local API and database that can accept an event, broker a memory proposal, persist the memory with provenance, and reject unauthorized reads.
+
+## Milestones
+
+| Milestone | Theme | Outcome | Exit Criteria |
+| --- | --- | --- | --- |
+| M0 | Planning Baseline | Architecture, roadmap, and backlog are clear enough to build from. | Project goal, system plan, roadmap, and backlog exist; Phase 1 decisions are named. |
+| M1 | Foundation Slice | The backend skeleton and database can run locally. | .NET solution starts; Postgres with pgvector runs; first migration applies; `GET /health` passes. |
+| M2 | Provenance Write Path | Durable memory writes are brokered, auditable, and idempotent. | `POST /api/events` and `POST /api/memory/proposals` work; source events are required; request idempotency returns stable retries. |
+| M3 | Access and Scope Enforcement | Memory cannot cross user, project, role, or agent boundaries accidentally. | API-key principal resolution works; membership and grants are enforced; cross-project reads are blocked in tests. |
+| M4 | Structured and Role Memory | User, project, agent-private, shared-role, and project-role memory are distinct. | Repositories and lifecycle rules exist; shared role principles cannot use project-specific facts; expired/deleted/superseded facts are excluded. |
+| M5 | Broker Intelligence | The broker separates durable memory from temporary instructions. | Candidate classification, dedupe, contradiction checks, confidence, and review-required decisions are tested. |
+| M6 | Hybrid Retrieval | Context packets combine structured, keyword, and vector recall safely. | Full-text and pgvector search run inside authorized predicates; ranking is explainable; context packets include source links. |
+| M7 | Review and Vault Workflow | Humans can inspect, approve, correct, export, and remove memories. | Review dashboard supports approve/reject/edit/expire/delete/supersede; Obsidian export is source-linked and stale-aware. |
+| M8 | Operational Readiness | The system can be run, observed, backed up, and recovered. | Health checks, structured logs, retention policy, backup/restore notes, and production secret handling are documented. |
+
+## MVP Boundary
+
+The MVP ends at M6.
+
+MVP must demonstrate this loop:
+
+```text
+Observe event
+Extract candidate memory
+Broker validates write
+Store structured memory
+Index for retrieval
+Build scoped context
+Return compact context packet
+```
+
+Review UI, vault sync, and production operations are important, but they should not block proof of the core memory loop.
+
+## Milestone Dependencies
+
+| Dependency | Needed By | Reason |
+| --- | --- | --- |
+| Local Postgres plus pgvector | M1 | Migrations and vector schema must be tested against the real extension. |
+| API idempotency model | M2 | Event and proposal writes must be retry-safe before agents depend on them. |
+| Scope and namespace validation | M3 | Retrieval safety depends on consistent stored scope metadata. |
+| Role-lens validation | M4 | Shared role memory must not leak project facts across projects. |
+| Broker write transaction | M5 | Classification and review decisions must commit with evidence and outbox jobs. |
+| Authorized retrieval query shape | M6 | Full-text and vector search must not rank unauthorized candidate sets. |
+| Redaction and stale-export model | M7 | Human review and vault export must honor deletion and erasure decisions. |
+| Retention policy | M8 | Operational readiness needs a clear answer for raw event payload handling. |
+
+## Decision Gates
+
+Before M1 implementation:
+
+- Choose raw SQL, EF Core, or hybrid data access for the first repositories.
+- Choose the migration runner approach.
+- Choose the local Docker image and pgvector version.
+
+Before M2 implementation:
+
+- Define request hash rules for API idempotency.
+- Define the first event content shapes.
+- Define whether raw event payloads are always stored inline for MVP.
+
+Before M4 implementation:
+
+- Define validation for `role_memory_lenses.base_memory_fact_id`.
+- Define canonical namespace parsing rules.
+- Define the first real scenario: user preference plus project decision plus CTO context.
+
+Before M6 implementation:
+
+- Choose embedding provider and vector dimension.
+- Choose vector distance operator and index type.
+- Define context packet size and source-link expectations.
+
+## First Build Sequence
+
+1. Create the .NET solution and project layout.
+2. Add Docker Compose for Postgres plus pgvector.
+3. Add `migrations/001_initial_memory_schema.sql`.
+4. Add a migration runner path for local development and tests.
+5. Implement `GET /health`.
+6. Implement API-key principal resolution.
+7. Implement `POST /api/events` with request idempotency.
+8. Implement `POST /api/memory/proposals` with a minimal broker decision.
+9. Add integration tests for migration, event append, proposal write, idempotent retry, and blocked cross-project read.
+
