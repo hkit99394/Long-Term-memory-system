@@ -21,8 +21,8 @@ Status values:
 | M0-04 | P0 | Done | Define roadmap and backlog. | Roadmap and backlog documents exist and are linked from the documentation index. |
 | M0-05 | P0 | Done | Confirm Phase 1 data-access approach. | [Decision 0001](decisions/0001-data-access-approach.md) selects SQL-first migrations plus raw Npgsql for the M1-M3 initial backend path. |
 | M0-06 | P0 | Done | Confirm migration runner approach. | [Decision 0002](decisions/0002-migration-runner-approach.md) selects a small in-repo Npgsql-based migration runner for local development and integration tests. |
-| M0-07 | P0 | Todo | Confirm local Docker image and pgvector version. | PostgreSQL image, pgvector availability, and version pinning approach are selected before M1 implementation. |
-| M0-08 | P1 | Todo | Confirm first scenario. | First test scenario is written as user preference plus project decision plus CTO role context. |
+| M0-07 | P0 | Done | Confirm local Docker image and pgvector version. | [Decision 0003](decisions/0003-local-database-runtime.md) selects `pgvector/pgvector:0.8.2-pg17-bookworm` for M1-M3 local development and integration tests. |
+| M0-08 | P1 | Done | Confirm first scenario. | [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) defines the M1-M6 throughline: user preference plus project decision plus CTO role context. |
 | M0-09 | P1 | Done | Define folder structure and architecture overview. | `docs/folder-structure.md` and `docs/architecture.md` exist and are linked from the documentation index. |
 
 ## M1 Foundation Slice
@@ -112,8 +112,8 @@ Status values:
 
 Start here:
 
-1. `M0-07`: Confirm local Docker image and pgvector version.
-2. `M0-08`: Confirm first scenario.
-3. `M1-01`: Create .NET solution.
-4. `M1-02`: Add local database runtime.
-5. `M1-03`: Add first migration file.
+1. `M1-01`: Create .NET solution.
+2. `M1-02`: Add local database runtime.
+3. `M1-03`: Add first migration file.
+4. `M1-04`: Add migration runner path.
+5. `M1-05`: Implement health endpoint.

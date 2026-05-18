@@ -16,7 +16,7 @@ The first production-shaped win is not a polished UI. It is a local API and data
 
 | Milestone | Theme | Outcome | Exit Criteria |
 | --- | --- | --- | --- |
-| M0 | Planning Baseline | Architecture, roadmap, and backlog are clear enough to build from. | Project goal, system plan, roadmap, and backlog exist; Phase 1 decisions are named. |
+| M0 | Planning Baseline | Architecture, roadmap, and backlog are clear enough to build from. | Project goal, system plan, roadmap, backlog, and first M1-M6 scenario exist; Phase 1 decisions are named. |
 | M1 | Foundation Slice | The backend skeleton and database can run locally. | .NET solution starts; Postgres with pgvector runs; first migration applies; `GET /health` passes. |
 | M2 | Provenance Write Path | Durable memory writes are brokered, auditable, and idempotent. | `POST /api/events` and `POST /api/memory/proposals` work; source events are required; request idempotency returns stable retries. |
 | M3 | Access and Scope Enforcement | Memory cannot cross user, project, role, or agent boundaries accidentally. | API-key principal resolution works; membership and grants are enforced; cross-project reads are blocked in tests. |
@@ -63,19 +63,19 @@ Before M1 implementation:
 
 - Data access is decided in [Decision 0001](decisions/0001-data-access-approach.md): SQL-first migrations plus raw Npgsql for the M1-M3 initial backend path, with Dapper allowed only as a small mapping convenience and EF Core deferred.
 - Migration runner approach is decided in [Decision 0002](decisions/0002-migration-runner-approach.md): a small in-repo Npgsql-based runner applies ordered root-level SQL migrations for local development and integration tests.
-- Choose the local Docker image and pgvector version.
+- Local database runtime is decided in [Decision 0003](decisions/0003-local-database-runtime.md): `pgvector/pgvector:0.8.2-pg17-bookworm` for M1-M3 local development and integration tests.
+- The first real scenario is confirmed in [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md): user preference plus project decision plus CTO role context, used as the M1-M6 throughline.
 
 Before M2 implementation:
 
 - Define request hash rules for API idempotency.
-- Define the first event content shapes.
+- Define the first event content shapes from [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md).
 - Define whether raw event payloads are always stored inline for MVP.
 
 Before M4 implementation:
 
 - Define validation for `role_memory_lenses.base_memory_fact_id`.
 - Define canonical namespace parsing rules.
-- Define the first real scenario: user preference plus project decision plus CTO context.
 
 Before M6 implementation:
 

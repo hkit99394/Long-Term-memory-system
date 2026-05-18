@@ -28,6 +28,7 @@ repo-root/
     vault-sync/
   docs/
     decisions/
+    scenarios/
   vault/
     AI Memory System/
 ```
@@ -39,7 +40,7 @@ repo-root/
 | Path | Purpose |
 | --- | --- |
 | `MemorySystem.sln` | .NET solution containing API, Application, Domain, Infrastructure, Worker, and test projects. |
-| `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests. |
+| `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests, using the pinned image from [Decision 0003](decisions/0003-local-database-runtime.md). |
 | `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, and decisions. |
 | `migrations/` | SQL-first database migrations. These are the source of truth for schema changes. |
 | `src/` | Production .NET source code. |
@@ -235,6 +236,7 @@ Rules:
 | `docs/backlog.md` | Milestone backlog and acceptance criteria. |
 | `docs/folder-structure.md` | Repository layout and ownership guide. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
+| `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |
 
 ## Vault
 

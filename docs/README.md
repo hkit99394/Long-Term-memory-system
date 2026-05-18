@@ -16,8 +16,10 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
+| [Scenario 0001: User Preference, Project Decision, and CTO Context](scenarios/0001-user-preference-project-decision-cto-context.md) | Defines the first M1-M6 implementation throughline and sample data. |
 | [Decision 0001: Data-Access Approach](decisions/0001-data-access-approach.md) | Records the initial backend data-access choice for the M1-M3 path. |
 | [Decision 0002: Migration Runner Approach](decisions/0002-migration-runner-approach.md) | Records the initial SQL migration runner choice for local development and integration tests. |
+| [Decision 0003: Local Database Runtime](decisions/0003-local-database-runtime.md) | Records the pinned PostgreSQL plus pgvector Docker image for local development and integration tests. |
 
 ## Dictionary
 

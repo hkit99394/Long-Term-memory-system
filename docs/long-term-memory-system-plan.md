@@ -1045,7 +1045,7 @@ vault/AI Memory System/
 Deliver:
 
 - .NET solution and projects
-- Docker Compose for local Postgres plus pgvector
+- Docker Compose for local Postgres plus pgvector, using `pgvector/pgvector:0.8.2-pg17-bookworm` per [Decision 0003](decisions/0003-local-database-runtime.md)
 - ASP.NET Core API
 - health endpoint
 - SQL migration folder and migration runner
@@ -1251,17 +1251,16 @@ Then implement:
 Decide before or during Phase 1 implementation:
 
 - Which embedding provider and vector dimension should be the default?
-- What is the first real user/project/role scenario to test?
 - What retention policy should apply to raw event payloads?
 - Which redaction rules are legally or operationally required for the first release?
 
 ## Current Recommendation On Open Decisions
 
 - Use SQL-first migrations and raw Npgsql for core memory queries through the M1-M3 initial backend path. Dapper may be used only as a small mapping convenience if needed; defer EF Core unless CRUD convenience later outweighs direct SQL clarity.
-- Add Docker Compose in Phase 1 because pgvector setup should be repeatable.
+- Add Docker Compose in Phase 1 because pgvector setup should be repeatable; use `pgvector/pgvector:0.8.2-pg17-bookworm` for the M1-M3 local database runtime.
 - Start with local API-key auth mapped to principals, then add full user auth later.
 - Make Obsidian export-only in the first version.
-- Use one complete scenario first: user preference plus project decision plus CTO role context.
+- Use [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) as the first complete M1-M6 throughline: user preference plus project decision plus CTO role context.
 - Treat event retention and redaction as product policy, not only technical cleanup.
 
 ## References
