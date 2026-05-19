@@ -56,6 +56,7 @@ Use project references to keep dependencies pointing inward toward domain rules 
 ```text
 MemorySystem.Api
   -> MemorySystem.Application
+  -> MemorySystem.Infrastructure
 
 MemorySystem.Application
   -> MemorySystem.Domain

@@ -1,5 +1,4 @@
 using MemorySystem.Infrastructure.Migrations;
-using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -8,7 +7,7 @@ public sealed class MigrationRunnerTests
     [Fact]
     public async Task ApplyAsync_applies_migrations_repeatably_when_database_connection_is_configured()
     {
-        var adminConnectionString = Environment.GetEnvironmentVariable("MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING");
+        var adminConnectionString = PostgresTestDatabase.AdminConnectionString;
 
         if (string.IsNullOrWhiteSpace(adminConnectionString))
         {
@@ -17,7 +16,7 @@ public sealed class MigrationRunnerTests
 
         var migrationsDirectory = FindMigrationsDirectory();
         var databaseName = $"memorysystem_migration_test_{Guid.NewGuid():N}";
-        var databaseConnectionString = await CreateDatabaseAsync(adminConnectionString, databaseName);
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
 
         try
         {
@@ -30,7 +29,7 @@ public sealed class MigrationRunnerTests
         }
         finally
         {
-            await DropDatabaseAsync(adminConnectionString, databaseName);
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
         }
     }
 
@@ -51,45 +50,5 @@ public sealed class MigrationRunnerTests
         }
 
         throw new DirectoryNotFoundException("Could not locate the repository migrations directory.");
-    }
-
-    private static async Task<string> CreateDatabaseAsync(string adminConnectionString, string databaseName)
-    {
-        var testDatabaseConnectionString = BuildDatabaseConnectionString(adminConnectionString, databaseName);
-
-        await using var connection = new NpgsqlConnection(adminConnectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand($"CREATE DATABASE {QuoteIdentifier(databaseName)};", connection);
-        await command.ExecuteNonQueryAsync();
-
-        return testDatabaseConnectionString;
-    }
-
-    private static async Task DropDatabaseAsync(string adminConnectionString, string databaseName)
-    {
-        await using var connection = new NpgsqlConnection(adminConnectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            $"DROP DATABASE IF EXISTS {QuoteIdentifier(databaseName)} WITH (FORCE);",
-            connection);
-
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static string BuildDatabaseConnectionString(string connectionString, string databaseName)
-    {
-        var builder = new NpgsqlConnectionStringBuilder(connectionString)
-        {
-            Database = databaseName
-        };
-
-        return builder.ConnectionString;
-    }
-
-    private static string QuoteIdentifier(string identifier)
-    {
-        return "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }

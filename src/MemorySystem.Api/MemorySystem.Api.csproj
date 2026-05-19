@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MemorySystem.Application\MemorySystem.Application.csproj" />
+    <ProjectReference Include="..\MemorySystem.Infrastructure\MemorySystem.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
