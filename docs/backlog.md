@@ -31,8 +31,8 @@ Status values:
 | --- | --- | --- | --- | --- |
 | M1-01 | P0 | Done | Create .NET solution. | `MemorySystem.sln` contains API, Application, Domain, Infrastructure, Worker, UnitTests, and IntegrationTests projects. |
 | M1-02 | P0 | Done | Add local database runtime. | `docker-compose.yml` starts PostgreSQL with pgvector enabled. |
-| M1-03 | P0 | Todo | Add first migration file. | `migrations/001_initial_memory_schema.sql` creates identity, access, event, memory, lens, chunk, embedding, review, redaction, idempotency, and outbox tables. |
-| M1-04 | P0 | Todo | Add migration runner path. | Local development and integration tests can apply migrations repeatably. |
+| M1-03 | P0 | Done | Add first migration file. | `migrations/001_initial_memory_schema.sql` creates identity, access, event, memory, lens, chunk, embedding, review, redaction, idempotency, and outbox tables. |
+| M1-04 | P0 | Done | Add migration runner path. | `MemorySystem.Infrastructure` owns an Npgsql migration runner with checksums and advisory locking; `MemorySystem.Migrator` and integration tests can apply migrations repeatably. |
 | M1-05 | P0 | Todo | Implement health endpoint. | `GET /health` returns healthy when API starts and database is reachable. |
 | M1-06 | P1 | Todo | Add basic CI-ready test commands. | Unit and integration test commands are documented and runnable locally. |
 
@@ -112,8 +112,8 @@ Status values:
 
 Start here:
 
-1. `M1-03`: Add first migration file.
-2. `M1-04`: Add migration runner path.
-3. `M1-05`: Implement health endpoint.
-4. `M1-06`: Add basic CI-ready test commands.
-5. `M2-01`: Implement API-key principal resolution.
+1. `M1-05`: Implement health endpoint.
+2. `M1-06`: Add basic CI-ready test commands.
+3. `M2-01`: Implement API-key principal resolution.
+4. `M2-02`: Implement request idempotency.
+5. `M2-03`: Implement event append endpoint.

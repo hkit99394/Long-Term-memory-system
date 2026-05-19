@@ -17,6 +17,7 @@ repo-root/
     MemorySystem.Application/
     MemorySystem.Domain/
     MemorySystem.Infrastructure/
+    MemorySystem.Migrator/
     MemorySystem.Worker/
   tests/
     MemorySystem.UnitTests/
@@ -39,7 +40,7 @@ repo-root/
 
 | Path | Purpose |
 | --- | --- |
-| `MemorySystem.sln` | .NET solution containing API, Application, Domain, Infrastructure, Worker, and test projects. |
+| `MemorySystem.sln` | .NET solution containing API, Application, Domain, Infrastructure, Migrator, Worker, and test projects. |
 | `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests, using the pinned image from [Decision 0003](decisions/0003-local-database-runtime.md). |
 | `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, and decisions. |
 | `migrations/` | SQL-first database migrations. These are the source of truth for schema changes. |
@@ -62,6 +63,9 @@ MemorySystem.Application
 MemorySystem.Infrastructure
   -> MemorySystem.Application
   -> MemorySystem.Domain
+
+MemorySystem.Migrator
+  -> MemorySystem.Infrastructure
 
 MemorySystem.Worker
   -> MemorySystem.Application
@@ -153,6 +157,19 @@ Rules:
 - Keep SQL visible for core event, memory, idempotency, access, and retrieval queries.
 - Dapper may be used only as a small mapping convenience.
 - Do not decide memory policy here; enforce decisions made by application services.
+
+### `src/MemorySystem.Migrator`
+
+Owns:
+
+- local command-line migration execution
+- connection-string and migration-directory option parsing
+- process exit codes for migration success or failure
+
+Rules:
+
+- Delegate schema policy to `MemorySystem.Infrastructure`.
+- Do not duplicate migration ordering, checksum, advisory-lock, or tracking-table behavior.
 
 ### `src/MemorySystem.Worker`
 
