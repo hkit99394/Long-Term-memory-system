@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg17-bookworm
+    environment:
+      POSTGRES_DB: ${MEMORYSYSTEM_POSTGRES_DB:-memory_system}
+      POSTGRES_USER: ${MEMORYSYSTEM_POSTGRES_USER:-memory_system}
+      POSTGRES_PASSWORD: ${MEMORYSYSTEM_POSTGRES_PASSWORD:-memory_system_dev_password}
+    ports:
+      - "${MEMORYSYSTEM_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - memorysystem-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  memorysystem-postgres-data:
