@@ -1,14 +1,8 @@
 namespace MemorySystem.Infrastructure.Migrations;
 
-public sealed class SqlMigrationMissingException : InvalidOperationException
+public sealed class SqlMigrationMissingException(IReadOnlyList<string> migrationNames) : InvalidOperationException(BuildMessage(migrationNames))
 {
-    public SqlMigrationMissingException(IReadOnlyList<string> migrationNames)
-        : base(BuildMessage(migrationNames))
-    {
-        MigrationNames = migrationNames;
-    }
-
-    public IReadOnlyList<string> MigrationNames { get; }
+    public IReadOnlyList<string> MigrationNames { get; } = migrationNames;
 
     private static string BuildMessage(IReadOnlyList<string> migrationNames)
     {
