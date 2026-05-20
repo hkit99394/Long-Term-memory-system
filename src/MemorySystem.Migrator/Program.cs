@@ -1,47 +1,61 @@
+using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Migrations;
 
-var parseResult = MigratorOptions.Parse(args);
+return await MigratorCli.RunAsync(args, Console.Out, Console.Error);
 
-if (parseResult.ShowHelp)
+public static class MigratorCli
 {
-    Console.WriteLine("""
-        Applies ordered SQL migrations from the repository migrations directory.
-
-        Options:
-          --connection-string <value>      PostgreSQL connection string.
-          --migrations-directory <path>    Directory containing ordered .sql migration files.
-          -h, --help                       Show help.
-
-        Defaults:
-          --connection-string falls back to MEMORYSYSTEM_POSTGRES_CONNECTION_STRING, then local Docker Compose values.
-          --migrations-directory defaults to ./migrations from the current working directory.
-        """);
-
-    return 0;
-}
-
-try
-{
-    var result = await SqlMigrationRunner.ApplyAsync(parseResult.ConnectionString, parseResult.MigrationsDirectory);
-
-    Console.WriteLine($"Applied {result.AppliedCount} migration(s); skipped {result.SkippedCount} already-applied migration(s).");
-
-    foreach (var migration in result.AppliedMigrations)
+    public static async Task<int> RunAsync(
+        string[] args,
+        TextWriter output,
+        TextWriter error)
     {
-        Console.WriteLine($"applied {migration.Name} {migration.ChecksumSha256}");
-    }
+        try
+        {
+            var parseResult = MigratorOptions.Parse(args);
 
-    foreach (var migration in result.SkippedMigrations)
-    {
-        Console.WriteLine($"skipped {migration.Name} {migration.ChecksumSha256}");
-    }
+            if (parseResult.ShowHelp)
+            {
+                output.WriteLine("""
+                    Applies ordered SQL migrations from the repository migrations directory.
 
-    return 0;
-}
-catch (Exception exception)
-{
-    Console.Error.WriteLine(exception.Message);
-    return 1;
+                    Options:
+                      --connection-string <value>      PostgreSQL connection string.
+                      --migrations-directory <path>    Directory containing ordered .sql migration files.
+                      -h, --help                       Show help.
+
+                    Defaults:
+                      --connection-string falls back to MEMORYSYSTEM_POSTGRES_CONNECTION_STRING, then local Docker Compose values only in Development/Testing.
+                      --migrations-directory defaults to ./migrations from the current working directory.
+                    """);
+
+                return 0;
+            }
+
+            var result = await SqlMigrationRunner.ApplyAsync(
+                parseResult.ConnectionString,
+                parseResult.MigrationsDirectory);
+
+            output.WriteLine($"Applied {result.AppliedCount} migration(s); skipped {result.SkippedCount} already-applied migration(s).");
+
+            foreach (var migration in result.AppliedMigrations)
+            {
+                output.WriteLine($"applied {migration.Name} {migration.ChecksumSha256}");
+            }
+
+            foreach (var migration in result.SkippedMigrations)
+            {
+                output.WriteLine($"skipped {migration.Name} {migration.ChecksumSha256}");
+            }
+
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            error.WriteLine(exception.Message);
+            return 1;
+        }
+    }
 }
 
 internal sealed record MigratorOptions(
@@ -94,25 +108,11 @@ internal sealed record MigratorOptions(
 
     private static string ResolveConnectionString()
     {
-        var configured = Environment.GetEnvironmentVariable("MEMORYSYSTEM_POSTGRES_CONNECTION_STRING");
+        var environmentName =
+            Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ??
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var effectiveEnvironmentName = string.IsNullOrWhiteSpace(environmentName) ? "Production" : environmentName;
 
-        if (!string.IsNullOrWhiteSpace(configured))
-        {
-            return configured;
-        }
-
-        var host = GetEnvironmentValue("MEMORYSYSTEM_POSTGRES_HOST", "localhost");
-        var port = GetEnvironmentValue("MEMORYSYSTEM_POSTGRES_PORT", "5432");
-        var database = GetEnvironmentValue("MEMORYSYSTEM_POSTGRES_DB", "memory_system");
-        var username = GetEnvironmentValue("MEMORYSYSTEM_POSTGRES_USER", "memory_system");
-        var password = GetEnvironmentValue("MEMORYSYSTEM_POSTGRES_PASSWORD", "memory_system_dev_password");
-
-        return $"Host={host};Port={port};Database={database};Username={username};Password={password}";
-    }
-
-    private static string GetEnvironmentValue(string key, string fallback)
-    {
-        var value = Environment.GetEnvironmentVariable(key);
-        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        return PostgresConnectionString.Resolve(Environment.GetEnvironmentVariable, environmentName: effectiveEnvironmentName);
     }
 }

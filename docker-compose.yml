@@ -6,14 +6,14 @@ services:
       POSTGRES_USER: ${MEMORYSYSTEM_POSTGRES_USER:-memory_system}
       POSTGRES_PASSWORD: ${MEMORYSYSTEM_POSTGRES_PASSWORD:-memory_system_dev_password}
     ports:
-      - "${MEMORYSYSTEM_POSTGRES_PORT:-5432}:5432"
+      - "${MEMORYSYSTEM_POSTGRES_PORT:-55432}:5432"
     volumes:
       - memorysystem-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+          "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -c \"SELECT 1;\" >/dev/null"
         ]
       interval: 5s
       timeout: 5s

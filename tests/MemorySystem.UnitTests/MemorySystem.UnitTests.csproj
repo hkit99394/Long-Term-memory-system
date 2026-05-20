@@ -19,6 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\MemorySystem.Infrastructure\MemorySystem.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\MemorySystem.Worker\MemorySystem.Worker.csproj" />
+    <ProjectReference Include="..\..\src\MemorySystem.Migrator\MemorySystem.Migrator.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Domain\MemorySystem.Domain.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Application\MemorySystem.Application.csproj" />
   </ItemGroup>

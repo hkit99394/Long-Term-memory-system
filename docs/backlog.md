@@ -34,7 +34,7 @@ Status values:
 | M1-03 | P0 | Done | Add first migration file. | `migrations/001_initial_memory_schema.sql` creates identity, access, event, memory, lens, chunk, embedding, review, redaction, idempotency, and outbox tables. |
 | M1-04 | P0 | Done | Add migration runner path. | `MemorySystem.Infrastructure` owns an Npgsql migration runner with checksums and advisory locking; `MemorySystem.Migrator` and integration tests can apply migrations repeatably. |
 | M1-05 | P0 | Done | Implement health endpoint. | `GET /health` returns healthy when API starts and PostgreSQL is reachable. |
-| M1-06 | P1 | Todo | Add basic CI-ready test commands. | Unit and integration test commands are documented and runnable locally. |
+| M1-06 | P1 | Done | Add basic CI-ready test commands. | `docs/testing.md` documents restore, build, default test, and database-backed integration test commands that run locally and can be used in CI. |
 
 ## M2 Provenance Write Path
 
@@ -112,8 +112,8 @@ Status values:
 
 Start here:
 
-1. `M1-06`: Add basic CI-ready test commands.
-2. `M2-01`: Implement API-key principal resolution.
-3. `M2-02`: Implement request idempotency.
-4. `M2-03`: Implement event append endpoint.
-5. `M2-04`: Implement minimal broker decision.
+1. `M2-01`: Implement API-key principal resolution.
+2. `M2-02`: Implement request idempotency.
+3. `M2-03`: Implement event append endpoint.
+4. `M2-04`: Implement minimal broker decision.
+5. `M2-05`: Implement transactional memory write.

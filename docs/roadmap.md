@@ -6,9 +6,11 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 
 ## Current Track
 
-Current milestone: M0 Planning Baseline.
+Current milestone: M2 Provenance Write Path.
 
-Next milestone: M1 Foundation Slice.
+Completed milestones: M0 Planning Baseline and M1 Foundation Slice.
+
+Next milestone: M3 Access and Scope Enforcement.
 
 The first production-shaped win is not a polished UI. It is a local API and database that can accept an event, broker a memory proposal, persist the memory with provenance, and reject unauthorized reads.
 
@@ -19,7 +21,7 @@ The first production-shaped win is not a polished UI. It is a local API and data
 | M0 | Planning Baseline | Architecture, roadmap, and backlog are clear enough to build from. | Project goal, system plan, roadmap, backlog, and first M1-M6 scenario exist; Phase 1 decisions are named. |
 | M1 | Foundation Slice | The backend skeleton and database can run locally. | .NET solution starts; Postgres with pgvector runs; first migration applies; `GET /health` passes. |
 | M2 | Provenance Write Path | Durable memory writes are brokered, auditable, and idempotent. | `POST /api/events` and `POST /api/memory/proposals` work; source events are required; request idempotency returns stable retries. |
-| M3 | Access and Scope Enforcement | Memory cannot cross user, project, role, or agent boundaries accidentally. | API-key principal resolution works; membership and grants are enforced; cross-project reads are blocked in tests. |
+| M3 | Access and Scope Enforcement | Memory cannot cross user, project, role, or agent boundaries accidentally. | Resolved principals from M2 are enforced through memberships and grants; cross-project reads are blocked in tests. |
 | M4 | Structured and Role Memory | User, project, agent-private, shared-role, and project-role memory are distinct. | Repositories and lifecycle rules exist; shared role principles cannot use project-specific facts; expired/deleted/superseded facts are excluded. |
 | M5 | Broker Intelligence | The broker separates durable memory from temporary instructions. | Candidate classification, dedupe, contradiction checks, confidence, and review-required decisions are tested. |
 | M6 | Hybrid Retrieval | Context packets combine structured, keyword, and vector recall safely. | Full-text and pgvector search run inside authorized predicates; ranking is explainable; context packets include source links. |

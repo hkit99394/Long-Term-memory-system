@@ -1,20 +1,30 @@
+using MemorySystem.Infrastructure.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 
 namespace MemorySystem.Infrastructure.Health;
 
 public static class MemorySystemHealthChecksBuilderExtensions
 {
-    public static IHealthChecksBuilder AddMemorySystemPostgres(
-        this IHealthChecksBuilder builder,
-        string connectionString)
+    public static IHealthChecksBuilder AddMemorySystemPostgres(this IHealthChecksBuilder builder)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-
         return builder.Add(new HealthCheckRegistration(
             "postgres",
-            _ => new PostgresHealthCheck(connectionString),
+            serviceProvider =>
+            {
+                var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                var environment = serviceProvider.GetRequiredService<IHostEnvironment>();
+                var connectionString = PostgresConnectionString.Resolve(
+                    key => configuration[key],
+                    configuration.GetConnectionString("Postgres"),
+                    environment.EnvironmentName);
+
+                return new PostgresHealthCheck(connectionString);
+            },
             failureStatus: HealthStatus.Unhealthy,
-            tags: ["database", "postgres", "ready"]));
+            tags: ["database", "postgres", "ready"],
+            timeout: PostgresHealthCheck.Timeout));
     }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Npgsql;
@@ -13,21 +14,40 @@ public static class SqlMigrationRunner
         string migrationsDirectory,
         CancellationToken cancellationToken = default)
     {
+        return await ApplyAsync(
+            connectionString,
+            migrationsDirectory,
+            SqlMigrationRunnerOptions.Default,
+            cancellationToken);
+    }
+
+    public static async Task<SqlMigrationRunResult> ApplyAsync(
+        string connectionString,
+        string migrationsDirectory,
+        SqlMigrationRunnerOptions? options,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentException.ThrowIfNullOrWhiteSpace(migrationsDirectory);
+
+        options ??= SqlMigrationRunnerOptions.Default;
+        options.Validate();
 
         var migrations = ReadMigrations(migrationsDirectory);
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        await AcquireLockAsync(connection, cancellationToken);
+        await AcquireLockAsync(connection, options, cancellationToken);
 
         try
         {
             await EnsureSchemaMigrationsTableAsync(connection, cancellationToken);
 
             var recordedMigrations = await LoadRecordedMigrationsAsync(connection, cancellationToken);
+            ValidateMigrationsExistForInitialRun(recordedMigrations, migrations, migrationsDirectory);
+            ValidateRecordedMigrationsExist(recordedMigrations, migrations);
+
             var appliedMigrations = new List<AppliedSqlMigration>();
             var skippedMigrations = new List<AppliedSqlMigration>();
 
@@ -86,12 +106,38 @@ public static class SqlMigrationRunner
         return new SqlMigration(Path.GetFileName(path), sql, checksum);
     }
 
-    private static async Task AcquireLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
+    private static async Task AcquireLockAsync(
+        NpgsqlConnection connection,
+        SqlMigrationRunnerOptions options,
+        CancellationToken cancellationToken)
     {
-        await using var command = new NpgsqlCommand("SELECT pg_advisory_lock(@lock_key);", connection);
+        var stopwatch = Stopwatch.StartNew();
+
+        await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock(@lock_key);", connection);
         command.Parameters.AddWithValue("lock_key", AdvisoryLockKey);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        while (true)
+        {
+            var result = await command.ExecuteScalarAsync(cancellationToken);
+
+            if (result is bool acquired && acquired)
+            {
+                return;
+            }
+
+            var remaining = options.AdvisoryLockTimeout - stopwatch.Elapsed;
+
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new SqlMigrationAdvisoryLockTimeoutException(options.AdvisoryLockTimeout);
+            }
+
+            var delay = remaining < options.AdvisoryLockRetryDelay
+                ? remaining
+                : options.AdvisoryLockRetryDelay;
+
+            await Task.Delay(delay, cancellationToken);
+        }
     }
 
     private static async Task ReleaseLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
@@ -138,6 +184,36 @@ public static class SqlMigrationRunner
         }
 
         return migrations;
+    }
+
+    private static void ValidateRecordedMigrationsExist(
+        IReadOnlyDictionary<string, string> recordedMigrations,
+        IReadOnlyCollection<SqlMigration> currentMigrations)
+    {
+        var currentMigrationNames = currentMigrations
+            .Select(migration => migration.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingMigrationNames = recordedMigrations.Keys
+            .Where(migrationName => !currentMigrationNames.Contains(migrationName))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        if (missingMigrationNames.Length > 0)
+        {
+            throw new SqlMigrationMissingException(missingMigrationNames);
+        }
+    }
+
+    private static void ValidateMigrationsExistForInitialRun(
+        IReadOnlyDictionary<string, string> recordedMigrations,
+        IReadOnlyCollection<SqlMigration> currentMigrations,
+        string migrationsDirectory)
+    {
+        if (recordedMigrations.Count == 0 && currentMigrations.Count == 0)
+        {
+            throw new SqlMigrationFilesNotFoundException(migrationsDirectory);
+        }
     }
 
     private static async Task RecordMigrationAsync(

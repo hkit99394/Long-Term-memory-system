@@ -7,6 +7,20 @@ internal static class PostgresTestDatabase
     public static string? AdminConnectionString =>
         Environment.GetEnvironmentVariable("MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING");
 
+    public static string RequireAdminConnectionString()
+    {
+        var connectionString = AdminConnectionString;
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING. " +
+                "Run fast tests with --filter \"Category!=Database\" or provide a PostgreSQL connection string.");
+        }
+
+        return connectionString;
+    }
+
     public static async Task<string> CreateAsync(string adminConnectionString, string databaseName)
     {
         var testDatabaseConnectionString = BuildConnectionString(adminConnectionString, databaseName);
