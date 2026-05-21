@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace MemorySystem.Infrastructure.Outbox;
 
-public sealed class PostgresOutboxJobStore(string connectionString) : IOutboxJobStore
+public sealed class PostgresOutboxJobStore(NpgsqlDataSource dataSource) : IOutboxJobStore
 {
     public async Task<IReadOnlyList<OutboxJob>> LeaseAvailableAsync(
         string workerId,
@@ -25,8 +25,7 @@ public sealed class PostgresOutboxJobStore(string connectionString) : IOutboxJob
         var now = DateTimeOffset.UtcNow;
         var lockedUntil = now.Add(leaseDuration);
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         const string sql = """
@@ -147,8 +146,7 @@ public sealed class PostgresOutboxJobStore(string connectionString) : IOutboxJob
                 AND locked_until = @locked_until;
             """;
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
 
         AddLeaseParameters(command, job);
@@ -164,8 +162,7 @@ public sealed class PostgresOutboxJobStore(string connectionString) : IOutboxJob
         string sql,
         CancellationToken cancellationToken)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
 
         AddLeaseParameters(command, job);

@@ -1,36 +1,62 @@
+using System.Text.Json;
+using MemorySystem.Infrastructure.Idempotency;
 using Npgsql;
 using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.Events;
 
-public sealed class PostgresEventStore(string connectionString) : IEventStore, ISourceEventReferenceStore
+public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStore, ISourceEventReferenceStore
 {
-    public async Task<bool> ExistsAsync(Guid eventId, CancellationToken cancellationToken = default)
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async Task<bool> ExistsForPrincipalScopeAsync(
+        Guid eventId,
+        Guid principalId,
+        string scopeType,
+        string scopeId,
+        CancellationToken cancellationToken = default)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scopeType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scopeId);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
         await using var command = new NpgsqlCommand(
-            "SELECT EXISTS (SELECT 1 FROM events WHERE id = @event_id);",
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM events
+                WHERE id = @event_id
+                    AND principal_id = @principal_id
+                    AND scope_type = @scope_type
+                    AND scope_id = @scope_id
+            );
+            """,
             connection);
         command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("scope_type", scopeType);
+        command.Parameters.AddWithValue("scope_id", scopeId);
 
         return await command.ExecuteScalarAsync(cancellationToken) is true;
     }
 
     public async Task<AppendEventResult> AppendAsync(
         AppendEventCommand command,
+        Guid idempotencyRecordId,
+        string requestHash,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
 
         var eventId = Guid.NewGuid();
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         var scopeOrgId = command.Scope.Type == "project"
-            ? await ResolveProjectOrgIdAsync(connection, command.Scope.ProjectId, cancellationToken)
+            ? await ResolveProjectOrgIdAsync(connection, transaction, command.Scope.ProjectId, cancellationToken)
             : command.Scope.OrgId;
 
         if (command.Scope.OrgId.HasValue
@@ -85,7 +111,7 @@ public sealed class PostgresEventStore(string connectionString) : IEventStore, I
             RETURNING created_at;
             """;
 
-        await using var insert = new NpgsqlCommand(sql, connection);
+        await using var insert = new NpgsqlCommand(sql, connection, transaction);
         insert.Parameters.AddWithValue("id", eventId);
         insert.Parameters.AddWithValue("principal_id", command.PrincipalId);
         insert.Parameters.AddWithValue("conversation_id", command.ConversationId.HasValue ? command.ConversationId.Value : DBNull.Value);
@@ -108,11 +134,26 @@ public sealed class PostgresEventStore(string connectionString) : IEventStore, I
         var createdAt = await insert.ExecuteScalarAsync(cancellationToken)
             ?? throw new InvalidOperationException("Event append did not return a creation timestamp.");
 
+        await PostgresTransactionalIdempotencyCompleter.CompleteAsync(
+            connection,
+            transaction,
+            idempotencyRecordId,
+            requestHash,
+            201,
+            JsonSerializer.Serialize(new AppendEventResponseBody(eventId), JsonOptions),
+            "event",
+            eventId,
+            "The event idempotency record could not be completed.",
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
         return new AppendEventResult(eventId, ToDateTimeOffset(createdAt));
     }
 
     private static async Task<Guid> ResolveProjectOrgIdAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid? projectId,
         CancellationToken cancellationToken)
     {
@@ -123,7 +164,8 @@ public sealed class PostgresEventStore(string connectionString) : IEventStore, I
 
         await using var command = new NpgsqlCommand(
             "SELECT org_id FROM projects WHERE id = @project_id;",
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("project_id", projectId.Value);
 
         var orgId = await command.ExecuteScalarAsync(cancellationToken);
@@ -142,4 +184,6 @@ public sealed class PostgresEventStore(string connectionString) : IEventStore, I
             _ => throw new InvalidOperationException($"Unexpected timestamp value '{value}'.")
         };
     }
+
+    private sealed record AppendEventResponseBody(Guid Id);
 }

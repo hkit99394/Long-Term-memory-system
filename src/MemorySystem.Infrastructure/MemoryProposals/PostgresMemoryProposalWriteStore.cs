@@ -2,12 +2,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using MemorySystem.Application.MemoryProposals;
+using MemorySystem.Infrastructure.Idempotency;
 using Npgsql;
 using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.MemoryProposals;
 
-public sealed class PostgresMemoryProposalWriteStore(string connectionString) : IMemoryProposalWriteStore
+public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource) : IMemoryProposalWriteStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -42,8 +43,7 @@ public sealed class PostgresMemoryProposalWriteStore(string connectionString) : 
             proposal.SourceEventId);
         var responseBody = JsonSerializer.Serialize(decision, JsonOptions);
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         var ownerColumns = await ResolveOwnerColumnsAsync(
@@ -77,13 +77,16 @@ public sealed class PostgresMemoryProposalWriteStore(string connectionString) : 
             chunkId,
             proposal.SourceEventId.Value,
             cancellationToken);
-        await CompleteIdempotencyAsync(
+        await PostgresTransactionalIdempotencyCompleter.CompleteAsync(
             connection,
             transaction,
             idempotencyRecordId,
             requestHash,
-            memoryId,
+            200,
             responseBody,
+            "memory_fact",
+            memoryId,
+            "The proposal idempotency record could not be completed.",
             cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
@@ -292,43 +295,6 @@ public sealed class PostgresMemoryProposalWriteStore(string connectionString) : 
         command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value = payload;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static async Task CompleteIdempotencyAsync(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        Guid idempotencyRecordId,
-        string requestHash,
-        Guid memoryId,
-        string responseBody,
-        CancellationToken cancellationToken)
-    {
-        const string sql = """
-            UPDATE api_idempotency_keys
-            SET
-                response_status = 200,
-                response_body = @response_body,
-                resource_type = 'memory_fact',
-                resource_id = @memory_id,
-                status = 'completed'
-            WHERE
-                id = @id
-                AND request_hash = @request_hash
-                AND status = 'processing';
-            """;
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("id", idempotencyRecordId);
-        command.Parameters.AddWithValue("request_hash", requestHash);
-        command.Parameters.Add("response_body", NpgsqlDbType.Jsonb).Value = responseBody;
-        command.Parameters.AddWithValue("memory_id", memoryId);
-
-        var updatedRows = await command.ExecuteNonQueryAsync(cancellationToken);
-
-        if (updatedRows != 1)
-        {
-            throw new InvalidOperationException("The proposal idempotency record could not be completed.");
-        }
     }
 
     private static void AddProposalParameters(NpgsqlCommand command, MemoryProposalCommand proposal)

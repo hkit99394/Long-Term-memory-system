@@ -1,6 +1,6 @@
-using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Idempotency;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace MemorySystem.Api.Idempotency;
 
@@ -18,15 +18,8 @@ public static class ApiIdempotencyServiceCollectionExtensions
             .ValidateOnStart();
 
         services.AddSingleton<IApiRequestHasher, Sha256ApiRequestHasher>();
-        services.AddSingleton<IApiIdempotencyStore>(_ =>
-        {
-            var connectionString = PostgresConnectionString.Resolve(
-                key => configuration[key],
-                configuration.GetConnectionString("Postgres"),
-                environment.EnvironmentName);
-
-            return new PostgresApiIdempotencyStore(connectionString);
-        });
+        services.AddSingleton<IApiIdempotencyStore>(serviceProvider =>
+            new PostgresApiIdempotencyStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
         services.AddSingleton<ApiIdempotencyHttpService>();
 
         return services;

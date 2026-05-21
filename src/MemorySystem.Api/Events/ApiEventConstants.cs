@@ -1,3 +1,5 @@
+using MemorySystem.Application.Scopes;
+
 namespace MemorySystem.Api.Events;
 
 internal static class ApiEventConstants
@@ -23,43 +25,11 @@ internal static class ApiEventConstants
         "erasure_requested"
     };
 
-    public static readonly IReadOnlySet<string> RoleIds = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "designer",
-        "developer",
-        "cto",
-        "cfo",
-        "coo",
-        "ceo"
-    };
+    public static IReadOnlySet<string> RoleIds => MemoryScopePolicy.RoleIds;
 
-    public static readonly IReadOnlySet<string> ScopeTypes = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "global",
-        "org",
-        "user",
-        "project",
-        "role",
-        "agent",
-        "session"
-    };
+    public static IReadOnlySet<string> ScopeTypes => MemoryScopePolicy.ScopeTypes;
 
-    public static readonly IReadOnlySet<string> Sensitivities = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "none",
-        "personal",
-        "secret",
-        "regulated"
-    };
+    public static IReadOnlySet<string> Sensitivities => MemoryScopePolicy.Sensitivities;
 
-    public static readonly IReadOnlySet<string> TrustLevels = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "system_trusted",
-        "human_approved",
-        "user_scoped",
-        "agent_private",
-        "tool_output",
-        "retrieved_untrusted",
-        "web_content"
-    };
+    public static IReadOnlySet<string> TrustLevels => MemoryScopePolicy.TrustLevels;
 }

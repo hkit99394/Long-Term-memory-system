@@ -7,16 +7,13 @@ public sealed class PostgresHealthCheck : IHealthCheck
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(3);
 
-    private const int ConnectTimeoutSeconds = 3;
     private const int CommandTimeoutSeconds = 3;
 
-    private readonly string connectionString;
+    private readonly NpgsqlDataSource dataSource;
 
-    public PostgresHealthCheck(string connectionString)
+    public PostgresHealthCheck(NpgsqlDataSource dataSource)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-
-        this.connectionString = BuildHealthCheckConnectionString(connectionString);
+        this.dataSource = dataSource;
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(
@@ -25,8 +22,7 @@ public sealed class PostgresHealthCheck : IHealthCheck
     {
         try
         {
-            await using var connection = new NpgsqlConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT 1;";
@@ -42,20 +38,4 @@ public sealed class PostgresHealthCheck : IHealthCheck
         }
     }
 
-    private static string BuildHealthCheckConnectionString(string connectionString)
-    {
-        var builder = new NpgsqlConnectionStringBuilder(connectionString);
-
-        if (builder.Timeout <= 0 || builder.Timeout > ConnectTimeoutSeconds)
-        {
-            builder.Timeout = ConnectTimeoutSeconds;
-        }
-
-        if (builder.CommandTimeout <= 0 || builder.CommandTimeout > CommandTimeoutSeconds)
-        {
-            builder.CommandTimeout = CommandTimeoutSeconds;
-        }
-
-        return builder.ConnectionString;
-    }
 }

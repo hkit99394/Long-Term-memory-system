@@ -1,5 +1,5 @@
-using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Events;
+using Npgsql;
 
 namespace MemorySystem.Api.Events;
 
@@ -10,15 +10,8 @@ public static class ApiEventServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddSingleton(_ =>
-        {
-            var connectionString = PostgresConnectionString.Resolve(
-                key => configuration[key],
-                configuration.GetConnectionString("Postgres"),
-                environment.EnvironmentName);
-
-            return new PostgresEventStore(connectionString);
-        });
+        services.AddSingleton(serviceProvider =>
+            new PostgresEventStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
         services.AddSingleton<IEventStore>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgresEventStore>());
         services.AddSingleton<ISourceEventReferenceStore>(serviceProvider =>

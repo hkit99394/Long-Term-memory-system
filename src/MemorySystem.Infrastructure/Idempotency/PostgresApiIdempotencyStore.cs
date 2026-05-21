@@ -3,7 +3,7 @@ using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.Idempotency;
 
-public sealed class PostgresApiIdempotencyStore(string connectionString) : IApiIdempotencyStore
+public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : IApiIdempotencyStore
 {
     public async Task<ApiIdempotencyBeginResult> BeginAsync(
         Guid principalId,
@@ -20,8 +20,7 @@ public sealed class PostgresApiIdempotencyStore(string connectionString) : IApiI
         var now = DateTimeOffset.UtcNow;
         var recordId = Guid.NewGuid();
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         await DeleteExpiredRecordAsync(
@@ -84,8 +83,7 @@ public sealed class PostgresApiIdempotencyStore(string connectionString) : IApiI
                 AND status = 'processing';
             """;
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
 
         command.Parameters.AddWithValue("id", recordId);
@@ -120,8 +118,7 @@ public sealed class PostgresApiIdempotencyStore(string connectionString) : IApiI
                 AND status = 'processing';
             """;
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
 
         command.Parameters.AddWithValue("id", recordId);

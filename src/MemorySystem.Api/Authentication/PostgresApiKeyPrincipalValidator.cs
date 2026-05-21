@@ -1,24 +1,19 @@
-using MemorySystem.Infrastructure.Configuration;
 using Npgsql;
 
 namespace MemorySystem.Api.Authentication;
 
 public sealed class PostgresApiKeyPrincipalValidator : IApiKeyPrincipalValidator
 {
-    private readonly string connectionString;
+    private readonly NpgsqlDataSource dataSource;
 
-    public PostgresApiKeyPrincipalValidator(IConfiguration configuration, IHostEnvironment environment)
+    public PostgresApiKeyPrincipalValidator(NpgsqlDataSource dataSource)
     {
-        connectionString = PostgresConnectionString.Resolve(
-            key => configuration[key],
-            configuration.GetConnectionString("Postgres"),
-            environment.EnvironmentName);
+        this.dataSource = dataSource;
     }
 
     public async Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
         await using var command = new NpgsqlCommand(
             """

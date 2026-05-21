@@ -54,6 +54,7 @@ public sealed class ApiEventTests
 
             Assert.Equal("POST /api/events", idempotencyRecord.Endpoint);
             Assert.Equal("event-append-key", idempotencyRecord.IdempotencyKey);
+            Assert.Equal("completed", idempotencyRecord.Status);
             Assert.Equal("event", idempotencyRecord.ResourceType);
             Assert.Equal(eventId, idempotencyRecord.ResourceId);
             Assert.Equal(201, idempotencyRecord.ResponseStatus);
@@ -116,6 +117,45 @@ public sealed class ApiEventTests
 
             Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
             Assert.Equal(1, await CountEventsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Post_events_returns_bad_request_for_non_json_content_type()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_non_json_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var request = CreateRequest(
+                "event-non-json-key",
+                CreateUserEventBody("This should be rejected before JSON parsing."),
+                "text/plain");
+
+            using var response = await client.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var idempotencyRecord = await ReadIdempotencyRecordAsync(databaseConnectionString);
+
+            using var payload = JsonDocument.Parse(responseBody);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("Event request is invalid.", payload.RootElement.GetProperty("title").GetString());
+            Assert.Contains("Content-Type", payload.RootElement.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(400, idempotencyRecord.ResponseStatus);
+            Assert.Null(idempotencyRecord.ResourceType);
+            Assert.Null(idempotencyRecord.ResourceId);
+            Assert.Equal(0, await CountEventsAsync(databaseConnectionString));
         }
         finally
         {
@@ -192,11 +232,14 @@ public sealed class ApiEventTests
         return document.RootElement.Clone();
     }
 
-    private static HttpRequestMessage CreateRequest(string idempotencyKey, string body)
+    private static HttpRequestMessage CreateRequest(
+        string idempotencyKey,
+        string body,
+        string mediaType = "application/json")
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/events")
         {
-            Content = new StringContent(body, Encoding.UTF8, "application/json")
+            Content = new StringContent(body, Encoding.UTF8, mediaType)
         };
 
         request.Headers.Add("X-Api-Key", TestApiKey);
@@ -207,21 +250,7 @@ public sealed class ApiEventTests
 
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
     {
-        return new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                {
-                    configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
-                        ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId,
-                        ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller",
-                        ["ConnectionStrings:Postgres"] = postgresConnectionString
-                    });
-                });
-            });
+        return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, TestPrincipalId);
     }
 
     private static async Task PrepareDatabaseAsync(string connectionString, bool createProject = false)
@@ -335,7 +364,7 @@ public sealed class ApiEventTests
 
         await using var command = new NpgsqlCommand(
             """
-            SELECT endpoint, idempotency_key, response_status, resource_type, resource_id
+            SELECT endpoint, idempotency_key, status, response_status, resource_type, resource_id
             FROM api_idempotency_keys;
             """,
             connection);
@@ -347,9 +376,10 @@ public sealed class ApiEventTests
         return new IdempotencyRecordState(
             reader.GetString(0),
             reader.GetString(1),
-            reader.GetInt32(2),
-            reader.GetString(3),
-            reader.GetGuid(4));
+            reader.GetString(2),
+            reader.GetInt32(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetGuid(5));
     }
 
     private static async Task<int> CountEventsAsync(string connectionString)
@@ -380,7 +410,8 @@ public sealed class ApiEventTests
     private sealed record IdempotencyRecordState(
         string Endpoint,
         string IdempotencyKey,
+        string Status,
         int ResponseStatus,
-        string ResourceType,
-        Guid ResourceId);
+        string? ResourceType,
+        Guid? ResourceId);
 }

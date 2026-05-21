@@ -35,7 +35,8 @@ public sealed class OutboxWorkerTests
             lockCommand.Parameters.AddWithValue("id", firstJobId);
             await lockCommand.ExecuteNonQueryAsync();
 
-            var store = new PostgresOutboxJobStore(databaseConnectionString);
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresOutboxJobStore(dataSource);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
             var leasedWhileFirstRowLocked = await store.LeaseAvailableAsync(
@@ -77,7 +78,8 @@ public sealed class OutboxWorkerTests
             await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
 
             var jobId = await InsertOutboxJobAsync(databaseConnectionString, "outbox.unsupported");
-            var store = new PostgresOutboxJobStore(databaseConnectionString);
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresOutboxJobStore(dataSource);
             var processor = new OutboxJobProcessor(
                 store,
                 [],
@@ -133,7 +135,8 @@ public sealed class OutboxWorkerTests
                 attempts: 2,
                 lockedUntil: DateTimeOffset.UtcNow.AddMinutes(-1),
                 lockedBy: "crashed-worker");
-            var store = new PostgresOutboxJobStore(databaseConnectionString);
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresOutboxJobStore(dataSource);
             var handler = new CountingOutboxJobHandler();
             var processor = new OutboxJobProcessor(
                 store,
