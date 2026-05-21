@@ -71,8 +71,8 @@ Before M1 implementation:
 Before M2 implementation:
 
 - Request hash rules for API idempotency are defined in [Decision 0004](decisions/0004-api-idempotency-request-hash.md).
-- Define the first event content shapes from [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md).
-- Define whether raw event payloads are always stored inline for MVP.
+- First event content shapes are defined in [Decision 0005](decisions/0005-event-append-contract.md) and grounded in [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md).
+- Raw event payloads are stored inline for M2, as defined in [Decision 0005](decisions/0005-event-append-contract.md).
 
 Before M4 implementation:
 

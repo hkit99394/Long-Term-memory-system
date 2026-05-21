@@ -22,6 +22,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0002: Migration Runner Approach](decisions/0002-migration-runner-approach.md) | Records the initial SQL migration runner choice for local development and integration tests. |
 | [Decision 0003: Local Database Runtime](decisions/0003-local-database-runtime.md) | Records the pinned PostgreSQL plus pgvector Docker image for local development and integration tests. |
 | [Decision 0004: API Idempotency Request Hash](decisions/0004-api-idempotency-request-hash.md) | Records the M2 idempotency key scope, request hash rule, retry behavior, and expiry default. |
+| [Decision 0005: Event Append Contract](decisions/0005-event-append-contract.md) | Records the M2 `POST /api/events` request shape, scope mapping, inline payload storage, and retry behavior. |
 
 ## Dictionary
 
