@@ -3,8 +3,21 @@ using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.Events;
 
-public sealed class PostgresEventStore(string connectionString) : IEventStore
+public sealed class PostgresEventStore(string connectionString) : IEventStore, ISourceEventReferenceStore
 {
+    public async Task<bool> ExistsAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = new NpgsqlCommand(
+            "SELECT EXISTS (SELECT 1 FROM events WHERE id = @event_id);",
+            connection);
+        command.Parameters.AddWithValue("event_id", eventId);
+
+        return await command.ExecuteScalarAsync(cancellationToken) is true;
+    }
+
     public async Task<AppendEventResult> AppendAsync(
         AppendEventCommand command,
         CancellationToken cancellationToken = default)

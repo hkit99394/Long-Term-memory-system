@@ -1,6 +1,7 @@
 using MemorySystem.Api.Authentication;
 using MemorySystem.Api.Events;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Api.MemoryProposals;
 using MemorySystem.Infrastructure.Health;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -11,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemorySystemApiAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemApiIdempotency(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
+builder.Services.AddMemorySystemMemoryProposals();
 
 builder.Services
     .AddHealthChecks()
@@ -28,6 +30,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 
 app.MapGet("/", () => "Hello World!").AllowAnonymous();
 app.MapMemorySystemEventEndpoints();
+app.MapMemorySystemMemoryProposalEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))
 {

@@ -10,7 +10,7 @@ public static class ApiEventServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddSingleton<IEventStore>(_ =>
+        services.AddSingleton(_ =>
         {
             var connectionString = PostgresConnectionString.Resolve(
                 key => configuration[key],
@@ -19,6 +19,10 @@ public static class ApiEventServiceCollectionExtensions
 
             return new PostgresEventStore(connectionString);
         });
+        services.AddSingleton<IEventStore>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgresEventStore>());
+        services.AddSingleton<ISourceEventReferenceStore>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgresEventStore>());
 
         return services;
     }
