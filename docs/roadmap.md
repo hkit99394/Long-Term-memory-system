@@ -70,7 +70,7 @@ Before M1 implementation:
 
 Before M2 implementation:
 
-- Define request hash rules for API idempotency.
+- Request hash rules for API idempotency are defined in [Decision 0004](decisions/0004-api-idempotency-request-hash.md).
 - Define the first event content shapes from [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md).
 - Define whether raw event payloads are always stored inline for MVP.
 
