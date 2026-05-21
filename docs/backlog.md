@@ -40,7 +40,7 @@ Status values:
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| M2-01 | P0 | Todo | Implement API-key principal resolution. | Requests map local API keys to active principals. |
+| M2-01 | P0 | Done | Implement API-key principal resolution. | Requests map local API keys to active principals. |
 | M2-02 | P0 | Todo | Implement request idempotency. | Mutating endpoints store principal, endpoint, idempotency key, request hash, response, and expiry. |
 | M2-03 | P0 | Todo | Implement event append endpoint. | `POST /api/events` stores an event and returns an id; retry with the same idempotency key returns the original response. |
 | M2-04 | P0 | Todo | Implement minimal broker decision. | `POST /api/memory/proposals` returns `stored`, `rejected`, `review_required`, or `session_only`. |
@@ -110,10 +110,9 @@ Status values:
 
 ## Immediate Next Items
 
-Start here:
+Continue here:
 
-1. `M2-01`: Implement API-key principal resolution.
-2. `M2-02`: Implement request idempotency.
-3. `M2-03`: Implement event append endpoint.
-4. `M2-04`: Implement minimal broker decision.
-5. `M2-05`: Implement transactional memory write.
+1. `M2-02`: Implement request idempotency.
+2. `M2-03`: Implement event append endpoint.
+3. `M2-04`: Implement minimal broker decision.
+4. `M2-05`: Implement transactional memory write.
