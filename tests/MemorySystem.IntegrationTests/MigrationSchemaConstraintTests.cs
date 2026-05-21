@@ -1,5 +1,6 @@
 using MemorySystem.Infrastructure.Migrations;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -70,6 +71,76 @@ public sealed class MigrationSchemaConstraintTests
             var exception = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
 
             Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, exception.SqlState);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Memory_facts_reject_missing_source_event_provenance()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_fact_provenance_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await CreateMigratedDatabaseAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(databaseConnectionString);
+            await connection.OpenAsync();
+
+            var ids = await InsertProjectFixtureAsync(connection);
+
+            await using var command = new NpgsqlCommand(
+                """
+                INSERT INTO memory_facts (
+                    id,
+                    scope_type,
+                    scope_id,
+                    namespace,
+                    project_id,
+                    org_id,
+                    memory_type,
+                    visibility,
+                    subject,
+                    predicate,
+                    object,
+                    confidence,
+                    status,
+                    source_event_id
+                )
+                VALUES (
+                    @memory_fact_id,
+                    'project',
+                    @project_id_text,
+                    @namespace,
+                    @project_id,
+                    @org_id,
+                    'project_decision',
+                    'project_shared',
+                    'storage',
+                    'uses',
+                    'postgres',
+                    0.900,
+                    'active',
+                    @source_event_id
+                );
+                """,
+                connection);
+
+            command.Parameters.AddWithValue("memory_fact_id", Guid.NewGuid());
+            command.Parameters.AddWithValue("project_id_text", ids.ProjectId.ToString());
+            command.Parameters.AddWithValue("namespace", $"/project/{ids.ProjectId}/decisions");
+            command.Parameters.AddWithValue("project_id", ids.ProjectId);
+            command.Parameters.AddWithValue("org_id", ids.OrgId);
+            command.Parameters.Add("source_event_id", NpgsqlDbType.Uuid).Value = DBNull.Value;
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
+
+            Assert.Equal(PostgresErrorCodes.NotNullViolation, exception.SqlState);
         }
         finally
         {
@@ -190,6 +261,68 @@ public sealed class MigrationSchemaConstraintTests
             var exception = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
 
             Assert.Equal(PostgresErrorCodes.RaiseException, exception.SqlState);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Memory_chunks_reject_missing_source_event_provenance()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_chunk_provenance_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await CreateMigratedDatabaseAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(databaseConnectionString);
+            await connection.OpenAsync();
+
+            var ids = await InsertProjectFixtureAsync(connection);
+            var memoryFactId = await InsertProjectMemoryFactAsync(connection, ids);
+
+            await using var command = new NpgsqlCommand(
+                """
+                INSERT INTO memory_chunks (
+                    id,
+                    source_type,
+                    source_id,
+                    namespace,
+                    scope_type,
+                    scope_id,
+                    content,
+                    content_hash,
+                    trust_level,
+                    source_event_id
+                )
+                VALUES (
+                    @chunk_id,
+                    'memory_fact',
+                    @memory_fact_id,
+                    @namespace,
+                    'project',
+                    @project_id_text,
+                    'Long-Term Memory System uses PostgreSQL.',
+                    'test-hash',
+                    'human_approved',
+                    @source_event_id
+                );
+                """,
+                connection);
+
+            command.Parameters.AddWithValue("chunk_id", Guid.NewGuid());
+            command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+            command.Parameters.AddWithValue("namespace", $"/project/{ids.ProjectId}/decisions");
+            command.Parameters.AddWithValue("project_id_text", ids.ProjectId.ToString());
+            command.Parameters.Add("source_event_id", NpgsqlDbType.Uuid).Value = DBNull.Value;
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
+
+            Assert.Equal(PostgresErrorCodes.NotNullViolation, exception.SqlState);
         }
         finally
         {

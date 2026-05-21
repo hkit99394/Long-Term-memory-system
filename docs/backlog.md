@@ -44,8 +44,8 @@ Status values:
 | M2-02 | P0 | Done | Implement request idempotency. | Mutating endpoints store principal, endpoint, idempotency key, request hash, response, and expiry. |
 | M2-03 | P0 | Done | Implement event append endpoint. | `POST /api/events` stores an event and returns an id; retry with the same idempotency key returns the original response. |
 | M2-04 | P0 | Done | Implement minimal broker decision. | `POST /api/memory/proposals` returns `stored`, `rejected`, `review_required`, or `session_only`. |
-| M2-05 | P0 | Todo | Implement transactional memory write. | Stored proposals commit source event, memory fact, chunk, outbox job, and broker response in one transaction. |
-| M2-06 | P1 | Todo | Add provenance tests. | Durable memory cannot be stored without a source event. |
+| M2-05 | P0 | Done | Implement transactional memory write. | Stored proposals commit source event, memory fact, chunk, outbox job, and broker response in one transaction. |
+| M2-06 | P1 | Done | Add provenance tests. | Durable memory cannot be stored without a source event. |
 
 ## M3 Access and Scope Enforcement
 
@@ -112,5 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M2-05`: Implement transactional memory write.
-2. `M2-06`: Add provenance tests.
+1. `M3-01`: Implement scope resolver.

@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using System.Text.Json;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Events;
+using MemorySystem.Infrastructure.MemoryProposals;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MemorySystem.Api.MemoryProposals;
@@ -16,11 +18,19 @@ public static class MemoryProposalEndpointExtensions
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
                 IMemoryProposalBroker broker,
+                IMemoryProposalWriteStore writeStore,
                 ISourceEventReferenceStore sourceEvents) =>
                 await idempotency.ExecuteAsync(
                     context,
                     "POST /api/memory/proposals",
-                    async cancellationToken => await DecideAsync(context, broker, sourceEvents, cancellationToken)))
+                    async (idempotencyContext, cancellationToken) =>
+                        await DecideAsync(
+                            context,
+                            broker,
+                            writeStore,
+                            sourceEvents,
+                            idempotencyContext,
+                            cancellationToken)))
             .RequireAuthorization();
 
         return endpoints;
@@ -29,9 +39,19 @@ public static class MemoryProposalEndpointExtensions
     private static async Task<ApiIdempotencyResponse> DecideAsync(
         HttpContext context,
         IMemoryProposalBroker broker,
+        IMemoryProposalWriteStore writeStore,
         ISourceEventReferenceStore sourceEvents,
+        ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
+        if (!TryGetPrincipalId(context, out var principalId))
+        {
+            return Problem(
+                StatusCodes.Status401Unauthorized,
+                "Authenticated principal is invalid.",
+                "The API key did not resolve to a valid principal id.");
+        }
+
         MemoryProposalRequest? request;
 
         try
@@ -64,7 +84,31 @@ public static class MemoryProposalEndpointExtensions
 
         var decision = broker.Decide(proposal);
 
+        if (decision.Decision == MemoryProposalDecisions.Stored)
+        {
+            decision = await writeStore.StoreAsync(
+                principalId,
+                proposal,
+                idempotency.RecordId,
+                idempotency.RequestHash,
+                cancellationToken);
+
+            return new ApiIdempotencyResponse(
+                StatusCodes.Status200OK,
+                decision,
+                "memory_fact",
+                decision.MemoryId,
+                IdempotencyAlreadyCompleted: true);
+        }
+
         return new ApiIdempotencyResponse(StatusCodes.Status200OK, decision);
+    }
+
+    private static bool TryGetPrincipalId(HttpContext context, out Guid principalId)
+    {
+        var principalIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(principalIdValue, out principalId);
     }
 
     private static ApiIdempotencyResponse Problem(int statusCode, string title, string detail)

@@ -24,6 +24,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0004: API Idempotency Request Hash](decisions/0004-api-idempotency-request-hash.md) | Records the M2 idempotency key scope, request hash rule, retry behavior, and expiry default. |
 | [Decision 0005: Event Append Contract](decisions/0005-event-append-contract.md) | Records the M2 `POST /api/events` request shape, scope mapping, inline payload storage, and retry behavior. |
 | [Decision 0006: Minimal Memory Proposal Broker](decisions/0006-minimal-memory-proposal-broker.md) | Records the M2 `POST /api/memory/proposals` contract and deterministic broker decision rules. |
+| [Decision 0007: Transactional Memory Proposal Write](decisions/0007-transactional-memory-proposal-write.md) | Records the M2 stored proposal transaction that creates memory facts, chunks, outbox jobs, and idempotent responses. |
 
 ## Dictionary
 

@@ -61,4 +61,4 @@ MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING="Host=127.0.0.1;Port=55432;Database
   dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
 ```
 
-The database-backed command currently covers the migration runner, PostgreSQL health endpoint, scoped event constraints, project/organization scope consistency, API-key principal resolution, request idempotency, event append, and minimal broker proposal decisions. Later milestones should extend this path with transactional memory writes, access-control, retrieval, and deeper broker tests.
+The database-backed command currently covers the migration runner, PostgreSQL health endpoint, scoped event constraints, project/organization scope consistency, API-key principal resolution, request idempotency, event append, minimal broker proposal decisions, transactional memory proposal writes, and provenance enforcement. Later milestones should extend this path with access-control, retrieval, and deeper broker tests.

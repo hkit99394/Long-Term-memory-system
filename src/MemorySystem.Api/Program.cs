@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemorySystemApiAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemApiIdempotency(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
-builder.Services.AddMemorySystemMemoryProposals();
+builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
 
 builder.Services
     .AddHealthChecks()

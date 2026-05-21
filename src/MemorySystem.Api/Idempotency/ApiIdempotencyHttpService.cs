@@ -17,6 +17,17 @@ public sealed class ApiIdempotencyHttpService(
         string endpoint,
         Func<CancellationToken, Task<ApiIdempotencyResponse>> operation)
     {
+        return await ExecuteAsync(
+            httpContext,
+            endpoint,
+            (_, cancellationToken) => operation(cancellationToken));
+    }
+
+    public async Task<IResult> ExecuteAsync(
+        HttpContext httpContext,
+        string endpoint,
+        Func<ApiIdempotencyExecutionContext, CancellationToken, Task<ApiIdempotencyResponse>> operation)
+    {
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         ArgumentNullException.ThrowIfNull(operation);
@@ -78,24 +89,29 @@ public sealed class ApiIdempotencyHttpService(
     private async Task<IResult> ExecuteAndStoreAsync(
         ApiIdempotencyRecord record,
         string requestHash,
-        Func<CancellationToken, Task<ApiIdempotencyResponse>> operation,
+        Func<ApiIdempotencyExecutionContext, CancellationToken, Task<ApiIdempotencyResponse>> operation,
         CancellationToken cancellationToken)
     {
         try
         {
-            var response = await operation(cancellationToken);
+            var response = await operation(
+                new ApiIdempotencyExecutionContext(record.Id, requestHash),
+                cancellationToken);
             var responseBody = response.Body is null
                 ? null
                 : JsonSerializer.Serialize(response.Body, JsonOptions);
 
-            await store.CompleteAsync(
-                record.Id,
-                requestHash,
-                response.StatusCode,
-                responseBody,
-                response.ResourceType,
-                response.ResourceId,
-                cancellationToken);
+            if (!response.IdempotencyAlreadyCompleted)
+            {
+                await store.CompleteAsync(
+                    record.Id,
+                    requestHash,
+                    response.StatusCode,
+                    responseBody,
+                    response.ResourceType,
+                    response.ResourceId,
+                    cancellationToken);
+            }
 
             return new StoredJsonResult(response.StatusCode, responseBody);
         }

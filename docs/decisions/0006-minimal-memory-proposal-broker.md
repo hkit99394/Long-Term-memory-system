@@ -38,7 +38,7 @@ The endpoint requires `Idempotency-Key` and returns:
 }
 ```
 
-For M2-04, `memoryId` remains `null` even for `stored`. The decision means the candidate is accepted for durable storage. M2-05 owns the actual transaction that creates the memory fact, chunk, outbox job, and stored broker response with a real memory id.
+For M2-04, `memoryId` remained `null` even for `stored`. The decision meant the candidate was accepted for durable storage. [Decision 0007](0007-transactional-memory-proposal-write.md) replaces that temporary stored-path behavior with the transaction that creates the memory fact, chunk, outbox job, and stored broker response with a real memory id.
 
 ## Minimal Rules
 
@@ -54,5 +54,5 @@ For M2-04, `memoryId` remains `null` even for `stored`. The decision means the c
 
 - The proposal endpoint is retry-safe and returns stable decisions.
 - The M2 broker decision is deterministic and intentionally conservative.
-- M2-05 can reuse the same endpoint boundary and replace the accepted `stored` path with a transactional memory write.
+- M2-05 reused the same endpoint boundary and replaced the accepted `stored` path with a transactional memory write.
 - M3 still needs write-permission enforcement before scoped durable writes are authorization-complete.
