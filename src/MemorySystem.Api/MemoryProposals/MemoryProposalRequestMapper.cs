@@ -1,129 +1,55 @@
+using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.MemoryProposals;
-using MemorySystem.Application.Scopes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MemorySystem.Api.MemoryProposals;
 
 internal static class MemoryProposalRequestMapper
 {
-    private static readonly IReadOnlySet<string> MemoryTypes = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "preference",
-        "decision",
-        "fact",
-        "role_principle",
-        "project_role_lens",
-        "agent_private",
-        "session_instruction"
-    };
-
-    private static readonly IReadOnlySet<string> Visibilities = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "private",
-        "role_shared",
-        "project_shared",
-        "org_shared",
-        "system"
-    };
-
-    public static bool TryMap(
+    public static MemoryProposalWorkflowRequest ToWorkflowRequest(
         Guid authenticatedPrincipalId,
         MemoryProposalRequest request,
-        bool sourceEventExists,
-        out MemoryProposalCommand command,
-        out ProblemDetails? problem)
+        Guid idempotencyRecordId,
+        string requestHash)
     {
-        command = null!;
-        problem = null;
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
 
-        var memoryType = Normalize(request.MemoryType);
-        var scopeType = Normalize(request.ScopeType);
-        var scopeId = request.ScopeId?.Trim() ?? string.Empty;
-        var namespaceValue = request.Namespace?.Trim() ?? string.Empty;
-        var visibility = Normalize(request.Visibility, "private");
-        var trustLevel = Normalize(request.TrustLevel, "user_scoped");
-        var sensitivity = Normalize(request.Sensitivity, "none");
-
-        if (!MemoryTypes.Contains(memoryType))
-        {
-            problem = BadRequest("memoryType is required and must be supported.");
-            return false;
-        }
-
-        if (!MemoryScopePolicy.ScopeTypes.Contains(scopeType))
-        {
-            problem = BadRequest("scopeType is required and must be a supported scope.");
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(scopeId))
-        {
-            problem = BadRequest("scopeId is required.");
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(namespaceValue) || !namespaceValue.StartsWith("/", StringComparison.Ordinal))
-        {
-            problem = BadRequest("namespace is required and must start with '/'.");
-            return false;
-        }
-
-        if (!MemoryScopePolicy.TryNormalizeProposalScope(
+        return new MemoryProposalWorkflowRequest(
             authenticatedPrincipalId,
-            scopeType,
-            scopeId,
-            namespaceValue,
-            out var normalizedScopeId,
-            out var scopeError))
-        {
-            problem = BadRequest(scopeError!);
-            return false;
-        }
-
-        if (!Visibilities.Contains(visibility))
-        {
-            problem = BadRequest("visibility is not supported.");
-            return false;
-        }
-
-        if (!MemoryScopePolicy.TrustLevels.Contains(trustLevel))
-        {
-            problem = BadRequest("trustLevel is not supported.");
-            return false;
-        }
-
-        if (!MemoryScopePolicy.Sensitivities.Contains(sensitivity))
-        {
-            problem = BadRequest("sensitivity is not supported.");
-            return false;
-        }
-
-        if (request.Confidence is < 0 or > 1)
-        {
-            problem = BadRequest("confidence must be between 0 and 1 when provided.");
-            return false;
-        }
-
-        command = new MemoryProposalCommand(
+            idempotencyRecordId,
+            requestHash,
             request.SourceEventId,
-            sourceEventExists,
-            memoryType,
-            scopeType,
-            normalizedScopeId,
-            namespaceValue,
-            visibility,
-            request.Subject?.Trim() ?? string.Empty,
-            request.Predicate?.Trim() ?? string.Empty,
-            request.Object?.Trim() ?? string.Empty,
+            request.MemoryType,
+            request.ScopeType,
+            request.ScopeId,
+            request.Namespace,
+            request.Visibility,
+            request.Subject,
+            request.Predicate,
+            request.Object,
             request.Confidence,
-            trustLevel,
-            sensitivity);
-        return true;
+            request.TrustLevel,
+            request.Sensitivity);
     }
 
-    private static string Normalize(string? value, string defaultValue = "")
+    public static ApiIdempotencyResponse ToApiResponse(MemoryProposalWorkflowResult result)
     {
-        return string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim().ToLowerInvariant();
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (!result.IsValid)
+        {
+            var problem = BadRequest(result.InvalidReason ?? "Memory proposal is invalid.");
+
+            return new ApiIdempotencyResponse(problem.Status ?? StatusCodes.Status400BadRequest, problem);
+        }
+
+        return new ApiIdempotencyResponse(
+            StatusCodes.Status200OK,
+            result.Decision,
+            result.ResourceType,
+            result.ResourceId,
+            result.IdempotencyAlreadyCompleted);
     }
 
     private static ProblemDetails BadRequest(string detail)

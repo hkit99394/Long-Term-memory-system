@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Idempotency;
 using Npgsql;
 using NpgsqlTypes;

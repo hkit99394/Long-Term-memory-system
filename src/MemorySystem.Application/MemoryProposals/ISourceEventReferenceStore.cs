@@ -1,4 +1,4 @@
-namespace MemorySystem.Infrastructure.Events;
+namespace MemorySystem.Application.MemoryProposals;
 
 public interface ISourceEventReferenceStore
 {

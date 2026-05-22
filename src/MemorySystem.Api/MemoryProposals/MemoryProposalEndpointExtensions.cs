@@ -1,5 +1,6 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Application.MemoryProposals;
 
 namespace MemorySystem.Api.MemoryProposals;
 
@@ -51,6 +52,13 @@ public static class MemoryProposalEndpointExtensions
             return requestResult.Problem!;
         }
 
-        return await workflow.DecideAsync(principalId, requestResult.Value!, idempotency, cancellationToken);
+        var workflowRequest = MemoryProposalRequestMapper.ToWorkflowRequest(
+            principalId,
+            requestResult.Value!,
+            idempotency.RecordId,
+            idempotency.RequestHash);
+        var result = await workflow.DecideAsync(workflowRequest, cancellationToken);
+
+        return MemoryProposalRequestMapper.ToApiResponse(result);
     }
 }

@@ -1,3 +1,4 @@
+using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Events;
 using Npgsql;
 

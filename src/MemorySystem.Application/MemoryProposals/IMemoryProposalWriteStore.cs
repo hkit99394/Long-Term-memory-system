@@ -1,6 +1,4 @@
-using MemorySystem.Application.MemoryProposals;
-
-namespace MemorySystem.Infrastructure.MemoryProposals;
+namespace MemorySystem.Application.MemoryProposals;
 
 public interface IMemoryProposalWriteStore
 {
