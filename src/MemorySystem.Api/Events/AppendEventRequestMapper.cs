@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.Events;
 using Microsoft.AspNetCore.Mvc;
 
@@ -76,133 +77,35 @@ internal static class AppendEventRequestMapper
         scope = null!;
         conversationId = request.ConversationId;
         agentPrincipalId = request.AgentPrincipalId;
-        roleId = NormalizeOptionalRoleId(request.RoleId);
+        roleId = null;
         problem = null;
 
-        if (!TryNormalizeRequired(request.ScopeType, ApiEventConstants.ScopeTypes, "scopeType", out var scopeType, out problem))
+        if (!MemoryScopePolicy.TryNormalizeEventScope(
+            authenticatedPrincipalId,
+            request.ScopeType,
+            request.ScopeId,
+            request.ScopeOrgId,
+            request.ConversationId,
+            request.AgentPrincipalId,
+            request.RoleId,
+            out var resolvedScope,
+            out var error))
         {
+            problem = BadRequest(error!);
             return false;
         }
 
-        if (roleId is not null && !ApiEventConstants.RoleIds.Contains(roleId))
-        {
-            problem = BadRequest("roleId is not supported.");
-            return false;
-        }
-
-        var scopeId = request.ScopeId?.Trim();
-
-        switch (scopeType)
-        {
-            case "global":
-                if (!string.IsNullOrWhiteSpace(scopeId) && !string.Equals(scopeId, "global", StringComparison.Ordinal))
-                {
-                    problem = BadRequest("scopeId must be 'global' for global scope.");
-                    return false;
-                }
-
-                scope = new EventScope("global", "global", null, null, null, null);
-                return true;
-
-            case "org":
-                if (!TryParseRequiredGuid(scopeId, "scopeId", out var orgId, out problem))
-                {
-                    return false;
-                }
-
-                scope = new EventScope("org", orgId.ToString(), orgId, null, null, null);
-                return true;
-
-            case "project":
-                if (!TryParseRequiredGuid(scopeId, "scopeId", out var projectId, out problem))
-                {
-                    return false;
-                }
-
-                scope = new EventScope("project", projectId.ToString(), request.ScopeOrgId, projectId, null, null);
-                return true;
-
-            case "user":
-                if (!TryParseRequiredGuid(scopeId, "scopeId", out var userPrincipalId, out problem))
-                {
-                    return false;
-                }
-
-                if (userPrincipalId != authenticatedPrincipalId)
-                {
-                    problem = BadRequest("User-scoped events must use the authenticated principal as scopeId.");
-                    return false;
-                }
-
-                scope = new EventScope("user", userPrincipalId.ToString(), null, null, userPrincipalId, null);
-                return true;
-
-            case "agent":
-                if (!TryParseRequiredGuid(scopeId, "scopeId", out var scopedAgentPrincipalId, out problem))
-                {
-                    return false;
-                }
-
-                if (agentPrincipalId.HasValue && agentPrincipalId.Value != scopedAgentPrincipalId)
-                {
-                    problem = BadRequest("agentPrincipalId must match scopeId for agent-scoped events.");
-                    return false;
-                }
-
-                agentPrincipalId = scopedAgentPrincipalId;
-                scope = new EventScope("agent", scopedAgentPrincipalId.ToString(), null, null, scopedAgentPrincipalId, null);
-                return true;
-
-            case "role":
-                if (string.IsNullOrWhiteSpace(scopeId))
-                {
-                    problem = BadRequest("scopeId is required.");
-                    return false;
-                }
-
-                var scopedRoleId = scopeId.ToLowerInvariant();
-
-                if (!ApiEventConstants.RoleIds.Contains(scopedRoleId))
-                {
-                    problem = BadRequest("scopeId is not a supported role.");
-                    return false;
-                }
-
-                if (roleId is not null && !string.Equals(roleId, scopedRoleId, StringComparison.Ordinal))
-                {
-                    problem = BadRequest("roleId must match scopeId for role-scoped events.");
-                    return false;
-                }
-
-                roleId = scopedRoleId;
-                scope = new EventScope("role", scopedRoleId, null, null, null, scopedRoleId);
-                return true;
-
-            case "session":
-                if (string.IsNullOrWhiteSpace(scopeId) || string.Equals(scopeId, "global", StringComparison.Ordinal))
-                {
-                    problem = BadRequest("scopeId is required for session scope and must not be 'global'.");
-                    return false;
-                }
-
-                if (Guid.TryParse(scopeId, out var parsedConversationId))
-                {
-                    if (conversationId.HasValue && conversationId.Value != parsedConversationId)
-                    {
-                        problem = BadRequest("conversationId must match scopeId for GUID session scopes.");
-                        return false;
-                    }
-
-                    conversationId = parsedConversationId;
-                }
-
-                scope = new EventScope("session", scopeId, null, null, null, null);
-                return true;
-
-            default:
-                problem = BadRequest("scopeType is not supported.");
-                return false;
-        }
+        conversationId = resolvedScope.ConversationId;
+        agentPrincipalId = resolvedScope.AgentPrincipalId;
+        roleId = resolvedScope.RoleId;
+        scope = new EventScope(
+            resolvedScope.ScopeType,
+            resolvedScope.ScopeId,
+            resolvedScope.OrgId,
+            resolvedScope.ProjectId,
+            resolvedScope.PrincipalId,
+            resolvedScope.ScopeRoleId);
+        return true;
     }
 
     private static bool TryNormalizeRequired(
@@ -250,28 +153,6 @@ internal static class AppendEventRequestMapper
         }
 
         return true;
-    }
-
-    private static bool TryParseRequiredGuid(
-        string? value,
-        string fieldName,
-        out Guid guid,
-        out ProblemDetails? problem)
-    {
-        problem = null;
-
-        if (Guid.TryParse(value, out guid))
-        {
-            return true;
-        }
-
-        problem = BadRequest($"{fieldName} must be a valid GUID.");
-        return false;
-    }
-
-    private static string? NormalizeOptionalRoleId(string? roleId)
-    {
-        return string.IsNullOrWhiteSpace(roleId) ? null : roleId.Trim().ToLowerInvariant();
     }
 
     private static string ComputeSha256(string value)

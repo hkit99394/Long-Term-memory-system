@@ -15,15 +15,11 @@ public sealed class OutboxWorkerService : BackgroundService
         IOptions<OutboxWorkerOptions> options,
         ILogger<OutboxWorkerService> logger)
     {
-        if (!processor.HasHandlers)
-        {
-            throw new InvalidOperationException(
-                "Outbox worker is enabled, but no outbox job handlers are registered.");
-        }
-
         this.processor = processor;
         this.options = options.Value;
         this.logger = logger;
+
+        OutboxWorkerReadiness.ThrowIfCannotStart(this.options, processor.HandlerCount);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

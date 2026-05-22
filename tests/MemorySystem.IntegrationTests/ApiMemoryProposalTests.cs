@@ -1,4 +1,3 @@
-using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -6,7 +5,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -143,7 +141,7 @@ public sealed class ApiMemoryProposalTests
             if (scopeType == "session")
             {
                 sourceEventId = OtherSourceEventId;
-                await InsertSourceEventAsync(
+                await ApiDatabaseTestSupport.InsertSourceEventAsync(
                     databaseConnectionString,
                     sourceEventId,
                     Guid.Parse(TestPrincipalId),
@@ -240,8 +238,8 @@ public sealed class ApiMemoryProposalTests
         try
         {
             await PrepareDatabaseAsync(databaseConnectionString);
-            await InsertPrincipalAsync(databaseConnectionString, Guid.Parse(OtherPrincipalId));
-            await InsertSourceEventAsync(
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, Guid.Parse(OtherPrincipalId));
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
                 databaseConnectionString,
                 OtherSourceEventId,
                 Guid.Parse(OtherPrincipalId),
@@ -456,9 +454,9 @@ public sealed class ApiMemoryProposalTests
 
     private static async Task PrepareDatabaseAsync(string connectionString)
     {
-        await SqlMigrationRunner.ApplyAsync(connectionString, MigrationTestPaths.FindMigrationsDirectory());
-        await InsertPrincipalAsync(connectionString, Guid.Parse(TestPrincipalId));
-        await InsertSourceEventAsync(
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, Guid.Parse(TestPrincipalId));
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
             SourceEventId,
             Guid.Parse(TestPrincipalId),
@@ -466,90 +464,9 @@ public sealed class ApiMemoryProposalTests
             scopeId: TestPrincipalId);
     }
 
-    private static async Task InsertPrincipalAsync(string connectionString, Guid principalId)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO principals (
-                id,
-                principal_type,
-                display_name,
-                status
-            )
-            VALUES (
-                @principal_id,
-                'human',
-                'Jack Tam',
-                'active'
-            );
-            """,
-            connection);
-        command.Parameters.AddWithValue("principal_id", principalId);
-
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task InsertSourceEventAsync(
-        string connectionString,
-        Guid eventId,
-        Guid principalId,
-        string scopeType,
-        string scopeId)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO events (
-                id,
-                principal_id,
-                event_type,
-                content,
-                content_hash,
-                retention_class,
-                sensitivity,
-                trust_level,
-                scope_type,
-                scope_id,
-                scope_principal_id
-            )
-            VALUES (
-                @event_id,
-                @principal_id,
-                'user_message',
-                @content,
-                'sha256:test',
-                'standard',
-                'none',
-                'user_scoped',
-                @scope_type,
-                @scope_id,
-                @scope_principal_id
-            );
-            """,
-            connection);
-        command.Parameters.AddWithValue("event_id", eventId);
-        command.Parameters.AddWithValue("principal_id", principalId);
-        command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = """{"message":"source"}""";
-        command.Parameters.AddWithValue("scope_type", scopeType);
-        command.Parameters.AddWithValue("scope_id", scopeId);
-        command.Parameters.AddWithValue("scope_principal_id", scopeType is "user" or "agent" ? principalId : DBNull.Value);
-
-        await command.ExecuteNonQueryAsync();
-    }
-
     private static async Task<int> CountIdempotencyRecordsAsync(string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand("SELECT count(*) FROM api_idempotency_keys;", connection);
-
-        return Convert.ToInt32(await command.ExecuteScalarAsync());
+        return await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(connectionString);
     }
 
     private static async Task<int> CountMemoryFactsAsync(string connectionString)
@@ -576,12 +493,7 @@ public sealed class ApiMemoryProposalTests
 
     private static async Task<int> CountRowsAsync(string connectionString, string tableName)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand($"SELECT count(*) FROM {tableName};", connection);
-
-        return Convert.ToInt32(await command.ExecuteScalarAsync());
+        return await ApiDatabaseTestSupport.CountRowsAsync(connectionString, tableName);
     }
 
     private static async Task<MemoryFactState> ReadMemoryFactAsync(string connectionString, Guid memoryId)
@@ -693,27 +605,15 @@ public sealed class ApiMemoryProposalTests
 
     private static async Task<IdempotencyRecordState> ReadIdempotencyRecordAsync(string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT endpoint, idempotency_key, status, response_status, resource_type, resource_id
-            FROM api_idempotency_keys;
-            """,
-            connection);
-
-        await using var reader = await command.ExecuteReaderAsync();
-
-        Assert.True(await reader.ReadAsync());
+        var record = await ApiDatabaseTestSupport.ReadSingleIdempotencySummaryAsync(connectionString);
 
         return new IdempotencyRecordState(
-            reader.GetString(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetInt32(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
-            reader.IsDBNull(5) ? null : reader.GetGuid(5));
+            record.Endpoint,
+            record.IdempotencyKey,
+            record.Status,
+            record.ResponseStatus,
+            record.ResourceType,
+            record.ResourceId);
     }
 
     private sealed record IdempotencyRecordState(

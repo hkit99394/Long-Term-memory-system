@@ -13,6 +13,8 @@ public sealed class OutboxJobProcessor(
     private readonly IOutboxJobHandler[] handlers = handlers.ToArray();
     private readonly OutboxWorkerOptions options = options.Value;
 
+    public int HandlerCount => handlers.Length;
+
     public bool HasHandlers => handlers.Length > 0;
 
     public async Task<int> ProcessAvailableAsync(CancellationToken cancellationToken = default)

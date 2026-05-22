@@ -1,23 +1,8 @@
-using MemorySystem.Infrastructure.Configuration;
-using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Worker;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-var options = OutboxWorkerOptions.Read(builder.Configuration);
-
-builder.Services.AddSingleton(Options.Create(options));
-
-if (options.Enabled)
-{
-    builder.Services.AddMemorySystemPostgresDataSource(builder.Configuration, builder.Environment);
-    builder.Services.AddSingleton<IOutboxJobStore, PostgresOutboxJobStore>();
-    builder.Services.AddSingleton<OutboxJobProcessor>();
-    builder.Services.AddHostedService<OutboxWorkerService>();
-}
+builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
 
 await builder.Build().RunAsync();

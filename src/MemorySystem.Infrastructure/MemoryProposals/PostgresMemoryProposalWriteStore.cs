@@ -77,7 +77,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             chunkId,
             proposal.SourceEventId.Value,
             cancellationToken);
-        await PostgresTransactionalIdempotencyCompleter.CompleteAsync(
+        await PostgresApiIdempotencyCompleter.CompleteAsync(
             connection,
             transaction,
             idempotencyRecordId,

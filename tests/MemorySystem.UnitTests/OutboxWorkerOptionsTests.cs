@@ -50,6 +50,26 @@ public sealed class OutboxWorkerOptionsTests
     }
 
     [Fact]
+    public void Readiness_allows_disabled_worker_without_registered_handlers()
+    {
+        var exception = Record.Exception(() => OutboxWorkerReadiness.ThrowIfCannotStart(
+            new OutboxWorkerOptions { Enabled = false },
+            registeredHandlerCount: 0));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Readiness_rejects_enabled_worker_without_registered_handlers()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => OutboxWorkerReadiness.ThrowIfCannotStart(
+            new OutboxWorkerOptions { Enabled = true },
+            registeredHandlerCount: 0));
+
+        Assert.Contains("OutboxWorker:Enabled=false", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ProcessAvailableAsync_cancels_handler_before_lease_can_expire()
     {
         var job = CreateJob();

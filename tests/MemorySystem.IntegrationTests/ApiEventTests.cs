@@ -1,4 +1,3 @@
-using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -255,59 +254,16 @@ public sealed class ApiEventTests
 
     private static async Task PrepareDatabaseAsync(string connectionString, bool createProject = false)
     {
-        await SqlMigrationRunner.ApplyAsync(connectionString, MigrationTestPaths.FindMigrationsDirectory());
-        await InsertPrincipalAsync(connectionString);
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, Guid.Parse(TestPrincipalId));
 
         if (createProject)
         {
-            await InsertOrganizationAndProjectAsync(connectionString);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
+                connectionString,
+                Guid.Parse(TestOrgId),
+                Guid.Parse(TestProjectId));
         }
-    }
-
-    private static async Task InsertPrincipalAsync(string connectionString)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO principals (
-                id,
-                principal_type,
-                display_name,
-                status
-            )
-            VALUES (
-                @principal_id,
-                'human',
-                'Jack Tam',
-                'active'
-            );
-            """,
-            connection);
-        command.Parameters.AddWithValue("principal_id", Guid.Parse(TestPrincipalId));
-
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task InsertOrganizationAndProjectAsync(string connectionString)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO organizations (id, name)
-            VALUES (@org_id, 'Memory Lab');
-
-            INSERT INTO projects (id, org_id, name, status)
-            VALUES (@project_id, @org_id, 'Long-Term Memory System', 'active');
-            """,
-            connection);
-        command.Parameters.AddWithValue("org_id", Guid.Parse(TestOrgId));
-        command.Parameters.AddWithValue("project_id", Guid.Parse(TestProjectId));
-
-        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<EventRecordState> ReadEventAsync(string connectionString, Guid eventId)
@@ -359,37 +315,20 @@ public sealed class ApiEventTests
 
     private static async Task<IdempotencyRecordState> ReadIdempotencyRecordAsync(string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT endpoint, idempotency_key, status, response_status, resource_type, resource_id
-            FROM api_idempotency_keys;
-            """,
-            connection);
-
-        await using var reader = await command.ExecuteReaderAsync();
-
-        Assert.True(await reader.ReadAsync());
+        var record = await ApiDatabaseTestSupport.ReadSingleIdempotencySummaryAsync(connectionString);
 
         return new IdempotencyRecordState(
-            reader.GetString(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetInt32(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
-            reader.IsDBNull(5) ? null : reader.GetGuid(5));
+            record.Endpoint,
+            record.IdempotencyKey,
+            record.Status,
+            record.ResponseStatus,
+            record.ResourceType,
+            record.ResourceId);
     }
 
     private static async Task<int> CountEventsAsync(string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand("SELECT count(*) FROM events;", connection);
-
-        return Convert.ToInt32(await command.ExecuteScalarAsync());
+        return await ApiDatabaseTestSupport.CountRowsAsync(connectionString, "events");
     }
 
     private sealed record EventRecordState(

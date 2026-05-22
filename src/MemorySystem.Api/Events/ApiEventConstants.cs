@@ -25,10 +25,6 @@ internal static class ApiEventConstants
         "erasure_requested"
     };
 
-    public static IReadOnlySet<string> RoleIds => MemoryScopePolicy.RoleIds;
-
-    public static IReadOnlySet<string> ScopeTypes => MemoryScopePolicy.ScopeTypes;
-
     public static IReadOnlySet<string> Sensitivities => MemoryScopePolicy.Sensitivities;
 
     public static IReadOnlySet<string> TrustLevels => MemoryScopePolicy.TrustLevels;

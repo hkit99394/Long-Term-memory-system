@@ -1,9 +1,7 @@
-using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -158,11 +156,15 @@ public sealed class ApiIdempotencyTests
 
     private static async Task PrepareDatabaseAsync(string connectionString, params Guid[] principalIds)
     {
-        await SqlMigrationRunner.ApplyAsync(connectionString, MigrationTestPaths.FindMigrationsDirectory());
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
 
         foreach (var principalId in principalIds)
         {
-            await InsertPrincipalAsync(connectionString, principalId);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(
+                connectionString,
+                principalId,
+                principalType: "service",
+                displayName: "API Principal");
         }
     }
 
@@ -216,92 +218,14 @@ public sealed class ApiIdempotencyTests
         return MemorySystemApiTestFactory.Create(postgresConnectionString, apiKeys);
     }
 
-    private static async Task InsertPrincipalAsync(string connectionString, Guid principalId)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO principals (
-                id,
-                principal_type,
-                display_name,
-                status
-            )
-            VALUES (
-                @principal_id,
-                'service',
-                'API Principal',
-                'active'
-            );
-            """,
-            connection);
-
-        command.Parameters.AddWithValue("principal_id", principalId);
-
-        await command.ExecuteNonQueryAsync();
-    }
-
     private static async Task<int> CountIdempotencyRecordsAsync(string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand("SELECT count(*) FROM api_idempotency_keys;", connection);
-
-        return Convert.ToInt32(await command.ExecuteScalarAsync());
+        return await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(connectionString);
     }
 
-    private static async Task<IReadOnlyList<IdempotencyRecordState>> ReadIdempotencyRecordsAsync(
+    private static async Task<IReadOnlyList<ApiIdempotencyRecordDetail>> ReadIdempotencyRecordsAsync(
         string connectionString)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT
-                principal_id,
-                endpoint,
-                idempotency_key,
-                request_hash,
-                response_status,
-                response_body::text,
-                status,
-                expires_at
-            FROM api_idempotency_keys
-            ORDER BY principal_id;
-            """,
-            connection);
-
-        var records = new List<IdempotencyRecordState>();
-
-        await using var reader = await command.ExecuteReaderAsync();
-
-        while (await reader.ReadAsync())
-        {
-            records.Add(new IdempotencyRecordState(
-                reader.GetGuid(0),
-                reader.GetString(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.GetInt32(4),
-                reader.GetString(5),
-                reader.GetString(6),
-                reader.GetFieldValue<DateTimeOffset>(7)));
-        }
-
-        return records;
+        return await ApiDatabaseTestSupport.ReadIdempotencyDetailsAsync(connectionString);
     }
-
-    private sealed record IdempotencyRecordState(
-        Guid PrincipalId,
-        string Endpoint,
-        string IdempotencyKey,
-        string RequestHash,
-        int ResponseStatus,
-        string ResponseBody,
-        string Status,
-        DateTimeOffset ExpiresAt);
 }

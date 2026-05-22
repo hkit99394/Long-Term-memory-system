@@ -57,4 +57,127 @@ public sealed class MemoryScopePolicyTests
         Assert.Equal(string.Empty, normalizedScopeId);
         Assert.Contains(expectedError, error, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("global", null, "global", null)]
+    [InlineData("org", "22222222-2222-4222-8222-222222222222", "22222222-2222-4222-8222-222222222222", null)]
+    [InlineData("user", "11111111-1111-4111-8111-111111111111", "11111111-1111-4111-8111-111111111111", null)]
+    [InlineData("role", "CTO", "cto", "cto")]
+    [InlineData("session", "session-1", "session-1", null)]
+    public void TryNormalizeEventScope_returns_scope_resolution(
+        string scopeType,
+        string? scopeId,
+        string expectedScopeId,
+        string? expectedRoleId)
+    {
+        var result = MemoryScopePolicy.TryNormalizeEventScope(
+            PrincipalId,
+            scopeType,
+            scopeId,
+            scopeOrgId: null,
+            conversationId: null,
+            agentPrincipalId: null,
+            roleId: null,
+            out var resolution,
+            out var error);
+
+        Assert.True(result);
+        Assert.Equal(scopeType, resolution.ScopeType);
+        Assert.Equal(expectedScopeId, resolution.ScopeId);
+        Assert.Equal(expectedRoleId, resolution.RoleId);
+        Assert.Equal(expectedRoleId, resolution.ScopeRoleId);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void TryNormalizeEventScope_preserves_actor_role_without_assigning_scope_role()
+    {
+        var result = MemoryScopePolicy.TryNormalizeEventScope(
+            PrincipalId,
+            "user",
+            PrincipalId.ToString(),
+            scopeOrgId: null,
+            conversationId: null,
+            agentPrincipalId: null,
+            roleId: "CTO",
+            out var resolution,
+            out var error);
+
+        Assert.True(result);
+        Assert.Equal("cto", resolution.RoleId);
+        Assert.Null(resolution.ScopeRoleId);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void TryNormalizeEventScope_sets_agent_principal_from_agent_scope()
+    {
+        var agentPrincipalId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+
+        var result = MemoryScopePolicy.TryNormalizeEventScope(
+            PrincipalId,
+            "agent",
+            agentPrincipalId.ToString(),
+            scopeOrgId: null,
+            conversationId: null,
+            agentPrincipalId: null,
+            roleId: null,
+            out var resolution,
+            out var error);
+
+        Assert.True(result);
+        Assert.Equal(agentPrincipalId.ToString(), resolution.ScopeId);
+        Assert.Equal(agentPrincipalId, resolution.PrincipalId);
+        Assert.Equal(agentPrincipalId, resolution.AgentPrincipalId);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void TryNormalizeEventScope_derives_conversation_from_guid_session_scope()
+    {
+        var conversationId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+
+        var result = MemoryScopePolicy.TryNormalizeEventScope(
+            PrincipalId,
+            "session",
+            conversationId.ToString(),
+            scopeOrgId: null,
+            conversationId: null,
+            agentPrincipalId: null,
+            roleId: null,
+            out var resolution,
+            out var error);
+
+        Assert.True(result);
+        Assert.Equal(conversationId.ToString(), resolution.ScopeId);
+        Assert.Equal(conversationId, resolution.ConversationId);
+        Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("user", "22222222-2222-4222-8222-222222222222", "authenticated principal")]
+    [InlineData("agent", "not-a-guid", "valid GUID")]
+    [InlineData("role", "intern", "supported role")]
+    [InlineData("session", "global", "must not be 'global'")]
+    [InlineData("unknown", "global", "scopeType is not supported")]
+    public void TryNormalizeEventScope_rejects_invalid_scope(
+        string scopeType,
+        string scopeId,
+        string expectedError)
+    {
+        var result = MemoryScopePolicy.TryNormalizeEventScope(
+            PrincipalId,
+            scopeType,
+            scopeId,
+            scopeOrgId: null,
+            conversationId: null,
+            agentPrincipalId: null,
+            roleId: null,
+            out var resolution,
+            out var error);
+
+        Assert.False(result);
+        Assert.Null(resolution);
+        Assert.Contains(expectedError, error, StringComparison.Ordinal);
+    }
 }

@@ -135,7 +135,7 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         var createdAt = await insert.ExecuteScalarAsync(cancellationToken)
             ?? throw new InvalidOperationException("Event append did not return a creation timestamp.");
 
-        await PostgresTransactionalIdempotencyCompleter.CompleteAsync(
+        await PostgresApiIdempotencyCompleter.CompleteAsync(
             connection,
             transaction,
             idempotencyRecordId,
