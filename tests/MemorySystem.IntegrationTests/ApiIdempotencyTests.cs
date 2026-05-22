@@ -2,9 +2,7 @@ using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -205,37 +203,17 @@ public sealed class ApiIdempotencyTests
         string postgresConnectionString,
         bool includeSecondKey = false)
     {
-        return new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                {
-                    var configuration = CreateApiKeyConfiguration(includeSecondKey);
-                    configuration["ConnectionStrings:Postgres"] = postgresConnectionString;
-
-                    configurationBuilder.AddInMemoryCollection(configuration);
-                });
-            });
-    }
-
-    private static Dictionary<string, string?> CreateApiKeyConfiguration(bool includeSecondKey)
-    {
-        var configuration = new Dictionary<string, string?>
+        var apiKeys = new List<ApiKeyConfiguration>
         {
-            ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
-            ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId,
-            ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
+            new("test-key", TestApiKey, TestPrincipalId, "Test API caller")
         };
 
         if (includeSecondKey)
         {
-            configuration["Authentication:ApiKey:Keys:second-key:Key"] = SecondApiKey;
-            configuration["Authentication:ApiKey:Keys:second-key:PrincipalId"] = SecondPrincipalId;
-            configuration["Authentication:ApiKey:Keys:second-key:DisplayName"] = "Second API caller";
+            apiKeys.Add(new ApiKeyConfiguration("second-key", SecondApiKey, SecondPrincipalId, "Second API caller"));
         }
 
-        return configuration;
+        return MemorySystemApiTestFactory.Create(postgresConnectionString, apiKeys);
     }
 
     private static async Task InsertPrincipalAsync(string connectionString, Guid principalId)

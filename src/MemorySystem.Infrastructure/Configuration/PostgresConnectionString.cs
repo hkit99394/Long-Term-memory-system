@@ -87,7 +87,7 @@ public static class PostgresConnectionString
             return DefaultPort;
         }
 
-        if (int.TryParse(value, out var port))
+        if (int.TryParse(value, out var port) && port is > 0 and <= 65535)
         {
             return port;
         }

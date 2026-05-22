@@ -168,4 +168,20 @@ public sealed class PostgresConnectionStringTests
 
         Assert.Contains(PostgresConnectionString.PortKey, exception.Message);
     }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("65536")]
+    public void Resolve_rejects_port_outside_tcp_range(string port)
+    {
+        var values = new Dictionary<string, string?>
+        {
+            [PostgresConnectionString.PortKey] = port
+        };
+
+        var exception = Assert.Throws<FormatException>(
+            () => PostgresConnectionString.ResolveLocalDefaults(key => values.GetValueOrDefault(key)));
+
+        Assert.Contains(PostgresConnectionString.PortKey, exception.Message);
+    }
 }
