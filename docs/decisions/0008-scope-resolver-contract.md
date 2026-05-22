@@ -31,4 +31,4 @@ The resolver depends on an application interface for scope references. PostgreSQ
 - Event and proposal requests now share canonical scope normalization.
 - Project scope no longer depends on clients to supply the organization id.
 - Membership and grant checks layer on resolved scope metadata rather than parsing raw request fields again.
-- Database constraints remain the final safety net for scope consistency.
+- Database constraints remain the final safety net for scope consistency; [Decision 0010](0010-memory-fact-scope-consistency.md) adds the named memory fact guard.

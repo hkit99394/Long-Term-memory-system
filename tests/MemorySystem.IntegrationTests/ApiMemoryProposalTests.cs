@@ -193,6 +193,9 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal("project", memoryFact.ScopeType);
             Assert.Equal(TestProjectId, memoryFact.ScopeId);
             Assert.Equal($"/project/{TestProjectId}/decisions", memoryFact.Namespace);
+            Assert.Equal(Guid.Parse(TestOrgId), memoryFact.OrgId);
+            Assert.Equal(Guid.Parse(TestProjectId), memoryFact.ProjectId);
+            Assert.Null(memoryFact.UserPrincipalId);
             Assert.Equal("decision", memoryFact.MemoryType);
         }
         finally
@@ -686,6 +689,10 @@ public sealed class ApiMemoryProposalTests
                 scope_id,
                 namespace,
                 user_principal_id,
+                project_id,
+                org_id,
+                role_id,
+                agent_principal_id,
                 memory_type,
                 subject,
                 predicate,
@@ -707,12 +714,16 @@ public sealed class ApiMemoryProposalTests
             reader.GetString(1),
             reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetGuid(3),
-            reader.GetString(4),
-            reader.GetString(5),
-            reader.GetString(6),
-            reader.GetString(7),
-            reader.GetGuid(8),
-            reader.GetGuid(9));
+            reader.IsDBNull(4) ? null : reader.GetGuid(4),
+            reader.IsDBNull(5) ? null : reader.GetGuid(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetGuid(7),
+            reader.GetString(8),
+            reader.GetString(9),
+            reader.GetString(10),
+            reader.GetString(11),
+            reader.GetGuid(12),
+            reader.GetGuid(13));
     }
 
     private static async Task<MemoryChunkState> ReadMemoryChunkAsync(string connectionString, Guid memoryId)
@@ -807,6 +818,10 @@ public sealed class ApiMemoryProposalTests
         string ScopeId,
         string Namespace,
         Guid? UserPrincipalId,
+        Guid? ProjectId,
+        Guid? OrgId,
+        string? RoleId,
+        Guid? AgentPrincipalId,
         string MemoryType,
         string Subject,
         string Predicate,

@@ -39,5 +39,6 @@ The PostgreSQL access reference store checks direct principal grants and role-ba
 - Project and organization event appends now return `403` when the authenticated principal lacks membership.
 - Stored memory proposals now return `403` and skip durable writes when the principal lacks either scope access or a namespace write grant.
 - Access SQL stays in infrastructure, while API endpoints and application workflows share one authorization policy surface.
-- M3-03 and M3-05 still need stricter consistency checks between namespace strings and resolved scope metadata.
-- M3-04 still needs the blocked cross-project read test once a read path exists.
+- [Decision 0010](0010-memory-fact-scope-consistency.md) adds the database guard for stored memory fact scope, owner, and namespace consistency.
+- [Decision 0011](0011-direct-memory-fact-read-access.md) applies the read side of the same policy to direct memory fact reads.
+- [Decision 0012](0012-memory-namespace-parser.md) adds structured namespace parsing for application-level validation and future read-path query construction.

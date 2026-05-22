@@ -39,6 +39,8 @@ public sealed class MemoryScopePolicyTests
     [InlineData("role", "intern", "/role/intern/principles", "supported role")]
     [InlineData("session", "global", "/session/global/instructions", "must not be 'global'")]
     [InlineData("project", "33333333-3333-4333-8333-333333333333", "/user/11111111-1111-4111-8111-111111111111/preferences", "namespace must start")]
+    [InlineData("session", "session-1", "/session/session-10/instructions", "namespace must start")]
+    [InlineData("project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/role/intern/lens", "not supported")]
     public void TryNormalizeProposalScope_rejects_invalid_scope(
         string scopeType,
         string scopeId,

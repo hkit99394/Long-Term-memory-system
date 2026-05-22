@@ -27,6 +27,9 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0007: Transactional Memory Proposal Write](decisions/0007-transactional-memory-proposal-write.md) | Records the M2 stored proposal transaction that creates memory facts, chunks, outbox jobs, and idempotent responses. |
 | [Decision 0008: Scope Resolver Contract](decisions/0008-scope-resolver-contract.md) | Records the M3 scope resolver boundary for global, org, project, user, role, agent, and session requests. |
 | [Decision 0009: Membership and Grant Access Checks](decisions/0009-membership-and-grant-access-checks.md) | Records the M3 access policy for memberships, role assignments, namespace grants, and write-path enforcement. |
+| [Decision 0010: Memory Fact Scope Consistency](decisions/0010-memory-fact-scope-consistency.md) | Records the M3 database constraint that keeps memory fact scope ids, namespace prefixes, and owner columns aligned. |
+| [Decision 0011: Direct Memory Fact Read Access](decisions/0011-direct-memory-fact-read-access.md) | Records the M3 direct memory fact read endpoint and blocked cross-project read behavior. |
+| [Decision 0012: Memory Namespace Parser](decisions/0012-memory-namespace-parser.md) | Records the M3 parser for turning namespace strings into canonical scope metadata. |
 
 ## Dictionary
 
@@ -41,7 +44,9 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
 | Memory grant | A permission record that allows a principal or assigned role to read, write, review, or administer a namespace prefix. |
-| Namespace | A path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
+| Memory owner columns | Typed columns such as `org_id`, `project_id`, `user_principal_id`, `role_id`, and `agent_principal_id` that mirror a memory fact's canonical scope. |
+| Memory read service | The application service that loads a memory fact and returns it only after the caller has read access to its scope and namespace. |
+| Namespace | A parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
 | Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
 | Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
 | pgvector | PostgreSQL extension used to store and search vector embeddings. |

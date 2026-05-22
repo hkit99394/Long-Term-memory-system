@@ -2,6 +2,7 @@ using MemorySystem.Api.Access;
 using MemorySystem.Api.Authentication;
 using MemorySystem.Api.Events;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Api.MemoryFacts;
 using MemorySystem.Api.MemoryProposals;
 using MemorySystem.Api.Scopes;
 using MemorySystem.Infrastructure.Configuration;
@@ -18,6 +19,7 @@ builder.Services.AddMemorySystemApiIdempotency(builder.Configuration, builder.En
 builder.Services.AddMemorySystemScopes();
 builder.Services.AddMemorySystemAccess();
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
+builder.Services.AddMemorySystemMemoryFacts();
 builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
 
 builder.Services
@@ -36,6 +38,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 
 app.MapGet("/", () => "Hello World!").AllowAnonymous();
 app.MapMemorySystemEventEndpoints();
+app.MapMemorySystemMemoryFactEndpoints();
 app.MapMemorySystemMemoryProposalEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))

@@ -61,4 +61,6 @@ MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING="Host=127.0.0.1;Port=55432;Database
   dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
 ```
 
-The database-backed command currently covers the migration runner, PostgreSQL health endpoint, scoped event constraints, project/organization scope consistency, API-key principal resolution, request idempotency, event append, minimal broker proposal decisions, transactional memory proposal writes, provenance enforcement, request scope resolution, and membership/grant access-control checks. Later milestones should extend this path with retrieval and deeper broker tests.
+The fast test command covers deterministic application policy, including namespace parsing, scope normalization, broker decisions, access authorization, and direct memory read authorization.
+
+The database-backed command currently covers the migration runner, PostgreSQL health endpoint, scoped event constraints, project/organization scope consistency, memory fact scope/owner/namespace consistency, API-key principal resolution, request idempotency, event append, minimal broker proposal decisions, transactional memory proposal writes, provenance enforcement, request scope resolution, membership/grant access-control checks, and the blocked cross-project direct read case. Later milestones should extend this path with search/context retrieval and deeper broker tests.

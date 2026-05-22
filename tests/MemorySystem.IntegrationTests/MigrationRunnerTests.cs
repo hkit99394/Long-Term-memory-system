@@ -8,6 +8,7 @@ public sealed class MigrationRunnerTests
     private const long AdvisoryLockKey = 7_404_808_312_433_927_019;
     private const string InitialMigration = "001_initial_memory_schema.sql";
     private const string ScopeHardeningMigration = "002_scope_constraints_and_outbox_hardening.sql";
+    private const string MemoryFactScopeConsistencyMigration = "003_memory_fact_scope_consistency.sql";
 
     [Fact]
     [Trait("Category", "Database")]
@@ -26,9 +27,11 @@ public sealed class MigrationRunnerTests
 
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ScopeHardeningMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
             Assert.Empty(secondRun.AppliedMigrations);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ScopeHardeningMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
         }
         finally
         {
@@ -81,6 +84,7 @@ public sealed class MigrationRunnerTests
 
             Assert.Contains(InitialMigration, exception.MigrationNames);
             Assert.Contains(ScopeHardeningMigration, exception.MigrationNames);
+            Assert.Contains(MemoryFactScopeConsistencyMigration, exception.MigrationNames);
             Assert.Contains("schema_migrations", exception.Message, StringComparison.Ordinal);
         }
         finally

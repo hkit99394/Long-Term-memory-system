@@ -62,28 +62,23 @@ public static class MemoryScopePolicy
                     return false;
                 }
 
-                normalizedScopeId = "global";
-                return HasNamespacePrefix(namespaceValue, "/global/", out error);
+                return HasNamespaceScope(namespaceValue, "global", "global", out normalizedScopeId, out error);
 
             case "org":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var orgId, out error)
-                    || !HasNamespacePrefix(namespaceValue, $"/org/{orgId}/", out error))
+                if (!TryParseScopedGuid(scopeId, "scopeId", out var orgId, out error))
                 {
                     return false;
                 }
 
-                normalizedScopeId = orgId.ToString();
-                return true;
+                return HasNamespaceScope(namespaceValue, "org", orgId.ToString(), out normalizedScopeId, out error);
 
             case "project":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var projectId, out error)
-                    || !HasNamespacePrefix(namespaceValue, $"/project/{projectId}/", out error))
+                if (!TryParseScopedGuid(scopeId, "scopeId", out var projectId, out error))
                 {
                     return false;
                 }
 
-                normalizedScopeId = projectId.ToString();
-                return true;
+                return HasNamespaceScope(namespaceValue, "project", projectId.ToString(), out normalizedScopeId, out error);
 
             case "user":
                 if (!TryParseScopedGuid(scopeId, "scopeId", out var userPrincipalId, out error))
@@ -97,23 +92,15 @@ public static class MemoryScopePolicy
                     return false;
                 }
 
-                if (!HasNamespacePrefix(namespaceValue, $"/user/{userPrincipalId}/", out error))
-                {
-                    return false;
-                }
-
-                normalizedScopeId = userPrincipalId.ToString();
-                return true;
+                return HasNamespaceScope(namespaceValue, "user", userPrincipalId.ToString(), out normalizedScopeId, out error);
 
             case "agent":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var agentPrincipalId, out error)
-                    || !HasNamespacePrefix(namespaceValue, $"/agent/{agentPrincipalId}/", out error))
+                if (!TryParseScopedGuid(scopeId, "scopeId", out var agentPrincipalId, out error))
                 {
                     return false;
                 }
 
-                normalizedScopeId = agentPrincipalId.ToString();
-                return true;
+                return HasNamespaceScope(namespaceValue, "agent", agentPrincipalId.ToString(), out normalizedScopeId, out error);
 
             case "role":
                 var roleId = scopeId.ToLowerInvariant();
@@ -124,13 +111,7 @@ public static class MemoryScopePolicy
                     return false;
                 }
 
-                if (!HasNamespacePrefix(namespaceValue, $"/role/{roleId}/", out error))
-                {
-                    return false;
-                }
-
-                normalizedScopeId = roleId;
-                return true;
+                return HasNamespaceScope(namespaceValue, "role", roleId, out normalizedScopeId, out error);
 
             case "session":
                 if (string.Equals(scopeId, "global", StringComparison.Ordinal))
@@ -139,13 +120,7 @@ public static class MemoryScopePolicy
                     return false;
                 }
 
-                if (!HasNamespacePrefix(namespaceValue, $"/session/{scopeId}/", out error))
-                {
-                    return false;
-                }
-
-                normalizedScopeId = scopeId;
-                return true;
+                return HasNamespaceScope(namespaceValue, "session", scopeId, out normalizedScopeId, out error);
 
             default:
                 error = "scopeType is not supported.";
@@ -169,16 +144,29 @@ public static class MemoryScopePolicy
         return false;
     }
 
-    private static bool HasNamespacePrefix(
+    private static bool HasNamespaceScope(
         string namespaceValue,
-        string expectedPrefix,
+        string expectedScopeType,
+        string expectedScopeId,
+        out string normalizedScopeId,
         out string? error)
     {
-        if (namespaceValue.StartsWith(expectedPrefix, StringComparison.Ordinal))
+        normalizedScopeId = string.Empty;
+
+        if (!MemoryNamespaceParser.TryParse(namespaceValue, out var memoryNamespace, out error))
         {
+            return false;
+        }
+
+        if (memoryNamespace.ScopeType == expectedScopeType
+            && memoryNamespace.ScopeId == expectedScopeId)
+        {
+            normalizedScopeId = expectedScopeId;
             error = null;
             return true;
         }
+
+        var expectedPrefix = MemoryNamespaceParser.BuildScopePrefix(expectedScopeType, expectedScopeId);
 
         error = $"namespace must start with '{expectedPrefix}'.";
         return false;
