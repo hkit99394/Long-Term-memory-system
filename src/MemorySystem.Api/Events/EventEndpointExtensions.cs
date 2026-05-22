@@ -1,5 +1,6 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.Events;
 
 namespace MemorySystem.Api.Events;
@@ -10,12 +11,21 @@ public static class EventEndpointExtensions
     {
         endpoints.MapPost(
             "/api/events",
-            async (HttpContext context, ApiIdempotencyHttpService idempotency, IEventStore eventStore) =>
+            async (
+                HttpContext context,
+                ApiIdempotencyHttpService idempotency,
+                IEventStore eventStore,
+                IMemoryScopeResolver scopeResolver) =>
                 await idempotency.ExecuteAsync(
                     context,
                     "POST /api/events",
                     async (idempotencyContext, cancellationToken) =>
-                        await AppendEventAsync(context, eventStore, idempotencyContext, cancellationToken)))
+                        await AppendEventAsync(
+                            context,
+                            eventStore,
+                            scopeResolver,
+                            idempotencyContext,
+                            cancellationToken)))
             .RequireAuthorization();
 
         return endpoints;
@@ -24,6 +34,7 @@ public static class EventEndpointExtensions
     private static async Task<ApiIdempotencyResponse> AppendEventAsync(
         HttpContext context,
         IEventStore eventStore,
+        IMemoryScopeResolver scopeResolver,
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
@@ -45,7 +56,27 @@ public static class EventEndpointExtensions
             return requestResult.Problem!;
         }
 
-        if (!AppendEventRequestMapper.TryMap(principalId, requestResult.Value!, out var command, out var problem))
+        var request = requestResult.Value!;
+        var scopeResult = await scopeResolver.ResolveEventScopeAsync(
+            new MemoryEventScopeRequest(
+                principalId,
+                request.ScopeType,
+                request.ScopeId,
+                request.ScopeOrgId,
+                request.ConversationId,
+                request.AgentPrincipalId,
+                request.RoleId),
+            cancellationToken);
+
+        if (!scopeResult.Succeeded)
+        {
+            return ApiRequestHelpers.Problem(
+                StatusCodes.Status400BadRequest,
+                "Event scope is invalid.",
+                scopeResult.Error!);
+        }
+
+        if (!AppendEventRequestMapper.TryMap(principalId, request, scopeResult.Resolution!, out var command, out var problem))
         {
             return new ApiIdempotencyResponse(problem!.Status ?? StatusCodes.Status400BadRequest, problem);
         }

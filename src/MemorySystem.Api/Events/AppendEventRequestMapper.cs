@@ -11,11 +11,13 @@ internal static class AppendEventRequestMapper
     public static bool TryMap(
         Guid authenticatedPrincipalId,
         AppendEventRequest request,
+        MemoryScopeResolution resolvedScope,
         out AppendEventCommand command,
         out ProblemDetails? problem)
     {
         command = null!;
         problem = null;
+        ArgumentNullException.ThrowIfNull(resolvedScope);
 
         if (request.PrincipalId.HasValue && request.PrincipalId.Value != authenticatedPrincipalId)
         {
@@ -44,16 +46,11 @@ internal static class AppendEventRequestMapper
         var contentJson = request.Payload.GetRawText();
         var contentHash = ComputeSha256(contentJson);
 
-        if (!TryMapScope(authenticatedPrincipalId, request, out var scope, out var conversationId, out var agentPrincipalId, out var roleId, out problem))
-        {
-            return false;
-        }
-
         command = new AppendEventCommand(
             authenticatedPrincipalId,
-            conversationId,
-            agentPrincipalId,
-            roleId,
+            resolvedScope.ConversationId,
+            resolvedScope.AgentPrincipalId,
+            resolvedScope.RoleId,
             eventType,
             contentJson,
             contentHash,
@@ -61,50 +58,13 @@ internal static class AppendEventRequestMapper
             retentionClass,
             sensitivity,
             trustLevel,
-            scope);
-        return true;
-    }
-
-    private static bool TryMapScope(
-        Guid authenticatedPrincipalId,
-        AppendEventRequest request,
-        out EventScope scope,
-        out Guid? conversationId,
-        out Guid? agentPrincipalId,
-        out string? roleId,
-        out ProblemDetails? problem)
-    {
-        scope = null!;
-        conversationId = request.ConversationId;
-        agentPrincipalId = request.AgentPrincipalId;
-        roleId = null;
-        problem = null;
-
-        if (!MemoryScopePolicy.TryNormalizeEventScope(
-            authenticatedPrincipalId,
-            request.ScopeType,
-            request.ScopeId,
-            request.ScopeOrgId,
-            request.ConversationId,
-            request.AgentPrincipalId,
-            request.RoleId,
-            out var resolvedScope,
-            out var error))
-        {
-            problem = BadRequest(error!);
-            return false;
-        }
-
-        conversationId = resolvedScope.ConversationId;
-        agentPrincipalId = resolvedScope.AgentPrincipalId;
-        roleId = resolvedScope.RoleId;
-        scope = new EventScope(
-            resolvedScope.ScopeType,
-            resolvedScope.ScopeId,
-            resolvedScope.OrgId,
-            resolvedScope.ProjectId,
-            resolvedScope.PrincipalId,
-            resolvedScope.ScopeRoleId);
+            new EventScope(
+                resolvedScope.ScopeType,
+                resolvedScope.ScopeId,
+                resolvedScope.OrgId,
+                resolvedScope.ProjectId,
+                resolvedScope.PrincipalId,
+                resolvedScope.ScopeRoleId));
         return true;
     }
 

@@ -1,4 +1,5 @@
 using MemorySystem.Application.MemoryProposals;
+using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.UnitTests;
 
@@ -100,7 +101,8 @@ public sealed class MemoryProposalWorkflowTests
         return new MemoryProposalWorkflow(
             new MinimalMemoryProposalBroker(),
             writeStore,
-            sourceEvents);
+            sourceEvents,
+            new MemoryScopeResolver(new FakeMemoryScopeReferenceStore()));
     }
 
     private static MemoryProposalWorkflowRequest CreateRequest(
@@ -177,6 +179,27 @@ public sealed class MemoryProposalWorkflowTests
                 "The proposal was stored as durable memory.",
                 memoryId ?? Guid.NewGuid(),
                 proposal.SourceEventId));
+        }
+    }
+
+    private sealed class FakeMemoryScopeReferenceStore : IMemoryScopeReferenceStore
+    {
+        public Task<bool> OrganizationExistsAsync(Guid orgId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task<ProjectScopeReference?> FindProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ProjectScopeReference?>(new ProjectScopeReference(projectId, Guid.NewGuid()));
+        }
+
+        public Task<bool> PrincipalExistsAsync(
+            Guid principalId,
+            string? principalType = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
         }
     }
 }

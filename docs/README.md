@@ -25,6 +25,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0005: Event Append Contract](decisions/0005-event-append-contract.md) | Records the M2 `POST /api/events` request shape, scope mapping, inline payload storage, and retry behavior. |
 | [Decision 0006: Minimal Memory Proposal Broker](decisions/0006-minimal-memory-proposal-broker.md) | Records the M2 `POST /api/memory/proposals` contract and deterministic broker decision rules. |
 | [Decision 0007: Transactional Memory Proposal Write](decisions/0007-transactional-memory-proposal-write.md) | Records the M2 stored proposal transaction that creates memory facts, chunks, outbox jobs, and idempotent responses. |
+| [Decision 0008: Scope Resolver Contract](decisions/0008-scope-resolver-contract.md) | Records the M3 scope resolver boundary for global, org, project, user, role, agent, and session requests. |
 
 ## Dictionary
 

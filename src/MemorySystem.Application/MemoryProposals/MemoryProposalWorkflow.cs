@@ -5,7 +5,8 @@ namespace MemorySystem.Application.MemoryProposals;
 public sealed class MemoryProposalWorkflow(
     IMemoryProposalBroker broker,
     IMemoryProposalWriteStore writeStore,
-    ISourceEventReferenceStore sourceEvents) : IMemoryProposalWorkflow
+    ISourceEventReferenceStore sourceEvents,
+    IMemoryScopeResolver scopeResolver) : IMemoryProposalWorkflow
 {
     private static readonly IReadOnlySet<string> MemoryTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -38,6 +39,25 @@ public sealed class MemoryProposalWorkflow(
         {
             return MemoryProposalWorkflowResult.Invalid(error!);
         }
+
+        var scopeResult = await scopeResolver.ResolveProposalScopeAsync(
+            new MemoryProposalScopeRequest(
+                request.AuthenticatedPrincipalId,
+                request.ScopeType,
+                request.ScopeId,
+                request.Namespace),
+            cancellationToken);
+
+        if (!scopeResult.Succeeded)
+        {
+            return MemoryProposalWorkflowResult.Invalid(scopeResult.Error!);
+        }
+
+        proposal = proposal with
+        {
+            ScopeType = scopeResult.Resolution!.ScopeType,
+            ScopeId = scopeResult.Resolution.ScopeId
+        };
 
         proposal = proposal with
         {
@@ -105,18 +125,6 @@ public sealed class MemoryProposalWorkflow(
             return false;
         }
 
-        if (!MemoryScopePolicy.TryNormalizeProposalScope(
-            request.AuthenticatedPrincipalId,
-            scopeType,
-            scopeId,
-            namespaceValue,
-            out var normalizedScopeId,
-            out var scopeError))
-        {
-            error = scopeError;
-            return false;
-        }
-
         if (!Visibilities.Contains(visibility))
         {
             error = "visibility is not supported.";
@@ -146,7 +154,7 @@ public sealed class MemoryProposalWorkflow(
             sourceEventExists,
             memoryType,
             scopeType,
-            normalizedScopeId,
+            scopeId,
             namespaceValue,
             visibility,
             request.Subject?.Trim() ?? string.Empty,

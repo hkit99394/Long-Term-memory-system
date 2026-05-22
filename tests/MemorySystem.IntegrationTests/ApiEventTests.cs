@@ -14,6 +14,7 @@ public sealed class ApiEventTests
     private const string TestPrincipalId = "11111111-1111-4111-8111-111111111111";
     private const string TestOrgId = "22222222-2222-4222-8222-222222222222";
     private const string TestProjectId = "33333333-3333-4333-8333-333333333333";
+    private const string TestAgentPrincipalId = "44444444-4444-4444-8444-444444444444";
 
     [Fact]
     [Trait("Category", "Database")]
@@ -201,6 +202,82 @@ public sealed class ApiEventTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Post_events_resolves_organization_role_agent_and_session_scopes()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_scope_resolver_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString, createProject: true);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(
+                databaseConnectionString,
+                Guid.Parse(TestAgentPrincipalId),
+                principalType: "agent",
+                displayName: "Test Agent");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var cases = new[]
+            {
+                new EventScopeCase(
+                    "org",
+                    TestOrgId,
+                    ExpectedOrgId: Guid.Parse(TestOrgId),
+                    ExpectedProjectId: null,
+                    ExpectedPrincipalId: null,
+                    ExpectedRoleId: null),
+                new EventScopeCase(
+                    "role",
+                    "CTO",
+                    ExpectedOrgId: null,
+                    ExpectedProjectId: null,
+                    ExpectedPrincipalId: null,
+                    ExpectedRoleId: "cto"),
+                new EventScopeCase(
+                    "agent",
+                    TestAgentPrincipalId,
+                    ExpectedOrgId: null,
+                    ExpectedProjectId: null,
+                    ExpectedPrincipalId: Guid.Parse(TestAgentPrincipalId),
+                    ExpectedRoleId: null),
+                new EventScopeCase(
+                    "session",
+                    "session-1",
+                    ExpectedOrgId: null,
+                    ExpectedProjectId: null,
+                    ExpectedPrincipalId: null,
+                    ExpectedRoleId: null)
+            };
+
+            foreach (var scopeCase in cases)
+            {
+                var responsePayload = await SendEventAsync(
+                    client,
+                    $"scope-resolver-{scopeCase.ScopeType}",
+                    CreateScopedEventBody(scopeCase.ScopeType, scopeCase.ScopeId));
+                var storedEvent = await ReadEventAsync(
+                    databaseConnectionString,
+                    responsePayload.GetProperty("id").GetGuid());
+
+                Assert.Equal(scopeCase.ScopeType, storedEvent.ScopeType);
+                Assert.Equal(scopeCase.ScopeId.ToLowerInvariant(), storedEvent.ScopeId);
+                Assert.Equal(scopeCase.ExpectedOrgId, storedEvent.ScopeOrgId);
+                Assert.Equal(scopeCase.ExpectedProjectId, storedEvent.ScopeProjectId);
+                Assert.Equal(scopeCase.ExpectedPrincipalId, storedEvent.ScopePrincipalId);
+                Assert.Equal(scopeCase.ExpectedRoleId, storedEvent.ScopeRoleId);
+            }
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static string CreateUserEventBody(string message)
     {
         return $$"""
@@ -211,6 +288,20 @@ public sealed class ApiEventTests
               "scopeId": "{{TestPrincipalId}}",
               "payload": {
                 "message": "{{message}}"
+              }
+            }
+            """;
+    }
+
+    private static string CreateScopedEventBody(string scopeType, string scopeId)
+    {
+        return $$"""
+            {
+              "eventType": "user_message",
+              "scopeType": "{{scopeType}}",
+              "scopeId": "{{scopeId}}",
+              "payload": {
+                "message": "Resolve {{scopeType}} scope."
               }
             }
             """;
@@ -345,6 +436,14 @@ public sealed class ApiEventTests
         Guid? ScopeProjectId,
         Guid? ScopePrincipalId,
         string? ScopeRoleId);
+
+    private sealed record EventScopeCase(
+        string ScopeType,
+        string ScopeId,
+        Guid? ExpectedOrgId,
+        Guid? ExpectedProjectId,
+        Guid? ExpectedPrincipalId,
+        string? ExpectedRoleId);
 
     private sealed record IdempotencyRecordState(
         string Endpoint,

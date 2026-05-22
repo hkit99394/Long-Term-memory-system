@@ -16,7 +16,7 @@ For broker decisions of `stored`, the proposal endpoint writes these records in 
 
 - `memory_facts`, with the proposal's structured subject, predicate, object, scope, namespace, source event, proposer, confidence, trust level, and active status.
 - `memory_chunks`, linked to the memory fact and source event, with matching scope and namespace metadata.
-- `outbox_jobs`, using `memory.index` so later workers can index or embed the new memory.
+- `outbox_jobs`, using `memory.index` so workers can verify the derived chunk is full-text searchable now; embedding provider work remains a later M6 concern.
 - `api_idempotency_keys`, completed with the stored broker response, `resource_type = 'memory_fact'`, and the created memory id.
 
 The endpoint still runs the deterministic broker first. Non-stored decisions continue to complete through the generic idempotency path and do not write memory facts, chunks, or outbox jobs.

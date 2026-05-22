@@ -70,7 +70,7 @@ public sealed class MemoryScopePolicyTests
         string expectedScopeId,
         string? expectedRoleId)
     {
-        var result = MemoryScopePolicy.TryNormalizeEventScope(
+        var result = MemoryEventScopePolicy.TryNormalizeEventScope(
             PrincipalId,
             scopeType,
             scopeId,
@@ -92,7 +92,7 @@ public sealed class MemoryScopePolicyTests
     [Fact]
     public void TryNormalizeEventScope_preserves_actor_role_without_assigning_scope_role()
     {
-        var result = MemoryScopePolicy.TryNormalizeEventScope(
+        var result = MemoryEventScopePolicy.TryNormalizeEventScope(
             PrincipalId,
             "user",
             PrincipalId.ToString(),
@@ -114,7 +114,7 @@ public sealed class MemoryScopePolicyTests
     {
         var agentPrincipalId = Guid.Parse("44444444-4444-4444-8444-444444444444");
 
-        var result = MemoryScopePolicy.TryNormalizeEventScope(
+        var result = MemoryEventScopePolicy.TryNormalizeEventScope(
             PrincipalId,
             "agent",
             agentPrincipalId.ToString(),
@@ -137,7 +137,7 @@ public sealed class MemoryScopePolicyTests
     {
         var conversationId = Guid.Parse("55555555-5555-4555-8555-555555555555");
 
-        var result = MemoryScopePolicy.TryNormalizeEventScope(
+        var result = MemoryEventScopePolicy.TryNormalizeEventScope(
             PrincipalId,
             "session",
             conversationId.ToString(),
@@ -165,7 +165,7 @@ public sealed class MemoryScopePolicyTests
         string scopeId,
         string expectedError)
     {
-        var result = MemoryScopePolicy.TryNormalizeEventScope(
+        var result = MemoryEventScopePolicy.TryNormalizeEventScope(
             PrincipalId,
             scopeType,
             scopeId,

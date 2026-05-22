@@ -24,6 +24,7 @@ public static class OutboxWorkerServiceCollectionExtensions
 
         services.AddMemorySystemPostgresDataSource(configuration, environment);
         services.AddSingleton<IOutboxJobStore, PostgresOutboxJobStore>();
+        services.AddMemorySystemOutboxJobHandler<MemoryIndexOutboxJobHandler>();
         services.AddSingleton<OutboxJobProcessor>();
         services.AddHostedService<OutboxWorkerService>();
 

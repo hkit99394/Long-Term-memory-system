@@ -6,11 +6,11 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 
 ## Current Track
 
-Current milestone: M2 Provenance Write Path.
+Current milestone: M3 Access and Scope Enforcement.
 
-Completed milestones: M0 Planning Baseline and M1 Foundation Slice.
+Completed milestones: M0 Planning Baseline, M1 Foundation Slice, and M2 Provenance Write Path.
 
-Next milestone: M3 Access and Scope Enforcement.
+Next milestone: M4 Structured and Role Memory.
 
 The first production-shaped win is not a polished UI. It is a local API and database that can accept an event, broker a memory proposal, persist the memory with provenance, and reject unauthorized reads.
 

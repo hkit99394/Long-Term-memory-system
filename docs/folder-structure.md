@@ -75,6 +75,9 @@ MemorySystem.Worker
 MemorySystem.UnitTests
   -> MemorySystem.Domain
   -> MemorySystem.Application
+  -> MemorySystem.Infrastructure
+  -> MemorySystem.Migrator
+  -> MemorySystem.Worker
 
 MemorySystem.IntegrationTests
   -> MemorySystem.Api
@@ -199,6 +202,7 @@ Use for:
 - status lifecycle rules
 - scope and namespace parsing
 - broker decision logic without database dependencies
+- fast infrastructure, worker, and migrator behavior that can run without external services
 - ranking formula behavior
 
 ### `tests/MemorySystem.IntegrationTests`

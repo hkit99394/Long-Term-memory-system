@@ -1,9 +1,13 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using MemorySystem.Infrastructure.Outbox;
+using MemorySystem.Worker;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -74,6 +78,51 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal(200, idempotencyRecord.ResponseStatus);
             Assert.Equal("memory_fact", idempotencyRecord.ResourceType);
             Assert.Equal(memoryId, idempotencyRecord.ResourceId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Memory_index_outbox_handler_completes_stored_proposal_job()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_index_worker_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(client, "proposal-index-worker-key", CreateProposalBody());
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var processor = new OutboxJobProcessor(
+                new PostgresOutboxJobStore(dataSource),
+                [new MemoryIndexOutboxJobHandler(dataSource)],
+                Options.Create(new OutboxWorkerOptions
+                {
+                    WorkerId = "memory-index-test-worker",
+                    BatchSize = 1,
+                    MaxAttempts = 2,
+                    LeaseDuration = TimeSpan.FromMinutes(1),
+                    HandlerTimeout = TimeSpan.FromSeconds(10),
+                    RetryDelay = TimeSpan.Zero
+                }),
+                NullLogger<OutboxJobProcessor>.Instance);
+
+            Assert.Equal(1, await processor.ProcessAvailableAsync());
+
+            var outboxJob = await ReadOutboxJobAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("completed", outboxJob.Status);
         }
         finally
         {
