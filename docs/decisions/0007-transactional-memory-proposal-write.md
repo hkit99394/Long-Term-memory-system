@@ -26,4 +26,4 @@ The endpoint still runs the deterministic broker first. Non-stored decisions con
 - A retry with the same idempotency key and request body replays the original stored response and memory id.
 - Stored proposals now return a real `memoryId`.
 - The database remains the transaction boundary for M2 writes; no in-memory broker state is authoritative.
-- M3 still needs authorization-complete write permission checks before all scoped writes are production-ready.
+- M3 access checks now require scope access and namespace write grants before stored proposals are written durably.

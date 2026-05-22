@@ -30,5 +30,5 @@ The resolver depends on an application interface for scope references. PostgreSQ
 
 - Event and proposal requests now share canonical scope normalization.
 - Project scope no longer depends on clients to supply the organization id.
-- M3-02 can layer membership and grant checks on resolved scope metadata rather than parsing raw request fields again.
+- Membership and grant checks layer on resolved scope metadata rather than parsing raw request fields again.
 - Database constraints remain the final safety net for scope consistency.

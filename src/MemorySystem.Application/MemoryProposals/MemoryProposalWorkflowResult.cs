@@ -6,13 +6,25 @@ public sealed record MemoryProposalWorkflowResult(
     MemoryProposalDecision? Decision,
     string? ResourceType = null,
     Guid? ResourceId = null,
-    bool IdempotencyAlreadyCompleted = false)
+    bool IdempotencyAlreadyCompleted = false,
+    int FailureStatusCode = 400)
 {
     public static MemoryProposalWorkflowResult Invalid(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
         return new MemoryProposalWorkflowResult(false, reason, Decision: null);
+    }
+
+    public static MemoryProposalWorkflowResult Forbidden(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        return new MemoryProposalWorkflowResult(
+            false,
+            reason,
+            Decision: null,
+            FailureStatusCode: 403);
     }
 
     public static MemoryProposalWorkflowResult Decided(MemoryProposalDecision decision)

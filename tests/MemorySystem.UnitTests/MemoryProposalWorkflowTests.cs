@@ -1,3 +1,4 @@
+using MemorySystem.Application.Access;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Application.Scopes;
 
@@ -94,15 +95,34 @@ public sealed class MemoryProposalWorkflowTests
         Assert.Equal("none", writeStore.Proposal.Sensitivity);
     }
 
+    [Fact]
+    public async Task DecideAsync_returns_forbidden_result_without_writing_when_access_denied()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var accessAuthorizer = new FakeMemoryAccessAuthorizer(allowed: false);
+        var workflow = CreateWorkflow(sourceEvents, writeStore, accessAuthorizer);
+
+        var result = await workflow.DecideAsync(CreateRequest());
+
+        Assert.False(result.IsValid);
+        Assert.Equal(403, result.FailureStatusCode);
+        Assert.Contains("write access", result.InvalidReason, StringComparison.Ordinal);
+        Assert.Equal(0, writeStore.CallCount);
+        Assert.Equal(1, accessAuthorizer.CallCount);
+    }
+
     private static MemoryProposalWorkflow CreateWorkflow(
         ISourceEventReferenceStore sourceEvents,
-        IMemoryProposalWriteStore writeStore)
+        IMemoryProposalWriteStore writeStore,
+        IMemoryAccessAuthorizer? accessAuthorizer = null)
     {
         return new MemoryProposalWorkflow(
             new MinimalMemoryProposalBroker(),
             writeStore,
             sourceEvents,
-            new MemoryScopeResolver(new FakeMemoryScopeReferenceStore()));
+            new MemoryScopeResolver(new FakeMemoryScopeReferenceStore()),
+            accessAuthorizer ?? new FakeMemoryAccessAuthorizer(allowed: true));
     }
 
     private static MemoryProposalWorkflowRequest CreateRequest(
@@ -200,6 +220,26 @@ public sealed class MemoryProposalWorkflowTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
+        }
+    }
+
+    private sealed class FakeMemoryAccessAuthorizer(bool allowed) : IMemoryAccessAuthorizer
+    {
+        public int CallCount { get; private set; }
+
+        public Task<MemoryAccessDecision> AuthorizeAsync(
+            MemoryAccessRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+
+            Assert.Equal(PrincipalId, request.PrincipalId);
+            Assert.Equal(MemoryAccessPermissions.Write, request.Permission);
+            Assert.Equal($"/user/{PrincipalId}/preferences", request.Namespace);
+
+            return Task.FromResult(allowed
+                ? MemoryAccessDecision.Allow()
+                : MemoryAccessDecision.Deny("Principal does not have write access."));
         }
     }
 }

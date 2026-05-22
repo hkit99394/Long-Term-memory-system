@@ -70,12 +70,124 @@ internal static class ApiDatabaseTestSupport
         await command.ExecuteNonQueryAsync();
     }
 
+    public static async Task InsertOrganizationMembershipAsync(
+        string connectionString,
+        Guid orgId,
+        Guid principalId,
+        string accessLevel = "contributor")
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO organization_memberships (org_id, principal_id, access_level)
+            VALUES (@org_id, @principal_id, @access_level);
+            """,
+            connection);
+        command.Parameters.AddWithValue("org_id", orgId);
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("access_level", accessLevel);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public static async Task InsertProjectMembershipAsync(
+        string connectionString,
+        Guid projectId,
+        Guid principalId,
+        string accessLevel = "contributor")
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO project_memberships (project_id, principal_id, access_level)
+            VALUES (@project_id, @principal_id, @access_level);
+            """,
+            connection);
+        command.Parameters.AddWithValue("project_id", projectId);
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("access_level", accessLevel);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public static async Task InsertRoleAssignmentAsync(
+        string connectionString,
+        Guid principalId,
+        string roleId,
+        string scopeType = "global",
+        Guid? scopeId = null)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO role_assignments (id, principal_id, role_id, scope_type, scope_id)
+            VALUES (@id, @principal_id, @role_id, @scope_type, @scope_id);
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("role_id", roleId);
+        command.Parameters.AddWithValue("scope_type", scopeType);
+        command.Parameters.Add("scope_id", NpgsqlDbType.Uuid).Value =
+            scopeId.HasValue ? scopeId.Value : DBNull.Value;
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public static async Task InsertMemoryAccessGrantAsync(
+        string connectionString,
+        string namespacePrefix,
+        string permission,
+        Guid? principalId = null,
+        string? roleId = null)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_access_grants (
+                id,
+                principal_id,
+                role_id,
+                namespace_prefix,
+                permission
+            )
+            VALUES (
+                @id,
+                @principal_id,
+                @role_id,
+                @namespace_prefix,
+                @permission
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.Add("principal_id", NpgsqlDbType.Uuid).Value =
+            principalId.HasValue ? principalId.Value : DBNull.Value;
+        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(roleId) ? DBNull.Value : roleId;
+        command.Parameters.AddWithValue("namespace_prefix", namespacePrefix);
+        command.Parameters.AddWithValue("permission", permission);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
     public static async Task InsertSourceEventAsync(
         string connectionString,
         Guid eventId,
         Guid principalId,
         string scopeType,
-        string scopeId)
+        string scopeId,
+        Guid? scopeOrgId = null,
+        Guid? scopeProjectId = null,
+        string? scopeRoleId = null)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -93,7 +205,10 @@ internal static class ApiDatabaseTestSupport
                 trust_level,
                 scope_type,
                 scope_id,
-                scope_principal_id
+                scope_org_id,
+                scope_project_id,
+                scope_principal_id,
+                scope_role_id
             )
             VALUES (
                 @event_id,
@@ -106,7 +221,10 @@ internal static class ApiDatabaseTestSupport
                 'user_scoped',
                 @scope_type,
                 @scope_id,
-                @scope_principal_id
+                @scope_org_id,
+                @scope_project_id,
+                @scope_principal_id,
+                @scope_role_id
             );
             """,
             connection);
@@ -115,7 +233,14 @@ internal static class ApiDatabaseTestSupport
         command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = """{"message":"source"}""";
         command.Parameters.AddWithValue("scope_type", scopeType);
         command.Parameters.AddWithValue("scope_id", scopeId);
-        command.Parameters.AddWithValue("scope_principal_id", scopeType is "user" or "agent" ? principalId : DBNull.Value);
+        command.Parameters.Add("scope_org_id", NpgsqlDbType.Uuid).Value =
+            scopeOrgId.HasValue ? scopeOrgId.Value : DBNull.Value;
+        command.Parameters.Add("scope_project_id", NpgsqlDbType.Uuid).Value =
+            scopeProjectId.HasValue ? scopeProjectId.Value : DBNull.Value;
+        command.Parameters.Add("scope_principal_id", NpgsqlDbType.Uuid).Value =
+            scopeType is "user" or "agent" ? Guid.Parse(scopeId) : DBNull.Value;
+        command.Parameters.Add("scope_role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(scopeRoleId) ? DBNull.Value : scopeRoleId;
 
         await command.ExecuteNonQueryAsync();
     }

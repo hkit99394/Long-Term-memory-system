@@ -56,4 +56,4 @@ Default metadata:
 
 - M2 source events are durable, auditable, and replay-safe.
 - Raw event payload retention is intentionally simple for MVP: store inline first, then apply redaction/erasure policy in later milestones.
-- M3 still needs executable access checks before project, organization, role, and agent scopes are considered authorization-safe.
+- M3 access checks now require scope-appropriate membership, role assignment, or agent identity before project, organization, role, and agent events are appended.

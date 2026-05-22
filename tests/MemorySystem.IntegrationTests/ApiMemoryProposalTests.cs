@@ -17,9 +17,12 @@ public sealed class ApiMemoryProposalTests
     private const string TestApiKey = "test-api-key";
     private const string TestPrincipalId = "11111111-1111-4111-8111-111111111111";
     private const string OtherPrincipalId = "22222222-2222-4222-8222-222222222222";
+    private const string TestOrgId = "33333333-3333-4333-8333-333333333333";
+    private const string TestProjectId = "44444444-4444-4444-8444-444444444444";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid SourceEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid OtherSourceEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
+    private static readonly Guid ProjectSourceEventId = Guid.Parse("88888888-8888-4888-8888-888888888888");
 
     [Fact]
     [Trait("Category", "Database")]
@@ -156,6 +159,76 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal(1, await CountMemoryFactsAsync(databaseConnectionString));
             Assert.Equal(1, await CountMemoryChunksAsync(databaseConnectionString));
             Assert.Equal(1, await CountOutboxJobsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_stores_project_proposal_with_membership_and_grant()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_project_access_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await PrepareProjectScopeAsync(databaseConnectionString, includeMembershipAndGrant: true);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-project-access-key",
+                CreateProjectProposalBody());
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal("project", memoryFact.ScopeType);
+            Assert.Equal(TestProjectId, memoryFact.ScopeId);
+            Assert.Equal($"/project/{TestProjectId}/decisions", memoryFact.Namespace);
+            Assert.Equal("decision", memoryFact.MemoryType);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_forbids_project_proposal_without_membership_or_grant()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_project_forbidden_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await PrepareProjectScopeAsync(databaseConnectionString, includeMembershipAndGrant: false);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload) = await SendProposalResponseAsync(
+                client,
+                "proposal-project-forbidden-key",
+                CreateProjectProposalBody());
+            var idempotencyRecord = await ReadIdempotencyRecordAsync(databaseConnectionString);
+
+            Assert.Equal(HttpStatusCode.Forbidden, statusCode);
+            Assert.Equal("Memory proposal is forbidden.", payload.GetProperty("title").GetString());
+            Assert.Contains("membership access to project", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal("completed", idempotencyRecord.Status);
+            Assert.Equal(403, idempotencyRecord.ResponseStatus);
+            await AssertNoDurableProposalWritesAsync(databaseConnectionString);
         }
         finally
         {
@@ -464,6 +537,17 @@ public sealed class ApiMemoryProposalTests
         return JsonSerializer.Serialize(body, JsonOptions);
     }
 
+    private static string CreateProjectProposalBody()
+    {
+        return CreateProposalBody(
+            sourceEventId: ProjectSourceEventId,
+            memoryType: "decision",
+            scopeType: "project",
+            scopeId: TestProjectId,
+            namespaceValue: $"/project/{TestProjectId}/decisions",
+            visibility: "project_shared");
+    }
+
     private static async Task<JsonElement> SendProposalAsync(
         HttpClient client,
         string idempotencyKey,
@@ -511,6 +595,51 @@ public sealed class ApiMemoryProposalTests
             Guid.Parse(TestPrincipalId),
             scopeType: "user",
             scopeId: TestPrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/user/{TestPrincipalId}/preferences",
+            "write",
+            principalId: Guid.Parse(TestPrincipalId));
+    }
+
+    private static async Task PrepareProjectScopeAsync(
+        string connectionString,
+        bool includeMembershipAndGrant)
+    {
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
+            connectionString,
+            Guid.Parse(TestOrgId),
+            Guid.Parse(TestProjectId));
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            ProjectSourceEventId,
+            Guid.Parse(TestPrincipalId),
+            scopeType: "project",
+            scopeId: TestProjectId,
+            scopeOrgId: Guid.Parse(TestOrgId),
+            scopeProjectId: Guid.Parse(TestProjectId));
+
+        if (!includeMembershipAndGrant)
+        {
+            return;
+        }
+
+        await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+            connectionString,
+            Guid.Parse(TestProjectId),
+            Guid.Parse(TestPrincipalId),
+            "contributor");
+        await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+            connectionString,
+            Guid.Parse(TestPrincipalId),
+            "cto",
+            "project",
+            Guid.Parse(TestProjectId));
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{TestProjectId}/decisions",
+            "write",
+            roleId: "cto");
     }
 
     private static async Task<int> CountIdempotencyRecordsAsync(string connectionString)

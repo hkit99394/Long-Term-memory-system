@@ -1,5 +1,6 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Application.Access;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.Events;
 
@@ -15,7 +16,8 @@ public static class EventEndpointExtensions
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
                 IEventStore eventStore,
-                IMemoryScopeResolver scopeResolver) =>
+                IMemoryScopeResolver scopeResolver,
+                IMemoryAccessAuthorizer accessAuthorizer) =>
                 await idempotency.ExecuteAsync(
                     context,
                     "POST /api/events",
@@ -24,6 +26,7 @@ public static class EventEndpointExtensions
                             context,
                             eventStore,
                             scopeResolver,
+                            accessAuthorizer,
                             idempotencyContext,
                             cancellationToken)))
             .RequireAuthorization();
@@ -35,6 +38,7 @@ public static class EventEndpointExtensions
         HttpContext context,
         IEventStore eventStore,
         IMemoryScopeResolver scopeResolver,
+        IMemoryAccessAuthorizer accessAuthorizer,
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
@@ -74,6 +78,21 @@ public static class EventEndpointExtensions
                 StatusCodes.Status400BadRequest,
                 "Event scope is invalid.",
                 scopeResult.Error!);
+        }
+
+        var accessDecision = await accessAuthorizer.AuthorizeAsync(
+            new MemoryAccessRequest(
+                principalId,
+                MemoryAccessPermissions.Write,
+                scopeResult.Resolution!),
+            cancellationToken);
+
+        if (!accessDecision.Allowed)
+        {
+            return ApiRequestHelpers.Problem(
+                StatusCodes.Status403Forbidden,
+                "Event scope is forbidden.",
+                accessDecision.Reason!);
         }
 
         if (!AppendEventRequestMapper.TryMap(principalId, request, scopeResult.Resolution!, out var command, out var problem))

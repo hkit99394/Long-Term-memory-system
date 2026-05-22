@@ -26,6 +26,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0006: Minimal Memory Proposal Broker](decisions/0006-minimal-memory-proposal-broker.md) | Records the M2 `POST /api/memory/proposals` contract and deterministic broker decision rules. |
 | [Decision 0007: Transactional Memory Proposal Write](decisions/0007-transactional-memory-proposal-write.md) | Records the M2 stored proposal transaction that creates memory facts, chunks, outbox jobs, and idempotent responses. |
 | [Decision 0008: Scope Resolver Contract](decisions/0008-scope-resolver-contract.md) | Records the M3 scope resolver boundary for global, org, project, user, role, agent, and session requests. |
+| [Decision 0009: Membership and Grant Access Checks](decisions/0009-membership-and-grant-access-checks.md) | Records the M3 access policy for memberships, role assignments, namespace grants, and write-path enforcement. |
 
 ## Dictionary
 
@@ -39,6 +40,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
+| Memory grant | A permission record that allows a principal or assigned role to read, write, review, or administer a namespace prefix. |
 | Namespace | A path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
 | Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
 | Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |

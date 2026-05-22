@@ -11,6 +11,7 @@ namespace MemorySystem.IntegrationTests;
 public sealed class ApiEventTests
 {
     private const string TestApiKey = "test-api-key";
+    private const string AgentApiKey = "agent-api-key";
     private const string TestPrincipalId = "11111111-1111-4111-8111-111111111111";
     private const string TestOrgId = "22222222-2222-4222-8222-222222222222";
     private const string TestProjectId = "33333333-3333-4333-8333-333333333333";
@@ -204,6 +205,51 @@ public sealed class ApiEventTests
 
     [Fact]
     [Trait("Category", "Database")]
+    public async Task Post_events_forbids_project_scope_without_membership()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_project_forbidden_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, Guid.Parse(TestPrincipalId));
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
+                databaseConnectionString,
+                Guid.Parse(TestOrgId),
+                Guid.Parse(TestProjectId));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            var body = $$"""
+                {
+                  "eventType": "user_message",
+                  "scopeType": "project",
+                  "scopeId": "{{TestProjectId}}",
+                  "payload": {
+                    "decision": "This should be forbidden."
+                  }
+                }
+                """;
+
+            var (statusCode, payload) = await SendEventResponseAsync(client, "project-event-forbidden-key", body);
+            var idempotencyRecord = await ReadIdempotencyRecordAsync(databaseConnectionString);
+
+            Assert.Equal(HttpStatusCode.Forbidden, statusCode);
+            Assert.Equal("Event scope is forbidden.", payload.GetProperty("title").GetString());
+            Assert.Contains("membership access to project", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(403, idempotencyRecord.ResponseStatus);
+            Assert.Equal(0, await CountEventsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
     public async Task Post_events_resolves_organization_role_agent_and_session_scopes()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -259,7 +305,8 @@ public sealed class ApiEventTests
                 var responsePayload = await SendEventAsync(
                     client,
                     $"scope-resolver-{scopeCase.ScopeType}",
-                    CreateScopedEventBody(scopeCase.ScopeType, scopeCase.ScopeId));
+                    CreateScopedEventBody(scopeCase.ScopeType, scopeCase.ScopeId),
+                    scopeCase.ScopeType == "agent" ? AgentApiKey : TestApiKey);
                 var storedEvent = await ReadEventAsync(
                     databaseConnectionString,
                     responsePayload.GetProperty("id").GetGuid());
@@ -310,29 +357,43 @@ public sealed class ApiEventTests
     private static async Task<JsonElement> SendEventAsync(
         HttpClient client,
         string idempotencyKey,
-        string body)
+        string body,
+        string apiKey = TestApiKey)
     {
-        using var request = CreateRequest(idempotencyKey, body);
+        var (statusCode, payload) = await SendEventResponseAsync(client, idempotencyKey, body, apiKey: apiKey);
+
+        Assert.Equal(HttpStatusCode.Created, statusCode);
+
+        return payload;
+    }
+
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload)> SendEventResponseAsync(
+        HttpClient client,
+        string idempotencyKey,
+        string body,
+        string mediaType = "application/json",
+        string apiKey = TestApiKey)
+    {
+        using var request = CreateRequest(idempotencyKey, body, mediaType, apiKey);
         using var response = await client.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
         using var document = JsonDocument.Parse(responseBody);
-        return document.RootElement.Clone();
+        return (response.StatusCode, document.RootElement.Clone());
     }
 
     private static HttpRequestMessage CreateRequest(
         string idempotencyKey,
         string body,
-        string mediaType = "application/json")
+        string mediaType = "application/json",
+        string apiKey = TestApiKey)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/events")
         {
             Content = new StringContent(body, Encoding.UTF8, mediaType)
         };
 
-        request.Headers.Add("X-Api-Key", TestApiKey);
+        request.Headers.Add("X-Api-Key", apiKey);
         request.Headers.Add("Idempotency-Key", idempotencyKey);
 
         return request;
@@ -340,7 +401,12 @@ public sealed class ApiEventTests
 
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
     {
-        return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, TestPrincipalId);
+        return MemorySystemApiTestFactory.Create(
+            postgresConnectionString,
+            [
+                new ApiKeyConfiguration("test-key", TestApiKey, TestPrincipalId, "Test API caller"),
+                new ApiKeyConfiguration("agent-key", AgentApiKey, TestAgentPrincipalId, "Test Agent")
+            ]);
     }
 
     private static async Task PrepareDatabaseAsync(string connectionString, bool createProject = false)
@@ -353,6 +419,22 @@ public sealed class ApiEventTests
             await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
                 connectionString,
                 Guid.Parse(TestOrgId),
+                Guid.Parse(TestProjectId));
+            await ApiDatabaseTestSupport.InsertOrganizationMembershipAsync(
+                connectionString,
+                Guid.Parse(TestOrgId),
+                Guid.Parse(TestPrincipalId),
+                "owner");
+            await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+                connectionString,
+                Guid.Parse(TestProjectId),
+                Guid.Parse(TestPrincipalId),
+                "admin");
+            await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+                connectionString,
+                Guid.Parse(TestPrincipalId),
+                "cto",
+                "project",
                 Guid.Parse(TestProjectId));
         }
     }

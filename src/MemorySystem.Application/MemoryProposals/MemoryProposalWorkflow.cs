@@ -1,3 +1,4 @@
+using MemorySystem.Application.Access;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.MemoryProposals;
@@ -6,7 +7,8 @@ public sealed class MemoryProposalWorkflow(
     IMemoryProposalBroker broker,
     IMemoryProposalWriteStore writeStore,
     ISourceEventReferenceStore sourceEvents,
-    IMemoryScopeResolver scopeResolver) : IMemoryProposalWorkflow
+    IMemoryScopeResolver scopeResolver,
+    IMemoryAccessAuthorizer accessAuthorizer) : IMemoryProposalWorkflow
 {
     private static readonly IReadOnlySet<string> MemoryTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -72,6 +74,19 @@ public sealed class MemoryProposalWorkflow(
         if (decision.Decision != MemoryProposalDecisions.Stored)
         {
             return MemoryProposalWorkflowResult.Decided(decision);
+        }
+
+        var accessDecision = await accessAuthorizer.AuthorizeAsync(
+            new MemoryAccessRequest(
+                request.AuthenticatedPrincipalId,
+                MemoryAccessPermissions.Write,
+                scopeResult.Resolution!,
+                proposal.Namespace),
+            cancellationToken);
+
+        if (!accessDecision.Allowed)
+        {
+            return MemoryProposalWorkflowResult.Forbidden(accessDecision.Reason!);
         }
 
         decision = await writeStore.StoreAsync(

@@ -39,7 +39,12 @@ internal static class MemoryProposalRequestMapper
 
         if (!result.IsValid)
         {
-            var problem = BadRequest(result.InvalidReason ?? "Memory proposal is invalid.");
+            var problem = Problem(
+                result.FailureStatusCode,
+                result.FailureStatusCode == StatusCodes.Status403Forbidden
+                    ? "Memory proposal is forbidden."
+                    : "Memory proposal is invalid.",
+                result.InvalidReason ?? "Memory proposal is invalid.");
 
             return new ApiIdempotencyResponse(problem.Status ?? StatusCodes.Status400BadRequest, problem);
         }
@@ -52,12 +57,12 @@ internal static class MemoryProposalRequestMapper
             result.IdempotencyAlreadyCompleted);
     }
 
-    private static ProblemDetails BadRequest(string detail)
+    private static ProblemDetails Problem(int statusCode, string title, string detail)
     {
         return new ProblemDetails
         {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Memory proposal is invalid.",
+            Status = statusCode,
+            Title = title,
             Detail = detail
         };
     }

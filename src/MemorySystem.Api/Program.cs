@@ -1,3 +1,4 @@
+using MemorySystem.Api.Access;
 using MemorySystem.Api.Authentication;
 using MemorySystem.Api.Events;
 using MemorySystem.Api.Idempotency;
@@ -15,6 +16,7 @@ builder.Services.AddMemorySystemPostgresDataSource(builder.Configuration, builde
 builder.Services.AddMemorySystemApiAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemApiIdempotency(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemScopes();
+builder.Services.AddMemorySystemAccess();
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
 

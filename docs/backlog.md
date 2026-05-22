@@ -52,7 +52,7 @@ Status values:
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
 | M3-01 | P0 | Done | Implement scope resolver. | Requests resolve user, organization, project, role, agent, and session scope. |
-| M3-02 | P0 | Todo | Implement membership and grant checks. | Fine-grained read/write/review/admin decisions use memberships, role assignments, and memory grants. |
+| M3-02 | P0 | Done | Implement membership and grant checks. | Fine-grained read/write/review/admin decisions use memberships, role assignments, and memory grants. |
 | M3-03 | P0 | Todo | Enforce memory fact scope consistency. | `scope_type`, `scope_id`, namespace, and owner columns cannot drift. |
 | M3-04 | P0 | Todo | Add blocked cross-project read test. | A principal in Project A cannot read Project B memory without explicit access. |
 | M3-05 | P1 | Todo | Add namespace parser. | Namespace strings are parsed and validated against scope metadata. |
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M3-02`: Implement membership and grant checks.
+1. `M3-03`: Enforce memory fact scope consistency.
