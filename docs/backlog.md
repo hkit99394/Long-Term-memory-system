@@ -61,11 +61,11 @@ Status values:
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| M4-01 | P0 | Todo | Implement memory facts repository. | Stores and retrieves user preference, project decision, role-scoped memory, and agent-private memory. |
-| M4-02 | P0 | Todo | Implement memory status lifecycle. | Active, tentative, superseded, contradicted, expired, deleted, and redacted states are represented and filtered correctly. |
-| M4-03 | P0 | Todo | Implement role memory lens repository. | Shared role principles and project-role lenses are stored separately. |
-| M4-04 | P0 | Todo | Validate role-lens base fact scope. | Shared role principles cannot reference project facts; project-role lenses reference only target project or org facts. |
-| M4-05 | P1 | Todo | Add simple structured search. | Search by scope, type, subject, and status works without vector retrieval. |
+| M4-01 | P0 | Done | Implement memory facts repository. | Stores and retrieves user preference, project decision, role-scoped memory, and agent-private memory. |
+| M4-02 | P0 | Done | Implement memory status lifecycle. | Active, tentative, superseded, contradicted, expired, deleted, and redacted states are represented and filtered correctly. |
+| M4-03 | P0 | Done | Implement role memory lens repository. | Shared role principles and project-role lenses are stored separately. |
+| M4-04 | P0 | Done | Validate role-lens base fact scope. | Shared role principles cannot reference project facts; project-role lenses reference only target project or org facts. |
+| M4-05 | P1 | Done | Add simple structured search. | Search by scope, type, subject, and status works without vector retrieval. |
 
 ## M5 Broker Intelligence
 
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M4-01`: Implement memory facts repository.
+1. `M5-01`: Add candidate classification.

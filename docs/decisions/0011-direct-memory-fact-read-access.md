@@ -26,5 +26,5 @@ Missing and unauthorized memory facts both return `404` with the same public sha
 ## Consequences
 
 - A principal with Project A access cannot read a Project B memory fact without explicit Project B membership and namespace grant.
-- The direct read path is intentionally small and does not replace M4 memory fact repository work or M6 authorized retrieval queries.
+- The direct read path now uses the M4 memory facts repository, but it does not replace M6 authorized retrieval queries.
 - Future search/context retrieval must still apply authorization inside candidate queries, before ranking or candidate counts are observable.

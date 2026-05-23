@@ -3,7 +3,7 @@ using MemorySystem.Application.Access;
 namespace MemorySystem.Application.MemoryFacts;
 
 public sealed class MemoryFactReadService(
-    IMemoryFactReadStore readStore,
+    IMemoryFactRepository repository,
     IMemoryAccessAuthorizer accessAuthorizer) : IMemoryFactReadService
 {
     public async Task<MemoryFactReadResult> ReadAsync(
@@ -11,9 +11,14 @@ public sealed class MemoryFactReadService(
         Guid memoryFactId,
         CancellationToken cancellationToken = default)
     {
-        var memoryFact = await readStore.FindAsync(memoryFactId, cancellationToken);
+        var memoryFact = await repository.FindAsync(memoryFactId, cancellationToken);
 
         if (memoryFact is null)
+        {
+            return MemoryFactReadResult.NotFound();
+        }
+
+        if (!MemoryFactStatuses.IsNormalRetrievalStatus(memoryFact.Status))
         {
             return MemoryFactReadResult.NotFound();
         }

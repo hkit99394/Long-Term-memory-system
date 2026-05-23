@@ -51,6 +51,29 @@ public sealed class MemoryFactReadServiceTests
         Assert.Equal(0, accessAuthorizer.CallCount);
     }
 
+    [Theory]
+    [InlineData(MemoryFactStatuses.Tentative)]
+    [InlineData(MemoryFactStatuses.Superseded)]
+    [InlineData(MemoryFactStatuses.Contradicted)]
+    [InlineData(MemoryFactStatuses.Expired)]
+    [InlineData(MemoryFactStatuses.Deleted)]
+    [InlineData(MemoryFactStatuses.Redacted)]
+    public async Task ReadAsync_returns_not_found_without_authorizing_inactive_statuses(string status)
+    {
+        var accessAuthorizer = new FakeMemoryAccessAuthorizer(allowed: true);
+        var service = new MemoryFactReadService(
+            new FakeMemoryFactReadStore(ProjectMemoryFact() with
+            {
+                Status = status
+            }),
+            accessAuthorizer);
+
+        var result = await service.ReadAsync(PrincipalId, MemoryFactId);
+
+        Assert.False(result.Found);
+        Assert.Equal(0, accessAuthorizer.CallCount);
+    }
+
     private static MemoryFactRecord ProjectMemoryFact()
     {
         return new MemoryFactRecord(
@@ -74,7 +97,7 @@ public sealed class MemoryFactReadServiceTests
             PrincipalId);
     }
 
-    private sealed class FakeMemoryFactReadStore(MemoryFactRecord? memoryFact) : IMemoryFactReadStore
+    private sealed class FakeMemoryFactReadStore(MemoryFactRecord? memoryFact) : IMemoryFactRepository
     {
         public Task<MemoryFactRecord?> FindAsync(
             Guid memoryFactId,
@@ -83,6 +106,27 @@ public sealed class MemoryFactReadServiceTests
             Assert.Equal(MemoryFactId, memoryFactId);
 
             return Task.FromResult(memoryFact);
+        }
+
+        public Task<IReadOnlyList<MemoryFactRecord>> FindByScopeAsync(
+            MemoryFactScopeQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<MemoryFactRecord>> SearchAsync(
+            MemoryFactSearchQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<MemoryFactRecord> StoreAsync(
+            MemoryFactWriteCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 

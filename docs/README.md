@@ -30,6 +30,11 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0010: Memory Fact Scope Consistency](decisions/0010-memory-fact-scope-consistency.md) | Records the M3 database constraint that keeps memory fact scope ids, namespace prefixes, and owner columns aligned. |
 | [Decision 0011: Direct Memory Fact Read Access](decisions/0011-direct-memory-fact-read-access.md) | Records the M3 direct memory fact read endpoint and blocked cross-project read behavior. |
 | [Decision 0012: Memory Namespace Parser](decisions/0012-memory-namespace-parser.md) | Records the M3 parser for turning namespace strings into canonical scope metadata. |
+| [Decision 0013: Memory Facts Repository](decisions/0013-memory-facts-repository.md) | Records the M4 repository boundary for storing and retrieving structured memory facts. |
+| [Decision 0014: Memory Status Lifecycle](decisions/0014-memory-status-lifecycle.md) | Records the M4 memory fact lifecycle states and default active-only retrieval policy. |
+| [Decision 0015: Role Memory Lens Repository](decisions/0015-role-memory-lens-repository.md) | Records the M4 repository boundary for shared role principles and project-role lenses. |
+| [Decision 0016: Role Lens Base Fact Validation](decisions/0016-role-lens-base-fact-validation.md) | Records the M4 validation rules connecting role lenses to allowed base memory fact scopes. |
+| [Decision 0017: Structured Memory Fact Search](decisions/0017-structured-memory-fact-search.md) | Records the M4 repository search path for filtering memory facts by scope, type, subject, and status without vector retrieval. |
 
 ## Dictionary
 
@@ -43,9 +48,11 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
+| Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |
 | Memory grant | A permission record that allows a principal or assigned role to read, write, review, or administer a namespace prefix. |
 | Memory owner columns | Typed columns such as `org_id`, `project_id`, `user_principal_id`, `role_id`, and `agent_principal_id` that mirror a memory fact's canonical scope. |
 | Memory read service | The application service that loads a memory fact and returns it only after the caller has read access to its scope and namespace. |
+| Memory status lifecycle | The supported memory fact states: active, tentative, superseded, contradicted, expired, deleted, and redacted. Normal retrieval includes active facts only. |
 | Namespace | A parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
 | Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
 | Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
@@ -56,8 +63,11 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Provenance | Evidence showing where a memory came from, usually through a source event. |
 | Redaction | Removal or masking of sensitive content from facts, chunks, exports, and event payloads where policy requires erasure. |
 | Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
+| Role lens base fact | The memory fact that a role lens interprets. Its scope must match the lens type: global for global role lenses, same organization for organization role lenses, or target project/same organization for project-role lenses. |
+| Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
 | Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
 | Session memory | Temporary memory for the current task or conversation only. |
+| Structured memory search | A repository query over structured `memory_facts` columns such as scope, memory type, subject, and status. It does not use chunks, full-text search, embeddings, or vectors. |
 | Supersession | The process of replacing an outdated or contradicted memory with a newer memory while preserving audit history. |
 | Trust level | Metadata that separates trusted system or human-approved content from user-scoped, agent-private, tool, web, or retrieved content. |
 | Vector index | Search index used for semantic recall. It is not the source of truth. |
