@@ -1,4 +1,5 @@
 using Npgsql;
+using System.Globalization;
 
 namespace MemorySystem.Infrastructure.Configuration;
 
@@ -87,7 +88,7 @@ public static class PostgresConnectionString
             return DefaultPort;
         }
 
-        if (int.TryParse(value, out var port) && port is > 0 and <= 65535)
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var port) && port is > 0 and <= 65535)
         {
             return port;
         }

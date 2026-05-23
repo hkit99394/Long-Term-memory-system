@@ -1,3 +1,4 @@
+using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Events;
 using Npgsql;
@@ -13,6 +14,7 @@ public static class ApiEventServiceCollectionExtensions
     {
         services.AddSingleton(serviceProvider =>
             new PostgresEventStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
+        services.AddSingleton<IEventAppendWorkflow, EventAppendWorkflow>();
         services.AddSingleton<IEventStore>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgresEventStore>());
         services.AddSingleton<ISourceEventReferenceStore>(serviceProvider =>

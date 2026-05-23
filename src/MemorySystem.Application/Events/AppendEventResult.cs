@@ -1,3 +1,3 @@
-namespace MemorySystem.Infrastructure.Events;
+namespace MemorySystem.Application.Events;
 
 public sealed record AppendEventResult(Guid Id, DateTimeOffset CreatedAt);

@@ -1,4 +1,4 @@
-namespace MemorySystem.Infrastructure.Events;
+namespace MemorySystem.Application.Events;
 
 public sealed record EventScope(
     string Type,

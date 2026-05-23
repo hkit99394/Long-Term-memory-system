@@ -108,7 +108,7 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
                     AND grant_record.permission = ANY(@permissions)
                     AND (
                         @namespace = grant_record.namespace_prefix
-                        OR @namespace LIKE grant_record.namespace_prefix || '/%'
+                        OR left(@namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
                     )
             )
             OR EXISTS (
@@ -118,7 +118,7 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
                     AND grant_record.permission = ANY(@permissions)
                     AND (
                         @namespace = grant_record.namespace_prefix
-                        OR @namespace LIKE grant_record.namespace_prefix || '/%'
+                        OR left(@namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
                     )
                     AND EXISTS (
                         SELECT 1

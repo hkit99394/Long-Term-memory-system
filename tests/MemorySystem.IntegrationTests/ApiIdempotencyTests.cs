@@ -1,7 +1,9 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -154,6 +156,46 @@ public sealed class ApiIdempotencyTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Expired_processing_idempotency_key_can_start_again()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_idempotency_expired_processing_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString, Guid.Parse(TestPrincipalId));
+
+            const string idempotencyKey = "expired-processing-key";
+            const string body = """{"value":"alpha"}""";
+            await InsertProcessingIdempotencyRecordAsync(
+                databaseConnectionString,
+                Guid.Parse(TestPrincipalId),
+                idempotencyKey,
+                ComputeRequestHash(body),
+                DateTimeOffset.UtcNow.AddMinutes(-1));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendWidgetAsync(client, TestApiKey, idempotencyKey, body);
+            var records = await ReadIdempotencyRecordsAsync(databaseConnectionString);
+
+            Assert.Equal("alpha", payload.GetProperty("value").GetString());
+
+            var record = Assert.Single(records);
+            Assert.Equal("completed", record.Status);
+            Assert.Equal(201, record.ResponseStatus);
+            Assert.True(record.ExpiresAt > DateTimeOffset.UtcNow);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task PrepareDatabaseAsync(string connectionString, params Guid[] principalIds)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
@@ -227,5 +269,54 @@ public sealed class ApiIdempotencyTests
         string connectionString)
     {
         return await ApiDatabaseTestSupport.ReadIdempotencyDetailsAsync(connectionString);
+    }
+
+    private static async Task InsertProcessingIdempotencyRecordAsync(
+        string connectionString,
+        Guid principalId,
+        string idempotencyKey,
+        string requestHash,
+        DateTimeOffset expiresAt)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO api_idempotency_keys (
+                id,
+                principal_id,
+                endpoint,
+                idempotency_key,
+                request_hash,
+                status,
+                expires_at
+            )
+            VALUES (
+                @id,
+                @principal_id,
+                @endpoint,
+                @idempotency_key,
+                @request_hash,
+                'processing',
+                @expires_at
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("endpoint", TestEndpoint);
+        command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+        command.Parameters.AddWithValue("request_hash", requestHash);
+        command.Parameters.AddWithValue("expires_at", expiresAt);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static string ComputeRequestHash(string body)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(body));
+
+        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

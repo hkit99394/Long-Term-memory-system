@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using System.Globalization;
 
 namespace MemorySystem.Worker;
 
@@ -88,7 +89,7 @@ public sealed class OutboxWorkerOptions
     {
         var value = section[key];
 
-        return string.IsNullOrWhiteSpace(value) ? fallback : int.Parse(value);
+        return string.IsNullOrWhiteSpace(value) ? fallback : int.Parse(value, CultureInfo.InvariantCulture);
     }
 
     private static bool GetBool(IConfiguration section, string key, bool fallback)
@@ -102,6 +103,6 @@ public sealed class OutboxWorkerOptions
     {
         var value = section[key];
 
-        return string.IsNullOrWhiteSpace(value) ? fallback : TimeSpan.Parse(value);
+        return string.IsNullOrWhiteSpace(value) ? fallback : TimeSpan.Parse(value, CultureInfo.InvariantCulture);
     }
 }

@@ -1,134 +1,62 @@
-using System.Security.Cryptography;
-using System.Text;
-using MemorySystem.Application.Scopes;
-using MemorySystem.Infrastructure.Events;
+using MemorySystem.Api.Idempotency;
+using MemorySystem.Application.Events;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MemorySystem.Api.Events;
 
 internal static class AppendEventRequestMapper
 {
-    public static bool TryMap(
+    public static EventAppendWorkflowRequest ToWorkflowRequest(
         Guid authenticatedPrincipalId,
         AppendEventRequest request,
-        MemoryScopeResolution resolvedScope,
-        out AppendEventCommand command,
-        out ProblemDetails? problem)
+        Guid idempotencyRecordId,
+        string requestHash)
     {
-        command = null!;
-        problem = null;
-        ArgumentNullException.ThrowIfNull(resolvedScope);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
 
-        if (request.PrincipalId.HasValue && request.PrincipalId.Value != authenticatedPrincipalId)
-        {
-            problem = BadRequest("principalId must match the authenticated API principal.");
-            return false;
-        }
-
-        if (!TryNormalizeRequired(request.EventType, ApiEventConstants.EventTypes, "eventType", out var eventType, out problem))
-        {
-            return false;
-        }
-
-        if (!TryNormalizeOptional(request.TrustLevel, ApiEventConstants.TrustLevels, "trustLevel", "user_scoped", out var trustLevel, out problem)
-            || !TryNormalizeOptional(request.RetentionClass, ApiEventConstants.RetentionClasses, "retentionClass", "standard", out var retentionClass, out problem)
-            || !TryNormalizeOptional(request.Sensitivity, ApiEventConstants.Sensitivities, "sensitivity", "none", out var sensitivity, out problem))
-        {
-            return false;
-        }
-
-        if (request.Payload.ValueKind != System.Text.Json.JsonValueKind.Object)
-        {
-            problem = BadRequest("payload must be a JSON object.");
-            return false;
-        }
-
-        var contentJson = request.Payload.GetRawText();
-        var contentHash = ComputeSha256(contentJson);
-
-        command = new AppendEventCommand(
+        return new EventAppendWorkflowRequest(
             authenticatedPrincipalId,
-            resolvedScope.ConversationId,
-            resolvedScope.AgentPrincipalId,
-            resolvedScope.RoleId,
-            eventType,
-            contentJson,
-            contentHash,
-            string.IsNullOrWhiteSpace(request.ExternalPayloadUri) ? null : request.ExternalPayloadUri.Trim(),
-            retentionClass,
-            sensitivity,
-            trustLevel,
-            new EventScope(
-                resolvedScope.ScopeType,
-                resolvedScope.ScopeId,
-                resolvedScope.OrgId,
-                resolvedScope.ProjectId,
-                resolvedScope.PrincipalId,
-                resolvedScope.ScopeRoleId));
-        return true;
+            idempotencyRecordId,
+            requestHash,
+            request.PrincipalId,
+            request.ConversationId,
+            request.AgentPrincipalId,
+            request.RoleId,
+            request.EventType,
+            request.ScopeType,
+            request.ScopeId,
+            request.ScopeOrgId,
+            request.TrustLevel,
+            request.RetentionClass,
+            request.Sensitivity,
+            request.ExternalPayloadUri,
+            request.Payload);
     }
 
-    private static bool TryNormalizeRequired(
-        string? value,
-        IReadOnlySet<string> allowedValues,
-        string fieldName,
-        out string normalizedValue,
-        out ProblemDetails? problem)
+    public static ApiIdempotencyResponse ToApiResponse(EventAppendWorkflowResult result)
     {
-        normalizedValue = string.Empty;
-        problem = null;
+        ArgumentNullException.ThrowIfNull(result);
 
-        if (string.IsNullOrWhiteSpace(value))
+        if (!result.Succeeded)
         {
-            problem = BadRequest($"{fieldName} is required.");
-            return false;
+            var problem = new ProblemDetails
+            {
+                Status = result.FailureStatusCode,
+                Title = result.FailureTitle,
+                Detail = result.FailureDetail
+            };
+
+            return new ApiIdempotencyResponse(
+                problem.Status ?? StatusCodes.Status400BadRequest,
+                problem);
         }
 
-        normalizedValue = value.Trim().ToLowerInvariant();
-
-        if (!allowedValues.Contains(normalizedValue))
-        {
-            problem = BadRequest($"{fieldName} is not supported.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool TryNormalizeOptional(
-        string? value,
-        IReadOnlySet<string> allowedValues,
-        string fieldName,
-        string defaultValue,
-        out string normalizedValue,
-        out ProblemDetails? problem)
-    {
-        normalizedValue = string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim().ToLowerInvariant();
-        problem = null;
-
-        if (!allowedValues.Contains(normalizedValue))
-        {
-            problem = BadRequest($"{fieldName} is not supported.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static string ComputeSha256(string value)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-
-        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
-    private static ProblemDetails BadRequest(string detail)
-    {
-        return new ProblemDetails
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Event request is invalid.",
-            Detail = detail
-        };
+        return new ApiIdempotencyResponse(
+            StatusCodes.Status201Created,
+            new AppendEventResponse(result.Result!.Id),
+            result.ResourceType,
+            result.ResourceId,
+            result.IdempotencyAlreadyCompleted);
     }
 }

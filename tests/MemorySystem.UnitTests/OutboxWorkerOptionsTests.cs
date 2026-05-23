@@ -3,6 +3,7 @@ using MemorySystem.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 
 namespace MemorySystem.UnitTests;
 
@@ -30,6 +31,35 @@ public sealed class OutboxWorkerOptionsTests
         var exception = Assert.Throws<InvalidOperationException>(() => OutboxWorkerOptions.Read(configuration));
 
         Assert.Contains("handler timeout", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Read_parses_numeric_options_with_invariant_culture()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OutboxWorker:BatchSize"] = "2",
+                    ["OutboxWorker:LeaseDuration"] = "00:01:00.500",
+                    ["OutboxWorker:HandlerTimeout"] = "00:00:30.250"
+                })
+                .Build();
+
+            var options = OutboxWorkerOptions.Read(configuration);
+
+            Assert.Equal(2, options.BatchSize);
+            Assert.Equal(TimeSpan.FromMilliseconds(60500), options.LeaseDuration);
+            Assert.Equal(TimeSpan.FromMilliseconds(30250), options.HandlerTimeout);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]

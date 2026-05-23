@@ -1,5 +1,6 @@
 using MemorySystem.Infrastructure.Configuration;
 using Npgsql;
+using System.Globalization;
 
 namespace MemorySystem.UnitTests;
 
@@ -56,6 +57,30 @@ public sealed class PostgresConnectionStringTests
         Assert.Equal("memory_test", builder.Database);
         Assert.Equal("memory_user", builder.Username);
         Assert.Equal("semi;colon password", builder.Password);
+    }
+
+    [Fact]
+    public void Resolve_parses_port_with_invariant_culture()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+            var values = new Dictionary<string, string?>
+            {
+                [PostgresConnectionString.PortKey] = "55432"
+            };
+
+            var resolved = PostgresConnectionString.ResolveLocalDefaults(key => values.GetValueOrDefault(key));
+            var builder = new NpgsqlConnectionStringBuilder(resolved);
+
+            Assert.Equal(55432, builder.Port);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]

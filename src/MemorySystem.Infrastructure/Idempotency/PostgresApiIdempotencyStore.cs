@@ -117,8 +117,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
                 principal_id = @principal_id
                 AND endpoint = @endpoint
                 AND idempotency_key = @idempotency_key
-                AND expires_at <= @now
-                AND status <> 'processing';
+                AND expires_at <= @now;
             """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
