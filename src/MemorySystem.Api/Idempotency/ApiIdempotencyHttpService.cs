@@ -63,6 +63,7 @@ public sealed class ApiIdempotencyHttpService(
         return beginResult.Status switch
         {
             ApiIdempotencyBeginStatus.Started => await ExecuteAndStoreAsync(
+                principalId,
                 beginResult.Record,
                 requestHash,
                 operation,
@@ -87,6 +88,7 @@ public sealed class ApiIdempotencyHttpService(
     }
 
     private async Task<IResult> ExecuteAndStoreAsync(
+        Guid principalId,
         ApiIdempotencyRecord record,
         string requestHash,
         Func<ApiIdempotencyExecutionContext, CancellationToken, Task<ApiIdempotencyResponse>> operation,
@@ -95,7 +97,7 @@ public sealed class ApiIdempotencyHttpService(
         try
         {
             var response = await operation(
-                new ApiIdempotencyExecutionContext(record.Id, requestHash),
+                new ApiIdempotencyExecutionContext(record.Id, requestHash, principalId),
                 cancellationToken);
             var responseBody = response.Body is null
                 ? null

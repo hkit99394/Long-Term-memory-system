@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 
@@ -6,12 +5,9 @@ namespace MemorySystem.Worker;
 
 public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : IOutboxJobHandler
 {
-    private const string JobType = "memory.index";
-    private const string AggregateType = "memory_fact";
-
     public bool CanHandle(string jobType)
     {
-        return string.Equals(jobType, JobType, StringComparison.Ordinal);
+        return string.Equals(jobType, MemoryIndexOutboxJobContract.JobType, StringComparison.Ordinal);
     }
 
     public async Task ProcessAsync(OutboxJob job, CancellationToken cancellationToken)
@@ -23,13 +19,13 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
             throw new InvalidOperationException($"Unsupported outbox job type '{job.JobType}'.");
         }
 
-        if (!string.Equals(job.AggregateType, AggregateType, StringComparison.Ordinal))
+        if (!string.Equals(job.AggregateType, MemoryIndexOutboxJobContract.AggregateType, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                $"Outbox job '{JobType}' requires aggregate type '{AggregateType}'.");
+                $"Outbox job '{MemoryIndexOutboxJobContract.JobType}' requires aggregate type '{MemoryIndexOutboxJobContract.AggregateType}'.");
         }
 
-        var payload = MemoryIndexPayload.Parse(job.PayloadJson);
+        var payload = MemoryIndexOutboxJobContract.ParsePayload(job.PayloadJson);
 
         if (payload.MemoryFactId != job.AggregateId)
         {
@@ -43,7 +39,7 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
                 SELECT 1
                 FROM memory_facts AS fact
                 JOIN memory_chunks AS chunk
-                    ON chunk.source_type = 'memory_fact'
+                    ON chunk.source_type = @aggregate_type
                     AND chunk.source_id = fact.id
                 WHERE fact.id = @memory_fact_id
                     AND fact.source_event_id = @source_event_id
@@ -53,6 +49,7 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
             );
             """,
             connection);
+        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
         command.Parameters.AddWithValue("memory_fact_id", payload.MemoryFactId);
         command.Parameters.AddWithValue("chunk_id", payload.ChunkId);
         command.Parameters.AddWithValue("source_event_id", payload.SourceEventId);
@@ -62,41 +59,6 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
         if (indexed is not true)
         {
             throw new InvalidOperationException("Memory index payload does not reference a searchable memory chunk.");
-        }
-    }
-
-    private sealed record MemoryIndexPayload(
-        Guid MemoryFactId,
-        Guid ChunkId,
-        Guid SourceEventId)
-    {
-        public static MemoryIndexPayload Parse(string payloadJson)
-        {
-            if (string.IsNullOrWhiteSpace(payloadJson))
-            {
-                throw new InvalidOperationException("Memory index payload is required.");
-            }
-
-            try
-            {
-                var payload = JsonSerializer.Deserialize<MemoryIndexPayload>(
-                    payloadJson,
-                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-                if (payload is null
-                    || payload.MemoryFactId == Guid.Empty
-                    || payload.ChunkId == Guid.Empty
-                    || payload.SourceEventId == Guid.Empty)
-                {
-                    throw new InvalidOperationException("Memory index payload is invalid.");
-                }
-
-                return payload;
-            }
-            catch (JsonException exception)
-            {
-                throw new InvalidOperationException("Memory index payload is not valid JSON.", exception);
-            }
         }
     }
 }

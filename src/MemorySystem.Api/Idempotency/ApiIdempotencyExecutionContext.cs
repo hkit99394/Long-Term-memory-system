@@ -1,3 +1,6 @@
 namespace MemorySystem.Api.Idempotency;
 
-public sealed record ApiIdempotencyExecutionContext(Guid RecordId, string RequestHash);
+public sealed record ApiIdempotencyExecutionContext(
+    Guid RecordId,
+    string RequestHash,
+    Guid PrincipalId);

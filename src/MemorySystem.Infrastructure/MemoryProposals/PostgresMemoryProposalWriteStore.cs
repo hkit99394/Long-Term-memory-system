@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Idempotency;
+using MemorySystem.Infrastructure.Outbox;
+using MemorySystem.Infrastructure.Scopes;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -109,30 +111,32 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             "agent" => new ScopeOwnerColumns(AgentPrincipalId: Guid.Parse(scopeId)),
             "role" => new ScopeOwnerColumns(RoleId: scopeId),
             "session" => new ScopeOwnerColumns(),
-            "project" => new ScopeOwnerColumns(
-                OrgId: await ResolveProjectOrgIdAsync(connection, transaction, Guid.Parse(scopeId), cancellationToken),
-                ProjectId: Guid.Parse(scopeId)),
+            "project" => await ResolveProjectOwnerColumnsAsync(connection, transaction, scopeId, cancellationToken),
             _ => throw new InvalidOperationException($"Unsupported memory proposal scope type '{scopeType}'.")
         };
     }
 
-    private static async Task<Guid> ResolveProjectOrgIdAsync(
+    private static async Task<ScopeOwnerColumns> ResolveProjectOwnerColumnsAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        Guid projectId,
+        string scopeId,
         CancellationToken cancellationToken)
     {
-        await using var command = new NpgsqlCommand(
-            "SELECT org_id FROM projects WHERE id = @project_id;",
+        var projectId = Guid.Parse(scopeId);
+        var project = await PostgresProjectScopeReader.FindAsync(
             connection,
-            transaction);
-        command.Parameters.AddWithValue("project_id", projectId);
+            transaction,
+            projectId,
+            cancellationToken);
 
-        var value = await command.ExecuteScalarAsync(cancellationToken);
+        if (project is null)
+        {
+            throw new InvalidOperationException($"Project scope {projectId} does not reference an existing project.");
+        }
 
-        return value is Guid orgId
-            ? orgId
-            : throw new InvalidOperationException($"Project scope {projectId} does not reference an existing project.");
+        return new ScopeOwnerColumns(
+            ProjectId: projectId,
+            OrgId: project.OrgId);
     }
 
     private static async Task InsertMemoryFactAsync(
@@ -223,7 +227,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             )
             VALUES (
                 @id,
-                'memory_fact',
+                @source_type,
                 @source_id,
                 @namespace,
                 @scope_type,
@@ -238,6 +242,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("id", chunkId);
+        command.Parameters.AddWithValue("source_type", MemoryIndexOutboxJobContract.AggregateType);
         command.Parameters.AddWithValue("source_id", memoryId);
         command.Parameters.AddWithValue("namespace", proposal.Namespace);
         command.Parameters.AddWithValue("scope_type", proposal.ScopeType);
@@ -272,8 +277,8 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             )
             VALUES (
                 @id,
-                'memory.index',
-                'memory_fact',
+                @job_type,
+                @aggregate_type,
                 @aggregate_id,
                 @idempotency_key,
                 @payload,
@@ -281,18 +286,14 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             );
             """;
 
-        var payload = JsonSerializer.Serialize(new
-        {
-            memoryFactId = memoryId,
-            chunkId,
-            sourceEventId
-        }, JsonOptions);
-
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("id", outboxJobId);
+        command.Parameters.AddWithValue("job_type", MemoryIndexOutboxJobContract.JobType);
+        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
         command.Parameters.AddWithValue("aggregate_id", memoryId);
-        command.Parameters.AddWithValue("idempotency_key", $"memory.index:{memoryId:N}");
-        command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value = payload;
+        command.Parameters.AddWithValue("idempotency_key", MemoryIndexOutboxJobContract.CreateIdempotencyKey(memoryId));
+        command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value =
+            MemoryIndexOutboxJobContract.SerializePayload(memoryId, chunkId, sourceEventId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

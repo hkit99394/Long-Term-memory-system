@@ -62,7 +62,7 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal(Guid.Parse(TestPrincipalId), memoryFact.ProposedByPrincipalId);
 
             Assert.Equal(memoryId, memoryChunk.SourceId);
-            Assert.Equal("memory_fact", memoryChunk.SourceType);
+            Assert.Equal(MemoryIndexOutboxJobContract.AggregateType, memoryChunk.SourceType);
             Assert.Equal(memoryFact.Namespace, memoryChunk.Namespace);
             Assert.Equal(memoryFact.ScopeType, memoryChunk.ScopeType);
             Assert.Equal(memoryFact.ScopeId, memoryChunk.ScopeId);
@@ -71,8 +71,8 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal("user_scoped", memoryChunk.TrustLevel);
             Assert.Equal(SourceEventId, memoryChunk.SourceEventId);
 
-            Assert.Equal("memory.index", outboxJob.JobType);
-            Assert.Equal("memory_fact", outboxJob.AggregateType);
+            Assert.Equal(MemoryIndexOutboxJobContract.JobType, outboxJob.JobType);
+            Assert.Equal(MemoryIndexOutboxJobContract.AggregateType, outboxJob.AggregateType);
             Assert.Equal(memoryId, outboxJob.AggregateId);
             Assert.Equal("pending", outboxJob.Status);
 
@@ -775,10 +775,11 @@ public sealed class ApiMemoryProposalTests
             """
             SELECT job_type, aggregate_type, aggregate_id, status
             FROM outbox_jobs
-            WHERE aggregate_type = 'memory_fact'
+            WHERE aggregate_type = @aggregate_type
                 AND aggregate_id = @memory_id;
             """,
             connection);
+        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
         command.Parameters.AddWithValue("memory_id", memoryId);
 
         await using var reader = await command.ExecuteReaderAsync();

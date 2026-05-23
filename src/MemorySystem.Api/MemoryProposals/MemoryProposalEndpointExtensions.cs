@@ -34,13 +34,7 @@ public static class MemoryProposalEndpointExtensions
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
-        {
-            return ApiRequestHelpers.Problem(
-                StatusCodes.Status401Unauthorized,
-                "Authenticated principal is invalid.",
-                "The API key did not resolve to a valid principal id.");
-        }
+        var principalId = idempotency.PrincipalId;
 
         var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<MemoryProposalRequest>(
             context.Request,

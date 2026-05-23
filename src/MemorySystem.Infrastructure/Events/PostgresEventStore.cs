@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Idempotency;
+using MemorySystem.Infrastructure.Scopes;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -163,16 +164,14 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
             throw new InvalidOperationException("Project scope requires a project id.");
         }
 
-        await using var command = new NpgsqlCommand(
-            "SELECT org_id FROM projects WHERE id = @project_id;",
+        var project = await PostgresProjectScopeReader.FindAsync(
             connection,
-            transaction);
-        command.Parameters.AddWithValue("project_id", projectId.Value);
+            transaction,
+            projectId.Value,
+            cancellationToken);
 
-        var orgId = await command.ExecuteScalarAsync(cancellationToken);
-
-        return orgId is Guid value
-            ? value
+        return project is not null
+            ? project.OrgId
             : throw new EventScopeNotFoundException($"Project scope {projectId.Value} does not reference an existing project.");
     }
 

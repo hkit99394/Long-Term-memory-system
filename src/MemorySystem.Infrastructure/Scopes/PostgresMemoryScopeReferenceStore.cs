@@ -30,20 +30,11 @@ public sealed class PostgresMemoryScopeReferenceStore(NpgsqlDataSource dataSourc
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT id, org_id
-            FROM projects
-            WHERE id = @project_id;
-            """,
-            connection);
-        command.Parameters.AddWithValue("project_id", projectId);
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-        return await reader.ReadAsync(cancellationToken)
-            ? new ProjectScopeReference(reader.GetGuid(0), reader.GetGuid(1))
-            : null;
+        return await PostgresProjectScopeReader.FindAsync(
+            connection,
+            transaction: null,
+            projectId,
+            cancellationToken);
     }
 
     public async Task<bool> PrincipalExistsAsync(
