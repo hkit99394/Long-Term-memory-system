@@ -28,7 +28,7 @@ public sealed class MinimalMemoryProposalBroker : IMemoryProposalBroker
             return Reject(proposal, "The source event does not exist.");
         }
 
-        if (IsSessionOnly(proposal))
+        if (MemoryProposalDecisionRules.IsSessionOnly(proposal))
         {
             return new MemoryProposalDecision(
                 MemoryProposalDecisions.SessionOnly,
@@ -77,13 +77,6 @@ public sealed class MinimalMemoryProposalBroker : IMemoryProposalBroker
             reason,
             MemoryId: null,
             proposal.SourceEventId);
-    }
-
-    private static bool IsSessionOnly(MemoryProposalCommand proposal)
-    {
-        return string.Equals(proposal.MemoryType, "session_instruction", StringComparison.Ordinal)
-            || string.Equals(proposal.ScopeType, "session", StringComparison.Ordinal)
-            || proposal.Namespace.StartsWith("/session/", StringComparison.Ordinal);
     }
 
     private static bool IsUntrustedPolicyWrite(MemoryProposalCommand proposal)

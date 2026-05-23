@@ -133,6 +133,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             connection,
             lensScope,
             command.BaseMemoryFactId,
+            command.Status,
             cancellationToken);
 
         await using var insert = new NpgsqlCommand(
@@ -219,11 +220,12 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         NpgsqlConnection connection,
         LensScopeColumns lensScope,
         Guid baseMemoryFactId,
+        string lensStatus,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
             """
-            SELECT scope_type, org_id, project_id
+            SELECT scope_type, org_id, project_id, status
             FROM memory_facts
             WHERE id = @base_memory_fact_id;
             """,
@@ -240,7 +242,14 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         var baseScope = new BaseMemoryFactScope(
             reader.GetString(0),
             reader.IsDBNull(1) ? null : reader.GetGuid(1),
-            reader.IsDBNull(2) ? null : reader.GetGuid(2));
+            reader.IsDBNull(2) ? null : reader.GetGuid(2),
+            reader.GetString(3));
+
+        if (string.Equals(lensStatus, MemoryFactStatuses.Active, StringComparison.Ordinal)
+            && !string.Equals(baseScope.Status, MemoryFactStatuses.Active, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Active role memory lenses must reference active memory facts.");
+        }
 
         if (!IsValidBaseMemoryFactScope(lensScope, baseScope))
         {
@@ -321,5 +330,6 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
     private sealed record BaseMemoryFactScope(
         string ScopeType,
         Guid? OrgId,
-        Guid? ProjectId);
+        Guid? ProjectId,
+        string Status);
 }

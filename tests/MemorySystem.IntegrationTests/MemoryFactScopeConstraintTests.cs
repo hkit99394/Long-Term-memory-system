@@ -119,6 +119,7 @@ public sealed class MemoryFactScopeConstraintTests
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id,
                 proposed_by_principal_id
@@ -139,6 +140,7 @@ public sealed class MemoryFactScopeConstraintTests
                 'prefers',
                 'concise decision logs',
                 0.950,
+                'user_scoped',
                 'active',
                 @source_event_id,
                 @proposed_by_principal_id

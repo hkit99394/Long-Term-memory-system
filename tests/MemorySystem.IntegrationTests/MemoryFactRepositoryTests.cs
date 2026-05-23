@@ -69,6 +69,7 @@ public sealed class MemoryFactRepositoryTests
                 AgentPrincipalId));
 
             Assert.Equal(PrincipalId, userPreference.UserPrincipalId);
+            Assert.Equal("tool_output", userPreference.TrustLevel);
             Assert.Equal(ProjectId, projectDecision.ProjectId);
             Assert.Equal(OrgId, projectDecision.OrgId);
             Assert.Equal("cto", roleMemory.RoleId);
@@ -249,7 +250,8 @@ public sealed class MemoryFactRepositoryTests
             UserEventId,
             PrincipalId,
             "user",
-            PrincipalId.ToString());
+            PrincipalId.ToString(),
+            trustLevel: "tool_output");
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
             ProjectEventId,

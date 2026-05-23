@@ -1,7 +1,6 @@
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.Events;
-using Npgsql;
 
 namespace MemorySystem.Api.Events;
 
@@ -12,8 +11,7 @@ public static class ApiEventServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddSingleton(serviceProvider =>
-            new PostgresEventStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
+        services.AddSingleton<PostgresEventStore>();
         services.AddSingleton<IEventAppendWorkflow, EventAppendWorkflow>();
         services.AddSingleton<IEventStore>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgresEventStore>());

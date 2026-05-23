@@ -61,12 +61,30 @@ public sealed class MemoryProposalWorkflow(
             ScopeId = scopeResult.Resolution.ScopeId
         };
 
+        if (!MemoryProposalDecisionRules.IsSessionOnly(proposal))
+        {
+            var accessDecision = await accessAuthorizer.AuthorizeAsync(
+                new MemoryAccessRequest(
+                    request.AuthenticatedPrincipalId,
+                    MemoryAccessPermissions.Write,
+                    scopeResult.Resolution,
+                    proposal.Namespace),
+                cancellationToken);
+
+            if (!accessDecision.Allowed)
+            {
+                return MemoryProposalWorkflowResult.Forbidden(accessDecision.Reason!);
+            }
+        }
+
+        var sourceEvent = await FindSourceEventAsync(
+            request.AuthenticatedPrincipalId,
+            proposal,
+            cancellationToken);
         proposal = proposal with
         {
-            SourceEventExists = await SourceEventExistsAsync(
-                request.AuthenticatedPrincipalId,
-                proposal,
-                cancellationToken)
+            SourceEventExists = sourceEvent is not null,
+            TrustLevel = sourceEvent?.TrustLevel ?? proposal.TrustLevel
         };
 
         var decision = broker.Decide(proposal);
@@ -74,19 +92,6 @@ public sealed class MemoryProposalWorkflow(
         if (decision.Decision != MemoryProposalDecisions.Stored)
         {
             return MemoryProposalWorkflowResult.Decided(decision);
-        }
-
-        var accessDecision = await accessAuthorizer.AuthorizeAsync(
-            new MemoryAccessRequest(
-                request.AuthenticatedPrincipalId,
-                MemoryAccessPermissions.Write,
-                scopeResult.Resolution!,
-                proposal.Namespace),
-            cancellationToken);
-
-        if (!accessDecision.Allowed)
-        {
-            return MemoryProposalWorkflowResult.Forbidden(accessDecision.Reason!);
         }
 
         decision = await writeStore.StoreAsync(
@@ -152,6 +157,12 @@ public sealed class MemoryProposalWorkflow(
             return false;
         }
 
+        if (!MemoryTrustPolicy.IsExternallyAccepted(trustLevel))
+        {
+            error = "trustLevel requires a trusted internal source.";
+            return false;
+        }
+
         if (!MemoryScopePolicy.Sensitivities.Contains(sensitivity))
         {
             error = "sensitivity is not supported.";
@@ -181,18 +192,19 @@ public sealed class MemoryProposalWorkflow(
         return true;
     }
 
-    private async Task<bool> SourceEventExistsAsync(
+    private async Task<SourceEventReference?> FindSourceEventAsync(
         Guid principalId,
         MemoryProposalCommand proposal,
         CancellationToken cancellationToken)
     {
         return proposal.SourceEventId.HasValue
-            && await sourceEvents.ExistsForPrincipalScopeAsync(
+            ? await sourceEvents.FindForPrincipalScopeAsync(
                 proposal.SourceEventId.Value,
                 principalId,
                 proposal.ScopeType,
                 proposal.ScopeId,
-                cancellationToken);
+                cancellationToken)
+            : null;
     }
 
     private static string Normalize(string? value, string defaultValue = "")

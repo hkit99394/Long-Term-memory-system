@@ -15,7 +15,8 @@ internal static class PostgresProjectScopeReader
             """
             SELECT id, org_id
             FROM projects
-            WHERE id = @project_id;
+            WHERE id = @project_id
+                AND status = 'active';
             """,
             connection,
             transaction);

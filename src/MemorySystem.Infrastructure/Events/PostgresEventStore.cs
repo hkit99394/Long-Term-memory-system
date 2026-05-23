@@ -12,7 +12,7 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<bool> ExistsForPrincipalScopeAsync(
+    public async Task<SourceEventReference?> FindForPrincipalScopeAsync(
         Guid eventId,
         Guid principalId,
         string scopeType,
@@ -26,14 +26,12 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
 
         await using var command = new NpgsqlCommand(
             """
-            SELECT EXISTS (
-                SELECT 1
-                FROM events
-                WHERE id = @event_id
-                    AND principal_id = @principal_id
-                    AND scope_type = @scope_type
-                    AND scope_id = @scope_id
-            );
+            SELECT id, trust_level
+            FROM events
+            WHERE id = @event_id
+                AND principal_id = @principal_id
+                AND scope_type = @scope_type
+                AND scope_id = @scope_id;
             """,
             connection);
         command.Parameters.AddWithValue("event_id", eventId);
@@ -41,7 +39,11 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         command.Parameters.AddWithValue("scope_type", scopeType);
         command.Parameters.AddWithValue("scope_id", scopeId);
 
-        return await command.ExecuteScalarAsync(cancellationToken) is true;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken)
+            ? new SourceEventReference(reader.GetGuid(0), reader.GetString(1))
+            : null;
     }
 
     public async Task<AppendEventResult> AppendAsync(

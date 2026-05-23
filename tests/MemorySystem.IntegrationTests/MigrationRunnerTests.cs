@@ -9,6 +9,8 @@ public sealed class MigrationRunnerTests
     private const string InitialMigration = "001_initial_memory_schema.sql";
     private const string ScopeHardeningMigration = "002_scope_constraints_and_outbox_hardening.sql";
     private const string MemoryFactScopeConsistencyMigration = "003_memory_fact_scope_consistency.sql";
+    private const string MemoryFactTrustLevelMigration = "004_memory_fact_trust_level.sql";
+    private const string RoleMemoryLensActiveBaseFactMigration = "005_role_memory_lens_active_base_fact.sql";
 
     [Fact]
     [Trait("Category", "Database")]
@@ -28,10 +30,14 @@ public sealed class MigrationRunnerTests
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ScopeHardeningMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactTrustLevelMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == RoleMemoryLensActiveBaseFactMigration);
             Assert.Empty(secondRun.AppliedMigrations);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ScopeHardeningMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactTrustLevelMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == RoleMemoryLensActiveBaseFactMigration);
         }
         finally
         {
@@ -85,6 +91,8 @@ public sealed class MigrationRunnerTests
             Assert.Contains(InitialMigration, exception.MigrationNames);
             Assert.Contains(ScopeHardeningMigration, exception.MigrationNames);
             Assert.Contains(MemoryFactScopeConsistencyMigration, exception.MigrationNames);
+            Assert.Contains(MemoryFactTrustLevelMigration, exception.MigrationNames);
+            Assert.Contains(RoleMemoryLensActiveBaseFactMigration, exception.MigrationNames);
             Assert.Contains("schema_migrations", exception.Message, StringComparison.Ordinal);
         }
         finally

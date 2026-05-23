@@ -122,6 +122,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         var ownerColumns = ResolveOwnerColumns(command.Scope);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        var trustLevel = await FindSourceEventTrustLevelAsync(connection, command.SourceEventId, cancellationToken);
 
         await using var insert = new NpgsqlCommand(
             """
@@ -141,6 +142,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id,
                 proposed_by_principal_id
@@ -161,6 +163,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
                 @predicate,
                 @object,
                 @confidence,
+                @trust_level,
                 @status,
                 @source_event_id,
                 @proposed_by_principal_id
@@ -177,6 +180,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         insert.Parameters.AddWithValue("predicate", command.Predicate);
         insert.Parameters.AddWithValue("object", command.Object);
         insert.Parameters.AddWithValue("confidence", command.Confidence);
+        insert.Parameters.AddWithValue("trust_level", trustLevel);
         insert.Parameters.AddWithValue("status", command.Status);
         insert.Parameters.AddWithValue("source_event_id", command.SourceEventId);
         insert.Parameters.AddWithValue("proposed_by_principal_id", command.ProposedByPrincipalId);
@@ -187,6 +191,24 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
 
         return memoryFact
             ?? throw new InvalidOperationException($"Stored memory fact {memoryFactId} could not be read back.");
+    }
+
+    private static async Task<string> FindSourceEventTrustLevelAsync(
+        NpgsqlConnection connection,
+        Guid sourceEventId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT trust_level
+            FROM events
+            WHERE id = @source_event_id;
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+
+        return await command.ExecuteScalarAsync(cancellationToken) as string
+            ?? throw new InvalidOperationException($"Source event {sourceEventId} does not exist.");
     }
 
     private const string SelectMemoryFactSql = """
@@ -206,6 +228,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             predicate,
             object,
             confidence,
+            trust_level,
             status,
             source_event_id,
             proposed_by_principal_id
@@ -231,8 +254,9 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             reader.GetString(13),
             reader.GetDecimal(14),
             reader.GetString(15),
-            reader.GetGuid(16),
-            reader.IsDBNull(17) ? null : reader.GetGuid(17));
+            reader.GetString(16),
+            reader.GetGuid(17),
+            reader.IsDBNull(18) ? null : reader.GetGuid(18));
     }
 
     private static ScopeOwnerColumns ResolveOwnerColumns(MemoryScopeResolution scope)

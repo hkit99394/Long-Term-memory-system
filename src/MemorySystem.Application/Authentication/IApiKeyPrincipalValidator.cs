@@ -1,4 +1,4 @@
-namespace MemorySystem.Api.Authentication;
+namespace MemorySystem.Application.Authentication;
 
 public interface IApiKeyPrincipalValidator
 {

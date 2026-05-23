@@ -92,6 +92,7 @@ public sealed class MemoryFactReadServiceTests
             "uses",
             "postgres",
             0.95m,
+            "user_scoped",
             "active",
             SourceEventId,
             PrincipalId);

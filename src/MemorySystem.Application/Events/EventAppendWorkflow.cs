@@ -111,6 +111,12 @@ public sealed class EventAppendWorkflow(
             return false;
         }
 
+        if (!MemoryTrustPolicy.IsExternallyAccepted(trustLevel))
+        {
+            failure = EventAppendWorkflowResult.InvalidRequest("trustLevel requires a trusted internal source.");
+            return false;
+        }
+
         if (request.Payload.ValueKind != System.Text.Json.JsonValueKind.Object)
         {
             failure = EventAppendWorkflowResult.InvalidRequest("payload must be a JSON object.");

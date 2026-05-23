@@ -48,7 +48,8 @@ internal static class ApiDatabaseTestSupport
         Guid orgId,
         Guid projectId,
         string organizationName = "Memory Lab",
-        string projectName = "Long-Term Memory System")
+        string projectName = "Long-Term Memory System",
+        string projectStatus = "active")
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -59,13 +60,14 @@ internal static class ApiDatabaseTestSupport
             VALUES (@org_id, @organization_name);
 
             INSERT INTO projects (id, org_id, name, status)
-            VALUES (@project_id, @org_id, @project_name, 'active');
+            VALUES (@project_id, @org_id, @project_name, @project_status);
             """,
             connection);
         command.Parameters.AddWithValue("org_id", orgId);
         command.Parameters.AddWithValue("organization_name", organizationName);
         command.Parameters.AddWithValue("project_id", projectId);
         command.Parameters.AddWithValue("project_name", projectName);
+        command.Parameters.AddWithValue("project_status", projectStatus);
 
         await command.ExecuteNonQueryAsync();
     }
@@ -187,7 +189,8 @@ internal static class ApiDatabaseTestSupport
         string scopeId,
         Guid? scopeOrgId = null,
         Guid? scopeProjectId = null,
-        string? scopeRoleId = null)
+        string? scopeRoleId = null,
+        string trustLevel = "user_scoped")
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -218,7 +221,7 @@ internal static class ApiDatabaseTestSupport
                 'sha256:test',
                 'standard',
                 'none',
-                'user_scoped',
+                @trust_level,
                 @scope_type,
                 @scope_id,
                 @scope_org_id,
@@ -231,6 +234,7 @@ internal static class ApiDatabaseTestSupport
         command.Parameters.AddWithValue("event_id", eventId);
         command.Parameters.AddWithValue("principal_id", principalId);
         command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = """{"message":"source"}""";
+        command.Parameters.AddWithValue("trust_level", trustLevel);
         command.Parameters.AddWithValue("scope_type", scopeType);
         command.Parameters.AddWithValue("scope_id", scopeId);
         command.Parameters.Add("scope_org_id", NpgsqlDbType.Uuid).Value =

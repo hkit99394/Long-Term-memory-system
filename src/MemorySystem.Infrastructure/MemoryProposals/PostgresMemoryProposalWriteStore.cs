@@ -12,6 +12,8 @@ namespace MemorySystem.Infrastructure.MemoryProposals;
 
 public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource) : IMemoryProposalWriteStore
 {
+    private const string ActiveMemoryDedupeIndexName = "ux_memory_facts_active_dedupe";
+    private const string MemoryFactInsertSavepoint = "memory_fact_insert";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<MemoryProposalDecision> StoreAsync(
@@ -38,12 +40,6 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
         var chunkId = Guid.NewGuid();
         var outboxJobId = Guid.NewGuid();
         var chunkContent = BuildChunkContent(proposal);
-        var decision = new MemoryProposalDecision(
-            MemoryProposalDecisions.Stored,
-            "The proposal was stored as durable memory.",
-            memoryId,
-            proposal.SourceEventId);
-        var responseBody = JsonSerializer.Serialize(decision, JsonOptions);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -55,14 +51,51 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             proposal.ScopeId,
             cancellationToken);
 
-        await InsertMemoryFactAsync(
-            connection,
-            transaction,
-            memoryId,
-            proposedByPrincipalId,
-            proposal,
-            ownerColumns,
-            cancellationToken);
+        await ExecuteTransactionCommandAsync(connection, transaction, $"SAVEPOINT {MemoryFactInsertSavepoint};", cancellationToken);
+
+        try
+        {
+            await InsertMemoryFactAsync(
+                connection,
+                transaction,
+                memoryId,
+                proposedByPrincipalId,
+                proposal,
+                ownerColumns,
+                cancellationToken);
+            await ExecuteTransactionCommandAsync(connection, transaction, $"RELEASE SAVEPOINT {MemoryFactInsertSavepoint};", cancellationToken);
+        }
+        catch (PostgresException exception) when (IsActiveMemoryDedupeViolation(exception))
+        {
+            await ExecuteTransactionCommandAsync(connection, transaction, $"ROLLBACK TO SAVEPOINT {MemoryFactInsertSavepoint};", cancellationToken);
+            await ExecuteTransactionCommandAsync(connection, transaction, $"RELEASE SAVEPOINT {MemoryFactInsertSavepoint};", cancellationToken);
+
+            var existingMemoryId = await FindDuplicateActiveMemoryFactAsync(
+                connection,
+                transaction,
+                proposal,
+                cancellationToken);
+            var duplicateDecision = new MemoryProposalDecision(
+                MemoryProposalDecisions.Stored,
+                "The proposal matched existing durable memory.",
+                existingMemoryId,
+                proposal.SourceEventId);
+
+            await CompleteIdempotencyAsync(
+                connection,
+                transaction,
+                idempotencyRecordId,
+                requestHash,
+                duplicateDecision,
+                "memory_fact",
+                existingMemoryId,
+                cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return duplicateDecision;
+        }
+
         await InsertMemoryChunkAsync(
             connection,
             transaction,
@@ -79,21 +112,67 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             chunkId,
             proposal.SourceEventId.Value,
             cancellationToken);
+        var decision = new MemoryProposalDecision(
+            MemoryProposalDecisions.Stored,
+            "The proposal was stored as durable memory.",
+            memoryId,
+            proposal.SourceEventId);
+        await CompleteIdempotencyAsync(
+            connection,
+            transaction,
+            idempotencyRecordId,
+            requestHash,
+            decision,
+            "memory_fact",
+            memoryId,
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return decision;
+    }
+
+    private static bool IsActiveMemoryDedupeViolation(PostgresException exception)
+    {
+        return exception.SqlState == PostgresErrorCodes.UniqueViolation
+            && (
+                string.Equals(exception.ConstraintName, ActiveMemoryDedupeIndexName, StringComparison.Ordinal)
+                || exception.MessageText.Contains(ActiveMemoryDedupeIndexName, StringComparison.Ordinal)
+            );
+    }
+
+    private static async Task ExecuteTransactionCommandAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task CompleteIdempotencyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid idempotencyRecordId,
+        string requestHash,
+        MemoryProposalDecision decision,
+        string resourceType,
+        Guid resourceId,
+        CancellationToken cancellationToken)
+    {
         await PostgresApiIdempotencyCompleter.CompleteAsync(
             connection,
             transaction,
             idempotencyRecordId,
             requestHash,
             200,
-            responseBody,
-            "memory_fact",
-            memoryId,
+            JsonSerializer.Serialize(decision, JsonOptions),
+            resourceType,
+            resourceId,
             "The proposal idempotency record could not be completed.",
             cancellationToken);
-
-        await transaction.CommitAsync(cancellationToken);
-
-        return decision;
     }
 
     private static async Task<ScopeOwnerColumns> ResolveOwnerColumnsAsync(
@@ -165,6 +244,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id,
                 proposed_by_principal_id
@@ -185,6 +265,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
                 @predicate,
                 @object,
                 @confidence,
+                @trust_level,
                 'active',
                 @source_event_id,
                 @proposed_by_principal_id
@@ -196,10 +277,39 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
         AddProposalParameters(command, proposal);
         AddOwnerParameters(command, ownerColumns);
         command.Parameters.AddWithValue("confidence", proposal.Confidence!.Value);
+        command.Parameters.AddWithValue("trust_level", proposal.TrustLevel);
         command.Parameters.AddWithValue("source_event_id", proposal.SourceEventId!.Value);
         command.Parameters.AddWithValue("proposed_by_principal_id", proposedByPrincipalId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<Guid> FindDuplicateActiveMemoryFactAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        MemoryProposalCommand proposal,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT id
+            FROM memory_facts
+            WHERE status = 'active'
+                AND scope_type = @scope_type
+                AND scope_id = @scope_id
+                AND memory_type = @memory_type
+                AND lower(subject) = lower(@subject)
+                AND lower(predicate) = lower(@predicate)
+                AND md5(object) = md5(@object)
+            ORDER BY created_at, id
+            LIMIT 1;
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        AddProposalParameters(command, proposal);
+
+        return await command.ExecuteScalarAsync(cancellationToken) is Guid memoryId
+            ? memoryId
+            : throw new InvalidOperationException("Duplicate active memory fact was not found after dedupe conflict.");
     }
 
     private static async Task InsertMemoryChunkAsync(

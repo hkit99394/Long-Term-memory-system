@@ -11,6 +11,7 @@ public sealed record MemoryFactResponse(
     string Predicate,
     string Object,
     decimal Confidence,
+    string TrustLevel,
     string Status,
     Guid SourceEventId,
     Guid? ProposedByPrincipalId);

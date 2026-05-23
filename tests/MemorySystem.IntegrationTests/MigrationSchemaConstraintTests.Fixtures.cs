@@ -25,6 +25,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id
             )
@@ -41,6 +42,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 'uses',
                 'postgres',
                 0.900,
+                'user_scoped',
                 'active',
                 @event_id
             );
@@ -79,6 +81,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id
             )
@@ -94,6 +97,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 'are',
                 'mandatory',
                 0.900,
+                'user_scoped',
                 'active',
                 @event_id
             );
@@ -130,6 +134,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id
             )
@@ -144,6 +149,7 @@ public sealed partial class MigrationSchemaConstraintTests
                 'must be',
                 'auditable',
                 0.900,
+                'user_scoped',
                 'active',
                 @event_id
             );

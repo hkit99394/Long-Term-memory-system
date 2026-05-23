@@ -250,6 +250,86 @@ public sealed class ApiEventTests
 
     [Fact]
     [Trait("Category", "Database")]
+    public async Task Post_events_rejects_elevated_external_trust_level()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_trust_rejected_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            var body = $$"""
+                {
+                  "eventType": "user_message",
+                  "principalId": "{{TestPrincipalId}}",
+                  "scopeType": "user",
+                  "scopeId": "{{TestPrincipalId}}",
+                  "trustLevel": "system_trusted",
+                  "payload": {
+                    "message": "This trust level should be rejected."
+                  }
+                }
+                """;
+
+            var (statusCode, payload) = await SendEventResponseAsync(client, "event-elevated-trust-key", body);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Event request is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("trusted internal source", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(0, await CountEventsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Post_events_rejects_role_attribution_outside_role_scope()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_role_spoof_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            var body = $$"""
+                {
+                  "eventType": "user_message",
+                  "principalId": "{{TestPrincipalId}}",
+                  "scopeType": "user",
+                  "scopeId": "{{TestPrincipalId}}",
+                  "roleId": "cto",
+                  "payload": {
+                    "message": "This role attribution should be rejected."
+                  }
+                }
+                """;
+
+            var (statusCode, payload) = await SendEventResponseAsync(client, "event-role-spoof-key", body);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Event scope is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("role-scoped events", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(0, await CountEventsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
     public async Task Post_events_resolves_organization_role_agent_and_session_scopes()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -436,6 +516,10 @@ public sealed class ApiEventTests
                 "cto",
                 "project",
                 Guid.Parse(TestProjectId));
+            await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+                connectionString,
+                Guid.Parse(TestPrincipalId),
+                "cto");
         }
     }
 

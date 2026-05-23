@@ -2,7 +2,7 @@ namespace MemorySystem.Application.MemoryProposals;
 
 public interface ISourceEventReferenceStore
 {
-    Task<bool> ExistsForPrincipalScopeAsync(
+    Task<SourceEventReference?> FindForPrincipalScopeAsync(
         Guid eventId,
         Guid principalId,
         string scopeType,

@@ -1,6 +1,5 @@
 using MemorySystem.Infrastructure.Idempotency;
 using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace MemorySystem.Api.Idempotency;
 
@@ -18,8 +17,7 @@ public static class ApiIdempotencyServiceCollectionExtensions
             .ValidateOnStart();
 
         services.AddSingleton<IApiRequestHasher, Sha256ApiRequestHasher>();
-        services.AddSingleton<IApiIdempotencyStore>(serviceProvider =>
-            new PostgresApiIdempotencyStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
+        services.AddSingleton<IApiIdempotencyStore, PostgresApiIdempotencyStore>();
         services.AddSingleton<ApiIdempotencyHttpService>();
 
         return services;

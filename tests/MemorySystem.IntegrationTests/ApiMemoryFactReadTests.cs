@@ -150,6 +150,7 @@ public sealed class ApiMemoryFactReadTests
                 predicate,
                 object,
                 confidence,
+                trust_level,
                 status,
                 source_event_id,
                 proposed_by_principal_id
@@ -167,6 +168,7 @@ public sealed class ApiMemoryFactReadTests
                 'uses',
                 @object,
                 0.950,
+                'user_scoped',
                 'active',
                 @source_event_id,
                 @principal_id

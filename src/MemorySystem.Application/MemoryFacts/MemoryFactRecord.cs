@@ -18,6 +18,7 @@ public sealed record MemoryFactRecord(
     string Predicate,
     string Object,
     decimal Confidence,
+    string TrustLevel,
     string Status,
     Guid SourceEventId,
     Guid? ProposedByPrincipalId)

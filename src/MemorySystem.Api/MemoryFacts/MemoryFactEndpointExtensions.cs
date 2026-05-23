@@ -60,6 +60,7 @@ public static class MemoryFactEndpointExtensions
             memoryFact.Predicate,
             memoryFact.Object,
             memoryFact.Confidence,
+            memoryFact.TrustLevel,
             memoryFact.Status,
             memoryFact.SourceEventId,
             memoryFact.ProposedByPrincipalId);

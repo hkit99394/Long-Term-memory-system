@@ -160,6 +160,95 @@ public sealed class RoleMemoryLensRepositoryTests
 
     [Fact]
     [Trait("Category", "Database")]
+    public async Task StoreAsync_rejects_active_role_lens_backed_by_inactive_fact()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_inactive_base_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var deletedBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "deleted decision",
+                "must not back active role lenses",
+                ProjectEventId) with
+            {
+                Status = MemoryFactStatuses.Deleted
+            });
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                    ProjectScope(),
+                    "cto",
+                    deletedBaseFact.Id,
+                    "An active CTO lens cannot be backed by deleted durable memory.",
+                    0.900m,
+                    ProjectEventId)));
+
+            Assert.Contains("active memory facts", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task Database_rejects_deactivating_fact_referenced_by_active_role_lens()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_deactivate_base_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "active decision",
+                "backs an active role lens",
+                ProjectEventId));
+            await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                ProjectScope(),
+                "cto",
+                projectBaseFact.Id,
+                "The active CTO lens depends on this durable memory.",
+                0.900m,
+                ProjectEventId));
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(() =>
+                UpdateMemoryFactStatusAsync(databaseConnectionString, projectBaseFact.Id, MemoryFactStatuses.Deleted));
+
+            Assert.Equal(PostgresErrorCodes.RaiseException, exception.SqlState);
+            Assert.Contains("active role memory lens", exception.MessageText, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
     public async Task StoreAsync_rejects_shared_role_principles_backed_by_project_fact()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -323,6 +412,27 @@ public sealed class RoleMemoryLensRepositoryTests
         command.Parameters.AddWithValue("project_id", projectId);
         command.Parameters.AddWithValue("org_id", orgId);
         command.Parameters.AddWithValue("project_name", projectName);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task UpdateMemoryFactStatusAsync(
+        string connectionString,
+        Guid memoryFactId,
+        string status)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_facts
+            SET status = @status
+            WHERE id = @memory_fact_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+        command.Parameters.AddWithValue("status", status);
 
         await command.ExecuteNonQueryAsync();
     }

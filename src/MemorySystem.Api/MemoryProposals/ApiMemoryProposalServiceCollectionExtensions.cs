@@ -1,6 +1,5 @@
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Infrastructure.MemoryProposals;
-using Npgsql;
 
 namespace MemorySystem.Api.MemoryProposals;
 
@@ -13,8 +12,7 @@ public static class ApiMemoryProposalServiceCollectionExtensions
     {
         services.AddSingleton<IMemoryProposalBroker, MinimalMemoryProposalBroker>();
         services.AddSingleton<IMemoryProposalWorkflow, MemoryProposalWorkflow>();
-        services.AddSingleton<IMemoryProposalWriteStore>(serviceProvider =>
-            new PostgresMemoryProposalWriteStore(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
+        services.AddSingleton<IMemoryProposalWriteStore, PostgresMemoryProposalWriteStore>();
 
         return services;
     }

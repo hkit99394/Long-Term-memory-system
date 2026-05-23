@@ -1,6 +1,7 @@
+using MemorySystem.Application.Authentication;
 using Npgsql;
 
-namespace MemorySystem.Api.Authentication;
+namespace MemorySystem.Infrastructure.Authentication;
 
 public sealed class PostgresApiKeyPrincipalValidator : IApiKeyPrincipalValidator
 {

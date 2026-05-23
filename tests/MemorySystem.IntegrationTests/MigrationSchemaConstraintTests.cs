@@ -39,6 +39,7 @@ public sealed partial class MigrationSchemaConstraintTests
                     predicate,
                     object,
                     confidence,
+                    trust_level,
                     status,
                     source_event_id
                 )
@@ -55,6 +56,7 @@ public sealed partial class MigrationSchemaConstraintTests
                     'uses',
                     'postgres',
                     0.900,
+                    'user_scoped',
                     'active',
                     @event_id
                 );
@@ -109,6 +111,7 @@ public sealed partial class MigrationSchemaConstraintTests
                     predicate,
                     object,
                     confidence,
+                    trust_level,
                     status,
                     source_event_id
                 )
@@ -125,6 +128,7 @@ public sealed partial class MigrationSchemaConstraintTests
                     'uses',
                     'postgres',
                     0.900,
+                    'user_scoped',
                     'active',
                     @source_event_id
                 );
@@ -1023,6 +1027,97 @@ public sealed partial class MigrationSchemaConstraintTests
                 Assert.Equal(new EventScope("role", "cto", null, "cto"), roleScope);
                 Assert.Equal(new EventScope("session", conversationId.ToString(), null, null), sessionScope);
                 Assert.Equal(new EventScope("global", "global", null, null), globalScope);
+            }
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Database")]
+    public async Task ApplyAsync_backfills_memory_fact_trust_level_from_source_event()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_fact_trust_backfill_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApplyInitialMigrationAsync(databaseConnectionString);
+
+            var eventId = Guid.NewGuid();
+            var memoryFactId = Guid.NewGuid();
+
+            await using (var connection = new NpgsqlConnection(databaseConnectionString))
+            {
+                await connection.OpenAsync();
+
+                await using var command = new NpgsqlCommand(
+                    """
+                    INSERT INTO events (
+                        id,
+                        event_type,
+                        content,
+                        trust_level
+                    )
+                    VALUES (
+                        @event_id,
+                        'memory_written',
+                        '{}'::jsonb,
+                        'web_content'
+                    );
+
+                    INSERT INTO memory_facts (
+                        id,
+                        scope_type,
+                        scope_id,
+                        namespace,
+                        memory_type,
+                        visibility,
+                        subject,
+                        predicate,
+                        object,
+                        confidence,
+                        status,
+                        source_event_id
+                    )
+                    VALUES (
+                        @memory_fact_id,
+                        'global',
+                        'global',
+                        '/global/facts',
+                        'fact',
+                        'system',
+                        'source trust',
+                        'comes from',
+                        'event',
+                        0.900,
+                        'active',
+                        @event_id
+                    );
+                    """,
+                    connection);
+                command.Parameters.AddWithValue("event_id", eventId);
+                command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
+
+            await using (var connection = new NpgsqlConnection(databaseConnectionString))
+            {
+                await connection.OpenAsync();
+
+                await using var command = new NpgsqlCommand(
+                    "SELECT trust_level FROM memory_facts WHERE id = @memory_fact_id;",
+                    connection);
+                command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+                Assert.Equal("web_content", await command.ExecuteScalarAsync());
             }
         }
         finally

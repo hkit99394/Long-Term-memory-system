@@ -96,6 +96,35 @@ public sealed class MemoryProposalWorkflowTests
     }
 
     [Fact]
+    public async Task DecideAsync_derives_trust_level_from_source_event()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true, trustLevel: "web_content");
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var workflow = CreateWorkflow(sourceEvents, writeStore);
+
+        var result = await workflow.DecideAsync(CreateRequest(trustLevel: "tool_output"));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(MemoryProposalDecisions.Stored, result.Decision?.Decision);
+        Assert.Equal("web_content", writeStore.Proposal.TrustLevel);
+    }
+
+    [Fact]
+    public async Task DecideAsync_rejects_elevated_caller_supplied_trust_level()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var workflow = CreateWorkflow(sourceEvents, writeStore);
+
+        var result = await workflow.DecideAsync(CreateRequest(trustLevel: "system_trusted"));
+
+        Assert.False(result.IsValid);
+        Assert.Equal("trustLevel requires a trusted internal source.", result.InvalidReason);
+        Assert.Equal(0, sourceEvents.CallCount);
+        Assert.Equal(0, writeStore.CallCount);
+    }
+
+    [Fact]
     public async Task DecideAsync_returns_forbidden_result_without_writing_when_access_denied()
     {
         var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
@@ -108,8 +137,29 @@ public sealed class MemoryProposalWorkflowTests
         Assert.False(result.IsValid);
         Assert.Equal(403, result.FailureStatusCode);
         Assert.Contains("write access", result.InvalidReason, StringComparison.Ordinal);
+        Assert.Equal(0, sourceEvents.CallCount);
         Assert.Equal(0, writeStore.CallCount);
         Assert.Equal(1, accessAuthorizer.CallCount);
+    }
+
+    [Fact]
+    public async Task DecideAsync_allows_session_only_decision_without_access_preflight()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var accessAuthorizer = new FakeMemoryAccessAuthorizer(allowed: false);
+        var workflow = CreateWorkflow(sourceEvents, writeStore, accessAuthorizer);
+
+        var result = await workflow.DecideAsync(CreateRequest(
+            memoryType: "session_instruction",
+            scopeType: "session",
+            namespaceValue: "/session/session-1/instructions"));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(MemoryProposalDecisions.SessionOnly, result.Decision?.Decision);
+        Assert.Equal(1, sourceEvents.CallCount);
+        Assert.Equal(0, writeStore.CallCount);
+        Assert.Equal(0, accessAuthorizer.CallCount);
     }
 
     private static MemoryProposalWorkflow CreateWorkflow(
@@ -131,8 +181,13 @@ public sealed class MemoryProposalWorkflowTests
         string? visibility = "private",
         decimal? confidence = 0.95m,
         string? trustLevel = "user_scoped",
-        string? sensitivity = "none")
+        string? sensitivity = "none",
+        string? namespaceValue = null)
     {
+        var resolvedScopeId = string.Equals(scopeType?.Trim(), "session", StringComparison.OrdinalIgnoreCase)
+            ? "session-1"
+            : PrincipalId.ToString();
+
         return new MemoryProposalWorkflowRequest(
             PrincipalId,
             IdempotencyRecordId,
@@ -140,8 +195,8 @@ public sealed class MemoryProposalWorkflowTests
             SourceEventId,
             memoryType,
             scopeType,
-            PrincipalId.ToString(),
-            $"/user/{PrincipalId}/preferences",
+            resolvedScopeId,
+            namespaceValue ?? $"/user/{PrincipalId}/preferences",
             visibility,
             "technical planning format",
             "prefers",
@@ -151,11 +206,11 @@ public sealed class MemoryProposalWorkflowTests
             sensitivity);
     }
 
-    private sealed class FakeSourceEventReferenceStore(bool sourceEventExists) : ISourceEventReferenceStore
+    private sealed class FakeSourceEventReferenceStore(bool sourceEventExists, string trustLevel = "user_scoped") : ISourceEventReferenceStore
     {
         public int CallCount { get; private set; }
 
-        public Task<bool> ExistsForPrincipalScopeAsync(
+        public Task<SourceEventReference?> FindForPrincipalScopeAsync(
             Guid eventId,
             Guid principalId,
             string scopeType,
@@ -166,10 +221,11 @@ public sealed class MemoryProposalWorkflowTests
 
             Assert.Equal(SourceEventId, eventId);
             Assert.Equal(PrincipalId, principalId);
-            Assert.Equal("user", scopeType);
-            Assert.Equal(PrincipalId.ToString(), scopeId);
 
-            return Task.FromResult(sourceEventExists);
+            return Task.FromResult(
+                sourceEventExists
+                    ? new SourceEventReference(eventId, trustLevel)
+                    : null);
         }
     }
 

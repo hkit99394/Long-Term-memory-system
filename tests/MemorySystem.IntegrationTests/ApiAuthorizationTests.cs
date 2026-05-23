@@ -1,4 +1,5 @@
 using MemorySystem.Api.Authentication;
+using MemorySystem.Application.Authentication;
 using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text.Json;

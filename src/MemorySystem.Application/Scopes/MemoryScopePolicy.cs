@@ -158,15 +158,16 @@ public static class MemoryScopePolicy
             return false;
         }
 
+        var expectedPrefix = MemoryNamespaceParser.BuildScopePrefix(expectedScopeType, expectedScopeId);
+
         if (memoryNamespace.ScopeType == expectedScopeType
-            && memoryNamespace.ScopeId == expectedScopeId)
+            && memoryNamespace.ScopeId == expectedScopeId
+            && memoryNamespace.Value.StartsWith(expectedPrefix, StringComparison.Ordinal))
         {
             normalizedScopeId = expectedScopeId;
             error = null;
             return true;
         }
-
-        var expectedPrefix = MemoryNamespaceParser.BuildScopePrefix(expectedScopeType, expectedScopeId);
 
         error = $"namespace must start with '{expectedPrefix}'.";
         return false;

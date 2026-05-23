@@ -35,6 +35,18 @@ public static class MemoryEventScopePolicy
             return false;
         }
 
+        if (agentPrincipalId.HasValue && normalizedScopeType != "agent")
+        {
+            error = "agentPrincipalId is only supported for agent-scoped events.";
+            return false;
+        }
+
+        if (normalizedRoleId is not null && normalizedScopeType != "role")
+        {
+            error = "roleId is only supported for role-scoped events.";
+            return false;
+        }
+
         var trimmedScopeId = scopeId?.Trim();
 
         switch (normalizedScopeType)
@@ -51,8 +63,8 @@ public static class MemoryEventScopePolicy
                     "global",
                     "global",
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId,
-                    RoleId: normalizedRoleId);
+                    AgentPrincipalId: null,
+                    RoleId: null);
                 return true;
 
             case "org":
@@ -66,8 +78,8 @@ public static class MemoryEventScopePolicy
                     orgId.ToString(),
                     OrgId: orgId,
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId,
-                    RoleId: normalizedRoleId);
+                    AgentPrincipalId: null,
+                    RoleId: null);
                 return true;
 
             case "project":
@@ -82,8 +94,8 @@ public static class MemoryEventScopePolicy
                     OrgId: scopeOrgId,
                     ProjectId: projectId,
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId,
-                    RoleId: normalizedRoleId);
+                    AgentPrincipalId: null,
+                    RoleId: null);
                 return true;
 
             case "user":
@@ -103,8 +115,8 @@ public static class MemoryEventScopePolicy
                     userPrincipalId.ToString(),
                     PrincipalId: userPrincipalId,
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId,
-                    RoleId: normalizedRoleId);
+                    AgentPrincipalId: null,
+                    RoleId: null);
                 return true;
 
             case "agent":
@@ -155,7 +167,7 @@ public static class MemoryEventScopePolicy
                     RoleId: scopedRoleId,
                     ScopeRoleId: scopedRoleId,
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId);
+                    AgentPrincipalId: null);
                 return true;
 
             case "session":
@@ -181,8 +193,8 @@ public static class MemoryEventScopePolicy
                     "session",
                     trimmedScopeId,
                     ConversationId: conversationId,
-                    AgentPrincipalId: agentPrincipalId,
-                    RoleId: normalizedRoleId);
+                    AgentPrincipalId: null,
+                    RoleId: null);
                 return true;
 
             default:

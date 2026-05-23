@@ -38,9 +38,12 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
         await using var command = new NpgsqlCommand(
             """
             SELECT access_level
-            FROM project_memberships
-            WHERE principal_id = @principal_id
-                AND project_id = @project_id;
+            FROM project_memberships AS membership
+            INNER JOIN projects AS project
+                ON project.id = membership.project_id
+                AND project.status = 'active'
+            WHERE membership.principal_id = @principal_id
+                AND membership.project_id = @project_id;
             """,
             connection);
         command.Parameters.AddWithValue("principal_id", principalId);
@@ -66,13 +69,16 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
                     AND assignment.role_id = @role_id
                     AND (
                         assignment.scope_type = 'global'
-                        OR @scope_type = 'role'
                         OR (
+                            @scope_type <> 'role'
+                            AND
                             @scope_org_id IS NOT NULL
                             AND assignment.scope_type = 'org'
                             AND assignment.scope_id = @scope_org_id
                         )
                         OR (
+                            @scope_type <> 'role'
+                            AND
                             @scope_project_id IS NOT NULL
                             AND assignment.scope_type = 'project'
                             AND assignment.scope_id = @scope_project_id
@@ -127,13 +133,16 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
                             AND assignment.role_id = grant_record.role_id
                             AND (
                                 assignment.scope_type = 'global'
-                                OR @scope_type = 'role'
                                 OR (
+                                    @scope_type <> 'role'
+                                    AND
                                     @scope_org_id IS NOT NULL
                                     AND assignment.scope_type = 'org'
                                     AND assignment.scope_id = @scope_org_id
                                 )
                                 OR (
+                                    @scope_type <> 'role'
+                                    AND
                                     @scope_project_id IS NOT NULL
                                     AND assignment.scope_type = 'project'
                                     AND assignment.scope_id = @scope_project_id
