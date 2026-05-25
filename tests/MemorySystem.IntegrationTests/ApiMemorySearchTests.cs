@@ -152,6 +152,88 @@ public sealed class ApiMemorySearchTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_hybrid_search_combines_ranking_components_inside_authorized_results()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_hybrid_search_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var (targetMemoryId, staleMemoryId, unauthorizedMemoryId, query) =
+                await PrepareHybridSearchFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendHybridSearchAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString());
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var results = payload.GetProperty("results").EnumerateArray().ToArray();
+
+            Assert.True(results.Length >= 2);
+            Assert.Equal(targetMemoryId, results[0].GetProperty("sourceId").GetGuid());
+            Assert.DoesNotContain(unauthorizedMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+
+            var target = results.Single(result => result.GetProperty("sourceId").GetGuid() == targetMemoryId);
+            var stale = results.Single(result => result.GetProperty("sourceId").GetGuid() == staleMemoryId);
+            var targetComponents = target.GetProperty("components");
+            var staleComponents = stale.GetProperty("components");
+
+            Assert.True(target.GetProperty("rank").GetDouble() > stale.GetProperty("rank").GetDouble());
+            Assert.True(targetComponents.GetProperty("confidence").GetDouble() > staleComponents.GetProperty("confidence").GetDouble());
+            Assert.True(targetComponents.GetProperty("recency").GetDouble() > staleComponents.GetProperty("recency").GetDouble());
+            Assert.True(targetComponents.GetProperty("authority").GetDouble() > staleComponents.GetProperty("authority").GetDouble());
+            Assert.Equal(1.0d, targetComponents.GetProperty("scopeMatch").GetDouble(), precision: 3);
+            Assert.Equal(
+                ComputeHybridScore(targetComponents),
+                target.GetProperty("rank").GetDouble(),
+                precision: 6);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_hybrid_search_rejects_partial_target_scope()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_hybrid_invalid_scope_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendHybridSearchAsync(
+                client,
+                "hybrid ranking",
+                scopeType: "project");
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory hybrid search is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("scopeType", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task<(Guid ProjectAMemoryId, Guid ProjectBMemoryId)> PrepareSearchFixtureAsync(
         string connectionString)
     {
@@ -293,6 +375,126 @@ public sealed class ApiMemorySearchTests
         return (projectATargetMemory.Id, projectBMemory.Id, exactQuery);
     }
 
+    private static async Task<(Guid TargetMemoryId, Guid StaleMemoryId, Guid UnauthorizedMemoryId, string Query)>
+        PrepareHybridSearchFixtureAsync(string connectionString)
+    {
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgAId, ProjectAId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgBId, ProjectBId);
+        await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+            connectionString,
+            ProjectAId,
+            PrincipalId,
+            "reader");
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/decisions",
+            "read",
+            principalId: PrincipalId);
+
+        var trustedProjectAEventId = Guid.NewGuid();
+        var staleProjectAEventId = Guid.NewGuid();
+        var projectBEventId = Guid.NewGuid();
+
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            trustedProjectAEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            staleProjectAEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "web_content");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            projectBEventId,
+            PrincipalId,
+            "project",
+            ProjectBId.ToString(),
+            scopeOrgId: OrgBId,
+            scopeProjectId: ProjectBId,
+            trustLevel: "human_approved");
+
+        const string query = "hybrid ranking safety formula";
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var repository = new PostgresMemoryFactRepository(dataSource);
+        var targetMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "hybrid ranking preferred memory",
+            "uses",
+            "hybrid ranking safety formula",
+            0.950m,
+            trustedProjectAEventId,
+            PrincipalId));
+        var staleMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "hybrid ranking stale memory",
+            "uses",
+            "hybrid ranking safety formula",
+            0.400m,
+            staleProjectAEventId,
+            PrincipalId));
+        var unauthorizedMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectBId.ToString(), OrgId: OrgBId, ProjectId: ProjectBId),
+            $"/project/{ProjectBId}/decisions",
+            "decision",
+            "project_shared",
+            "hybrid ranking unauthorized memory",
+            "uses",
+            "hybrid ranking safety formula",
+            0.990m,
+            projectBEventId,
+            PrincipalId));
+
+        await SetMemoryCreatedAtAsync(connectionString, staleMemory.Id, DateTimeOffset.UtcNow.AddDays(-120));
+        await EmbedMemoryChunksAsync(dataSource);
+
+        return (targetMemory.Id, staleMemory.Id, unauthorizedMemory.Id, query);
+    }
+
+    private static async Task SetMemoryCreatedAtAsync(
+        string connectionString,
+        Guid memoryFactId,
+        DateTimeOffset createdAt)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_facts
+            SET created_at = @created_at
+            WHERE id = @memory_fact_id;
+
+            UPDATE memory_chunks
+            SET created_at = @created_at
+            WHERE source_type = 'memory_fact'
+                AND source_id = @memory_fact_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("created_at", createdAt);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
     private static async Task EmbedMemoryChunksAsync(NpgsqlDataSource dataSource)
     {
         var chunks = new List<(Guid ChunkId, string Input)>();
@@ -359,6 +561,44 @@ public sealed class ApiMemorySearchTests
 
         using var document = JsonDocument.Parse(responseBody);
         return (response.StatusCode, document.RootElement.Clone(), responseBody);
+    }
+
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload, string Body)> SendHybridSearchAsync(
+        HttpClient client,
+        string query,
+        int limit = 10,
+        string? scopeType = null,
+        string? scopeId = null)
+    {
+        var uri = $"/api/memory/search/hybrid?q={Uri.EscapeDataString(query)}&limit={limit}";
+
+        if (!string.IsNullOrWhiteSpace(scopeType))
+        {
+            uri += $"&scopeType={Uri.EscapeDataString(scopeType)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(scopeId))
+        {
+            uri += $"&scopeId={Uri.EscapeDataString(scopeId)}";
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Add("X-Api-Key", TestApiKey);
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(responseBody);
+        return (response.StatusCode, document.RootElement.Clone(), responseBody);
+    }
+
+    private static double ComputeHybridScore(JsonElement components)
+    {
+        return (components.GetProperty("relevance").GetDouble() * 0.40d)
+            + (components.GetProperty("confidence").GetDouble() * 0.25d)
+            + (components.GetProperty("recency").GetDouble() * 0.15d)
+            + (components.GetProperty("authority").GetDouble() * 0.15d)
+            + (components.GetProperty("scopeMatch").GetDouble() * 0.05d);
     }
 
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)

@@ -43,6 +43,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0023: Authorized Full-Text Memory Search](decisions/0023-authorized-full-text-memory-search.md) | Records the M6 full-text search path over `memory_chunks.search_vector` with authorization predicates inside SQL. |
 | [Decision 0024: Embedding Provider Adapter](decisions/0024-embedding-provider-adapter.md) | Records the M6 embedding provider contract, deterministic local adapter, selected model/dimension configuration, and idempotent embedding storage path. |
 | [Decision 0025: Authorized pgvector Semantic Search](decisions/0025-authorized-pgvector-semantic-search.md) | Records the M6 semantic search endpoint, cosine distance operator, authorization-before-ranking query shape, and deferred ANN index choice. |
+| [Decision 0026: Hybrid Memory Ranking](decisions/0026-hybrid-memory-ranking.md) | Records the M6 hybrid search endpoint and final-score formula combining relevance, confidence, recency, authority, and scope match. |
 
 ## Dictionary
 
@@ -58,6 +59,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
+| Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
 | Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |
