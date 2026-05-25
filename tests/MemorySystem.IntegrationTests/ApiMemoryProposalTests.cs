@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Worker;
 using Microsoft.AspNetCore.Hosting;
@@ -20,6 +21,8 @@ public sealed class ApiMemoryProposalTests
     private const string AgentPrincipalId = "99999999-9999-4999-8999-999999999999";
     private const string TestOrgId = "33333333-3333-4333-8333-333333333333";
     private const string TestProjectId = "44444444-4444-4444-8444-444444444444";
+    private const string TestEmbeddingModel = "memory-test-deterministic-v1";
+    private const int TestEmbeddingDimension = 12;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid SourceEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid OtherSourceEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
@@ -115,7 +118,7 @@ public sealed class ApiMemoryProposalTests
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var processor = new OutboxJobProcessor(
                 new PostgresOutboxJobStore(dataSource),
-                [new MemoryIndexOutboxJobHandler(dataSource)],
+                [CreateMemoryIndexHandler(dataSource)],
                 Options.Create(new OutboxWorkerOptions
                 {
                     WorkerId = "memory-index-test-worker",
@@ -130,8 +133,13 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal(1, await processor.ProcessAvailableAsync());
 
             var outboxJob = await ReadOutboxJobAsync(databaseConnectionString, memoryId);
+            var embedding = await ReadMemoryEmbeddingAsync(databaseConnectionString, memoryId);
 
             Assert.Equal("completed", outboxJob.Status);
+            Assert.Equal(TestEmbeddingModel, embedding.Model);
+            Assert.Equal(TestEmbeddingDimension, embedding.Dimension);
+            Assert.Equal(TestEmbeddingDimension, embedding.VectorDimensions);
+            Assert.StartsWith("[", embedding.VectorLiteral, StringComparison.Ordinal);
         }
         finally
         {
@@ -796,7 +804,7 @@ public sealed class ApiMemoryProposalTests
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var processor = new OutboxJobProcessor(
                 new PostgresOutboxJobStore(dataSource),
-                [new MemoryIndexOutboxJobHandler(dataSource)],
+                [CreateMemoryIndexHandler(dataSource)],
                 Options.Create(new OutboxWorkerOptions
                 {
                     WorkerId = "role-lens-index-test-worker",
@@ -816,6 +824,7 @@ public sealed class ApiMemoryProposalTests
 
             Assert.Equal("completed", outboxJob.Status);
             Assert.Equal(1, await CountRoleMemoryLensesAsync(databaseConnectionString));
+            Assert.Equal(2, await CountMemoryEmbeddingsAsync(databaseConnectionString));
         }
         finally
         {
@@ -1408,6 +1417,20 @@ public sealed class ApiMemoryProposalTests
         return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, TestPrincipalId);
     }
 
+    private static MemoryIndexOutboxJobHandler CreateMemoryIndexHandler(NpgsqlDataSource dataSource)
+    {
+        var embeddingOptions = Options.Create(new MemoryEmbeddingOptions
+        {
+            Model = TestEmbeddingModel,
+            Dimension = TestEmbeddingDimension
+        });
+
+        return new MemoryIndexOutboxJobHandler(
+            dataSource,
+            new DeterministicMemoryEmbeddingProvider(embeddingOptions),
+            new PostgresMemoryChunkEmbeddingStore(dataSource));
+    }
+
     private static async Task PrepareDatabaseAsync(
         string connectionString,
         string sourceEventTrustLevel = "user_scoped",
@@ -1497,6 +1520,23 @@ public sealed class ApiMemoryProposalTests
     private static async Task<int> CountRoleMemoryLensesAsync(string connectionString)
     {
         return await CountRowsAsync(connectionString, "role_memory_lenses");
+    }
+
+    private static async Task<int> CountMemoryEmbeddingsAsync(string connectionString)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT count(*)::int
+            FROM memory_embeddings
+            WHERE embedding_model = @embedding_model;
+            """,
+            connection);
+        command.Parameters.AddWithValue("embedding_model", TestEmbeddingModel);
+
+        return (int)(await command.ExecuteScalarAsync() ?? 0);
     }
 
     private static async Task AssertNoDurableProposalWritesAsync(string connectionString)
@@ -1606,6 +1646,43 @@ public sealed class ApiMemoryProposalTests
             reader.GetString(6),
             reader.GetString(7),
             reader.GetGuid(8));
+    }
+
+    private static async Task<MemoryEmbeddingState> ReadMemoryEmbeddingAsync(
+        string connectionString,
+        Guid sourceId,
+        string sourceType = MemoryIndexOutboxJobContract.AggregateType)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT
+                embedding.embedding_model,
+                embedding.embedding_dimension,
+                vector_dims(embedding.embedding),
+                embedding.embedding::text
+            FROM memory_chunks AS chunk
+            JOIN memory_embeddings AS embedding ON embedding.chunk_id = chunk.id
+            WHERE chunk.source_type = @source_type
+                AND chunk.source_id = @source_id
+                AND embedding.embedding_model = @embedding_model;
+            """,
+            connection);
+        command.Parameters.AddWithValue("source_type", sourceType);
+        command.Parameters.AddWithValue("source_id", sourceId);
+        command.Parameters.AddWithValue("embedding_model", TestEmbeddingModel);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        Assert.True(await reader.ReadAsync());
+
+        return new MemoryEmbeddingState(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2),
+            reader.GetString(3));
     }
 
     private static async Task<RoleMemoryLensState> ReadRoleMemoryLensAsync(
@@ -1761,6 +1838,12 @@ public sealed class ApiMemoryProposalTests
         string ContentHash,
         string TrustLevel,
         Guid SourceEventId);
+
+    private sealed record MemoryEmbeddingState(
+        string Model,
+        int Dimension,
+        int VectorDimensions,
+        string VectorLiteral);
 
     private sealed record RoleMemoryLensState(
         string RoleId,

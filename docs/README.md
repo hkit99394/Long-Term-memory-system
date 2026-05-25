@@ -41,6 +41,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0021: Memory Proposal Contradiction Detection](decisions/0021-memory-proposal-contradiction-detection.md) | Records the M5 workflow rule that sends clear conflicts with active memory to review before writing another durable fact. |
 | [Decision 0022: Memory Proposal Confidence Scoring](decisions/0022-memory-proposal-confidence-scoring.md) | Records the M5 broker confidence scoring table and review threshold for durable proposal decisions. |
 | [Decision 0023: Authorized Full-Text Memory Search](decisions/0023-authorized-full-text-memory-search.md) | Records the M6 full-text search path over `memory_chunks.search_vector` with authorization predicates inside SQL. |
+| [Decision 0024: Embedding Provider Adapter](decisions/0024-embedding-provider-adapter.md) | Records the M6 embedding provider contract, deterministic local adapter, selected model/dimension configuration, and idempotent embedding storage path. |
 
 ## Dictionary
 
