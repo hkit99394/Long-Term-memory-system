@@ -18,8 +18,9 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryChunkFullTextSearch search,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await SearchAsync(context, search, cancellationToken))
+                await SearchAsync(context, search, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -29,8 +30,9 @@ public static class MemoryFactEndpointExtensions
                 IMemoryChunkSemanticSearch search,
                 IHostEnvironment environment,
                 IOptions<MemoryEmbeddingOptions> embeddingOptions,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await SemanticSearchAsync(context, search, environment, embeddingOptions.Value, cancellationToken))
+                await SemanticSearchAsync(context, search, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -40,8 +42,9 @@ public static class MemoryFactEndpointExtensions
                 IMemoryChunkHybridSearch search,
                 IHostEnvironment environment,
                 IOptions<MemoryEmbeddingOptions> embeddingOptions,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await HybridSearchAsync(context, search, environment, embeddingOptions.Value, cancellationToken))
+                await HybridSearchAsync(context, search, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -51,8 +54,9 @@ public static class MemoryFactEndpointExtensions
                 IContextPacketBuilder contextPacketBuilder,
                 IHostEnvironment environment,
                 IOptions<MemoryEmbeddingOptions> embeddingOptions,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await BuildContextPacketAsync(context, contextPacketBuilder, environment, embeddingOptions.Value, cancellationToken))
+                await BuildContextPacketAsync(context, contextPacketBuilder, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -71,6 +75,7 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> SearchAsync(
         HttpContext context,
         IMemoryChunkFullTextSearch search,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
@@ -95,6 +100,17 @@ public static class MemoryFactEndpointExtensions
             new MemoryChunkFullTextSearchQuery(principalId, query, limit),
             cancellationToken);
 
+        LogRetrievalCompleted(
+            logger,
+            "full_text",
+            principalId,
+            query,
+            limit,
+            results.Count,
+            targetScopeType: null,
+            targetScopeId: null,
+            roleId: null);
+
         return Results.Ok(new MemorySearchResponse(results.Select(ToSearchResultResponse).ToArray()));
     }
 
@@ -103,10 +119,12 @@ public static class MemoryFactEndpointExtensions
         IMemoryChunkSemanticSearch search,
         IHostEnvironment environment,
         MemoryEmbeddingOptions embeddingOptions,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
         {
+            LogSemanticRetrievalUnavailable(logger, "semantic", environment, embeddingOptions);
             return configurationFailure;
         }
 
@@ -132,6 +150,17 @@ public static class MemoryFactEndpointExtensions
             new MemoryChunkSemanticSearchQuery(principalId, query, limit),
             cancellationToken);
 
+        LogRetrievalCompleted(
+            logger,
+            "semantic",
+            principalId,
+            query,
+            limit,
+            results.Count,
+            targetScopeType: null,
+            targetScopeId: null,
+            roleId: null);
+
         return Results.Ok(new MemorySearchResponse(results.Select(ToSearchResultResponse).ToArray()));
     }
 
@@ -140,10 +169,12 @@ public static class MemoryFactEndpointExtensions
         IMemoryChunkHybridSearch search,
         IHostEnvironment environment,
         MemoryEmbeddingOptions embeddingOptions,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
         {
+            LogSemanticRetrievalUnavailable(logger, "hybrid", environment, embeddingOptions);
             return configurationFailure;
         }
 
@@ -170,6 +201,17 @@ public static class MemoryFactEndpointExtensions
             new MemoryChunkHybridSearchQuery(principalId, query, limit, targetScopeType, targetScopeId),
             cancellationToken);
 
+        LogRetrievalCompleted(
+            logger,
+            "hybrid",
+            principalId,
+            query,
+            limit,
+            results.Count,
+            targetScopeType,
+            targetScopeId,
+            roleId: null);
+
         return Results.Ok(new MemoryHybridSearchResponse(results.Select(ToHybridSearchResultResponse).ToArray()));
     }
 
@@ -178,10 +220,12 @@ public static class MemoryFactEndpointExtensions
         IContextPacketBuilder contextPacketBuilder,
         IHostEnvironment environment,
         MemoryEmbeddingOptions embeddingOptions,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
         {
+            LogSemanticRetrievalUnavailable(logger, "context_packet", environment, embeddingOptions);
             return configurationFailure;
         }
 
@@ -222,7 +266,60 @@ public static class MemoryFactEndpointExtensions
                 string.IsNullOrWhiteSpace(roleId) ? null : roleId),
             cancellationToken);
 
+        logger.LogInformation(
+            "Memory retrieval completed for {RetrievalMode}. PrincipalId={PrincipalId} QueryLength={QueryLength} Limit={Limit} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} UserPreferenceCount={UserPreferenceCount} ProjectMemoryCount={ProjectMemoryCount} RoleMemoryCount={RoleMemoryCount} RelevantDecisionCount={RelevantDecisionCount} SourceEventCount={SourceEventCount}",
+            "context_packet",
+            principalId,
+            query.Length,
+            limit,
+            targetScopeType,
+            targetScopeId,
+            string.IsNullOrWhiteSpace(roleId) ? null : roleId,
+            packet.UserPreferences.Count,
+            packet.ProjectMemory.Count,
+            packet.RoleMemory.Count,
+            packet.RelevantDecisions.Count,
+            packet.SourceEvents.Count);
+
         return Results.Ok(ToContextPacketResponse(packet));
+    }
+
+    private static void LogRetrievalCompleted(
+        ILogger logger,
+        string retrievalMode,
+        Guid principalId,
+        string query,
+        int limit,
+        int resultCount,
+        string? targetScopeType,
+        string? targetScopeId,
+        string? roleId)
+    {
+        logger.LogInformation(
+            "Memory retrieval completed for {RetrievalMode}. PrincipalId={PrincipalId} QueryLength={QueryLength} Limit={Limit} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} ResultCount={ResultCount}",
+            retrievalMode,
+            principalId,
+            query.Length,
+            limit,
+            targetScopeType,
+            targetScopeId,
+            roleId,
+            resultCount);
+    }
+
+    private static void LogSemanticRetrievalUnavailable(
+        ILogger logger,
+        string retrievalMode,
+        IHostEnvironment environment,
+        MemoryEmbeddingOptions embeddingOptions)
+    {
+        logger.LogWarning(
+            "Memory retrieval unavailable for {RetrievalMode}. Environment={EnvironmentName} EmbeddingProvider={EmbeddingProvider} EmbeddingModel={EmbeddingModel} EmbeddingDimension={EmbeddingDimension}",
+            retrievalMode,
+            environment.EnvironmentName,
+            embeddingOptions.Provider,
+            embeddingOptions.Model,
+            embeddingOptions.Dimension);
     }
 
     private static async Task<IResult> ReadAsync(

@@ -98,6 +98,7 @@ Before M7 implementation:
 Before M8 implementation:
 
 - Operational health behavior is decided in [Decision 0034](decisions/0034-operational-health-checks.md): `/health/live` stays process-only, while readiness reports PostgreSQL, outbox backlog, outbox worker heartbeat freshness, and embedding provider usability without probing billable embedding APIs.
+- Structured logging behavior is decided in [Decision 0035](decisions/0035-structured-operational-logging.md): proposal, retrieval, review, and delete/expire redaction logs include operational metadata and counts, but omit proposal content, query text, review notes, memory body text, and raw event payloads.
 
 ## First Build Sequence
 

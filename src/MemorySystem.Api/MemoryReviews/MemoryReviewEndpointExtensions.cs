@@ -41,12 +41,20 @@ public static class MemoryReviewEndpointExtensions
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
                 IMemoryReviewWorkflow workflow,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await idempotency.ExecuteAsync(
                     context,
                     $"POST /api/reviews/{action}",
                     async (idempotencyContext, operationCancellationToken) =>
-                        await CompleteReviewAsync(id, action, context, workflow, idempotencyContext, operationCancellationToken)))
+                        await CompleteReviewAsync(
+                            id,
+                            action,
+                            context,
+                            workflow,
+                            loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
+                            idempotencyContext,
+                            operationCancellationToken)))
             .RequireAuthorization();
     }
 
@@ -81,6 +89,7 @@ public static class MemoryReviewEndpointExtensions
         string action,
         HttpContext context,
         IMemoryReviewWorkflow workflow,
+        ILogger logger,
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
@@ -106,17 +115,72 @@ public static class MemoryReviewEndpointExtensions
 
         if (!result.Succeeded)
         {
+            logger.LogWarning(
+                "Memory review action {Action} failed for review {ReviewId}. PrincipalId={PrincipalId} FailureStatusCode={FailureStatusCode}",
+                action,
+                id,
+                idempotency.PrincipalId,
+                result.FailureStatusCode);
+
             return ApiRequestHelpers.Problem(
                 result.FailureStatusCode,
                 "Memory review action is invalid.",
                 result.Error!);
         }
 
+        LogReviewActionCompleted(logger, id, action, idempotency.PrincipalId, request.SourceEventId, result);
+
         return new ApiIdempotencyResponse(
             StatusCodes.Status200OK,
             ToActionResponse(result),
             "memory_review",
             id);
+    }
+
+    private static void LogReviewActionCompleted(
+        ILogger logger,
+        Guid reviewId,
+        string action,
+        Guid principalId,
+        Guid sourceEventId,
+        MemoryReviewWorkflowResult result)
+    {
+        var memoryFact = result.Review!.MemoryFact;
+
+        logger.LogInformation(
+            "Memory review action {Action} completed for review {ReviewId}. PrincipalId={PrincipalId} MemoryFactId={MemoryFactId} ReplacementMemoryFactId={ReplacementMemoryFactId} ScopeType={ScopeType} ScopeId={ScopeId} Namespace={Namespace} MemoryType={MemoryType} MemoryStatus={MemoryStatus} SourceEventId={SourceEventId}",
+            action,
+            reviewId,
+            principalId,
+            memoryFact.Id,
+            result.ReplacementMemoryFactId,
+            memoryFact.ScopeType,
+            memoryFact.ScopeId,
+            memoryFact.Namespace,
+            memoryFact.MemoryType,
+            memoryFact.Status,
+            sourceEventId);
+
+        if (IsRedactionAction(action))
+        {
+            logger.LogInformation(
+                "Memory redaction action {RedactionAction} completed for review {ReviewId}. PrincipalId={PrincipalId} TargetType={TargetType} TargetId={TargetId} ScopeType={ScopeType} ScopeId={ScopeId} Namespace={Namespace} ResultingStatus={ResultingStatus} SourceEventId={SourceEventId}",
+                action,
+                reviewId,
+                principalId,
+                "memory_fact",
+                memoryFact.Id,
+                memoryFact.ScopeType,
+                memoryFact.ScopeId,
+                memoryFact.Namespace,
+                memoryFact.Status,
+                sourceEventId);
+        }
+    }
+
+    private static bool IsRedactionAction(string action)
+    {
+        return action is MemoryReviewActions.Delete or MemoryReviewActions.Expire;
     }
 
     private static async Task<ActionRequestReadResult> ReadActionRequestAsync(
