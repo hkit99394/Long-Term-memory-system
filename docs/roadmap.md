@@ -100,6 +100,7 @@ Before M8 implementation:
 - Operational health behavior is decided in [Decision 0034](decisions/0034-operational-health-checks.md): `/health/live` stays process-only, while readiness reports PostgreSQL, outbox backlog, outbox worker heartbeat freshness, and embedding provider usability without probing billable embedding APIs.
 - Structured logging behavior is decided in [Decision 0035](decisions/0035-structured-operational-logging.md): proposal, retrieval, review, and delete/expire redaction logs include operational metadata and counts, but omit proposal content, query text, review notes, memory body text, and raw event payloads.
 - Retention and erasure behavior is decided in [Decision 0036](decisions/0036-retention-and-erasure-policy.md): raw event payload retention classes, legal hold precedence, erasure workflow expectations, audit-safe metadata, and current automation gaps are documented in [Retention Policy](retention-policy.md).
+- Backup and restore behavior is decided in [Decision 0037](decisions/0037-backup-and-restore-runbook.md): PostgreSQL custom-format backups, restore validation databases, migration checks, readiness checks, and retention-aware restore caveats are documented in [Backup and Restore Runbook](backup-restore.md).
 
 ## First Build Sequence
 

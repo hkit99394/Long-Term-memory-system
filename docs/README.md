@@ -16,6 +16,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
+| [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
 | [Scenario 0001: User Preference, Project Decision, and CTO Context](scenarios/0001-user-preference-project-decision-cto-context.md) | Defines the first M1-M6 implementation throughline and sample data. |
@@ -55,6 +56,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0034: Operational Health Checks](decisions/0034-operational-health-checks.md) | Records the M8 API liveness/readiness split, worker heartbeat freshness check, and embedding provider health behavior. |
 | [Decision 0035: Structured Operational Logging](decisions/0035-structured-operational-logging.md) | Records the M8 structured logging contract for proposal, retrieval, review, and redaction decision points without payload leakage. |
 | [Decision 0036: Retention and Erasure Policy](decisions/0036-retention-and-erasure-policy.md) | Records the M8 raw event payload retention windows, legal hold behavior, erasure expectations, and audit-preservation policy. |
+| [Decision 0037: Backup and Restore Runbook](decisions/0037-backup-and-restore-runbook.md) | Records the M8 PostgreSQL custom-format backup, restore validation, migration, and retention-aware recovery process. |
 
 ## Dictionary
 
@@ -63,6 +65,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Agent | An AI process or role that can use memory to complete tasks. |
 | Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
 | Archive export | A readable Markdown projection of inactive but non-redacted memory, such as superseded, expired, or contradicted memory. |
+| Backup validation database | A temporary PostgreSQL database used to prove a backup can be restored and queried without overwriting the active database. |
 | Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
 | Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
 | Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |

@@ -1175,6 +1175,7 @@ Success criteria:
 
 - production deployment and recovery paths are documented
 - database health is visible
+- backup and restore validation has a documented local path
 - memory deletion and expiry behavior is auditable
 
 ## Testing Strategy
