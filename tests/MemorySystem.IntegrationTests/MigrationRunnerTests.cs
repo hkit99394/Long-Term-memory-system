@@ -18,6 +18,8 @@ public sealed class MigrationRunnerTests
     private const string EventReferenceUpdateGuardsMigration = "010_event_reference_update_guards.sql";
     private const string ApiIdempotencyResponseContentTypeMigration = "011_api_idempotency_response_content_type.sql";
     private const string MemoryChunkFullTextSearchMigration = "012_memory_chunk_full_text_search.sql";
+    private const string OutboxProcessingLeaseMetadataMigration = "013_outbox_processing_lease_metadata.sql";
+    private const string MemoryEmbeddingVectorIndexMigration = "014_memory_embedding_vector_index.sql";
 
     [DatabaseFact]
     [Trait("Category", "Database")]
@@ -46,6 +48,8 @@ public sealed class MigrationRunnerTests
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == OutboxProcessingLeaseMetadataMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryEmbeddingVectorIndexMigration);
             Assert.Empty(secondRun.AppliedMigrations);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ScopeHardeningMigration);
@@ -59,6 +63,8 @@ public sealed class MigrationRunnerTests
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == OutboxProcessingLeaseMetadataMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryEmbeddingVectorIndexMigration);
         }
         finally
         {
@@ -152,6 +158,8 @@ public sealed class MigrationRunnerTests
             Assert.Contains(EventReferenceUpdateGuardsMigration, exception.MigrationNames);
             Assert.Contains(ApiIdempotencyResponseContentTypeMigration, exception.MigrationNames);
             Assert.Contains(MemoryChunkFullTextSearchMigration, exception.MigrationNames);
+            Assert.Contains(OutboxProcessingLeaseMetadataMigration, exception.MigrationNames);
+            Assert.Contains(MemoryEmbeddingVectorIndexMigration, exception.MigrationNames);
             Assert.Contains("schema_migrations", exception.Message, StringComparison.Ordinal);
         }
         finally

@@ -43,38 +43,10 @@ public sealed class PostgresMemoryChunkHybridSearch(
             string.IsNullOrWhiteSpace(query.TargetScopeType) ? DBNull.Value : query.TargetScopeType.Trim();
         command.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.TargetScopeId) ? DBNull.Value : query.TargetScopeId.Trim();
+        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId.Trim();
         command.Parameters.AddWithValue("limit", query.Limit);
-        command.Parameters.Add("read_permissions", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "read",
-            "write",
-            "review",
-            "admin"
-        };
-        command.Parameters.Add("read_project_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin"
-        };
-        command.Parameters.Add("read_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin",
-            "owner"
-        };
-        command.Parameters.Add("admin_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "admin",
-            "owner"
-        };
+        PostgresMemorySearchCommandParameters.AddAuthorizationParameters(command);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<MemoryChunkHybridSearchResult>();
@@ -109,6 +81,17 @@ public sealed class PostgresMemoryChunkHybridSearch(
     private const string SearchSql = """
         WITH fts AS (
             SELECT websearch_to_tsquery('english', @query) AS query
+        ),
+        target_project AS (
+            SELECT project.org_id
+            FROM projects AS project
+            WHERE project.id = CASE
+                WHEN @target_scope_type = 'project'
+                    AND @target_scope_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                THEN @target_scope_id::uuid
+                ELSE NULL
+            END
+                AND project.status = 'active'
         ),
         authorized_chunks AS MATERIALIZED (
             SELECT
@@ -150,9 +133,10 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     ELSE NULL
                 END AS scope_org_id,
                 CASE
-                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    WHEN chunk.scope_type = 'project' THEN project.id
                     ELSE NULL
-                END AS scope_project_id
+                END AS scope_project_id,
+                role_requirement.required_role_id
             FROM memory_chunks AS chunk
             LEFT JOIN memory_embeddings AS embedding
                 ON embedding.chunk_id = chunk.id
@@ -163,12 +147,28 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
                     ELSE NULL
                 END
+                AND project.status = 'active'
             LEFT JOIN memory_facts AS fact
                 ON chunk.source_type = 'memory_fact'
                 AND fact.id = chunk.source_id
             LEFT JOIN role_memory_lenses AS lens
                 ON chunk.source_type = 'role_memory_lens'
                 AND lens.id = chunk.source_id
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(
+                    CASE
+                        WHEN chunk.source_type = 'role_memory_lens' THEN lens.role_id
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN chunk.scope_type = 'role' THEN chunk.scope_id
+                        WHEN chunk.namespace LIKE '/role/%' THEN split_part(chunk.namespace, '/', 3)
+                        WHEN chunk.namespace LIKE '/project/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        WHEN chunk.namespace LIKE '/org/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        ELSE NULL
+                    END
+                ) AS required_role_id
+            ) AS role_requirement ON TRUE
             CROSS JOIN fts
             WHERE chunk.redacted_at IS NULL
                 AND (
@@ -182,11 +182,16 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     )
                 )
                 AND (
+                    @role_id IS NULL
+                    OR role_requirement.required_role_id IS NULL
+                    OR role_requirement.required_role_id = @role_id
+                )
+                AND (
                     chunk.search_vector @@ fts.query
                     OR embedding.embedding IS NOT NULL
                 )
                 AND (
-                    chunk.scope_type IN ('global', 'session')
+                    chunk.scope_type = 'global'
                     OR (
                         chunk.scope_type IN ('user', 'agent')
                         AND chunk.scope_id = @principal_id_text
@@ -209,6 +214,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
                             WHERE membership.principal_id = @principal_id
                                 AND membership.org_id = CASE
                                     WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                    WHEN chunk.scope_type = 'project' THEN project.org_id
                                     ELSE NULL
                                 END
                                 AND membership.access_level = ANY(@read_org_access_levels)
@@ -225,7 +231,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
                                     AND project_membership.status = 'active'
                                 WHERE membership.principal_id = @principal_id
                                     AND membership.project_id = CASE
-                                        WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                        WHEN chunk.scope_type = 'project' THEN project.id
                                         ELSE NULL
                                     END
                                     AND membership.access_level = ANY(@read_project_access_levels)
@@ -234,10 +240,56 @@ public sealed class PostgresMemoryChunkHybridSearch(
                                 SELECT 1
                                 FROM organization_memberships AS membership
                                 WHERE membership.principal_id = @principal_id
-                                    AND membership.org_id = project.org_id
+                                    AND membership.org_id = CASE
+                                        WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                        WHEN chunk.scope_type = 'project' THEN project.org_id
+                                        ELSE NULL
+                                    END
                                     AND membership.access_level = ANY(@admin_org_access_levels)
                             )
                         )
+                    )
+                )
+                AND (
+                    role_requirement.required_role_id IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM role_assignments AS assignment
+                        WHERE assignment.principal_id = @principal_id
+                            AND assignment.role_id = role_requirement.required_role_id
+                            AND (
+                                assignment.scope_type = 'global'
+                                OR (
+                                    chunk.scope_type <> 'role'
+                                    AND (
+                                        CASE
+                                            WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                            WHEN chunk.scope_type = 'project' THEN project.org_id
+                                            ELSE NULL
+                                        END
+                                    ) IS NOT NULL
+                                    AND assignment.scope_type = 'org'
+                                    AND assignment.scope_id = CASE
+                                        WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                        WHEN chunk.scope_type = 'project' THEN project.org_id
+                                        ELSE NULL
+                                    END
+                                )
+                                OR (
+                                    chunk.scope_type <> 'role'
+                                    AND (
+                                        CASE
+                                            WHEN chunk.scope_type = 'project' THEN project.id
+                                            ELSE NULL
+                                        END
+                                    ) IS NOT NULL
+                                    AND assignment.scope_type = 'project'
+                                    AND assignment.scope_id = CASE
+                                        WHEN chunk.scope_type = 'project' THEN project.id
+                                        ELSE NULL
+                                    END
+                                )
+                            )
                     )
                 )
                 AND (
@@ -287,13 +339,13 @@ public sealed class PostgresMemoryChunkHybridSearch(
                                             chunk.scope_type <> 'role'
                                             AND (
                                                 CASE
-                                                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                    WHEN chunk.scope_type = 'project' THEN project.id
                                                     ELSE NULL
                                                 END
                                             ) IS NOT NULL
                                             AND assignment.scope_type = 'project'
                                             AND assignment.scope_id = CASE
-                                                WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                WHEN chunk.scope_type = 'project' THEN project.id
                                                 ELSE NULL
                                             END
                                         )
@@ -353,7 +405,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     THEN 1.0
                     WHEN @target_scope_type = 'project'
                         AND authorized.scope_type = 'org'
-                        AND authorized.scope_org_id::text = @target_scope_id
+                        AND authorized.scope_org_id = target_project.org_id
                     THEN 0.80
                     WHEN @target_scope_type = 'project'
                         AND authorized.scope_type = 'role'
@@ -370,6 +422,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 END::double precision AS scope_match_score
             FROM authorized_chunks AS authorized
             CROSS JOIN fts
+            LEFT JOIN target_project AS target_project
+                ON TRUE
         ),
         final_scores AS (
             SELECT

@@ -157,6 +157,189 @@ public sealed class ApiMemorySearchTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Search_endpoints_require_matching_role_assignment_for_role_specific_chunks()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_search_role_boundary_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            const string query = "role boundary sentinel";
+            const string privateLensText = "must stay behind a role assignment";
+            await PrepareRoleSpecificSearchFixtureWithoutAssignmentAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (fullTextStatus, fullTextPayload, fullTextBody) = await SendSearchAsync(client, query);
+            var (semanticStatus, semanticPayload, semanticBody) = await SendSemanticSearchAsync(client, query);
+            var (hybridStatus, hybridPayload, hybridBody) = await SendHybridSearchAsync(client, query);
+            var (contextStatus, contextPayload, contextBody) = await SendContextPacketAsync(
+                client,
+                query,
+                roleId: "cto",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString());
+
+            Assert.Equal(HttpStatusCode.OK, fullTextStatus);
+            Assert.Empty(fullTextPayload.GetProperty("results").EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, semanticStatus);
+            Assert.Empty(semanticPayload.GetProperty("results").EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, hybridStatus);
+            Assert.Empty(hybridPayload.GetProperty("results").EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, contextStatus);
+            Assert.Empty(contextPayload.GetProperty("roleMemory").EnumerateArray());
+            Assert.DoesNotContain(privateLensText, fullTextBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(privateLensText, semanticBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(privateLensText, hybridBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(privateLensText, contextBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Search_endpoints_exclude_session_scoped_chunks_until_session_access_is_modeled()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_search_session_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareSessionSearchFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (fullTextStatus, fullTextPayload, fullTextBody) = await SendSearchAsync(
+                client,
+                "session scoped launch code");
+            var (semanticStatus, semanticPayload, semanticBody) = await SendSemanticSearchAsync(
+                client,
+                "session scoped launch code");
+            var (hybridStatus, hybridPayload, hybridBody) = await SendHybridSearchAsync(
+                client,
+                "session scoped launch code",
+                scopeType: "session",
+                scopeId: "session-1");
+
+            Assert.Equal(HttpStatusCode.OK, fullTextStatus);
+            Assert.Equal(HttpStatusCode.OK, semanticStatus);
+            Assert.Equal(HttpStatusCode.OK, hybridStatus);
+            Assert.Empty(fullTextPayload.GetProperty("results").EnumerateArray());
+            Assert.Empty(semanticPayload.GetProperty("results").EnumerateArray());
+            Assert.Empty(hybridPayload.GetProperty("results").EnumerateArray());
+            Assert.DoesNotContain("session scoped launch code", fullTextBody, StringComparison.Ordinal);
+            Assert.DoesNotContain("session scoped launch code", semanticBody, StringComparison.Ordinal);
+            Assert.DoesNotContain("session scoped launch code", hybridBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Search_endpoints_exclude_archived_project_chunks_for_org_admin_and_role_grant_paths()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_search_archived_project_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
+                databaseConnectionString,
+                OrgAId,
+                ProjectAId,
+                projectStatus: "archived");
+            await ApiDatabaseTestSupport.InsertOrganizationMembershipAsync(
+                databaseConnectionString,
+                OrgAId,
+                PrincipalId,
+                "admin");
+            await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+                databaseConnectionString,
+                PrincipalId,
+                "cto",
+                "project",
+                ProjectAId);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{ProjectAId}/decisions",
+                "read",
+                principalId: PrincipalId);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{ProjectAId}/decisions",
+                "read",
+                roleId: "cto");
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                ProjectAEventId,
+                PrincipalId,
+                "project",
+                ProjectAId.ToString(),
+                scopeOrgId: OrgAId,
+                scopeProjectId: ProjectAId,
+                trustLevel: "human_approved");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+            var archivedProjectMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+                $"/project/{ProjectAId}/decisions",
+                "decision",
+                "project_shared",
+                "Archived project retrieval policy",
+                "uses",
+                "archived project retrieval policy that must stay hidden from search results",
+                0.950m,
+                ProjectAEventId,
+                PrincipalId));
+            await EmbedMemoryChunksAsync(dataSource);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (fullTextStatus, fullTextPayload, fullTextBody) = await SendSearchAsync(
+                client,
+                "archived project retrieval policy");
+            var (semanticStatus, semanticPayload, semanticBody) = await SendSemanticSearchAsync(
+                client,
+                "archived project retrieval policy");
+            var (hybridStatus, hybridPayload, hybridBody) = await SendHybridSearchAsync(
+                client,
+                "archived project retrieval policy",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString());
+
+            Assert.Equal(HttpStatusCode.OK, fullTextStatus);
+            Assert.Equal(HttpStatusCode.OK, semanticStatus);
+            Assert.Equal(HttpStatusCode.OK, hybridStatus);
+            Assert.Empty(fullTextPayload.GetProperty("results").EnumerateArray());
+            Assert.Empty(semanticPayload.GetProperty("results").EnumerateArray());
+            Assert.Empty(hybridPayload.GetProperty("results").EnumerateArray());
+            Assert.DoesNotContain(archivedProjectMemory.Id.ToString(), fullTextBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(archivedProjectMemory.Id.ToString(), semanticBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(archivedProjectMemory.Id.ToString(), hybridBody, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Get_memory_hybrid_search_combines_ranking_components_inside_authorized_results()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -165,7 +348,7 @@ public sealed class ApiMemorySearchTests
 
         try
         {
-            var (targetMemoryId, staleMemoryId, unauthorizedMemoryId, query) =
+            var (targetMemoryId, staleMemoryId, orgMemoryId, unauthorizedMemoryId, query) =
                 await PrepareHybridSearchFixtureAsync(databaseConnectionString);
 
             using var factory = CreateFactory(databaseConnectionString);
@@ -187,14 +370,19 @@ public sealed class ApiMemorySearchTests
 
             var target = results.Single(result => result.GetProperty("sourceId").GetGuid() == targetMemoryId);
             var stale = results.Single(result => result.GetProperty("sourceId").GetGuid() == staleMemoryId);
+            var org = results.Single(result => result.GetProperty("sourceId").GetGuid() == orgMemoryId);
             var targetComponents = target.GetProperty("components");
             var staleComponents = stale.GetProperty("components");
+            var orgComponents = org.GetProperty("components");
 
             Assert.True(target.GetProperty("rank").GetDouble() > stale.GetProperty("rank").GetDouble());
             Assert.True(targetComponents.GetProperty("confidence").GetDouble() > staleComponents.GetProperty("confidence").GetDouble());
             Assert.True(targetComponents.GetProperty("recency").GetDouble() > staleComponents.GetProperty("recency").GetDouble());
             Assert.True(targetComponents.GetProperty("authority").GetDouble() > staleComponents.GetProperty("authority").GetDouble());
             Assert.Equal(1.0d, targetComponents.GetProperty("scopeMatch").GetDouble(), precision: 3);
+            Assert.Equal("org", org.GetProperty("scopeType").GetString());
+            Assert.Equal(OrgAId.ToString(), org.GetProperty("scopeId").GetString());
+            Assert.Equal(0.80d, orgComponents.GetProperty("scopeMatch").GetDouble(), precision: 3);
             Assert.Equal(
                 ComputeHybridScore(targetComponents),
                 target.GetProperty("rank").GetDouble(),
@@ -239,7 +427,51 @@ public sealed class ApiMemorySearchTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
-    public async Task Get_memory_context_returns_compact_source_linked_explainable_packet()
+    public async Task Search_endpoints_reject_noncanonical_target_scope_and_role_values()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_search_scope_validation_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (invalidProjectStatus, invalidProjectPayload, _) = await SendHybridSearchAsync(
+                client,
+                "hybrid ranking",
+                scopeType: "project",
+                scopeId: "not-a-guid");
+            var (invalidGlobalStatus, invalidGlobalPayload, _) = await SendHybridSearchAsync(
+                client,
+                "hybrid ranking",
+                scopeType: "global",
+                scopeId: ProjectAId.ToString());
+            var (invalidRoleStatus, invalidRolePayload, _) = await SendContextPacketAsync(
+                client,
+                "context packet",
+                roleId: "intern");
+
+            Assert.Equal(HttpStatusCode.BadRequest, invalidProjectStatus);
+            Assert.Contains("valid GUID", invalidProjectPayload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidGlobalStatus);
+            Assert.Contains("'global'", invalidGlobalPayload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidRoleStatus);
+            Assert.Contains("roleId", invalidRolePayload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_context_returns_compact_source_identified_explainable_packet()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
         var databaseName = $"memorysystem_memory_context_test_{Guid.NewGuid():N}";
@@ -271,7 +503,7 @@ public sealed class ApiMemorySearchTests
             Assert.Equal("user_preference", userPreference.GetProperty("kind").GetString());
             Assert.True(userPreference.GetProperty("content").GetString()!.Length <= 360);
             Assert.Equal(fixture.UserPreferenceEventId, userPreference.GetProperty("sourceEventId").GetGuid());
-            Assert.Equal($"/api/events/{fixture.UserPreferenceEventId}", userPreference.GetProperty("sourceLink").GetString());
+            Assert.Equal(JsonValueKind.Null, userPreference.GetProperty("sourceLink").ValueKind);
             Assert.True(userPreference.GetProperty("explanation").GetProperty("rank").GetDouble() > 0);
             Assert.True(userPreference.GetProperty("explanation").GetProperty("components").GetProperty("relevance").GetDouble() >= 0);
             Assert.Contains("confidence", userPreference.GetProperty("explanation").GetProperty("summary").GetString(), StringComparison.Ordinal);
@@ -279,26 +511,68 @@ public sealed class ApiMemorySearchTests
             var relevantDecision = Assert.Single(payload.GetProperty("relevantDecisions").EnumerateArray());
             Assert.Equal(fixture.ProjectDecisionId, relevantDecision.GetProperty("sourceId").GetGuid());
             Assert.Equal("project_decision", relevantDecision.GetProperty("kind").GetString());
-            Assert.Equal($"/api/events/{fixture.ProjectDecisionEventId}", relevantDecision.GetProperty("sourceLink").GetString());
+            Assert.Equal(JsonValueKind.Null, relevantDecision.GetProperty("sourceLink").ValueKind);
 
             var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
             Assert.Equal("project_role_lens", roleMemory.GetProperty("kind").GetString());
             Assert.Equal(fixture.RoleMemoryLensId, roleMemory.GetProperty("sourceId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, roleMemory.GetProperty("baseMemoryFactId").GetGuid());
-            Assert.Equal($"/api/events/{fixture.RoleLensEventId}", roleMemory.GetProperty("sourceLink").GetString());
+            Assert.Equal(JsonValueKind.Null, roleMemory.GetProperty("sourceLink").ValueKind);
 
-            var sourceEventIds = payload
+            var sourceEvents = payload
                 .GetProperty("sourceEvents")
                 .EnumerateArray()
+                .ToArray();
+            var sourceEventIds = sourceEvents
                 .Select(sourceEvent => sourceEvent.GetProperty("id").GetGuid())
                 .ToArray();
 
             Assert.Contains(fixture.UserPreferenceEventId, sourceEventIds);
             Assert.Contains(fixture.ProjectDecisionEventId, sourceEventIds);
             Assert.Contains(fixture.RoleLensEventId, sourceEventIds);
+            Assert.All(sourceEvents, sourceEvent => Assert.Equal(JsonValueKind.Null, sourceEvent.GetProperty("link").ValueKind));
+            Assert.DoesNotContain(fixture.CfoRoleLensEventId, sourceEventIds);
             Assert.DoesNotContain(fixture.ProjectBDecisionEventId, sourceEventIds);
+            Assert.DoesNotContain(fixture.CfoRoleMemoryLensId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(fixture.ProjectBDecisionId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Project B private decision", responseBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_context_filters_role_specific_candidates_before_ranking_limit()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_role_limit_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var ctoMemoryId = await PrepareRoleFilteredContextOverflowFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendContextPacketAsync(
+                client,
+                "role filtered ranking saturation signal",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 1);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
+
+            Assert.Equal(ctoMemoryId, roleMemory.GetProperty("sourceId").GetGuid());
+            Assert.Equal($"/project/{ProjectAId}/role/cto/lens", roleMemory.GetProperty("namespace").GetString());
+            Assert.DoesNotContain($"/project/{ProjectAId}/role/cfo/lens", responseBody, StringComparison.Ordinal);
         }
         finally
         {
@@ -561,13 +835,55 @@ public sealed class ApiMemorySearchTests
         return (projectATargetMemory.Id, projectBMemory.Id, exactQuery);
     }
 
-    private static async Task<(Guid TargetMemoryId, Guid StaleMemoryId, Guid UnauthorizedMemoryId, string Query)>
+    private static async Task PrepareSessionSearchFixtureAsync(string connectionString)
+    {
+        const string sessionId = "session-1";
+        var sessionEventId = Guid.NewGuid();
+
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/session/{sessionId}/instructions",
+            "read",
+            principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sessionEventId,
+            PrincipalId,
+            "session",
+            sessionId);
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var repository = new PostgresMemoryFactRepository(dataSource);
+
+        await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("session", sessionId),
+            $"/session/{sessionId}/instructions",
+            "session_instruction",
+            "private",
+            "session scoped launch code",
+            "uses",
+            "session scoped launch code",
+            0.950m,
+            sessionEventId,
+            PrincipalId));
+
+        await EmbedMemoryChunksAsync(dataSource);
+    }
+
+    private static async Task<(Guid TargetMemoryId, Guid StaleMemoryId, Guid OrgMemoryId, Guid UnauthorizedMemoryId, string Query)>
         PrepareHybridSearchFixtureAsync(string connectionString)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
         await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
         await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgAId, ProjectAId);
         await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgBId, ProjectBId);
+        await ApiDatabaseTestSupport.InsertOrganizationMembershipAsync(
+            connectionString,
+            OrgAId,
+            PrincipalId,
+            "reader");
         await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
             connectionString,
             ProjectAId,
@@ -578,9 +894,15 @@ public sealed class ApiMemorySearchTests
             $"/project/{ProjectAId}/decisions",
             "read",
             principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/org/{OrgAId}/principles",
+            "read",
+            principalId: PrincipalId);
 
         var trustedProjectAEventId = Guid.NewGuid();
         var staleProjectAEventId = Guid.NewGuid();
+        var orgAEventId = Guid.NewGuid();
         var projectBEventId = Guid.NewGuid();
 
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
@@ -601,6 +923,14 @@ public sealed class ApiMemorySearchTests
             scopeOrgId: OrgAId,
             scopeProjectId: ProjectAId,
             trustLevel: "web_content");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            orgAEventId,
+            PrincipalId,
+            "org",
+            OrgAId.ToString(),
+            scopeOrgId: OrgAId,
+            trustLevel: "human_approved");
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
             projectBEventId,
@@ -637,6 +967,17 @@ public sealed class ApiMemorySearchTests
             0.400m,
             staleProjectAEventId,
             PrincipalId));
+        var orgMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("org", OrgAId.ToString(), OrgId: OrgAId),
+            $"/org/{OrgAId}/principles",
+            "principle",
+            "org_shared",
+            "hybrid ranking org memory",
+            "uses",
+            "hybrid ranking safety formula",
+            0.700m,
+            orgAEventId,
+            PrincipalId));
         var unauthorizedMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
             new MemoryScopeResolution("project", ProjectBId.ToString(), OrgId: OrgBId, ProjectId: ProjectBId),
             $"/project/{ProjectBId}/decisions",
@@ -652,7 +993,61 @@ public sealed class ApiMemorySearchTests
         await SetMemoryCreatedAtAsync(connectionString, staleMemory.Id, DateTimeOffset.UtcNow.AddDays(-120));
         await EmbedMemoryChunksAsync(dataSource);
 
-        return (targetMemory.Id, staleMemory.Id, unauthorizedMemory.Id, query);
+        return (targetMemory.Id, staleMemory.Id, orgMemory.Id, unauthorizedMemory.Id, query);
+    }
+
+    private static async Task PrepareRoleSpecificSearchFixtureWithoutAssignmentAsync(string connectionString)
+    {
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgAId, ProjectAId);
+        await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+            connectionString,
+            ProjectAId,
+            PrincipalId,
+            "reader");
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/role/cto/lens",
+            "read",
+            principalId: PrincipalId);
+
+        var sourceEventId = Guid.NewGuid();
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sourceEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+        var baseMemory = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "Role boundary base fact",
+            "uses",
+            "ordinary project context",
+            0.900m,
+            sourceEventId,
+            PrincipalId));
+
+        await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            "cto",
+            baseMemory.Id,
+            "role boundary sentinel cto lens must stay behind a role assignment",
+            0.920m,
+            sourceEventId,
+            PrincipalId));
+
+        await EmbedMemoryChunksAsync(dataSource);
     }
 
     private static async Task<ContextPacketFixture> PrepareContextPacketFixtureAsync(string connectionString)
@@ -666,6 +1061,12 @@ public sealed class ApiMemorySearchTests
             ProjectAId,
             PrincipalId,
             "reader");
+        await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+            connectionString,
+            PrincipalId,
+            "cto",
+            "project",
+            ProjectAId);
         await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
             connectionString,
             $"/user/{PrincipalId}/preferences",
@@ -681,11 +1082,17 @@ public sealed class ApiMemorySearchTests
             $"/project/{ProjectAId}/role/cto/lens",
             "read",
             principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/role/cfo/lens",
+            "read",
+            principalId: PrincipalId);
 
         var userPreferenceEventId = Guid.NewGuid();
         var projectDecisionEventId = Guid.NewGuid();
         var contradictedProjectDecisionEventId = Guid.NewGuid();
         var roleLensEventId = Guid.NewGuid();
+        var cfoRoleLensEventId = Guid.NewGuid();
         var projectBDecisionEventId = Guid.NewGuid();
 
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
@@ -715,6 +1122,15 @@ public sealed class ApiMemorySearchTests
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
             roleLensEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            cfoRoleLensEventId,
             PrincipalId,
             "project",
             ProjectAId.ToString(),
@@ -789,6 +1205,14 @@ public sealed class ApiMemorySearchTests
             0.920m,
             roleLensEventId,
             PrincipalId));
+        var cfoRoleLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            "cfo",
+            projectDecision.Id,
+            "CFO context packet should foreground budget reversibility, authorization boundaries, delivery sequencing, and source-linked explanations.",
+            0.930m,
+            cfoRoleLensEventId,
+            PrincipalId));
 
         await EmbedMemoryChunksAsync(dataSource);
 
@@ -796,13 +1220,88 @@ public sealed class ApiMemorySearchTests
             userPreference.Id,
             projectDecision.Id,
             roleLens.Id,
+            cfoRoleLens.Id,
             projectBDecision.Id,
             contradictedProjectDecision.Id,
             userPreferenceEventId,
             projectDecisionEventId,
             roleLensEventId,
+            cfoRoleLensEventId,
             projectBDecisionEventId,
             contradictedProjectDecisionEventId);
+    }
+
+    private static async Task<Guid> PrepareRoleFilteredContextOverflowFixtureAsync(string connectionString)
+    {
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgAId, ProjectAId);
+        await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+            connectionString,
+            ProjectAId,
+            PrincipalId,
+            "reader");
+        await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(
+            connectionString,
+            PrincipalId,
+            "cto",
+            "project",
+            ProjectAId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/role/cto/lens",
+            "read",
+            principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/role/cfo/lens",
+            "read",
+            principalId: PrincipalId);
+
+        var sourceEventId = Guid.NewGuid();
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sourceEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+
+        for (var index = 0; index < 55; index++)
+        {
+            await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+                $"/project/{ProjectAId}/role/cfo/lens/overflow-{index}",
+                "principle",
+                "project_shared",
+                $"CFO role filtered ranking saturation signal {index}",
+                "uses",
+                "role filtered ranking saturation signal with finance priority context",
+                1.000m,
+                sourceEventId,
+                PrincipalId));
+        }
+
+        var ctoMemory = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/role/cto/lens",
+            "principle",
+            "project_shared",
+            "CTO role filtered ranking saturation signal",
+            "uses",
+            "role filtered ranking saturation signal with technology priority context",
+            0.500m,
+            sourceEventId,
+            PrincipalId));
+
+        await EmbedMemoryChunksAsync(dataSource);
+
+        return ctoMemory.Id;
     }
 
     private static async Task SetMemoryCreatedAtAsync(
@@ -998,11 +1497,13 @@ public sealed class ApiMemorySearchTests
         Guid UserPreferenceId,
         Guid ProjectDecisionId,
         Guid RoleMemoryLensId,
+        Guid CfoRoleMemoryLensId,
         Guid ProjectBDecisionId,
         Guid ContradictedProjectDecisionId,
         Guid UserPreferenceEventId,
         Guid ProjectDecisionEventId,
         Guid RoleLensEventId,
+        Guid CfoRoleLensEventId,
         Guid ProjectBDecisionEventId,
         Guid ContradictedProjectDecisionEventId);
 }

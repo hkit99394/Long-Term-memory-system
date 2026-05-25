@@ -100,6 +100,9 @@ public sealed class OutboxWorkerTests
             Assert.Equal("pending", afterFirstAttempt.Status);
             Assert.Equal(1, afterFirstAttempt.Attempts);
             Assert.Contains("Unsupported outbox job type", afterFirstAttempt.LastError, StringComparison.Ordinal);
+            Assert.Null(afterFirstAttempt.LockedUntil);
+            Assert.Null(afterFirstAttempt.LockedBy);
+            Assert.True(afterFirstAttempt.AvailableAt <= DateTimeOffset.UtcNow.AddSeconds(1));
 
             Assert.Equal(1, await processor.ProcessAvailableAsync());
 
@@ -109,6 +112,54 @@ public sealed class OutboxWorkerTests
             Assert.Equal(2, afterSecondAttempt.Attempts);
             Assert.NotEqual("completed", afterSecondAttempt.Status);
             Assert.Contains("Unsupported outbox job type", afterSecondAttempt.LastError, StringComparison.Ordinal);
+            Assert.Null(afterSecondAttempt.LockedUntil);
+            Assert.Null(afterSecondAttempt.LockedBy);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task ProcessAvailableAsync_completes_supported_job_and_clears_lease_metadata()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_outbox_complete_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
+
+            var jobId = await InsertOutboxJobAsync(databaseConnectionString, "outbox.test.complete");
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresOutboxJobStore(dataSource);
+            var handler = new CountingOutboxJobHandler("outbox.test.complete");
+            var processor = new OutboxJobProcessor(
+                store,
+                [handler],
+                Options.Create(new OutboxWorkerOptions
+                {
+                    WorkerId = "complete-test-worker",
+                    BatchSize = 1,
+                    MaxAttempts = 2,
+                    LeaseDuration = TimeSpan.FromMinutes(1),
+                    RetryDelay = TimeSpan.Zero
+                }),
+                NullLogger<OutboxJobProcessor>.Instance);
+
+            Assert.Equal(1, await processor.ProcessAvailableAsync());
+
+            var state = await ReadOutboxJobStateAsync(databaseConnectionString, jobId);
+
+            Assert.True(handler.WasInvoked);
+            Assert.Equal("completed", state.Status);
+            Assert.Equal(1, state.Attempts);
+            Assert.Equal(string.Empty, state.LastError);
+            Assert.Null(state.LockedUntil);
+            Assert.Null(state.LockedBy);
         }
         finally
         {
@@ -159,6 +210,8 @@ public sealed class OutboxWorkerTests
             Assert.Equal("dead_letter", state.Status);
             Assert.Equal(3, state.Attempts);
             Assert.Contains("max attempts", state.LastError, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(state.LockedUntil);
+            Assert.Null(state.LockedBy);
         }
         finally
         {
@@ -222,7 +275,7 @@ public sealed class OutboxWorkerTests
         return jobId;
     }
 
-    private static async Task<(string Status, int Attempts, string LastError)> ReadOutboxJobStateAsync(
+    private static async Task<OutboxJobState> ReadOutboxJobStateAsync(
         string connectionString,
         Guid jobId)
     {
@@ -230,7 +283,17 @@ public sealed class OutboxWorkerTests
         await connection.OpenAsync();
 
         await using var command = new NpgsqlCommand(
-            "SELECT status, attempts, COALESCE(last_error, '') FROM outbox_jobs WHERE id = @id;",
+            """
+            SELECT
+                status,
+                attempts,
+                available_at,
+                locked_until,
+                locked_by,
+                COALESCE(last_error, '')
+            FROM outbox_jobs
+            WHERE id = @id;
+            """,
             connection);
         command.Parameters.AddWithValue("id", jobId);
 
@@ -238,16 +301,30 @@ public sealed class OutboxWorkerTests
 
         Assert.True(await reader.ReadAsync());
 
-        return (reader.GetString(0), reader.GetInt32(1), reader.GetString(2));
+        return new OutboxJobState(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.GetFieldValue<DateTimeOffset>(2),
+            reader.IsDBNull(3) ? null : reader.GetFieldValue<DateTimeOffset>(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetString(5));
     }
 
-    private sealed class CountingOutboxJobHandler : IOutboxJobHandler
+    private sealed record OutboxJobState(
+        string Status,
+        int Attempts,
+        DateTimeOffset AvailableAt,
+        DateTimeOffset? LockedUntil,
+        string? LockedBy,
+        string LastError);
+
+    private sealed class CountingOutboxJobHandler(string handledJobType = "outbox.test.retry-cap") : IOutboxJobHandler
     {
         public bool WasInvoked { get; private set; }
 
         public bool CanHandle(string jobType)
         {
-            return jobType == "outbox.test.retry-cap";
+            return jobType == handledJobType;
         }
 
         public Task ProcessAsync(OutboxJob job, CancellationToken cancellationToken)

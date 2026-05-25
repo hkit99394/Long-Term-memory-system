@@ -291,7 +291,8 @@ public sealed class ApiAuthorizationTests
                     var configuration = new Dictionary<string, string?>
                     {
                         ["ConnectionStrings:Postgres"] =
-                            "Host=prod-db;Database=memory_prod;Username=memory_user;Password=prod-password"
+                            "Host=prod-db;Database=memory_prod;Username=memory_user;Password=prod-password",
+                        ["ForwardedHeaders:KnownProxies:0"] = "10.0.0.10"
                     };
 
                     if (apiKeyConfiguration is not null)

@@ -3,7 +3,9 @@ using Npgsql;
 
 namespace MemorySystem.Infrastructure.Health;
 
-public sealed class OutboxBacklogHealthCheck(NpgsqlDataSource dataSource) : IHealthCheck
+public sealed class OutboxBacklogHealthCheck(
+    NpgsqlDataSource dataSource,
+    OutboxBacklogHealthOptions options) : IHealthCheck
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(3);
 
@@ -46,6 +48,16 @@ public sealed class OutboxBacklogHealthCheck(NpgsqlDataSource dataSource) : IHea
             if (summary.RetryingFailed > 0)
             {
                 return HealthCheckResult.Degraded("Outbox has retrying failed jobs.", data: data);
+            }
+
+            if (summary.ReadyPending > options.MaxReadyPendingJobs)
+            {
+                return HealthCheckResult.Degraded("Outbox ready pending backlog exceeds threshold.", data: data);
+            }
+
+            if (summary.OldestReadyPendingSeconds > options.MaxReadyPendingAge.TotalSeconds)
+            {
+                return HealthCheckResult.Degraded("Outbox ready pending backlog age exceeds threshold.", data: data);
             }
 
             return HealthCheckResult.Healthy("Outbox backlog is observable.", data);

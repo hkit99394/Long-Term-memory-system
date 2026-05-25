@@ -64,6 +64,68 @@ public sealed class MemoryScopePolicyTests
     }
 
     [Theory]
+    [InlineData(" PROJECT ", "33333333-3333-4333-8333-333333333333", "project", "33333333-3333-4333-8333-333333333333")]
+    [InlineData("role", "CTO", "role", "cto")]
+    [InlineData("global", "GLOBAL", "global", "global")]
+    [InlineData("session", "session-1", "session", "session-1")]
+    public void TryNormalizeTargetScope_canonicalizes_read_scope(
+        string scopeType,
+        string scopeId,
+        string expectedScopeType,
+        string expectedScopeId)
+    {
+        var result = MemoryScopePolicy.TryNormalizeTargetScope(
+            scopeType,
+            scopeId,
+            out var normalizedScopeType,
+            out var normalizedScopeId,
+            out var error);
+
+        Assert.True(result);
+        Assert.Equal(expectedScopeType, normalizedScopeType);
+        Assert.Equal(expectedScopeId, normalizedScopeId);
+        Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("project", "not-a-guid", "valid GUID")]
+    [InlineData("global", "not-global", "must be 'global'")]
+    [InlineData("role", "intern", "supported role")]
+    [InlineData("session", "global", "must not be 'global'")]
+    public void TryNormalizeTargetScope_rejects_invalid_read_scope(
+        string scopeType,
+        string scopeId,
+        string expectedError)
+    {
+        var result = MemoryScopePolicy.TryNormalizeTargetScope(
+            scopeType,
+            scopeId,
+            out var normalizedScopeType,
+            out var normalizedScopeId,
+            out var error);
+
+        Assert.False(result);
+        Assert.Equal(string.Empty, normalizedScopeId);
+        Assert.False(string.IsNullOrWhiteSpace(normalizedScopeType));
+        Assert.Contains(expectedError, error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("CTO", "cto")]
+    [InlineData(" cfo ", "cfo")]
+    [InlineData(null, null)]
+    public void TryNormalizeRoleId_canonicalizes_optional_role_id(
+        string? roleId,
+        string? expectedRoleId)
+    {
+        var result = MemoryScopePolicy.TryNormalizeRoleId(roleId, out var normalizedRoleId, out var error);
+
+        Assert.True(result);
+        Assert.Equal(expectedRoleId, normalizedRoleId);
+        Assert.Null(error);
+    }
+
+    [Theory]
     [InlineData("global", null, "global", null)]
     [InlineData("org", "22222222-2222-4222-8222-222222222222", "22222222-2222-4222-8222-222222222222", null)]
     [InlineData("user", "11111111-1111-4111-8111-111111111111", "11111111-1111-4111-8111-111111111111", null)]

@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Outbox;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace MemorySystem.Worker;
@@ -7,7 +8,8 @@ namespace MemorySystem.Worker;
 public sealed class MemoryIndexOutboxJobHandler(
     NpgsqlDataSource dataSource,
     IMemoryEmbeddingProvider embeddingProvider,
-    IMemoryChunkEmbeddingStore embeddingStore) : IOutboxJobHandler
+    IMemoryChunkEmbeddingStore embeddingStore,
+    ILogger<MemoryIndexOutboxJobHandler> logger) : IOutboxJobHandler
 {
     public bool CanHandle(string jobType)
     {
@@ -37,7 +39,13 @@ public sealed class MemoryIndexOutboxJobHandler(
             throw new InvalidOperationException("Memory index payload does not match the outbox aggregate id.");
         }
 
-        var input = await ReadSearchableChunkInputAsync(payload, cancellationToken);
+        var input = await ReadSearchableChunkInputAsync(job.Id, payload, cancellationToken);
+
+        if (input is null)
+        {
+            return;
+        }
+
         var embedding = await embeddingProvider.EmbedAsync(new MemoryEmbeddingRequest(input), cancellationToken);
 
         await embeddingStore.StoreAsync(
@@ -49,55 +57,110 @@ public sealed class MemoryIndexOutboxJobHandler(
             cancellationToken);
     }
 
-    private async Task<string> ReadSearchableChunkInputAsync(
+    private async Task<string?> ReadSearchableChunkInputAsync(
+        Guid jobId,
         MemoryIndexOutboxPayload payload,
         CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(
             """
-            SELECT concat_ws(' ', chunk.title, chunk.content)
+            SELECT
+                chunk.source_event_id,
+                chunk.redacted_at IS NOT NULL,
+                chunk.search_vector IS NULL,
+                concat_ws(' ', chunk.title, chunk.content),
+                fact.status,
+                lens.status
             FROM memory_chunks AS chunk
+            LEFT JOIN memory_facts AS fact
+                ON chunk.source_type = 'memory_fact'
+                AND fact.id = chunk.source_id
+            LEFT JOIN role_memory_lenses AS lens
+                ON chunk.source_type = 'role_memory_lens'
+                AND lens.id = chunk.source_id
             WHERE chunk.source_type = @aggregate_type
                 AND chunk.source_id = @aggregate_id
                 AND chunk.id = @chunk_id
-                AND chunk.source_event_id = @source_event_id
-                AND chunk.search_vector IS NOT NULL
-                AND (
-                    (
-                        @aggregate_type = 'memory_fact'
-                        AND EXISTS (
-                            SELECT 1
-                            FROM memory_facts AS fact
-                            WHERE fact.id = @aggregate_id
-                                AND fact.source_event_id = @source_event_id
-                        )
-                    )
-                    OR (
-                        @aggregate_type = 'role_memory_lens'
-                        AND EXISTS (
-                            SELECT 1
-                            FROM role_memory_lenses AS lens
-                            WHERE lens.id = @aggregate_id
-                                AND lens.source_event_id = @source_event_id
-                        )
-                    )
-                )
             LIMIT 1;
             """,
             connection);
         command.Parameters.AddWithValue("aggregate_type", payload.AggregateType);
         command.Parameters.AddWithValue("aggregate_id", payload.AggregateId);
         command.Parameters.AddWithValue("chunk_id", payload.ChunkId);
-        command.Parameters.AddWithValue("source_event_id", payload.SourceEventId);
 
-        var input = await command.ExecuteScalarAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        if (input is not string chunkInput || string.IsNullOrWhiteSpace(chunkInput))
+        if (!await reader.ReadAsync(cancellationToken))
         {
-            throw new InvalidOperationException("Memory index payload does not reference a searchable memory chunk.");
+            throw new InvalidOperationException(
+                $"Memory index outbox job {jobId} does not reference an existing memory chunk.");
         }
 
-        return chunkInput;
+        var chunk = new MemoryIndexChunkState(
+            reader.GetGuid(0),
+            reader.GetBoolean(1),
+            reader.GetBoolean(2),
+            reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetString(5));
+
+        if (chunk.SourceEventId != payload.SourceEventId)
+        {
+            throw new InvalidOperationException(
+                $"Memory index outbox job {jobId} payload does not match the memory chunk source event.");
+        }
+
+        if (chunk.Redacted)
+        {
+            logger.LogInformation(
+                "Skipping memory index outbox job {JobId} because chunk {ChunkId} is redacted.",
+                jobId,
+                payload.ChunkId);
+            return null;
+        }
+
+        if (chunk.SearchVectorMissing)
+        {
+            throw new InvalidOperationException(
+                $"Memory index outbox job {jobId} references chunk {payload.ChunkId} without a search vector.");
+        }
+
+        var sourceStatus = payload.AggregateType switch
+        {
+            MemoryIndexOutboxJobContract.AggregateType => chunk.MemoryFactStatus,
+            MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType => chunk.RoleMemoryLensStatus,
+            _ => null
+        };
+
+        if (sourceStatus is null)
+        {
+            throw new InvalidOperationException(
+                $"Memory index outbox job {jobId} references a missing {payload.AggregateType} source.");
+        }
+
+        if (!string.Equals(sourceStatus, "active", StringComparison.Ordinal))
+        {
+            logger.LogInformation(
+                "Skipping memory index outbox job {JobId} because {AggregateType} {AggregateId} is {Status}.",
+                jobId,
+                payload.AggregateType,
+                payload.AggregateId,
+                sourceStatus);
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(chunk.SearchableInput)
+            ? throw new InvalidOperationException(
+                $"Memory index outbox job {jobId} references chunk {payload.ChunkId} without searchable input.")
+            : chunk.SearchableInput;
     }
+
+    private sealed record MemoryIndexChunkState(
+        Guid SourceEventId,
+        bool Redacted,
+        bool SearchVectorMissing,
+        string SearchableInput,
+        string? MemoryFactStatus,
+        string? RoleMemoryLensStatus);
 }

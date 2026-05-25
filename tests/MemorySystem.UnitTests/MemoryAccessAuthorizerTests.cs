@@ -68,6 +68,46 @@ public sealed class MemoryAccessAuthorizerTests
     }
 
     [Fact]
+    public async Task AuthorizeAsync_denies_role_namespace_without_matching_role_assignment()
+    {
+        var store = new FakeMemoryAccessReferenceStore
+        {
+            ProjectAccessLevel = "reader",
+            HasGrant = true
+        };
+        var authorizer = new MemoryAccessAuthorizer(store);
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Read,
+            ProjectScope(),
+            $"/project/{ProjectId}/role/cto/lens"));
+
+        Assert.False(decision.Allowed);
+        Assert.Contains("does not have role 'cto'", decision.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_denies_org_role_namespace_without_matching_role_assignment()
+    {
+        var store = new FakeMemoryAccessReferenceStore
+        {
+            OrganizationAccessLevel = "reader",
+            HasGrant = true
+        };
+        var authorizer = new MemoryAccessAuthorizer(store);
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Read,
+            OrganizationScope(),
+            $"/org/{OrgId}/role/cto/lens"));
+
+        Assert.False(decision.Allowed);
+        Assert.Contains("does not have role 'cto'", decision.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AuthorizeAsync_allows_role_scope_when_principal_has_role_assignment()
     {
         var store = new FakeMemoryAccessReferenceStore
@@ -106,6 +146,41 @@ public sealed class MemoryAccessAuthorizerTests
         Assert.Contains("authenticated principal", decision.Reason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task AuthorizeAsync_denies_session_read_until_session_ownership_is_modeled()
+    {
+        var authorizer = new MemoryAccessAuthorizer(new FakeMemoryAccessReferenceStore
+        {
+            HasGrant = true
+        });
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Read,
+            new MemoryScopeResolution("session", "session-1"),
+            "/session/session-1/instructions"));
+
+        Assert.False(decision.Allowed);
+        Assert.Contains("session ownership", decision.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_allows_session_write_to_continue_using_namespace_grants_for_event_append()
+    {
+        var authorizer = new MemoryAccessAuthorizer(new FakeMemoryAccessReferenceStore
+        {
+            HasGrant = true
+        });
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Write,
+            new MemoryScopeResolution("session", "session-1"),
+            "/session/session-1/events"));
+
+        Assert.True(decision.Allowed);
+    }
+
     private static MemoryScopeResolution ProjectScope()
     {
         return new MemoryScopeResolution(
@@ -113,6 +188,14 @@ public sealed class MemoryAccessAuthorizerTests
             ProjectId.ToString(),
             OrgId: OrgId,
             ProjectId: ProjectId);
+    }
+
+    private static MemoryScopeResolution OrganizationScope()
+    {
+        return new MemoryScopeResolution(
+            "org",
+            OrgId.ToString(),
+            OrgId: OrgId);
     }
 
     private sealed class FakeMemoryAccessReferenceStore : IMemoryAccessReferenceStore

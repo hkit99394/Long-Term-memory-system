@@ -37,6 +37,7 @@ var app = builder.Build();
 
 if (RequiresTransportSecurity(app.Environment))
 {
+    ValidateForwardedHeaderTrust(app.Configuration);
     app.UseForwardedHeaders();
     app.Use(async (context, next) =>
     {
@@ -65,6 +66,12 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready"),
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    },
     ResponseWriter = WriteHealthResponseAsync
 }).AllowAnonymous();
 
@@ -96,8 +103,17 @@ if (app.Environment.IsEnvironment("Testing"))
                 "POST /__test/idempotency/widgets",
                 async cancellationToken =>
                 {
-                    var request = await context.Request.ReadFromJsonAsync<TestIdempotencyRequest>(cancellationToken)
-                        ?? new TestIdempotencyRequest(string.Empty);
+                    var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<TestIdempotencyRequest>(
+                        context.Request,
+                        "Widget request is invalid.",
+                        cancellationToken);
+
+                    if (!requestResult.Succeeded)
+                    {
+                        return requestResult.Problem!;
+                    }
+
+                    var request = requestResult.Value!;
 
                     if (string.IsNullOrWhiteSpace(request.Value))
                     {
@@ -130,7 +146,9 @@ static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
         checks = report.Entries.Select(entry => new
         {
             name = entry.Key,
-            status = entry.Value.Status.ToString()
+            status = entry.Value.Status.ToString(),
+            description = entry.Value.Description,
+            data = entry.Value.Data
         })
     });
 }
@@ -139,6 +157,26 @@ static bool RequiresTransportSecurity(IHostEnvironment environment)
 {
     return !environment.IsDevelopment()
         && !environment.IsEnvironment("Testing");
+}
+
+static void ValidateForwardedHeaderTrust(IConfiguration configuration)
+{
+    var forwardedHeaders = configuration.GetSection("ForwardedHeaders");
+
+    if (HasConfiguredValues(forwardedHeaders.GetSection("KnownProxies"))
+        || HasConfiguredValues(forwardedHeaders.GetSection("KnownNetworks")))
+    {
+        return;
+    }
+
+    throw new InvalidOperationException(
+        "ForwardedHeaders:KnownProxies or ForwardedHeaders:KnownNetworks must be configured outside Development and Testing environments.");
+}
+
+static bool HasConfiguredValues(IConfigurationSection section)
+{
+    return !string.IsNullOrWhiteSpace(section.Value)
+        || section.GetChildren().Any(child => !string.IsNullOrWhiteSpace(child.Value));
 }
 
 public partial class Program

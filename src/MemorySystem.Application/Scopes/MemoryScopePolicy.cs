@@ -128,6 +128,115 @@ public static class MemoryScopePolicy
         }
     }
 
+    public static bool TryNormalizeTargetScope(
+        string scopeType,
+        string scopeId,
+        out string normalizedScopeType,
+        out string normalizedScopeId,
+        out string? error)
+    {
+        normalizedScopeType = string.Empty;
+        normalizedScopeId = string.Empty;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(scopeType))
+        {
+            error = "scopeType is required.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(scopeId))
+        {
+            error = "scopeId is required.";
+            return false;
+        }
+
+        normalizedScopeType = scopeType.Trim().ToLowerInvariant();
+        var trimmedScopeId = scopeId.Trim();
+
+        if (!ScopeTypes.Contains(normalizedScopeType))
+        {
+            error = "scopeType is not supported.";
+            return false;
+        }
+
+        switch (normalizedScopeType)
+        {
+            case "global":
+                if (!string.Equals(trimmedScopeId, "global", StringComparison.OrdinalIgnoreCase))
+                {
+                    error = "scopeId must be 'global' for global scope.";
+                    return false;
+                }
+
+                normalizedScopeId = "global";
+                return true;
+
+            case "org":
+            case "project":
+            case "user":
+            case "agent":
+                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var scopedGuid, out error))
+                {
+                    return false;
+                }
+
+                normalizedScopeId = scopedGuid.ToString();
+                return true;
+
+            case "role":
+                normalizedScopeId = trimmedScopeId.ToLowerInvariant();
+
+                if (!RoleIds.Contains(normalizedScopeId))
+                {
+                    error = "scopeId is not a supported role.";
+                    normalizedScopeId = string.Empty;
+                    return false;
+                }
+
+                return true;
+
+            case "session":
+                if (string.Equals(trimmedScopeId, "global", StringComparison.OrdinalIgnoreCase))
+                {
+                    error = "scopeId must not be 'global' for session scope.";
+                    return false;
+                }
+
+                normalizedScopeId = trimmedScopeId;
+                return true;
+
+            default:
+                error = "scopeType is not supported.";
+                return false;
+        }
+    }
+
+    public static bool TryNormalizeRoleId(
+        string? roleId,
+        out string? normalizedRoleId,
+        out string? error)
+    {
+        normalizedRoleId = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(roleId))
+        {
+            return true;
+        }
+
+        normalizedRoleId = roleId.Trim().ToLowerInvariant();
+
+        if (RoleIds.Contains(normalizedRoleId))
+        {
+            return true;
+        }
+
+        error = "roleId is not supported.";
+        normalizedRoleId = null;
+        return false;
+    }
+
     private static bool TryParseScopedGuid(
         string? value,
         string fieldName,

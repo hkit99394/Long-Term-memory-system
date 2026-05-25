@@ -51,6 +51,62 @@ public sealed class ApiMemoryFactReadTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_fact_hides_role_namespace_without_matching_role_assignment()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_namespace_read_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, OrgAId, ProjectAId);
+            await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+                databaseConnectionString,
+                ProjectAId,
+                PrincipalId,
+                "reader");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{ProjectAId}/role/cto/lens",
+                "read",
+                principalId: PrincipalId);
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                ProjectAEventId,
+                PrincipalId,
+                "project",
+                ProjectAId.ToString(),
+                scopeOrgId: OrgAId,
+                scopeProjectId: ProjectAId);
+
+            var memoryFactId = await InsertProjectMemoryFactAsync(
+                databaseConnectionString,
+                ProjectAId,
+                OrgAId,
+                ProjectAEventId,
+                "CTO-only decision",
+                "role namespace direct read secret",
+                $"/project/{ProjectAId}/role/cto/lens");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (status, payload, body) = await SendMemoryReadAsync(client, memoryFactId);
+
+            Assert.Equal(HttpStatusCode.NotFound, status);
+            Assert.Equal("Memory fact was not found.", payload.GetProperty("title").GetString());
+            Assert.DoesNotContain("role namespace direct read secret", body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task<(HttpStatusCode StatusCode, JsonElement Payload, string Body)> SendMemoryReadAsync(
         HttpClient client,
         Guid memoryFactId)
@@ -128,7 +184,8 @@ public sealed class ApiMemoryFactReadTests
         Guid orgId,
         Guid sourceEventId,
         string subject,
-        string objectValue)
+        string objectValue,
+        string? namespaceValue = null)
     {
         var memoryFactId = Guid.NewGuid();
 
@@ -177,7 +234,7 @@ public sealed class ApiMemoryFactReadTests
             connection);
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
         command.Parameters.AddWithValue("project_id_text", projectId.ToString());
-        command.Parameters.AddWithValue("namespace", $"/project/{projectId}/decisions");
+        command.Parameters.AddWithValue("namespace", namespaceValue ?? $"/project/{projectId}/decisions");
         command.Parameters.AddWithValue("project_id", projectId);
         command.Parameters.AddWithValue("org_id", orgId);
         command.Parameters.AddWithValue("subject", subject);

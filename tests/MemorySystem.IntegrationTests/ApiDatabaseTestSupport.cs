@@ -412,8 +412,8 @@ internal static class ApiDatabaseTestSupport
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.GetString(3),
-                reader.GetInt32(4),
-                reader.GetString(5),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
                 reader.IsDBNull(6) ? null : reader.GetString(6),
                 reader.GetString(7),
                 reader.GetFieldValue<DateTimeOffset>(8)));
@@ -446,8 +446,8 @@ internal sealed record ApiIdempotencyRecordDetail(
     string Endpoint,
     string IdempotencyKey,
     string RequestHash,
-    int ResponseStatus,
-    string ResponseBody,
+    int? ResponseStatus,
+    string? ResponseBody,
     string? ResponseContentType,
     string Status,
     DateTimeOffset ExpiresAt);

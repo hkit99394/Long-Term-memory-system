@@ -51,11 +51,11 @@ public sealed class ApiIdempotencyHttpService(
         }
 
         var cancellationToken = httpContext.RequestAborted;
-        string requestHash;
+        ApiRequestHashes requestHashes;
 
         try
         {
-            requestHash = await requestHasher.ComputeHashAsync(httpContext.Request, cancellationToken);
+            requestHashes = await requestHasher.ComputeHashAsync(httpContext.Request, cancellationToken);
         }
         catch (ApiRequestBodyTooLargeException exception)
         {
@@ -70,7 +70,8 @@ public sealed class ApiIdempotencyHttpService(
             principalId,
             endpoint,
             idempotencyKeyResult.Key,
-            requestHash,
+            requestHashes.CurrentHash,
+            requestHashes.AcceptedHashes,
             expiresAt,
             cancellationToken);
 
@@ -79,7 +80,7 @@ public sealed class ApiIdempotencyHttpService(
             ApiIdempotencyBeginStatus.Started => await ExecuteAndStoreAsync(
                 principalId,
                 beginResult.Record,
-                requestHash,
+                requestHashes.CurrentHash,
                 operation,
                 cancellationToken),
             ApiIdempotencyBeginStatus.Replay => new StoredJsonResult(

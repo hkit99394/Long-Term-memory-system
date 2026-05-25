@@ -28,6 +28,18 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
             return MemoryAccessDecision.Allow();
         }
 
+        if (MemoryNamespaceParser.TryParse(request.Namespace, out var memoryNamespace, out _)
+            && !string.IsNullOrWhiteSpace(memoryNamespace.RoleId)
+            && !await referenceStore.HasRoleAssignmentAsync(
+                request.PrincipalId,
+                memoryNamespace.RoleId,
+                request.Scope,
+                cancellationToken))
+        {
+            return MemoryAccessDecision.Deny(
+                $"Principal {request.PrincipalId} does not have role '{memoryNamespace.RoleId}' for namespace '{request.Namespace}'.");
+        }
+
         return await referenceStore.HasNamespaceGrantAsync(
             request.PrincipalId,
             request.Scope,
@@ -46,7 +58,7 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
         return request.Scope.ScopeType switch
         {
             "global" => MemoryAccessDecision.Allow(),
-            "session" => MemoryAccessDecision.Allow(),
+            "session" => HasSessionScopeAccess(request),
             "user" => HasUserScopeAccess(request),
             "agent" => HasAgentScopeAccess(request),
             "role" => await HasRoleScopeAccessAsync(request, cancellationToken),
@@ -68,6 +80,13 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
         return request.Scope.AgentPrincipalId == request.PrincipalId
             ? MemoryAccessDecision.Allow()
             : MemoryAccessDecision.Deny("Agent scope requires the authenticated agent principal.");
+    }
+
+    private static MemoryAccessDecision HasSessionScopeAccess(MemoryAccessRequest request)
+    {
+        return request.Permission == MemoryAccessPermissions.Write
+            ? MemoryAccessDecision.Allow()
+            : MemoryAccessDecision.Deny("Session-scoped durable memory reads are not supported until session ownership is modeled.");
     }
 
     private async Task<MemoryAccessDecision> HasRoleScopeAccessAsync(

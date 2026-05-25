@@ -7,6 +7,7 @@ public interface IApiIdempotencyStore
         string endpoint,
         string idempotencyKey,
         string requestHash,
+        IReadOnlyCollection<string> acceptedRequestHashes,
         DateTimeOffset expiresAt,
         CancellationToken cancellationToken = default);
 

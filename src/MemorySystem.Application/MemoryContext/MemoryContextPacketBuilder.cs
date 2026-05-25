@@ -1,4 +1,5 @@
 using MemorySystem.Application.MemoryChunks;
+using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.MemoryContext;
 
@@ -29,20 +30,25 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
             throw new ArgumentException("Context packet target scope type and id must be provided together.", nameof(query));
         }
 
-        var targetScope = string.IsNullOrWhiteSpace(query.TargetScopeType)
-            ? null
-            : new MemoryContextTargetScope(query.TargetScopeType.Trim(), query.TargetScopeId!.Trim());
+        var targetScope = NormalizeTargetScope(query);
         var trimmedQuery = query.Query.Trim();
-        var roleId = string.IsNullOrWhiteSpace(query.RoleId) ? null : query.RoleId.Trim();
+
+        if (!MemoryScopePolicy.TryNormalizeRoleId(query.RoleId, out var roleId, out var roleError))
+        {
+            throw new ArgumentException(roleError, nameof(query));
+        }
+
         var results = await hybridSearch.SearchAsync(
             new MemoryChunkHybridSearchQuery(
                 query.PrincipalId,
                 trimmedQuery,
-                query.Limit,
+                roleId is null ? query.Limit : Math.Min(50, query.Limit * 4),
                 targetScope?.ScopeType,
-                targetScope?.ScopeId),
+                targetScope?.ScopeId,
+                roleId),
             cancellationToken);
         var items = results
+            .Where(result => roleId is null || !IsRoleSpecificResult(result) || IsResultForRole(result, roleId))
             .Take(query.Limit)
             .Select(ToPacketItem)
             .ToArray();
@@ -62,6 +68,26 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
                 .Distinct()
                 .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, BuildSourceLink(sourceEventId)))
                 .ToArray());
+    }
+
+    private static MemoryContextTargetScope? NormalizeTargetScope(MemoryContextPacketQuery query)
+    {
+        if (string.IsNullOrWhiteSpace(query.TargetScopeType))
+        {
+            return null;
+        }
+
+        if (!MemoryScopePolicy.TryNormalizeTargetScope(
+            query.TargetScopeType,
+            query.TargetScopeId!,
+            out var normalizedScopeType,
+            out var normalizedScopeId,
+            out var error))
+        {
+            throw new ArgumentException(error, nameof(query));
+        }
+
+        return new MemoryContextTargetScope(normalizedScopeType, normalizedScopeId);
     }
 
     private static MemoryContextPacketItem ToPacketItem(MemoryChunkHybridSearchResult result)
@@ -130,6 +156,28 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
             || item.Namespace.Contains("/role/", StringComparison.Ordinal);
     }
 
+    private static bool IsRoleSpecificResult(MemoryChunkHybridSearchResult result)
+    {
+        return string.Equals(result.SourceType, "role_memory_lens", StringComparison.Ordinal)
+            || string.Equals(result.ScopeType, "role", StringComparison.Ordinal)
+            || result.Namespace.Contains("/role/", StringComparison.Ordinal);
+    }
+
+    private static bool IsResultForRole(MemoryChunkHybridSearchResult result, string roleId)
+    {
+        if (string.Equals(result.ScopeType, "role", StringComparison.Ordinal))
+        {
+            return string.Equals(result.ScopeId, roleId, StringComparison.Ordinal);
+        }
+
+        if (MemoryNamespaceParser.TryParse(result.Namespace, out var memoryNamespace, out _))
+        {
+            return string.Equals(memoryNamespace.RoleId, roleId, StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
     private static bool IsRelevantDecision(MemoryContextPacketItem item)
     {
         return string.Equals(item.Kind, "project_decision", StringComparison.Ordinal)
@@ -144,12 +192,12 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
 
         return normalized.Length <= MaxContentLength
             ? normalized
-            : normalized[..(MaxContentLength - 1)] + "...";
+            : normalized[..(MaxContentLength - 3)] + "...";
     }
 
-    private static string BuildSourceLink(Guid sourceEventId)
+    private static string? BuildSourceLink(Guid sourceEventId)
     {
-        return $"/api/events/{sourceEventId}";
+        return null;
     }
 
     private static string BuildExplanationSummary(MemoryChunkHybridSearchResult result)

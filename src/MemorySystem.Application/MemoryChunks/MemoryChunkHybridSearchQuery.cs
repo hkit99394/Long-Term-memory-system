@@ -5,4 +5,5 @@ public sealed record MemoryChunkHybridSearchQuery(
     string Query,
     int Limit = 20,
     string? TargetScopeType = null,
-    string? TargetScopeId = null);
+    string? TargetScopeId = null,
+    string? RoleId = null);

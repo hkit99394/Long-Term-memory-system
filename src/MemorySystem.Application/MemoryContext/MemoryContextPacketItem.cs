@@ -16,7 +16,7 @@ public sealed record MemoryContextPacketItem(
     double Rank,
     string TrustLevel,
     Guid SourceEventId,
-    string SourceLink,
+    string? SourceLink,
     MemoryContextExplanation Explanation);
 
 public sealed record MemoryContextExplanation(

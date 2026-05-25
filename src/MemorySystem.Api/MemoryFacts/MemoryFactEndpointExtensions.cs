@@ -1,7 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using MemorySystem.Api.Http;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryContext;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
+using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.MemoryFacts;
 
@@ -23,8 +27,10 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryChunkSemanticSearch search,
+                IHostEnvironment environment,
+                IOptions<MemoryEmbeddingOptions> embeddingOptions,
                 CancellationToken cancellationToken) =>
-                await SemanticSearchAsync(context, search, cancellationToken))
+                await SemanticSearchAsync(context, search, environment, embeddingOptions.Value, cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -32,8 +38,10 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryChunkHybridSearch search,
+                IHostEnvironment environment,
+                IOptions<MemoryEmbeddingOptions> embeddingOptions,
                 CancellationToken cancellationToken) =>
-                await HybridSearchAsync(context, search, cancellationToken))
+                await HybridSearchAsync(context, search, environment, embeddingOptions.Value, cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -63,22 +71,14 @@ public static class MemoryFactEndpointExtensions
         IMemoryChunkFullTextSearch search,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Authenticated principal is invalid.",
-                detail: "The API key did not resolve to a valid principal id.");
+            return principalFailure;
         }
 
-        var query = context.Request.Query["q"].ToString();
-
-        if (string.IsNullOrWhiteSpace(query))
+        if (!TryReadRequiredQuery(context, "Memory search is invalid.", out var query, out var queryFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Memory search is invalid.",
-                detail: "Query parameter 'q' is required.");
+            return queryFailure;
         }
 
         if (!TryReadLimit(context, out var limit, out var error))
@@ -99,24 +99,23 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> SemanticSearchAsync(
         HttpContext context,
         IMemoryChunkSemanticSearch search,
+        IHostEnvironment environment,
+        MemoryEmbeddingOptions embeddingOptions,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Authenticated principal is invalid.",
-                detail: "The API key did not resolve to a valid principal id.");
+            return configurationFailure;
         }
 
-        var query = context.Request.Query["q"].ToString();
-
-        if (string.IsNullOrWhiteSpace(query))
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Memory semantic search is invalid.",
-                detail: "Query parameter 'q' is required.");
+            return principalFailure;
+        }
+
+        if (!TryReadRequiredQuery(context, "Memory semantic search is invalid.", out var query, out var queryFailure))
+        {
+            return queryFailure;
         }
 
         if (!TryReadLimit(context, out var limit, out var error))
@@ -137,24 +136,23 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> HybridSearchAsync(
         HttpContext context,
         IMemoryChunkHybridSearch search,
+        IHostEnvironment environment,
+        MemoryEmbeddingOptions embeddingOptions,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Authenticated principal is invalid.",
-                detail: "The API key did not resolve to a valid principal id.");
+            return configurationFailure;
         }
 
-        var query = context.Request.Query["q"].ToString();
-
-        if (string.IsNullOrWhiteSpace(query))
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Memory hybrid search is invalid.",
-                detail: "Query parameter 'q' is required.");
+            return principalFailure;
+        }
+
+        if (!TryReadRequiredQuery(context, "Memory hybrid search is invalid.", out var query, out var queryFailure))
+        {
+            return queryFailure;
         }
 
         if (!TryReadLimit(context, out var limit, out var error)
@@ -178,22 +176,14 @@ public static class MemoryFactEndpointExtensions
         IContextPacketBuilder contextPacketBuilder,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Authenticated principal is invalid.",
-                detail: "The API key did not resolve to a valid principal id.");
+            return principalFailure;
         }
 
-        var query = context.Request.Query["q"].ToString();
-
-        if (string.IsNullOrWhiteSpace(query))
+        if (!TryReadRequiredQuery(context, "Memory context request is invalid.", out var query, out var queryFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Memory context request is invalid.",
-                detail: "Query parameter 'q' is required.");
+            return queryFailure;
         }
 
         if (!TryReadLimit(context, maxLimit: 12, out var limit, out var error)
@@ -205,7 +195,14 @@ public static class MemoryFactEndpointExtensions
                 detail: error);
         }
 
-        var roleId = context.Request.Query["roleId"].ToString();
+        if (!TryReadRoleId(context, out var roleId, out error))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory context request is invalid.",
+                detail: error);
+        }
+
         var packet = await contextPacketBuilder.BuildAsync(
             new MemoryContextPacketQuery(
                 principalId,
@@ -225,12 +222,9 @@ public static class MemoryFactEndpointExtensions
         IMemoryFactReadService readService,
         CancellationToken cancellationToken)
     {
-        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Authenticated principal is invalid.",
-                detail: "The API key did not resolve to a valid principal id.");
+            return principalFailure;
         }
 
         var result = await readService.ReadAsync(principalId, id, cancellationToken);
@@ -244,6 +238,68 @@ public static class MemoryFactEndpointExtensions
         }
 
         return Results.Ok(ToResponse(result.MemoryFact!));
+    }
+
+    private static bool TryReadPrincipalId(
+        HttpContext context,
+        out Guid principalId,
+        [NotNullWhen(false)] out IResult? failure)
+    {
+        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = Results.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Authenticated principal is invalid.",
+            detail: "The API key did not resolve to a valid principal id.");
+        return false;
+    }
+
+    private static bool TryEnsureSemanticRetrievalConfigured(
+        IHostEnvironment environment,
+        MemoryEmbeddingOptions embeddingOptions,
+        [NotNullWhen(false)] out IResult? failure)
+    {
+        if (environment.IsDevelopment()
+            || environment.IsEnvironment("Testing")
+            || !string.Equals(
+                embeddingOptions.Provider,
+                MemoryEmbeddingOptions.DeterministicProvider,
+                StringComparison.Ordinal))
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Semantic memory retrieval is not configured.",
+            detail: "Configure a production embedding provider before enabling semantic or hybrid memory search outside Development and Testing.");
+        return false;
+    }
+
+    private static bool TryReadRequiredQuery(
+        HttpContext context,
+        string problemTitle,
+        out string query,
+        [NotNullWhen(false)] out IResult? failure)
+    {
+        query = context.Request.Query["q"].ToString().Trim();
+
+        if (query.Length > 0)
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: problemTitle,
+            detail: "Query parameter 'q' is required.");
+        return false;
     }
 
     private static bool TryReadLimit(HttpContext context, out int limit, out string? error)
@@ -294,21 +350,30 @@ public static class MemoryFactEndpointExtensions
             return false;
         }
 
-        scopeType = scopeType.Trim();
-        scopeId = scopeId.Trim();
-
-        if (!IsSupportedSearchScopeType(scopeType))
+        if (!MemoryScopePolicy.TryNormalizeTargetScope(
+            scopeType,
+            scopeId,
+            out var normalizedScopeType,
+            out var normalizedScopeId,
+            out error))
         {
-            error = "Query parameter 'scopeType' is not supported.";
             return false;
         }
 
+        scopeType = normalizedScopeType;
+        scopeId = normalizedScopeId;
         return true;
     }
 
-    private static bool IsSupportedSearchScopeType(string scopeType)
+    private static bool TryReadRoleId(
+        HttpContext context,
+        out string? roleId,
+        out string? error)
     {
-        return scopeType is "global" or "org" or "user" or "project" or "role" or "agent" or "session";
+        return MemoryScopePolicy.TryNormalizeRoleId(
+            context.Request.Query["roleId"].ToString(),
+            out roleId,
+            out error);
     }
 
     private static MemorySearchResultResponse ToSearchResultResponse(MemoryChunkSearchResult result)

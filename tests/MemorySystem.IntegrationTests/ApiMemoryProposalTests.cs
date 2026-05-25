@@ -149,6 +149,103 @@ public sealed class ApiMemoryProposalTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Memory_index_outbox_handler_completes_stale_memory_job_without_embedding()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_index_stale_worker_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(client, "proposal-index-stale-worker-key", CreateProposalBody());
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            await SetMemoryFactStatusAsync(databaseConnectionString, memoryId, "deleted");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var processor = new OutboxJobProcessor(
+                new PostgresOutboxJobStore(dataSource),
+                [CreateMemoryIndexHandler(dataSource)],
+                Options.Create(new OutboxWorkerOptions
+                {
+                    WorkerId = "memory-index-stale-test-worker",
+                    BatchSize = 1,
+                    MaxAttempts = 2,
+                    LeaseDuration = TimeSpan.FromMinutes(1),
+                    HandlerTimeout = TimeSpan.FromSeconds(10),
+                    RetryDelay = TimeSpan.Zero
+                }),
+                NullLogger<OutboxJobProcessor>.Instance);
+
+            Assert.Equal(1, await processor.ProcessAvailableAsync());
+
+            var outboxJob = await ReadOutboxJobAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("completed", outboxJob.Status);
+            Assert.Equal(0, await CountMemoryEmbeddingsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Memory_index_outbox_handler_retries_job_with_missing_payload_chunk()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_index_missing_chunk_worker_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(client, "proposal-index-missing-chunk-worker-key", CreateProposalBody());
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            await ReplaceOutboxPayloadAsync(
+                databaseConnectionString,
+                memoryId,
+                MemoryIndexOutboxJobContract.SerializePayload(memoryId, Guid.NewGuid(), SourceEventId));
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var processor = new OutboxJobProcessor(
+                new PostgresOutboxJobStore(dataSource),
+                [CreateMemoryIndexHandler(dataSource)],
+                Options.Create(new OutboxWorkerOptions
+                {
+                    WorkerId = "memory-index-missing-chunk-test-worker",
+                    BatchSize = 1,
+                    MaxAttempts = 2,
+                    LeaseDuration = TimeSpan.FromMinutes(1),
+                    HandlerTimeout = TimeSpan.FromSeconds(10),
+                    RetryDelay = TimeSpan.Zero
+                }),
+                NullLogger<OutboxJobProcessor>.Instance);
+
+            Assert.Equal(1, await processor.ProcessAvailableAsync());
+
+            var outboxJob = await ReadOutboxJobAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("pending", outboxJob.Status);
+            Assert.Equal(0, await CountMemoryEmbeddingsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_memory_proposals_derives_trust_level_from_source_event()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -1428,7 +1525,8 @@ public sealed class ApiMemoryProposalTests
         return new MemoryIndexOutboxJobHandler(
             dataSource,
             new DeterministicMemoryEmbeddingProvider(embeddingOptions),
-            new PostgresMemoryChunkEmbeddingStore(dataSource));
+            new PostgresMemoryChunkEmbeddingStore(dataSource),
+            NullLogger<MemoryIndexOutboxJobHandler>.Instance);
     }
 
     private static async Task PrepareDatabaseAsync(
@@ -1537,6 +1635,48 @@ public sealed class ApiMemoryProposalTests
         command.Parameters.AddWithValue("embedding_model", TestEmbeddingModel);
 
         return (int)(await command.ExecuteScalarAsync() ?? 0);
+    }
+
+    private static async Task SetMemoryFactStatusAsync(
+        string connectionString,
+        Guid memoryId,
+        string status)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_facts
+            SET status = @status
+            WHERE id = @memory_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("memory_id", memoryId);
+        command.Parameters.AddWithValue("status", status);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task ReplaceOutboxPayloadAsync(
+        string connectionString,
+        Guid aggregateId,
+        string payload)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE outbox_jobs
+            SET payload = @payload
+            WHERE aggregate_id = @aggregate_id;
+            """,
+            connection);
+        command.Parameters.Add("payload", NpgsqlTypes.NpgsqlDbType.Jsonb).Value = payload;
+        command.Parameters.AddWithValue("aggregate_id", aggregateId);
+
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task AssertNoDurableProposalWritesAsync(string connectionString)

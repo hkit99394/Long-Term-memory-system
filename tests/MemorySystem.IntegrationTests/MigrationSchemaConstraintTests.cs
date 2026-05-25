@@ -2197,6 +2197,58 @@ public sealed partial class MigrationSchemaConstraintTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Outbox_jobs_reject_processing_status_without_lease_metadata()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_outbox_processing_lease_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await CreateMigratedDatabaseAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(databaseConnectionString);
+            await connection.OpenAsync();
+
+            await using var command = new NpgsqlCommand(
+                """
+                INSERT INTO outbox_jobs (
+                    id,
+                    job_type,
+                    aggregate_type,
+                    aggregate_id,
+                    idempotency_key,
+                    payload,
+                    status
+                )
+                VALUES (
+                    @id,
+                    'memory.index',
+                    'memory_fact',
+                    @aggregate_id,
+                    @idempotency_key,
+                    '{}',
+                    'processing'
+                );
+                """,
+                connection);
+
+            var jobId = Guid.NewGuid();
+            command.Parameters.AddWithValue("id", jobId);
+            command.Parameters.AddWithValue("aggregate_id", Guid.NewGuid());
+            command.Parameters.AddWithValue("idempotency_key", $"outbox-processing-lease:{jobId:N}");
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
+
+            Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Memory_embeddings_reject_dimension_that_disagrees_with_vector()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();

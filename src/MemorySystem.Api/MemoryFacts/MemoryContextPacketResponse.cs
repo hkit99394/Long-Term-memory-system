@@ -35,7 +35,7 @@ public sealed record MemoryContextPacketItemResponse(
     double Rank,
     string TrustLevel,
     Guid SourceEventId,
-    string SourceLink,
+    string? SourceLink,
     MemoryContextExplanationResponse Explanation);
 
 public sealed record MemoryContextExplanationResponse(
@@ -45,4 +45,4 @@ public sealed record MemoryContextExplanationResponse(
 
 public sealed record MemoryContextSourceEventResponse(
     Guid Id,
-    string Link);
+    string? Link);

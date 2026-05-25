@@ -2,7 +2,6 @@ using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.MemoryChunks;
 
@@ -34,37 +33,7 @@ public sealed class PostgresMemoryChunkSemanticSearch(
         command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
         command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
         command.Parameters.AddWithValue("limit", query.Limit);
-        command.Parameters.Add("read_permissions", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "read",
-            "write",
-            "review",
-            "admin"
-        };
-        command.Parameters.Add("read_project_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin"
-        };
-        command.Parameters.Add("read_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin",
-            "owner"
-        };
-        command.Parameters.Add("admin_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "admin",
-            "owner"
-        };
+        PostgresMemorySearchCommandParameters.AddAuthorizationParameters(command);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<MemoryChunkSearchResult>();
@@ -109,9 +78,10 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                     ELSE NULL
                 END AS scope_org_id,
                 CASE
-                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    WHEN chunk.scope_type = 'project' THEN project.id
                     ELSE NULL
-                END AS scope_project_id
+                END AS scope_project_id,
+                role_requirement.required_role_id
             FROM memory_chunks AS chunk
             INNER JOIN memory_embeddings AS embedding
                 ON embedding.chunk_id = chunk.id
@@ -122,12 +92,28 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                     WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
                     ELSE NULL
                 END
+                AND project.status = 'active'
             LEFT JOIN memory_facts AS fact
                 ON chunk.source_type = 'memory_fact'
                 AND fact.id = chunk.source_id
             LEFT JOIN role_memory_lenses AS lens
                 ON chunk.source_type = 'role_memory_lens'
                 AND lens.id = chunk.source_id
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(
+                    CASE
+                        WHEN chunk.source_type = 'role_memory_lens' THEN lens.role_id
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN chunk.scope_type = 'role' THEN chunk.scope_id
+                        WHEN chunk.namespace LIKE '/role/%' THEN split_part(chunk.namespace, '/', 3)
+                        WHEN chunk.namespace LIKE '/project/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        WHEN chunk.namespace LIKE '/org/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        ELSE NULL
+                    END
+                ) AS required_role_id
+            ) AS role_requirement ON TRUE
             WHERE chunk.redacted_at IS NULL
                 AND (
                     (
@@ -140,7 +126,7 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                     )
                 )
                 AND (
-                    chunk.scope_type IN ('global', 'session')
+                    chunk.scope_type = 'global'
                     OR (
                         chunk.scope_type IN ('user', 'agent')
                         AND chunk.scope_id = @principal_id_text
@@ -179,7 +165,7 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                                     AND project_membership.status = 'active'
                                 WHERE membership.principal_id = @principal_id
                                     AND membership.project_id = CASE
-                                        WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                        WHEN chunk.scope_type = 'project' THEN project.id
                                         ELSE NULL
                                     END
                                     AND membership.access_level = ANY(@read_project_access_levels)
@@ -192,6 +178,48 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                                     AND membership.access_level = ANY(@admin_org_access_levels)
                             )
                         )
+                    )
+                )
+                AND (
+                    role_requirement.required_role_id IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM role_assignments AS assignment
+                        WHERE assignment.principal_id = @principal_id
+                            AND assignment.role_id = role_requirement.required_role_id
+                            AND (
+                                assignment.scope_type = 'global'
+                                OR (
+                                    chunk.scope_type <> 'role'
+                                    AND (
+                                        CASE
+                                            WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                            WHEN chunk.scope_type = 'project' THEN project.org_id
+                                            ELSE NULL
+                                        END
+                                    ) IS NOT NULL
+                                    AND assignment.scope_type = 'org'
+                                    AND assignment.scope_id = CASE
+                                        WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                        WHEN chunk.scope_type = 'project' THEN project.org_id
+                                        ELSE NULL
+                                    END
+                                )
+                                OR (
+                                    chunk.scope_type <> 'role'
+                                    AND (
+                                        CASE
+                                            WHEN chunk.scope_type = 'project' THEN project.id
+                                            ELSE NULL
+                                        END
+                                    ) IS NOT NULL
+                                    AND assignment.scope_type = 'project'
+                                    AND assignment.scope_id = CASE
+                                        WHEN chunk.scope_type = 'project' THEN project.id
+                                        ELSE NULL
+                                    END
+                                )
+                            )
                     )
                 )
                 AND (
@@ -241,13 +269,13 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                                             chunk.scope_type <> 'role'
                                             AND (
                                                 CASE
-                                                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                    WHEN chunk.scope_type = 'project' THEN project.id
                                                     ELSE NULL
                                                 END
                                             ) IS NOT NULL
                                             AND assignment.scope_type = 'project'
                                             AND assignment.scope_id = CASE
-                                                WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                WHEN chunk.scope_type = 'project' THEN project.id
                                                 ELSE NULL
                                             END
                                         )

@@ -27,10 +27,12 @@ public static class MemorySystemHealthChecksBuilderExtensions
             "outbox",
             serviceProvider =>
             {
-                return new OutboxBacklogHealthCheck(serviceProvider.GetRequiredService<NpgsqlDataSource>());
+                return new OutboxBacklogHealthCheck(
+                    serviceProvider.GetRequiredService<NpgsqlDataSource>(),
+                    OutboxBacklogHealthOptions.Read(serviceProvider.GetRequiredService<IConfiguration>()));
             },
             failureStatus: HealthStatus.Degraded,
-            tags: ["outbox", "worker", "ready"],
+            tags: ["outbox", "ready"],
             timeout: OutboxBacklogHealthCheck.Timeout));
     }
 }

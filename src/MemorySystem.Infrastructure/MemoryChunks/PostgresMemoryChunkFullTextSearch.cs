@@ -1,6 +1,5 @@
 using MemorySystem.Application.MemoryChunks;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.MemoryChunks;
 
@@ -24,37 +23,7 @@ public sealed class PostgresMemoryChunkFullTextSearch(NpgsqlDataSource dataSourc
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("query", query.Query.Trim());
         command.Parameters.AddWithValue("limit", query.Limit);
-        command.Parameters.Add("read_permissions", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "read",
-            "write",
-            "review",
-            "admin"
-        };
-        command.Parameters.Add("read_project_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin"
-        };
-        command.Parameters.Add("read_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "reader",
-            "contributor",
-            "reviewer",
-            "admin",
-            "owner"
-        };
-        command.Parameters.Add("admin_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-        new[]
-        {
-            "admin",
-            "owner"
-        };
+        PostgresMemorySearchCommandParameters.AddAuthorizationParameters(command);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<MemoryChunkSearchResult>();
@@ -102,21 +71,38 @@ public sealed class PostgresMemoryChunkFullTextSearch(NpgsqlDataSource dataSourc
                     ELSE NULL
                 END AS scope_org_id,
                 CASE
-                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    WHEN chunk.scope_type = 'project' THEN project.id
                     ELSE NULL
-                END AS scope_project_id
+                END AS scope_project_id,
+                role_requirement.required_role_id
             FROM memory_chunks AS chunk
             LEFT JOIN projects AS project
                 ON project.id = CASE
                     WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
                     ELSE NULL
                 END
+                AND project.status = 'active'
             LEFT JOIN memory_facts AS fact
                 ON chunk.source_type = 'memory_fact'
                 AND fact.id = chunk.source_id
             LEFT JOIN role_memory_lenses AS lens
                 ON chunk.source_type = 'role_memory_lens'
                 AND lens.id = chunk.source_id
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(
+                    CASE
+                        WHEN chunk.source_type = 'role_memory_lens' THEN lens.role_id
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN chunk.scope_type = 'role' THEN chunk.scope_id
+                        WHEN chunk.namespace LIKE '/role/%' THEN split_part(chunk.namespace, '/', 3)
+                        WHEN chunk.namespace LIKE '/project/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        WHEN chunk.namespace LIKE '/org/%/role/%' THEN split_part(chunk.namespace, '/', 5)
+                        ELSE NULL
+                    END
+                ) AS required_role_id
+            ) AS role_requirement ON TRUE
             WHERE chunk.redacted_at IS NULL
                 AND (
                     (
@@ -145,7 +131,7 @@ public sealed class PostgresMemoryChunkFullTextSearch(NpgsqlDataSource dataSourc
         CROSS JOIN fts
         WHERE candidate.search_vector @@ fts.query
             AND (
-                candidate.scope_type IN ('global', 'session')
+                candidate.scope_type = 'global'
                 OR (
                     candidate.scope_type IN ('user', 'agent')
                     AND candidate.scope_id = @principal_id_text
@@ -191,6 +177,30 @@ public sealed class PostgresMemoryChunkFullTextSearch(NpgsqlDataSource dataSourc
                                 AND membership.access_level = ANY(@admin_org_access_levels)
                         )
                     )
+                )
+            )
+            AND (
+                candidate.required_role_id IS NULL
+                OR EXISTS (
+                    SELECT 1
+                    FROM role_assignments AS assignment
+                    WHERE assignment.principal_id = @principal_id
+                        AND assignment.role_id = candidate.required_role_id
+                        AND (
+                            assignment.scope_type = 'global'
+                            OR (
+                                candidate.scope_type <> 'role'
+                                AND candidate.scope_org_id IS NOT NULL
+                                AND assignment.scope_type = 'org'
+                                AND assignment.scope_id = candidate.scope_org_id
+                            )
+                            OR (
+                                candidate.scope_type <> 'role'
+                                AND candidate.scope_project_id IS NOT NULL
+                                AND assignment.scope_type = 'project'
+                                AND assignment.scope_id = candidate.scope_project_id
+                            )
+                        )
                 )
             )
             AND (

@@ -1,6 +1,8 @@
 using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Worker;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Globalization;
@@ -112,6 +114,47 @@ public sealed class OutboxWorkerOptionsTests
             registeredHandlerCount: 0));
 
         Assert.Contains("OutboxWorker:Enabled=false", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AddMemorySystemOutboxWorker_skips_runtime_services_when_disabled()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OutboxWorker:Enabled"] = "false"
+        });
+
+        builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
+
+        using var provider = builder.Services.BuildServiceProvider();
+
+        Assert.False(provider.GetRequiredService<IOptions<OutboxWorkerOptions>>().Value.Enabled);
+        Assert.Empty(provider.GetServices<IHostedService>());
+        Assert.Empty(provider.GetServices<IOutboxJobHandler>());
+        Assert.Null(provider.GetService<OutboxJobProcessor>());
+    }
+
+    [Fact]
+    public void AddMemorySystemOutboxWorker_registers_enabled_worker_composition()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] =
+                "Host=127.0.0.1;Port=1;Database=missing;Username=missing;Password=missing",
+            ["OutboxWorker:WorkerId"] = "composition-test-worker"
+        });
+
+        builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
+
+        using var provider = builder.Services.BuildServiceProvider();
+
+        Assert.Equal("composition-test-worker", provider.GetRequiredService<IOptions<OutboxWorkerOptions>>().Value.WorkerId);
+        Assert.IsType<PostgresOutboxJobStore>(provider.GetRequiredService<IOutboxJobStore>());
+        Assert.NotEmpty(provider.GetServices<IOutboxJobHandler>());
+        Assert.NotNull(provider.GetRequiredService<OutboxJobProcessor>());
+        Assert.Contains(provider.GetServices<IHostedService>(), service => service is OutboxWorkerService);
     }
 
     [Fact]

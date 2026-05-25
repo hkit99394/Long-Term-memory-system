@@ -43,7 +43,7 @@ public static class MemoryNamespaceParser
         return scopeType switch
         {
             "global" => TryParseGlobal(trimmed, segments, out memoryNamespace, out error),
-            "org" => TryParseGuidScoped(trimmed, segments, "org", out memoryNamespace, out error),
+            "org" => TryParseRoleAwareGuidScoped(trimmed, segments, "org", out memoryNamespace, out error),
             "project" => TryParseProject(trimmed, segments, out memoryNamespace, out error),
             "user" => TryParseGuidScoped(trimmed, segments, "user", out memoryNamespace, out error),
             "role" => TryParseRole(trimmed, segments, out memoryNamespace, out error),
@@ -104,26 +104,42 @@ public static class MemoryNamespaceParser
         out MemoryNamespace memoryNamespace,
         out string? error)
     {
-        if (!TryParseGuidScoped(value, segments, "project", out memoryNamespace, out error))
+        return TryParseRoleAwareGuidScoped(value, segments, "project", out memoryNamespace, out error);
+    }
+
+    private static bool TryParseRoleAwareGuidScoped(
+        string value,
+        string[] segments,
+        string scopeType,
+        out MemoryNamespace memoryNamespace,
+        out string? error)
+    {
+        if (!TryParseGuidScoped(value, segments, scopeType, out memoryNamespace, out error))
         {
             return false;
         }
 
-        if (segments.Length >= 6 && segments[3] == "role")
+        if (segments.Length < 4 || segments[3] != "role")
         {
-            var roleId = segments[4].ToLowerInvariant();
-
-            if (!MemoryScopePolicy.RoleIds.Contains(roleId))
-            {
-                return Fail("project role namespace role id is not supported.", out memoryNamespace, out error);
-            }
-
-            memoryNamespace = memoryNamespace with
-            {
-                RoleId = roleId
-            };
+            return true;
         }
 
+        if (segments.Length < 6)
+        {
+            return Fail($"{scopeType} role namespace must include a role id and category segment.", out memoryNamespace, out error);
+        }
+
+        var roleId = segments[4].ToLowerInvariant();
+
+        if (!MemoryScopePolicy.RoleIds.Contains(roleId))
+        {
+            return Fail($"{scopeType} role namespace role id is not supported.", out memoryNamespace, out error);
+        }
+
+        memoryNamespace = memoryNamespace with
+        {
+            RoleId = roleId
+        };
         return true;
     }
 

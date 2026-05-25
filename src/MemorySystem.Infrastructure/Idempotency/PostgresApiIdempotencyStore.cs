@@ -3,17 +3,21 @@ namespace MemorySystem.Infrastructure.Idempotency;
 
 public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : IApiIdempotencyStore
 {
+    private const int ExpiredRecordCleanupLimit = 100;
+
     public async Task<ApiIdempotencyBeginResult> BeginAsync(
         Guid principalId,
         string endpoint,
         string idempotencyKey,
         string requestHash,
+        IReadOnlyCollection<string> acceptedRequestHashes,
         DateTimeOffset expiresAt,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
+        ArgumentNullException.ThrowIfNull(acceptedRequestHashes);
 
         var now = DateTimeOffset.UtcNow;
         var recordId = Guid.NewGuid();
@@ -28,6 +32,12 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
             endpoint,
             idempotencyKey,
             now,
+            cancellationToken);
+        await DeleteExpiredRecordsAsync(
+            connection,
+            transaction,
+            now,
+            ExpiredRecordCleanupLimit,
             cancellationToken);
 
         var inserted = await InsertProcessingRecordAsync(
@@ -53,7 +63,9 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
 
         await transaction.CommitAsync(cancellationToken);
 
-        return new ApiIdempotencyBeginResult(GetBeginStatus(record, requestHash, inserted is not null), record);
+        return new ApiIdempotencyBeginResult(
+            GetBeginStatus(record, acceptedRequestHashes, inserted is not null),
+            record);
     }
 
     public async Task CompleteAsync(
@@ -125,6 +137,35 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         AddKeyParameters(command, principalId, endpoint, idempotencyKey);
         command.Parameters.AddWithValue("now", now);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task DeleteExpiredRecordsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        DateTimeOffset now,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            WITH expired_records AS (
+                SELECT id
+                FROM api_idempotency_keys
+                WHERE status IN ('processing', 'completed', 'failed')
+                    AND expires_at <= @now
+                ORDER BY expires_at, id
+                FOR UPDATE SKIP LOCKED
+                LIMIT @limit
+            )
+            DELETE FROM api_idempotency_keys AS record
+            USING expired_records
+            WHERE record.id = expired_records.id;
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("now", now);
+        command.Parameters.AddWithValue("limit", limit);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -225,7 +266,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
 
     private static ApiIdempotencyBeginStatus GetBeginStatus(
         ApiIdempotencyRecord record,
-        string requestHash,
+        IReadOnlyCollection<string> acceptedRequestHashes,
         bool inserted)
     {
         if (inserted)
@@ -233,7 +274,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
             return ApiIdempotencyBeginStatus.Started;
         }
 
-        if (!string.Equals(record.RequestHash, requestHash, StringComparison.Ordinal))
+        if (!acceptedRequestHashes.Contains(record.RequestHash, StringComparer.Ordinal))
         {
             return ApiIdempotencyBeginStatus.Conflict;
         }

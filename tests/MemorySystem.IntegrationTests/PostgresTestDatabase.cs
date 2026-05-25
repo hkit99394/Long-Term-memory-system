@@ -1,4 +1,3 @@
-using System.Net.Sockets;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -8,7 +7,7 @@ internal static class PostgresTestDatabase
     private const string ConnectionStringEnvironmentVariable = "MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING";
     private const string DefaultLocalAdminConnectionString =
         "Host=127.0.0.1;Port=55432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password";
-    private const int DefaultLocalPostgresPort = 55432;
+    private static readonly Lazy<bool> DefaultLocalPostgresIsReachable = new(IsDefaultLocalPostgresReachableCore);
 
     public const string MissingAdminConnectionStringSkipReason =
         "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING or the local Docker PostgreSQL on 127.0.0.1:55432.";
@@ -91,20 +90,33 @@ internal static class PostgresTestDatabase
 
     private static bool IsDefaultLocalPostgresReachable()
     {
+        return DefaultLocalPostgresIsReachable.Value;
+    }
+
+    private static bool IsDefaultLocalPostgresReachableCore()
+    {
         try
         {
-            using var client = new TcpClient();
-            var connect = client.ConnectAsync("127.0.0.1", DefaultLocalPostgresPort);
+            var builder = new NpgsqlConnectionStringBuilder(DefaultLocalAdminConnectionString)
+            {
+                Timeout = 1,
+                CommandTimeout = 1
+            };
 
-            return connect.Wait(TimeSpan.FromMilliseconds(250))
-                && connect.IsCompletedSuccessfully
-                && client.Connected;
+            using var connection = new NpgsqlConnection(builder.ConnectionString);
+            connection.Open();
+
+            return true;
         }
-        catch (SocketException)
+        catch (NpgsqlException)
         {
             return false;
         }
-        catch (AggregateException)
+        catch (TimeoutException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }
