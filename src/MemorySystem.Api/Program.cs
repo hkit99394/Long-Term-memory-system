@@ -8,6 +8,7 @@ using MemorySystem.Api.MemoryProposals;
 using MemorySystem.Api.Scopes;
 using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Health;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -16,6 +17,7 @@ using System.Security.Claims;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMemorySystemPostgresDataSource(builder.Configuration, builder.Environment);
+builder.Services.AddMemorySystemEmbeddings(builder.Configuration);
 builder.Services.AddMemorySystemApiAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemApiIdempotency(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemScopes();

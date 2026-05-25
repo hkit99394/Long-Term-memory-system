@@ -1,14 +1,34 @@
+using System.Net.Sockets;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
 
 internal static class PostgresTestDatabase
 {
-    public static string? AdminConnectionString =>
-        Environment.GetEnvironmentVariable("MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING");
+    private const string ConnectionStringEnvironmentVariable = "MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING";
+    private const string DefaultLocalAdminConnectionString =
+        "Host=127.0.0.1;Port=55432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password";
+    private const int DefaultLocalPostgresPort = 55432;
 
     public const string MissingAdminConnectionStringSkipReason =
-        "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING.";
+        "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING or the local Docker PostgreSQL on 127.0.0.1:55432.";
+
+    public static string? AdminConnectionString
+    {
+        get
+        {
+            var configuredConnectionString = Environment.GetEnvironmentVariable(ConnectionStringEnvironmentVariable);
+
+            if (!string.IsNullOrWhiteSpace(configuredConnectionString))
+            {
+                return configuredConnectionString;
+            }
+
+            return IsDefaultLocalPostgresReachable()
+                ? DefaultLocalAdminConnectionString
+                : null;
+        }
+    }
 
     public static bool HasAdminConnectionString =>
         !string.IsNullOrWhiteSpace(AdminConnectionString);
@@ -20,8 +40,10 @@ internal static class PostgresTestDatabase
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING. " +
-                "Run fast tests with --filter \"Category!=Database\" or provide a PostgreSQL connection string.");
+                "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING " +
+                "or the local Docker PostgreSQL on 127.0.0.1:55432. " +
+                "Run fast tests with --filter \"Category!=Database\", start Docker Compose PostgreSQL, " +
+                "or provide a PostgreSQL connection string.");
         }
 
         return connectionString;
@@ -65,5 +87,26 @@ internal static class PostgresTestDatabase
     private static string QuoteIdentifier(string identifier)
     {
         return "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static bool IsDefaultLocalPostgresReachable()
+    {
+        try
+        {
+            using var client = new TcpClient();
+            var connect = client.ConnectAsync("127.0.0.1", DefaultLocalPostgresPort);
+
+            return connect.Wait(TimeSpan.FromMilliseconds(250))
+                && connect.IsCompletedSuccessfully
+                && client.Connected;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+        catch (AggregateException)
+        {
+            return false;
+        }
     }
 }

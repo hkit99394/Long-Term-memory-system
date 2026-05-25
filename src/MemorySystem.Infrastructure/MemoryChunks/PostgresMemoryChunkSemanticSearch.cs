@@ -1,0 +1,291 @@
+using MemorySystem.Application.MemoryChunks;
+using MemorySystem.Application.MemoryEmbeddings;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
+using Npgsql;
+using NpgsqlTypes;
+
+namespace MemorySystem.Infrastructure.MemoryChunks;
+
+public sealed class PostgresMemoryChunkSemanticSearch(
+    NpgsqlDataSource dataSource,
+    IMemoryEmbeddingProvider embeddingProvider) : IMemoryChunkSemanticSearch
+{
+    public async Task<IReadOnlyList<MemoryChunkSearchResult>> SearchAsync(
+        MemoryChunkSemanticSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.Query);
+
+        if (query.Limit is < 1 or > 50)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Semantic search limit must be between 1 and 50.");
+        }
+
+        var queryEmbedding = await embeddingProvider.EmbedAsync(
+            new MemoryEmbeddingRequest(query.Query.Trim()),
+            cancellationToken);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(SearchSql, connection);
+        command.Parameters.AddWithValue("principal_id", query.PrincipalId);
+        command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
+        command.Parameters.AddWithValue("embedding_model", queryEmbedding.Model);
+        command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
+        command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.Add("read_permissions", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
+        new[]
+        {
+            "read",
+            "write",
+            "review",
+            "admin"
+        };
+        command.Parameters.Add("read_project_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
+        new[]
+        {
+            "reader",
+            "contributor",
+            "reviewer",
+            "admin"
+        };
+        command.Parameters.Add("read_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
+        new[]
+        {
+            "reader",
+            "contributor",
+            "reviewer",
+            "admin",
+            "owner"
+        };
+        command.Parameters.Add("admin_org_access_levels", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
+        new[]
+        {
+            "admin",
+            "owner"
+        };
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new List<MemoryChunkSearchResult>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new MemoryChunkSearchResult(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.GetGuid(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.GetString(7),
+                reader.GetDouble(8),
+                reader.GetString(9),
+                reader.GetGuid(10)));
+        }
+
+        return results;
+    }
+
+    private const string SearchSql = """
+        WITH authorized_chunks AS MATERIALIZED (
+            SELECT
+                chunk.id,
+                chunk.source_type,
+                chunk.source_id,
+                chunk.namespace,
+                chunk.scope_type,
+                chunk.scope_id,
+                chunk.title,
+                chunk.content,
+                chunk.trust_level,
+                chunk.source_event_id,
+                chunk.updated_at,
+                embedding.embedding AS embedding_vector,
+                CASE
+                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                    WHEN chunk.scope_type = 'project' THEN project.org_id
+                    ELSE NULL
+                END AS scope_org_id,
+                CASE
+                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    ELSE NULL
+                END AS scope_project_id
+            FROM memory_chunks AS chunk
+            INNER JOIN memory_embeddings AS embedding
+                ON embedding.chunk_id = chunk.id
+                AND embedding.embedding_model = @embedding_model
+                AND embedding.embedding_dimension = @embedding_dimension
+            LEFT JOIN projects AS project
+                ON project.id = CASE
+                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    ELSE NULL
+                END
+            LEFT JOIN memory_facts AS fact
+                ON chunk.source_type = 'memory_fact'
+                AND fact.id = chunk.source_id
+            LEFT JOIN role_memory_lenses AS lens
+                ON chunk.source_type = 'role_memory_lens'
+                AND lens.id = chunk.source_id
+            WHERE chunk.redacted_at IS NULL
+                AND (
+                    (
+                        chunk.source_type = 'memory_fact'
+                        AND fact.status = 'active'
+                    )
+                    OR (
+                        chunk.source_type = 'role_memory_lens'
+                        AND lens.status = 'active'
+                    )
+                )
+                AND (
+                    chunk.scope_type IN ('global', 'session')
+                    OR (
+                        chunk.scope_type IN ('user', 'agent')
+                        AND chunk.scope_id = @principal_id_text
+                    )
+                    OR (
+                        chunk.scope_type = 'role'
+                        AND EXISTS (
+                            SELECT 1
+                            FROM role_assignments AS assignment
+                            WHERE assignment.principal_id = @principal_id
+                                AND assignment.role_id = chunk.scope_id
+                                AND assignment.scope_type = 'global'
+                        )
+                    )
+                    OR (
+                        chunk.scope_type = 'org'
+                        AND EXISTS (
+                            SELECT 1
+                            FROM organization_memberships AS membership
+                            WHERE membership.principal_id = @principal_id
+                                AND membership.org_id = CASE
+                                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                    ELSE NULL
+                                END
+                                AND membership.access_level = ANY(@read_org_access_levels)
+                        )
+                    )
+                    OR (
+                        chunk.scope_type = 'project'
+                        AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM project_memberships AS membership
+                                INNER JOIN projects AS project_membership
+                                    ON project_membership.id = membership.project_id
+                                    AND project_membership.status = 'active'
+                                WHERE membership.principal_id = @principal_id
+                                    AND membership.project_id = CASE
+                                        WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                        ELSE NULL
+                                    END
+                                    AND membership.access_level = ANY(@read_project_access_levels)
+                            )
+                            OR EXISTS (
+                                SELECT 1
+                                FROM organization_memberships AS membership
+                                WHERE membership.principal_id = @principal_id
+                                    AND membership.org_id = project.org_id
+                                    AND membership.access_level = ANY(@admin_org_access_levels)
+                            )
+                        )
+                    )
+                )
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM memory_access_grants AS grant_record
+                        WHERE grant_record.principal_id = @principal_id
+                            AND grant_record.permission = ANY(@read_permissions)
+                            AND (
+                                chunk.namespace = grant_record.namespace_prefix
+                                OR left(chunk.namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
+                            )
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM memory_access_grants AS grant_record
+                        WHERE grant_record.role_id IS NOT NULL
+                            AND grant_record.permission = ANY(@read_permissions)
+                            AND (
+                                chunk.namespace = grant_record.namespace_prefix
+                                OR left(chunk.namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
+                            )
+                            AND EXISTS (
+                                SELECT 1
+                                FROM role_assignments AS assignment
+                                WHERE assignment.principal_id = @principal_id
+                                    AND assignment.role_id = grant_record.role_id
+                                    AND (
+                                        assignment.scope_type = 'global'
+                                        OR (
+                                            chunk.scope_type <> 'role'
+                                            AND (
+                                                CASE
+                                                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                                    WHEN chunk.scope_type = 'project' THEN project.org_id
+                                                    ELSE NULL
+                                                END
+                                            ) IS NOT NULL
+                                            AND assignment.scope_type = 'org'
+                                            AND assignment.scope_id = CASE
+                                                WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                                                WHEN chunk.scope_type = 'project' THEN project.org_id
+                                                ELSE NULL
+                                            END
+                                        )
+                                        OR (
+                                            chunk.scope_type <> 'role'
+                                            AND (
+                                                CASE
+                                                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                    ELSE NULL
+                                                END
+                                            ) IS NOT NULL
+                                            AND assignment.scope_type = 'project'
+                                            AND assignment.scope_id = CASE
+                                                WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                                                ELSE NULL
+                                            END
+                                        )
+                                    )
+                            )
+                    )
+                )
+        ),
+        ranked_chunks AS (
+            SELECT
+                authorized.id,
+                authorized.source_type,
+                authorized.source_id,
+                authorized.namespace,
+                authorized.scope_type,
+                authorized.scope_id,
+                authorized.title,
+                authorized.content,
+                authorized.trust_level,
+                authorized.source_event_id,
+                authorized.updated_at,
+                (authorized.embedding_vector <=> @query_embedding::vector)::double precision AS distance
+            FROM authorized_chunks AS authorized
+        )
+        SELECT
+            ranked.id,
+            ranked.source_type,
+            ranked.source_id,
+            ranked.namespace,
+            ranked.scope_type,
+            ranked.scope_id,
+            ranked.title,
+            ranked.content,
+            (1.0 - ranked.distance)::double precision AS rank,
+            ranked.trust_level,
+            ranked.source_event_id
+        FROM ranked_chunks AS ranked
+        ORDER BY ranked.distance ASC, ranked.updated_at DESC, ranked.id
+        LIMIT @limit;
+        """;
+}

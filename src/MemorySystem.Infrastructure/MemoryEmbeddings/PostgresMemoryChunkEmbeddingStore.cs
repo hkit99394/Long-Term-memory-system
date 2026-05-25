@@ -1,4 +1,3 @@
-using System.Globalization;
 using MemorySystem.Application.MemoryEmbeddings;
 using Npgsql;
 
@@ -48,23 +47,8 @@ public sealed class PostgresMemoryChunkEmbeddingStore(NpgsqlDataSource dataSourc
         sql.Parameters.AddWithValue("chunk_id", command.ChunkId);
         sql.Parameters.AddWithValue("embedding_model", command.Model);
         sql.Parameters.AddWithValue("embedding_dimension", command.Dimension);
-        sql.Parameters.AddWithValue("embedding", ToVectorLiteral(command.Values));
+        sql.Parameters.AddWithValue("embedding", MemoryEmbeddingVectorLiteral.Format(command.Values));
 
         await sql.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static string ToVectorLiteral(IReadOnlyList<float> values)
-    {
-        foreach (var value in values)
-        {
-            if (float.IsNaN(value) || float.IsInfinity(value))
-            {
-                throw new ArgumentException("Embedding values must be finite.", nameof(values));
-            }
-        }
-
-        return "[" + string.Join(
-            ",",
-            values.Select(value => value.ToString("G9", CultureInfo.InvariantCulture))) + "]";
     }
 }

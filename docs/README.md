@@ -42,6 +42,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0022: Memory Proposal Confidence Scoring](decisions/0022-memory-proposal-confidence-scoring.md) | Records the M5 broker confidence scoring table and review threshold for durable proposal decisions. |
 | [Decision 0023: Authorized Full-Text Memory Search](decisions/0023-authorized-full-text-memory-search.md) | Records the M6 full-text search path over `memory_chunks.search_vector` with authorization predicates inside SQL. |
 | [Decision 0024: Embedding Provider Adapter](decisions/0024-embedding-provider-adapter.md) | Records the M6 embedding provider contract, deterministic local adapter, selected model/dimension configuration, and idempotent embedding storage path. |
+| [Decision 0025: Authorized pgvector Semantic Search](decisions/0025-authorized-pgvector-semantic-search.md) | Records the M6 semantic search endpoint, cosine distance operator, authorization-before-ranking query shape, and deferred ANN index choice. |
 
 ## Dictionary
 
@@ -77,6 +78,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
 | Role lens base fact | The memory fact that a role lens interprets. Its scope must match the lens type: global for global role lenses, same organization for organization role lenses, or target project/same organization for project-role lenses. |
 | Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
+| Semantic memory search | Vector retrieval over `memory_embeddings` using pgvector cosine distance, with authorized chunk filtering applied before distance ranking. |
 | Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
 | Session memory | Temporary memory for the current task or conversation only. |
 | Similar active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate but a different object. |

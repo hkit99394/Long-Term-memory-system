@@ -12,6 +12,7 @@ public static class ApiMemoryFactServiceCollectionExtensions
     public static IServiceCollection AddMemorySystemMemoryFacts(this IServiceCollection services)
     {
         services.AddSingleton<IMemoryChunkFullTextSearch, PostgresMemoryChunkFullTextSearch>();
+        services.AddSingleton<IMemoryChunkSemanticSearch, PostgresMemoryChunkSemanticSearch>();
         services.AddSingleton<IMemoryFactReadService, MemoryFactReadService>();
         services.AddSingleton<IMemoryFactRepository, PostgresMemoryFactRepository>();
         services.AddSingleton<IRoleMemoryLensRepository, PostgresRoleMemoryLensRepository>();

@@ -81,8 +81,8 @@ Before M4 implementation:
 
 Before M6 implementation:
 
-- Choose embedding provider and vector dimension.
-- Choose vector distance operator and index type.
+- Embedding provider and vector dimension are decided in [Decision 0024](decisions/0024-embedding-provider-adapter.md): deterministic local adapter with configurable model and dimension for the MVP.
+- Vector distance operator is decided in [Decision 0025](decisions/0025-authorized-pgvector-semantic-search.md): pgvector cosine distance with exact ordering until a production model-specific ANN index is chosen.
 - Define context packet size and source-link expectations.
 
 ## First Build Sequence

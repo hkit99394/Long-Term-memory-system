@@ -83,7 +83,7 @@ Status values:
 | --- | --- | --- | --- | --- |
 | M6-01 | P0 | Done | Add full-text search. | `memory_chunks.search_vector` is populated and queried inside authorized predicates. |
 | M6-02 | P0 | Done | Add embedding provider adapter. | Chunks can be embedded with a selected model and dimension. |
-| M6-03 | P0 | Todo | Add pgvector semantic search. | Vector queries use the chosen distance operator and never rank unauthorized rows. |
+| M6-03 | P0 | Done | Add pgvector semantic search. | Vector queries use the chosen distance operator and never rank unauthorized rows. |
 | M6-04 | P0 | Todo | Implement hybrid ranking. | Relevance, confidence, recency, authority, and scope match are combined into a final score. |
 | M6-05 | P0 | Todo | Implement context packet builder. | Context packet is compact, source-linked, permission-aware, and explainable. |
 | M6-06 | P1 | Todo | Add retrieval evaluation tests. | Relevance, compactness, write precision, false positives, and contradiction quality can be measured. |
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M6-03`: Add pgvector semantic search.
+1. `M6-04`: Implement hybrid ranking.

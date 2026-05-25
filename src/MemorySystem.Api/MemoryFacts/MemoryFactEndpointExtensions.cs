@@ -18,6 +18,15 @@ public static class MemoryFactEndpointExtensions
             .RequireAuthorization();
 
         endpoints.MapGet(
+            "/api/memory/search/semantic",
+            async (
+                HttpContext context,
+                IMemoryChunkSemanticSearch search,
+                CancellationToken cancellationToken) =>
+                await SemanticSearchAsync(context, search, cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapGet(
             "/api/memory/{id:guid}",
             async (
                 Guid id,
@@ -63,6 +72,44 @@ public static class MemoryFactEndpointExtensions
 
         var results = await search.SearchAsync(
             new MemoryChunkFullTextSearchQuery(principalId, query, limit),
+            cancellationToken);
+
+        return Results.Ok(new MemorySearchResponse(results.Select(ToSearchResultResponse).ToArray()));
+    }
+
+    private static async Task<IResult> SemanticSearchAsync(
+        HttpContext context,
+        IMemoryChunkSemanticSearch search,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Authenticated principal is invalid.",
+                detail: "The API key did not resolve to a valid principal id.");
+        }
+
+        var query = context.Request.Query["q"].ToString();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory semantic search is invalid.",
+                detail: "Query parameter 'q' is required.");
+        }
+
+        if (!TryReadLimit(context, out var limit, out var error))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory semantic search is invalid.",
+                detail: error);
+        }
+
+        var results = await search.SearchAsync(
+            new MemoryChunkSemanticSearchQuery(principalId, query, limit),
             cancellationToken);
 
         return Results.Ok(new MemorySearchResponse(results.Select(ToSearchResultResponse).ToArray()));
