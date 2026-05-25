@@ -1,4 +1,5 @@
 using MemorySystem.Infrastructure.Outbox;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,7 +139,10 @@ public sealed class OutboxWorkerOptionsTests
     [Fact]
     public void AddMemorySystemOutboxWorker_registers_enabled_worker_composition()
     {
-        var builder = Host.CreateApplicationBuilder();
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = Environments.Development
+        });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Postgres"] =
@@ -154,6 +158,50 @@ public sealed class OutboxWorkerOptionsTests
         Assert.IsType<PostgresOutboxJobStore>(provider.GetRequiredService<IOutboxJobStore>());
         Assert.NotEmpty(provider.GetServices<IOutboxJobHandler>());
         Assert.NotNull(provider.GetRequiredService<OutboxJobProcessor>());
+        Assert.Contains(provider.GetServices<IHostedService>(), service => service is OutboxWorkerService);
+    }
+
+    [Fact]
+    public void AddMemorySystemOutboxWorker_rejects_enabled_deterministic_embeddings_outside_development_and_testing()
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = "Staging"
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] =
+                "Host=127.0.0.1;Port=1;Database=missing;Username=missing;Password=missing",
+            ["OutboxWorker:WorkerId"] = "composition-test-worker"
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment));
+
+        Assert.Contains("production embedding provider", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AddMemorySystemOutboxWorker_allows_configured_production_embedding_provider_outside_development_and_testing()
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = "Staging"
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] =
+                "Host=127.0.0.1;Port=1;Database=missing;Username=missing;Password=missing",
+            ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+            ["Embeddings:ApiKey"] = "test-openai-key",
+            ["OutboxWorker:WorkerId"] = "composition-test-worker"
+        });
+
+        builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
+
+        using var provider = builder.Services.BuildServiceProvider();
+
+        Assert.Equal(MemoryEmbeddingOptions.OpenAiProvider, provider.GetRequiredService<IOptions<MemoryEmbeddingOptions>>().Value.Provider);
         Assert.Contains(provider.GetServices<IHostedService>(), service => service is OutboxWorkerService);
     }
 

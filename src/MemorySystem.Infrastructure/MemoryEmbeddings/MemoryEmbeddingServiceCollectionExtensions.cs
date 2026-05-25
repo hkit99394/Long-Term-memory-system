@@ -11,9 +11,24 @@ public static class MemoryEmbeddingServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var options = MemoryEmbeddingOptions.Read(configuration);
-        services.AddSingleton(Options.Create(options));
-        services.AddSingleton<IMemoryEmbeddingProvider, DeterministicMemoryEmbeddingProvider>();
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddSingleton<IOptions<MemoryEmbeddingOptions>>(serviceProvider =>
+        {
+            var resolvedConfiguration = serviceProvider.GetRequiredService<IConfiguration>();
+            return Options.Create(MemoryEmbeddingOptions.Read(resolvedConfiguration));
+        });
+        services.AddHostedService<MemoryEmbeddingOptionsValidationHostedService>();
+
+        services.AddSingleton<IMemoryEmbeddingProvider>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<MemoryEmbeddingOptions>>().Value;
+
+            return string.Equals(options.Provider, MemoryEmbeddingOptions.DeterministicProvider, StringComparison.Ordinal)
+                ? ActivatorUtilities.CreateInstance<DeterministicMemoryEmbeddingProvider>(serviceProvider)
+                : ActivatorUtilities.CreateInstance<OpenAiMemoryEmbeddingProvider>(serviceProvider);
+        });
+
         services.AddSingleton<IMemoryChunkEmbeddingStore, PostgresMemoryChunkEmbeddingStore>();
 
         return services;

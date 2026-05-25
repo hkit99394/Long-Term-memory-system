@@ -49,8 +49,10 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IContextPacketBuilder contextPacketBuilder,
+                IHostEnvironment environment,
+                IOptions<MemoryEmbeddingOptions> embeddingOptions,
                 CancellationToken cancellationToken) =>
-                await BuildContextPacketAsync(context, contextPacketBuilder, cancellationToken))
+                await BuildContextPacketAsync(context, contextPacketBuilder, environment, embeddingOptions.Value, cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -174,8 +176,15 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> BuildContextPacketAsync(
         HttpContext context,
         IContextPacketBuilder contextPacketBuilder,
+        IHostEnvironment environment,
+        MemoryEmbeddingOptions embeddingOptions,
         CancellationToken cancellationToken)
     {
+        if (!TryEnsureSemanticRetrievalConfigured(environment, embeddingOptions, out var configurationFailure))
+        {
+            return configurationFailure;
+        }
+
         if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
@@ -263,12 +272,7 @@ public static class MemoryFactEndpointExtensions
         MemoryEmbeddingOptions embeddingOptions,
         [NotNullWhen(false)] out IResult? failure)
     {
-        if (environment.IsDevelopment()
-            || environment.IsEnvironment("Testing")
-            || !string.Equals(
-                embeddingOptions.Provider,
-                MemoryEmbeddingOptions.DeterministicProvider,
-                StringComparison.Ordinal))
+        if (MemoryEmbeddingEnvironmentPolicy.HasUsableProvider(environment, embeddingOptions))
         {
             failure = null;
             return true;

@@ -46,6 +46,47 @@ public sealed class MemoryEmbeddingOptionsTests
     }
 
     [Fact]
+    public void Read_supports_openai_provider_configuration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+                ["Embeddings:Model"] = "text-embedding-3-small",
+                ["Embeddings:Dimension"] = "1536",
+                ["Embeddings:ApiKey"] = "test-key"
+            })
+            .Build();
+
+        var options = MemoryEmbeddingOptions.Read(configuration);
+
+        Assert.Equal(MemoryEmbeddingOptions.OpenAiProvider, options.Provider);
+        Assert.Equal("text-embedding-3-small", options.Model);
+        Assert.Equal(1536, options.Dimension);
+        Assert.Equal("test-key", options.ApiKey);
+        Assert.Equal(MemoryEmbeddingOptions.DefaultOpenAiEndpoint, options.Endpoint);
+    }
+
+    [Fact]
+    public void Read_uses_openai_api_key_environment_fallback()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Embeddings:Provider"] = "OPENAI",
+                ["OPENAI_API_KEY"] = "environment-test-key"
+            })
+            .Build();
+
+        var options = MemoryEmbeddingOptions.Read(configuration);
+
+        Assert.Equal(MemoryEmbeddingOptions.OpenAiProvider, options.Provider);
+        Assert.Equal(MemoryEmbeddingOptions.DefaultOpenAiModel, options.Model);
+        Assert.Equal(MemoryEmbeddingOptions.DefaultOpenAiDimension, options.Dimension);
+        Assert.Equal("environment-test-key", options.ApiKey);
+    }
+
+    [Fact]
     public void Read_rejects_unsupported_provider()
     {
         var configuration = new ConfigurationBuilder()
@@ -73,6 +114,38 @@ public sealed class MemoryEmbeddingOptionsTests
         var exception = Assert.Throws<InvalidOperationException>(() => MemoryEmbeddingOptions.Read(configuration));
 
         Assert.Contains("model", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Read_rejects_openai_provider_without_api_key()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => MemoryEmbeddingOptions.Read(configuration));
+
+        Assert.Contains("api_key", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Read_rejects_openai_provider_with_plaintext_endpoint()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+                ["Embeddings:Endpoint"] = "http://localhost:9999/v1/embeddings",
+                ["Embeddings:ApiKey"] = "test-key"
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => MemoryEmbeddingOptions.Read(configuration));
+
+        Assert.Contains("HTTPS", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

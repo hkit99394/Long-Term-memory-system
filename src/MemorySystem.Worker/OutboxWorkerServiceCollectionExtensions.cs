@@ -23,6 +23,11 @@ public static class OutboxWorkerServiceCollectionExtensions
             return services;
         }
 
+        MemoryEmbeddingEnvironmentPolicy.ThrowIfProviderIsNotUsable(
+            environment,
+            MemoryEmbeddingOptions.Read(configuration),
+            "Outbox worker");
+
         services.AddMemorySystemPostgresDataSource(configuration, environment);
         services.AddMemorySystemEmbeddings(configuration);
         services.AddSingleton<IOutboxJobStore, PostgresOutboxJobStore>();

@@ -24,11 +24,11 @@ Use pgvector cosine distance via the `<=>` operator. The response keeps the exis
 
 The SQL query first builds an `authorized_chunks AS MATERIALIZED` candidate set that includes only active, non-redacted chunks the principal may read by scope, membership, role assignment, and namespace grant. The vector distance expression is applied only against that materialized authorized set.
 
-Do not add an ANN vector index yet. The schema still allows configurable model and dimension, so this slice uses the existing `(embedding_model, embedding_dimension)` narrowing index plus exact pgvector ordering. A model-specific HNSW or IVFFlat index should be added once the production embedding model and dimension are fixed.
+Use the existing `(embedding_model, embedding_dimension)` narrowing index plus exact pgvector ordering as the baseline. Migration 014 adds a 32-dimensional HNSW cosine index for deterministic local rows, where the model and dimension are stable. Production OpenAI embeddings default to 1536 dimensions and should receive a separate model-specific HNSW or IVFFlat index once production volume warrants it.
 
 ## Consequences
 
 - Semantic search runs inside PostgreSQL with pgvector and the same authorization rules as full-text memory search.
 - Unauthorized rows are excluded before cosine distance ranking and limiting.
 - The endpoint is ready for M6-04 hybrid ranking to combine full-text and semantic result sets.
-- Exact vector ordering is acceptable for the MVP data size; larger deployments will need a model-specific ANN index decision.
+- Exact vector ordering is acceptable for the MVP data size and for production bring-up; larger production deployments will need a 1536-dimensional model-specific ANN index decision.
