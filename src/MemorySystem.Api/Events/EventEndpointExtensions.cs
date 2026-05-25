@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Events;
@@ -25,7 +27,41 @@ public static class EventEndpointExtensions
                             cancellationToken)))
             .RequireAuthorization();
 
+        endpoints.MapGet(
+            "/api/events/{id:guid}",
+            async (
+                Guid id,
+                HttpContext context,
+                IEventReadService eventReadService,
+                CancellationToken cancellationToken) =>
+                await ReadEventAsync(id, context, eventReadService, cancellationToken))
+            .RequireAuthorization();
+
         return endpoints;
+    }
+
+    private static async Task<IResult> ReadEventAsync(
+        Guid id,
+        HttpContext context,
+        IEventReadService eventReadService,
+        CancellationToken cancellationToken)
+    {
+        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var result = await eventReadService.ReadAsync(principalId, id, cancellationToken);
+
+        if (!result.Found)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Source event was not found.",
+                detail: "The source event does not exist or is not accessible.");
+        }
+
+        return Results.Ok(ToResponse(result.Event!));
     }
 
     private static async Task<ApiIdempotencyResponse> AppendEventAsync(
@@ -52,5 +88,52 @@ public static class EventEndpointExtensions
         var result = await workflow.AppendAsync(workflowRequest, cancellationToken);
 
         return AppendEventRequestMapper.ToApiResponse(result);
+    }
+
+    private static bool TryReadPrincipalId(
+        HttpContext context,
+        out Guid principalId,
+        [NotNullWhen(false)] out IResult? failure)
+    {
+        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = Results.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Authenticated principal is invalid.",
+            detail: "The API key did not resolve to a valid principal id.");
+        return false;
+    }
+
+    private static EventResponse ToResponse(EventRecord eventRecord)
+    {
+        using var content = JsonDocument.Parse(eventRecord.ContentJson);
+
+        return new EventResponse(
+            eventRecord.Id,
+            eventRecord.PrincipalId,
+            eventRecord.ConversationId,
+            eventRecord.AgentPrincipalId,
+            eventRecord.RoleId,
+            eventRecord.EventType,
+            content.RootElement.Clone(),
+            eventRecord.ContentHash,
+            eventRecord.ExternalPayloadUri,
+            eventRecord.RetentionClass,
+            eventRecord.Sensitivity,
+            eventRecord.TrustLevel,
+            eventRecord.CreatedAt,
+            new EventScopeResponse(
+                eventRecord.Scope.ScopeType,
+                eventRecord.Scope.ScopeId,
+                eventRecord.Scope.OrgId,
+                eventRecord.Scope.ProjectId,
+                eventRecord.Scope.PrincipalId,
+                eventRecord.Scope.ScopeRoleId,
+                eventRecord.Scope.AgentPrincipalId,
+                eventRecord.Scope.ConversationId));
     }
 }

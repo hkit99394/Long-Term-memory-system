@@ -37,7 +37,7 @@ public sealed class MemoryContextPacketBuilderTests
         var item = Assert.Single(packet.RelevantDecisions);
         Assert.Equal(360, item.Content.Length);
         Assert.EndsWith("...", item.Content, StringComparison.Ordinal);
-        Assert.Null(item.SourceLink);
+        Assert.Equal($"/api/events/{sourceEventId}", item.SourceLink);
     }
 
     [Fact]

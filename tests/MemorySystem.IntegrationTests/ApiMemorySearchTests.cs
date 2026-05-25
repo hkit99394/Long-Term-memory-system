@@ -503,7 +503,7 @@ public sealed class ApiMemorySearchTests
             Assert.Equal("user_preference", userPreference.GetProperty("kind").GetString());
             Assert.True(userPreference.GetProperty("content").GetString()!.Length <= 360);
             Assert.Equal(fixture.UserPreferenceEventId, userPreference.GetProperty("sourceEventId").GetGuid());
-            Assert.Equal(JsonValueKind.Null, userPreference.GetProperty("sourceLink").ValueKind);
+            Assert.Equal($"/api/events/{fixture.UserPreferenceEventId}", userPreference.GetProperty("sourceLink").GetString());
             Assert.True(userPreference.GetProperty("explanation").GetProperty("rank").GetDouble() > 0);
             Assert.True(userPreference.GetProperty("explanation").GetProperty("components").GetProperty("relevance").GetDouble() >= 0);
             Assert.Contains("confidence", userPreference.GetProperty("explanation").GetProperty("summary").GetString(), StringComparison.Ordinal);
@@ -511,13 +511,13 @@ public sealed class ApiMemorySearchTests
             var relevantDecision = Assert.Single(payload.GetProperty("relevantDecisions").EnumerateArray());
             Assert.Equal(fixture.ProjectDecisionId, relevantDecision.GetProperty("sourceId").GetGuid());
             Assert.Equal("project_decision", relevantDecision.GetProperty("kind").GetString());
-            Assert.Equal(JsonValueKind.Null, relevantDecision.GetProperty("sourceLink").ValueKind);
+            Assert.Equal($"/api/events/{fixture.ProjectDecisionEventId}", relevantDecision.GetProperty("sourceLink").GetString());
 
             var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
             Assert.Equal("project_role_lens", roleMemory.GetProperty("kind").GetString());
             Assert.Equal(fixture.RoleMemoryLensId, roleMemory.GetProperty("sourceId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, roleMemory.GetProperty("baseMemoryFactId").GetGuid());
-            Assert.Equal(JsonValueKind.Null, roleMemory.GetProperty("sourceLink").ValueKind);
+            Assert.Equal($"/api/events/{fixture.RoleLensEventId}", roleMemory.GetProperty("sourceLink").GetString());
 
             var sourceEvents = payload
                 .GetProperty("sourceEvents")
@@ -530,7 +530,11 @@ public sealed class ApiMemorySearchTests
             Assert.Contains(fixture.UserPreferenceEventId, sourceEventIds);
             Assert.Contains(fixture.ProjectDecisionEventId, sourceEventIds);
             Assert.Contains(fixture.RoleLensEventId, sourceEventIds);
-            Assert.All(sourceEvents, sourceEvent => Assert.Equal(JsonValueKind.Null, sourceEvent.GetProperty("link").ValueKind));
+            Assert.All(
+                sourceEvents,
+                sourceEvent => Assert.Equal(
+                    $"/api/events/{sourceEvent.GetProperty("id").GetGuid()}",
+                    sourceEvent.GetProperty("link").GetString()));
             Assert.DoesNotContain(fixture.CfoRoleLensEventId, sourceEventIds);
             Assert.DoesNotContain(fixture.ProjectBDecisionEventId, sourceEventIds);
             Assert.DoesNotContain(fixture.CfoRoleMemoryLensId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);

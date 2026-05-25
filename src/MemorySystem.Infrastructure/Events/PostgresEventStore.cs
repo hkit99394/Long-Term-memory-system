@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryProposals;
+using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.Idempotency;
 using MemorySystem.Infrastructure.Scopes;
 using Npgsql;
@@ -8,9 +9,85 @@ using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.Events;
 
-public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStore, ISourceEventReferenceStore
+public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStore, IEventReadStore, ISourceEventReferenceStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async Task<EventRecord?> FindAsync(
+        Guid eventId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT
+                id,
+                principal_id,
+                conversation_id,
+                agent_principal_id,
+                role_id,
+                event_type,
+                content::text,
+                content_hash,
+                external_payload_uri,
+                retention_class,
+                sensitivity,
+                trust_level,
+                created_at,
+                scope_type,
+                scope_id,
+                scope_org_id,
+                scope_project_id,
+                scope_principal_id,
+                scope_role_id
+            FROM events
+            WHERE id = @event_id
+                AND retention_class <> 'erasure_requested'
+                AND redaction_status = 'none';
+            """,
+            connection);
+        command.Parameters.AddWithValue("event_id", eventId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        Guid? agentPrincipalId = reader.IsDBNull(3) ? null : reader.GetGuid(3);
+        var scopeType = reader.GetString(13);
+        var scopeId = reader.GetString(14);
+        Guid? scopeOrgId = reader.IsDBNull(15) ? null : reader.GetGuid(15);
+        Guid? scopeProjectId = reader.IsDBNull(16) ? null : reader.GetGuid(16);
+        Guid? scopePrincipalId = reader.IsDBNull(17) ? null : reader.GetGuid(17);
+        var scopeRoleId = reader.IsDBNull(18) ? null : reader.GetString(18);
+
+        return new EventRecord(
+            reader.GetGuid(0),
+            reader.IsDBNull(1) ? null : reader.GetGuid(1),
+            reader.IsDBNull(2) ? null : reader.GetGuid(2),
+            agentPrincipalId,
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.GetString(9),
+            reader.GetString(10),
+            reader.GetString(11),
+            reader.GetFieldValue<DateTimeOffset>(12),
+            new MemoryScopeResolution(
+                scopeType,
+                scopeId,
+                OrgId: scopeOrgId,
+                ProjectId: scopeProjectId,
+                PrincipalId: scopeType == "agent" ? agentPrincipalId : scopePrincipalId,
+                RoleId: scopeRoleId,
+                ScopeRoleId: scopeRoleId,
+                ConversationId: reader.IsDBNull(2) ? null : reader.GetGuid(2),
+                AgentPrincipalId: agentPrincipalId));
+    }
 
     public async Task<SourceEventReference?> FindForPrincipalScopeAsync(
         Guid eventId,

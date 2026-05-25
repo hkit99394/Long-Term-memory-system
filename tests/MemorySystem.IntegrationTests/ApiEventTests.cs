@@ -68,6 +68,55 @@ public sealed class ApiEventTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Get_events_returns_accessible_event()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_read_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            var appendPayload = await SendEventAsync(
+                client,
+                "event-read-key",
+                CreateUserEventBody("Read this event back through its source link."));
+            var eventId = appendPayload.GetProperty("id").GetGuid();
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/events/{eventId}");
+            request.Headers.Add("X-Api-Key", TestApiKey);
+
+            using var response = await client.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            using var document = JsonDocument.Parse(responseBody);
+            var payload = document.RootElement;
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(eventId, payload.GetProperty("id").GetGuid());
+            Assert.Equal(Guid.Parse(TestPrincipalId), payload.GetProperty("principalId").GetGuid());
+            Assert.Equal("user_message", payload.GetProperty("eventType").GetString());
+            Assert.Equal("user_scoped", payload.GetProperty("trustLevel").GetString());
+            Assert.Equal(
+                "Read this event back through its source link.",
+                payload.GetProperty("content").GetProperty("message").GetString());
+
+            var scope = payload.GetProperty("scope");
+            Assert.Equal("user", scope.GetProperty("scopeType").GetString());
+            Assert.Equal(TestPrincipalId, scope.GetProperty("scopeId").GetString());
+            Assert.Equal(Guid.Parse(TestPrincipalId), scope.GetProperty("principalId").GetGuid());
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_events_replays_original_event_for_same_idempotency_key_and_body()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();

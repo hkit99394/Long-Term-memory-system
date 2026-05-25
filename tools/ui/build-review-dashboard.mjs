@@ -8,7 +8,10 @@ const sourcePath = resolve(here, "src/review-dashboard.ts");
 const outputPath = resolve(here, "../../src/MemorySystem.Api/wwwroot/reviews/review-dashboard.js");
 
 const source = await readFile(sourcePath, "utf8");
-const stripped = stripTypeScriptTypes(source, { mode: "strip" });
+const stripped = stripTypeScriptTypes(source, { mode: "strip" })
+  .split(/\r?\n/)
+  .map(line => line.trimEnd())
+  .join("\n");
 const output = `// Generated from tools/ui/src/review-dashboard.ts. Run npm run build in tools/ui.\n${stripped}`;
 
 await mkdir(dirname(outputPath), { recursive: true });

@@ -40,6 +40,8 @@ public sealed class ApiMemoryReviewTests
             Assert.Contains("/reviews/review-dashboard.js", html, StringComparison.Ordinal);
             Assert.Contains("api/reviews/pending", script, StringComparison.Ordinal);
             Assert.Contains("supersede", script, StringComparison.Ordinal);
+            Assert.Contains("Idempotency-Key", script, StringComparison.Ordinal);
+            Assert.Contains("actionIdempotencyKeys", script, StringComparison.Ordinal);
         }
         finally
         {
@@ -164,6 +166,99 @@ public sealed class ApiMemoryReviewTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_reviews_action_replays_original_response_for_same_idempotency_key_and_body()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_review_replay_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(databaseConnectionString, grantReviewAccess: true);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var first = await SendReviewActionAsync(
+                client,
+                fixture.ProjectAReviewId,
+                "supersede",
+                fixture.ProjectAReviewEventId,
+                includeContent: true,
+                idempotencyKey: "review-supersede-replay-key");
+            var second = await SendReviewActionAsync(
+                client,
+                fixture.ProjectAReviewId,
+                "supersede",
+                fixture.ProjectAReviewEventId,
+                includeContent: true,
+                idempotencyKey: "review-supersede-replay-key");
+
+            Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+            Assert.Equal(
+                first.Payload.GetProperty("replacementMemoryFactId").GetGuid(),
+                second.Payload.GetProperty("replacementMemoryFactId").GetGuid());
+            Assert.Equal(3, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "memory_facts"));
+            Assert.Equal(1, await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(databaseConnectionString));
+
+            var idempotencyRecord = await ApiDatabaseTestSupport.ReadSingleIdempotencySummaryAsync(databaseConnectionString);
+            Assert.Equal("POST /api/reviews/supersede", idempotencyRecord.Endpoint);
+            Assert.Equal("completed", idempotencyRecord.Status);
+            Assert.Equal("memory_review", idempotencyRecord.ResourceType);
+            Assert.Equal(fixture.ProjectAReviewId, idempotencyRecord.ResourceId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_reviews_edit_updates_fact_evidence_to_review_source_event()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_review_edit_evidence_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(
+                databaseConnectionString,
+                grantReviewAccess: true,
+                projectAReviewTrustLevel: "user_scoped");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, _) = await SendReviewActionAsync(
+                client,
+                fixture.ProjectAReviewId,
+                "edit",
+                fixture.ProjectAReviewEventId,
+                includeContent: true);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var row = await ReadReviewAndMemoryStatusAsync(databaseConnectionString, fixture.ProjectAReviewId);
+
+            Assert.Equal("approved", row.ReviewStatus);
+            Assert.Equal("active", row.MemoryStatus);
+            Assert.Equal("Edited review subject", row.Subject);
+            Assert.Equal("user_scoped", row.TrustLevel);
+            Assert.Equal(fixture.ProjectAReviewEventId, row.SourceEventId);
+            Assert.Equal(PrincipalId, row.ProposedByPrincipalId);
+            Assert.Equal(1, await CountMemoryChunksForSourceAsync(databaseConnectionString, fixture.ProjectAMemoryId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Get_reviews_pending_hides_pending_memory_without_review_access()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -183,6 +278,138 @@ public sealed class ApiMemoryReviewTests
             Assert.Empty(payload.GetProperty("reviews").EnumerateArray());
             Assert.DoesNotContain(fixture.ProjectAReviewId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(fixture.ProjectAMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_reviews_pending_returns_authorized_review_after_large_inaccessible_prefix()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_pending_reviews_authorized_sql_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, OrgAId, ProjectAId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, OrgBId, ProjectBId);
+            await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+                databaseConnectionString,
+                ProjectAId,
+                PrincipalId,
+                "reviewer");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{ProjectAId}/decisions",
+                "review",
+                principalId: PrincipalId);
+
+            var projectBMemoryEventId = Guid.NewGuid();
+            var projectBReviewEventId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                projectBMemoryEventId,
+                PrincipalId,
+                "project",
+                ProjectBId.ToString(),
+                scopeOrgId: OrgBId,
+                scopeProjectId: ProjectBId,
+                trustLevel: "human_approved");
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                projectBReviewEventId,
+                PrincipalId,
+                "project",
+                ProjectBId.ToString(),
+                scopeOrgId: OrgBId,
+                scopeProjectId: ProjectBId,
+                trustLevel: "human_approved");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+            var projectBMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectBId.ToString(), OrgId: OrgBId, ProjectId: ProjectBId),
+                $"/project/{ProjectBId}/decisions",
+                "decision",
+                "project_shared",
+                "Project B inaccessible review",
+                "should",
+                "not hide later authorized reviews",
+                0.650m,
+                projectBMemoryEventId,
+                PrincipalId,
+                MemoryFactStatuses.Tentative));
+
+            var createdAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+
+            for (var index = 0; index < 251; index++)
+            {
+                await InsertPendingReviewAsync(
+                    databaseConnectionString,
+                    Guid.NewGuid(),
+                    projectBMemory.Id,
+                    projectBReviewEventId,
+                    $"Inaccessible Project B review {index}",
+                    createdAt.AddMilliseconds(index));
+            }
+
+            var projectAMemoryEventId = Guid.NewGuid();
+            var projectAReviewEventId = Guid.NewGuid();
+            var projectAReviewId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                projectAMemoryEventId,
+                PrincipalId,
+                "project",
+                ProjectAId.ToString(),
+                scopeOrgId: OrgAId,
+                scopeProjectId: ProjectAId,
+                trustLevel: "human_approved");
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                projectAReviewEventId,
+                PrincipalId,
+                "project",
+                ProjectAId.ToString(),
+                scopeOrgId: OrgAId,
+                scopeProjectId: ProjectAId,
+                trustLevel: "human_approved");
+            var projectAMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+                $"/project/{ProjectAId}/decisions",
+                "decision",
+                "project_shared",
+                "Project A authorized review",
+                "must",
+                "be returned without scanning inaccessible rows in application code",
+                0.650m,
+                projectAMemoryEventId,
+                PrincipalId,
+                MemoryFactStatuses.Tentative));
+            await InsertPendingReviewAsync(
+                databaseConnectionString,
+                projectAReviewId,
+                projectAMemory.Id,
+                projectAReviewEventId,
+                "Authorized review after inaccessible prefix.",
+                createdAt.AddMinutes(1));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendPendingReviewsAsync(client, limit: 1);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var review = Assert.Single(payload.GetProperty("reviews").EnumerateArray());
+            Assert.Equal(projectAReviewId, review.GetProperty("id").GetGuid());
+            Assert.DoesNotContain(projectBMemory.Id.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -220,7 +447,8 @@ public sealed class ApiMemoryReviewTests
 
     private static async Task<PendingReviewFixture> PreparePendingReviewFixtureAsync(
         string connectionString,
-        bool grantReviewAccess)
+        bool grantReviewAccess,
+        string projectAReviewTrustLevel = "human_approved")
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
         await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
@@ -259,7 +487,7 @@ public sealed class ApiMemoryReviewTests
             ProjectAId.ToString(),
             scopeOrgId: OrgAId,
             scopeProjectId: ProjectAId,
-            trustLevel: "human_approved");
+            trustLevel: projectAReviewTrustLevel);
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
             projectBMemoryEventId,
@@ -337,7 +565,8 @@ public sealed class ApiMemoryReviewTests
         Guid reviewId,
         Guid memoryFactId,
         Guid sourceEventId,
-        string notes)
+        string notes,
+        DateTimeOffset? createdAt = null)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -349,14 +578,18 @@ public sealed class ApiMemoryReviewTests
                 memory_fact_id,
                 review_status,
                 notes,
-                source_event_id
+                source_event_id,
+                created_at,
+                updated_at
             )
             VALUES (
                 @review_id,
                 @memory_fact_id,
                 'pending',
                 @notes,
-                @source_event_id
+                @source_event_id,
+                @created_at,
+                @created_at
             );
             """,
             connection);
@@ -364,6 +597,7 @@ public sealed class ApiMemoryReviewTests
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
         command.Parameters.AddWithValue("notes", notes);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
+        command.Parameters.AddWithValue("created_at", createdAt ?? DateTimeOffset.UtcNow);
 
         await command.ExecuteNonQueryAsync();
     }
@@ -394,7 +628,8 @@ public sealed class ApiMemoryReviewTests
         Guid reviewId,
         string action,
         Guid sourceEventId,
-        bool includeContent)
+        bool includeContent,
+        string? idempotencyKey = null)
     {
         var body = includeContent
             ? $$"""
@@ -417,6 +652,7 @@ public sealed class ApiMemoryReviewTests
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
         request.Headers.Add("X-Api-Key", TestApiKey);
+        request.Headers.Add("Idempotency-Key", idempotencyKey ?? $"review-{reviewId:N}-{action}");
 
         using var response = await client.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();
@@ -440,7 +676,10 @@ public sealed class ApiMemoryReviewTests
                 fact.status,
                 fact.subject,
                 fact.predicate,
-                fact.object
+                fact.object,
+                fact.trust_level,
+                fact.source_event_id,
+                fact.proposed_by_principal_id
             FROM memory_reviews AS review
             INNER JOIN memory_facts AS fact
                 ON fact.id = review.memory_fact_id
@@ -459,7 +698,10 @@ public sealed class ApiMemoryReviewTests
             reader.GetString(2),
             reader.GetString(3),
             reader.GetString(4),
-            reader.GetString(5));
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.GetGuid(7),
+            reader.IsDBNull(8) ? null : reader.GetGuid(8));
     }
 
     private static async Task<ReviewMemoryStatus> ReadMemoryStatusAsync(
@@ -471,7 +713,14 @@ public sealed class ApiMemoryReviewTests
 
         await using var command = new NpgsqlCommand(
             """
-            SELECT status, subject, predicate, object
+            SELECT
+                status,
+                subject,
+                predicate,
+                object,
+                trust_level,
+                source_event_id,
+                proposed_by_principal_id
             FROM memory_facts
             WHERE id = @memory_fact_id;
             """,
@@ -488,7 +737,10 @@ public sealed class ApiMemoryReviewTests
             reader.GetString(0),
             reader.GetString(1),
             reader.GetString(2),
-            reader.GetString(3));
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetGuid(5),
+            reader.IsDBNull(6) ? null : reader.GetGuid(6));
     }
 
     private static async Task<int> CountMemoryChunksForSourceAsync(
@@ -532,5 +784,8 @@ public sealed class ApiMemoryReviewTests
         string MemoryStatus,
         string Subject,
         string Predicate,
-        string Object);
+        string Object,
+        string TrustLevel,
+        Guid SourceEventId,
+        Guid? ProposedByPrincipalId);
 }

@@ -197,7 +197,7 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
 
     private static string? BuildSourceLink(Guid sourceEventId)
     {
-        return null;
+        return $"/api/events/{sourceEventId}";
     }
 
     private static string BuildExplanationSummary(MemoryChunkHybridSearchResult result)

@@ -1,52 +1,53 @@
 // Generated from tools/ui/src/review-dashboard.ts. Run npm run build in tools/ui.
-                                                                                      
 
-                                  
-                           
- 
 
-                         
-             
-                       
-                            
-                       
-                        
-                     
-                    
-                    
-                        
- 
 
-                         
-             
-                    
-                  
-                    
-                     
-                     
-                  
-                    
-                 
-                     
-                     
-                 
-                        
-                     
-                                       
- 
 
-                                
-                       
-                        
-                                         
- 
 
-                          
-                           
-                                  
-                               
-                
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const actions                 = ["approve", "reject", "edit", "expire", "delete", "supersede"];
 const actionLabels                               = {
@@ -62,7 +63,8 @@ const state                 = {
   reviews: [],
   selectedReviewId: null,
   selectedAction: "approve",
-  busy: false
+  busy: false,
+  actionIdempotencyKeys: {}
 };
 
 const elements = {
@@ -132,6 +134,10 @@ async function loadReviews()                {
 }
 
 async function submitAction()                {
+  if (state.busy) {
+    return;
+  }
+
   const review = selectedReview();
 
   if (!review) {
@@ -152,13 +158,23 @@ async function submitAction()                {
       body.object = elements.object.value.trim();
     }
 
+    const bodyJson = JSON.stringify(body);
+    const attemptKey = actionAttemptKey(review.id, state.selectedAction, bodyJson);
+    const idempotencyKey = state.actionIdempotencyKeys[attemptKey]
+      ?? createIdempotencyKey(review.id, state.selectedAction);
+    state.actionIdempotencyKeys[attemptKey] = idempotencyKey;
+
     const response = await apiFetch                      (
       `/api/reviews/${review.id}/${state.selectedAction}`,
       {
         method: "POST",
-        body: JSON.stringify(body)
+        headers: {
+          "Idempotency-Key": idempotencyKey
+        },
+        body: bodyJson
       });
 
+    delete state.actionIdempotencyKeys[attemptKey];
     writeActivity(`${actionLabels[response.action]} completed.`);
     await loadReviews();
   } catch (error) {
@@ -316,6 +332,17 @@ function selectedReview()                       {
 
 function requiresContent(action              )          {
   return action === "edit" || action === "supersede";
+}
+
+function createIdempotencyKey(reviewId        , action              )         {
+  const randomValue = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+
+  return `review:${reviewId}:${action}:${randomValue}`;
+}
+
+function actionAttemptKey(reviewId        , action              , bodyJson        )         {
+  return `${reviewId}:${action}:${bodyJson}`;
 }
 
 function setBusy(busy         )       {

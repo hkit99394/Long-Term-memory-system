@@ -33,6 +33,6 @@ Role-lens items include the base memory fact id when available.
 ## Consequences
 
 - Context packets are permission-aware by construction because the builder only consumes authorized hybrid search results.
-- Packets expose source event ids, but source links stay null until a dedicated event-read endpoint exists.
+- Packets expose source event ids and can link to the dedicated event-read endpoint.
 - Ranking remains explainable because packet items preserve the M6-04 component breakdown.
 - M6-06 retrieval evaluation tests can target the packet surface directly.

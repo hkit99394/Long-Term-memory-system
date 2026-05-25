@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS ix_memory_embeddings_embedding_32_hnsw_cosine;

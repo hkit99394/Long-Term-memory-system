@@ -13,7 +13,10 @@ public static class ApiEventServiceCollectionExtensions
     {
         services.AddSingleton<PostgresEventStore>();
         services.AddSingleton<IEventAppendWorkflow, EventAppendWorkflow>();
+        services.AddSingleton<IEventReadService, EventReadService>();
         services.AddSingleton<IEventStore>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgresEventStore>());
+        services.AddSingleton<IEventReadStore>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgresEventStore>());
         services.AddSingleton<ISourceEventReferenceStore>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgresEventStore>());

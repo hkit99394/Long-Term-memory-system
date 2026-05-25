@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using MemorySystem.Api.Http;
+using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryReviews;
 
@@ -38,9 +39,14 @@ public static class MemoryReviewEndpointExtensions
             async (
                 Guid id,
                 HttpContext context,
+                ApiIdempotencyHttpService idempotency,
                 IMemoryReviewWorkflow workflow,
                 CancellationToken cancellationToken) =>
-                await CompleteReviewAsync(id, action, context, workflow, cancellationToken))
+                await idempotency.ExecuteAsync(
+                    context,
+                    $"POST /api/reviews/{action}",
+                    async (idempotencyContext, operationCancellationToken) =>
+                        await CompleteReviewAsync(id, action, context, workflow, idempotencyContext, operationCancellationToken)))
             .RequireAuthorization();
     }
 
@@ -70,18 +76,14 @@ public static class MemoryReviewEndpointExtensions
             reviews.Select(ToPendingReviewResponse).ToArray()));
     }
 
-    private static async Task<IResult> CompleteReviewAsync(
+    private static async Task<ApiIdempotencyResponse> CompleteReviewAsync(
         Guid id,
         string action,
         HttpContext context,
         IMemoryReviewWorkflow workflow,
+        ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
-        {
-            return principalFailure;
-        }
-
         var requestResult = await ReadActionRequestAsync(context, cancellationToken);
 
         if (!requestResult.Succeeded)
@@ -92,7 +94,7 @@ public static class MemoryReviewEndpointExtensions
         var request = requestResult.Request!;
         var result = await workflow.CompleteAsync(
             new MemoryReviewActionCommand(
-                principalId,
+                idempotency.PrincipalId,
                 id,
                 action,
                 request.SourceEventId,
@@ -104,13 +106,17 @@ public static class MemoryReviewEndpointExtensions
 
         if (!result.Succeeded)
         {
-            return Results.Problem(
-                statusCode: result.FailureStatusCode,
-                title: "Memory review action is invalid.",
-                detail: result.Error);
+            return ApiRequestHelpers.Problem(
+                result.FailureStatusCode,
+                "Memory review action is invalid.",
+                result.Error!);
         }
 
-        return Results.Ok(ToActionResponse(result));
+        return new ApiIdempotencyResponse(
+            StatusCodes.Status200OK,
+            ToActionResponse(result),
+            "memory_review",
+            id);
     }
 
     private static async Task<ActionRequestReadResult> ReadActionRequestAsync(
@@ -119,7 +125,10 @@ public static class MemoryReviewEndpointExtensions
     {
         if (!context.Request.HasJsonContentType())
         {
-            return ActionRequestReadResult.Failed(BadActionRequest("Request Content-Type must be application/json."));
+            return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
+                StatusCodes.Status400BadRequest,
+                "Memory review action is invalid.",
+                "Request Content-Type must be application/json."));
         }
 
         MemoryReviewActionRequest? request;
@@ -130,7 +139,10 @@ public static class MemoryReviewEndpointExtensions
         }
         catch (JsonException)
         {
-            return ActionRequestReadResult.Failed(BadActionRequest("Request body must be valid JSON."));
+            return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
+                StatusCodes.Status400BadRequest,
+                "Memory review action is invalid.",
+                "Request body must be valid JSON."));
         }
 
         if (request is not null)
@@ -138,15 +150,10 @@ public static class MemoryReviewEndpointExtensions
             return ActionRequestReadResult.Success(request);
         }
 
-        return ActionRequestReadResult.Failed(BadActionRequest("Request body is required."));
-    }
-
-    private static IResult BadActionRequest(string detail)
-    {
-        return Results.Problem(
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Memory review action is invalid.",
-            detail: detail);
+        return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
+            StatusCodes.Status400BadRequest,
+            "Memory review action is invalid.",
+            "Request body is required."));
     }
 
     private static bool TryReadPrincipalId(
@@ -236,7 +243,7 @@ public static class MemoryReviewEndpointExtensions
 
     private sealed record ActionRequestReadResult(
         MemoryReviewActionRequest? Request,
-        IResult? Failure)
+        ApiIdempotencyResponse? Failure)
     {
         public bool Succeeded => Failure is null;
 
@@ -245,7 +252,7 @@ public static class MemoryReviewEndpointExtensions
             return new ActionRequestReadResult(request, Failure: null);
         }
 
-        public static ActionRequestReadResult Failed(IResult failure)
+        public static ActionRequestReadResult Failed(ApiIdempotencyResponse failure)
         {
             return new ActionRequestReadResult(Request: null, failure);
         }

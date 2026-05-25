@@ -24,7 +24,7 @@ Use pgvector cosine distance via the `<=>` operator. The response keeps the exis
 
 The SQL query first builds an `authorized_chunks AS MATERIALIZED` candidate set that includes only active, non-redacted chunks the principal may read by scope, membership, role assignment, and namespace grant. The vector distance expression is applied only against that materialized authorized set.
 
-Use the existing `(embedding_model, embedding_dimension)` narrowing index plus exact pgvector ordering as the baseline. Migration 014 adds a 32-dimensional HNSW cosine index for deterministic local rows, where the model and dimension are stable. Production OpenAI embeddings default to 1536 dimensions and should receive a separate model-specific HNSW or IVFFlat index once production volume warrants it.
+Use the existing `(embedding_model, embedding_dimension)` narrowing index plus exact pgvector ordering as the baseline. Migration 017 removes the provisional 32-dimensional HNSW cosine index because it only matched deterministic local rows while production OpenAI embeddings default to 1536 dimensions. Add a model-specific HNSW or IVFFlat index once production volume warrants it.
 
 ## Consequences
 

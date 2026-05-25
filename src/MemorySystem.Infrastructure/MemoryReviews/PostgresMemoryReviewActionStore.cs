@@ -70,6 +70,11 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                 break;
 
             case MemoryReviewActions.Edit:
+                var editSourceEvent = await FindSourceEventEvidenceAsync(
+                    connection,
+                    transaction,
+                    command.SourceEventId,
+                    cancellationToken);
                 await UpdateMemoryFactContentAsync(
                     connection,
                     transaction,
@@ -78,6 +83,8 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                     command.Predicate!,
                     command.Object!,
                     command.SourceEventId,
+                    editSourceEvent.TrustLevel,
+                    editSourceEvent.ProposedByPrincipalId,
                     MemoryFactStatuses.Active,
                     cancellationToken);
                 await EnsureMemoryChunkAsync(
@@ -88,8 +95,10 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                         Subject = command.Subject!,
                         Predicate = command.Predicate!,
                         Object = command.Object!,
+                        TrustLevel = editSourceEvent.TrustLevel,
                         Status = MemoryFactStatuses.Active,
-                        SourceEventId = command.SourceEventId
+                        SourceEventId = command.SourceEventId,
+                        ProposedByPrincipalId = editSourceEvent.ProposedByPrincipalId
                     },
                     command.SourceEventId,
                     cancellationToken);
@@ -129,7 +138,6 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                     command.Predicate!,
                     command.Object!,
                     command.SourceEventId,
-                    command.ReviewerId,
                     cancellationToken);
                 break;
 
@@ -218,6 +226,8 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         string predicate,
         string objectValue,
         Guid sourceEventId,
+        string trustLevel,
+        Guid proposedByPrincipalId,
         string status,
         CancellationToken cancellationToken)
     {
@@ -228,6 +238,8 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                 predicate = @predicate,
                 object = @object,
                 source_event_id = @source_event_id,
+                trust_level = @trust_level,
+                proposed_by_principal_id = @proposed_by_principal_id,
                 status = @status
             WHERE id = @memory_fact_id;
             """,
@@ -238,6 +250,8 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("predicate", predicate);
         command.Parameters.AddWithValue("object", objectValue);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
+        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("proposed_by_principal_id", proposedByPrincipalId);
         command.Parameters.AddWithValue("status", status);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -252,10 +266,9 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         string predicate,
         string objectValue,
         Guid sourceEventId,
-        Guid proposedByPrincipalId,
         CancellationToken cancellationToken)
     {
-        var trustLevel = await FindSourceEventTrustLevelAsync(connection, transaction, sourceEventId, cancellationToken);
+        var sourceEvent = await FindSourceEventEvidenceAsync(connection, transaction, sourceEventId, cancellationToken);
 
         await using var command = new NpgsqlCommand(
             """
@@ -324,10 +337,10 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("predicate", predicate);
         command.Parameters.AddWithValue("object", objectValue);
         command.Parameters.AddWithValue("confidence", original.Confidence);
-        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("trust_level", sourceEvent.TrustLevel);
         command.Parameters.AddWithValue("status", MemoryFactStatuses.Active);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
-        command.Parameters.AddWithValue("proposed_by_principal_id", proposedByPrincipalId);
+        command.Parameters.AddWithValue("proposed_by_principal_id", sourceEvent.ProposedByPrincipalId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
 
@@ -340,10 +353,10 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                 Subject = subject,
                 Predicate = predicate,
                 Object = objectValue,
-                TrustLevel = trustLevel,
+                TrustLevel = sourceEvent.TrustLevel,
                 Status = MemoryFactStatuses.Active,
                 SourceEventId = sourceEventId,
-                ProposedByPrincipalId = proposedByPrincipalId
+                ProposedByPrincipalId = sourceEvent.ProposedByPrincipalId
             },
             sourceEventId,
             cancellationToken);
@@ -526,7 +539,7 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
     }
 
-    private static async Task<string> FindSourceEventTrustLevelAsync(
+    private static async Task<SourceEventEvidence> FindSourceEventEvidenceAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         Guid sourceEventId,
@@ -534,7 +547,13 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
     {
         await using var command = new NpgsqlCommand(
             """
-            SELECT trust_level
+            SELECT
+                trust_level,
+                COALESCE(
+                    principal_id,
+                    scope_principal_id,
+                    agent_principal_id,
+                    '00000000-0000-4000-8000-000000000007'::uuid)
             FROM events
             WHERE id = @source_event_id;
             """,
@@ -542,10 +561,10 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             transaction);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
 
-        var result = await command.ExecuteScalarAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        return result is string trustLevel
-            ? trustLevel
+        return await reader.ReadAsync(cancellationToken)
+            ? new SourceEventEvidence(reader.GetString(0), reader.GetGuid(1))
             : throw new InvalidOperationException($"Source event {sourceEventId} could not be read.");
     }
 
@@ -567,6 +586,10 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
 
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    private sealed record SourceEventEvidence(
+        string TrustLevel,
+        Guid ProposedByPrincipalId);
 
     private static MemoryReviewRecord ReadReview(NpgsqlDataReader reader)
     {

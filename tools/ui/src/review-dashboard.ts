@@ -45,6 +45,7 @@ interface DashboardState {
   selectedReviewId: string | null;
   selectedAction: ReviewAction;
   busy: boolean;
+  actionIdempotencyKeys: Record<string, string>;
 }
 
 const actions: ReviewAction[] = ["approve", "reject", "edit", "expire", "delete", "supersede"];
@@ -61,7 +62,8 @@ const state: DashboardState = {
   reviews: [],
   selectedReviewId: null,
   selectedAction: "approve",
-  busy: false
+  busy: false,
+  actionIdempotencyKeys: {}
 };
 
 const elements = {
@@ -131,6 +133,10 @@ async function loadReviews(): Promise<void> {
 }
 
 async function submitAction(): Promise<void> {
+  if (state.busy) {
+    return;
+  }
+
   const review = selectedReview();
 
   if (!review) {
@@ -151,13 +157,23 @@ async function submitAction(): Promise<void> {
       body.object = elements.object.value.trim();
     }
 
+    const bodyJson = JSON.stringify(body);
+    const attemptKey = actionAttemptKey(review.id, state.selectedAction, bodyJson);
+    const idempotencyKey = state.actionIdempotencyKeys[attemptKey]
+      ?? createIdempotencyKey(review.id, state.selectedAction);
+    state.actionIdempotencyKeys[attemptKey] = idempotencyKey;
+
     const response = await apiFetch<ReviewActionResponse>(
       `/api/reviews/${review.id}/${state.selectedAction}`,
       {
         method: "POST",
-        body: JSON.stringify(body)
+        headers: {
+          "Idempotency-Key": idempotencyKey
+        },
+        body: bodyJson
       });
 
+    delete state.actionIdempotencyKeys[attemptKey];
     writeActivity(`${actionLabels[response.action]} completed.`);
     await loadReviews();
   } catch (error) {
@@ -315,6 +331,17 @@ function selectedReview(): PendingReview | null {
 
 function requiresContent(action: ReviewAction): boolean {
   return action === "edit" || action === "supersede";
+}
+
+function createIdempotencyKey(reviewId: string, action: ReviewAction): string {
+  const randomValue = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+
+  return `review:${reviewId}:${action}:${randomValue}`;
+}
+
+function actionAttemptKey(reviewId: string, action: ReviewAction, bodyJson: string): string {
+  return `${reviewId}:${action}:${bodyJson}`;
 }
 
 function setBusy(busy: boolean): void {

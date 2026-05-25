@@ -7,7 +7,6 @@ public sealed class MemoryReviewQueue(
     IMemoryAccessAuthorizer accessAuthorizer) : IMemoryReviewQueue
 {
     private const int MaxLimit = 50;
-    private const int MaxScanLimit = 250;
 
     public async Task<IReadOnlyList<MemoryReviewRecord>> ListPendingAsync(
         MemoryPendingReviewQuery query,
@@ -25,11 +24,10 @@ public sealed class MemoryReviewQueue(
             throw new ArgumentOutOfRangeException(nameof(query), query.Limit, $"Pending review limit must be between 1 and {MaxLimit}.");
         }
 
-        var scanLimit = Math.Min(MaxScanLimit, Math.Max(query.Limit, query.Limit * 5));
         var candidates = await repository.FindPendingAsync(
-            new MemoryReviewRepositoryQuery(scanLimit),
+            new MemoryReviewRepositoryQuery(query.Limit, PrincipalId: query.PrincipalId),
             cancellationToken);
-        var results = new List<MemoryReviewRecord>(query.Limit);
+        var results = new List<MemoryReviewRecord>(candidates.Count);
 
         foreach (var candidate in candidates)
         {
@@ -47,11 +45,6 @@ public sealed class MemoryReviewQueue(
             }
 
             results.Add(candidate);
-
-            if (results.Count == query.Limit)
-            {
-                break;
-            }
         }
 
         return results;

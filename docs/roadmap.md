@@ -82,9 +82,9 @@ Before M4 implementation:
 Before M6 implementation:
 
 - Embedding provider and vector dimension are decided in [Decision 0024](decisions/0024-embedding-provider-adapter.md): deterministic embeddings remain the Development/Testing adapter, while non-testing semantic retrieval and indexing require a production provider. The current production provider is OpenAI embeddings with `text-embedding-3-small`, 1536 dimensions, and a HTTPS endpoint by default.
-- Vector distance operator is decided in [Decision 0025](decisions/0025-authorized-pgvector-semantic-search.md): pgvector cosine distance remains the retrieval operator. Migration 014 adds a provisional 32-dimensional HNSW index for deterministic/local rows only; production OpenAI rows continue to use the `(embedding_model, embedding_dimension)` narrowing index until a 1536-dimensional ANN index is chosen.
+- Vector distance operator is decided in [Decision 0025](decisions/0025-authorized-pgvector-semantic-search.md): pgvector cosine distance remains the retrieval operator. Migration 017 removes the provisional 32-dimensional HNSW index; production OpenAI rows continue to use the `(embedding_model, embedding_dimension)` narrowing index until a model-specific ANN index is chosen.
 - Hybrid ranking formula is decided in [Decision 0026](decisions/0026-hybrid-memory-ranking.md): relevance, confidence, recency, authority, and scope match combine into the MVP final score.
-- Context packet size and source-link expectations are decided in [Decision 0027](decisions/0027-context-packet-builder.md): packets cap at 12 memories, group by memory category, include source event ids, and leave source links null until an event-read endpoint exists.
+- Context packet size and source-link expectations are decided in [Decision 0027](decisions/0027-context-packet-builder.md): packets cap at 12 memories, group by memory category, and include source event ids and links to the event-read endpoint.
 - Retrieval evaluation metrics are decided in [Decision 0028](decisions/0028-retrieval-evaluation-tests.md): deterministic tests measure relevance, compactness, write precision, false positives, and contradiction quality.
 
 Before M7 implementation:
