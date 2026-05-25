@@ -15,6 +15,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
+| [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
 | [Scenario 0001: User Preference, Project Decision, and CTO Context](scenarios/0001-user-preference-project-decision-cto-context.md) | Defines the first M1-M6 implementation throughline and sample data. |
@@ -53,6 +54,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0033: Archive Vault Exports](decisions/0033-archive-vault-exports.md) | Records the M7 archive export endpoint for readable superseded, expired, and contradicted memory. |
 | [Decision 0034: Operational Health Checks](decisions/0034-operational-health-checks.md) | Records the M8 API liveness/readiness split, worker heartbeat freshness check, and embedding provider health behavior. |
 | [Decision 0035: Structured Operational Logging](decisions/0035-structured-operational-logging.md) | Records the M8 structured logging contract for proposal, retrieval, review, and redaction decision points without payload leakage. |
+| [Decision 0036: Retention and Erasure Policy](decisions/0036-retention-and-erasure-policy.md) | Records the M8 raw event payload retention windows, legal hold behavior, erasure expectations, and audit-preservation policy. |
 
 ## Dictionary
 
@@ -71,6 +73,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
+| Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
 | Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |
@@ -88,6 +91,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
 | Principal | A human, agent, or service account making a request to the memory system. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
+| Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |
 | Redaction | Removal or masking of sensitive content from facts, chunks, exports, and event payloads where policy requires erasure. |
 | Review dashboard | The TypeScript UI for listing pending memory reviews and completing approve, reject, edit, expire, delete, or supersede actions. |

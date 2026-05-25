@@ -1252,8 +1252,8 @@ Then implement:
 Decide before or during Phase 1 implementation:
 
 - Which embedding provider and vector dimension should be the default?
-- What retention policy should apply to raw event payloads?
-- Which redaction rules are legally or operationally required for the first release?
+- Which retention automation jobs should implement [Retention Policy](retention-policy.md) first?
+- Which legal-hold and erasure operator endpoints are required for the first production release?
 
 ## Current Recommendation On Open Decisions
 
@@ -1262,7 +1262,7 @@ Decide before or during Phase 1 implementation:
 - Start with local API-key auth mapped to principals, then add full user auth later.
 - Make Obsidian export-only in the first version.
 - Use [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) as the first complete M1-M6 throughline: user preference plus project decision plus CTO role context.
-- Treat event retention and redaction as product policy, not only technical cleanup.
+- Treat event retention and redaction as product policy, not only technical cleanup. The current MVP policy is captured in [Decision 0036](decisions/0036-retention-and-erasure-policy.md) and [Retention Policy](retention-policy.md).
 
 ## References
 
