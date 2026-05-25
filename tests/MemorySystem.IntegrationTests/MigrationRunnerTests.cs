@@ -17,6 +17,7 @@ public sealed class MigrationRunnerTests
     private const string MemoryAccessGrantTargetValidationMigration = "009_memory_access_grant_target_validation.sql";
     private const string EventReferenceUpdateGuardsMigration = "010_event_reference_update_guards.sql";
     private const string ApiIdempotencyResponseContentTypeMigration = "011_api_idempotency_response_content_type.sql";
+    private const string MemoryChunkFullTextSearchMigration = "012_memory_chunk_full_text_search.sql";
 
     [DatabaseFact]
     [Trait("Category", "Database")]
@@ -44,6 +45,7 @@ public sealed class MigrationRunnerTests
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryAccessGrantTargetValidationMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
             Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
+            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
             Assert.Empty(secondRun.AppliedMigrations);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == InitialMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ScopeHardeningMigration);
@@ -56,6 +58,7 @@ public sealed class MigrationRunnerTests
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryAccessGrantTargetValidationMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
             Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
+            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
         }
         finally
         {
@@ -148,6 +151,7 @@ public sealed class MigrationRunnerTests
             Assert.Contains(MemoryAccessGrantTargetValidationMigration, exception.MigrationNames);
             Assert.Contains(EventReferenceUpdateGuardsMigration, exception.MigrationNames);
             Assert.Contains(ApiIdempotencyResponseContentTypeMigration, exception.MigrationNames);
+            Assert.Contains(MemoryChunkFullTextSearchMigration, exception.MigrationNames);
             Assert.Contains("schema_migrations", exception.Message, StringComparison.Ordinal);
         }
         finally

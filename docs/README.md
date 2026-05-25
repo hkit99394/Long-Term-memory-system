@@ -40,6 +40,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0020: Similar Active Memory Deduplication](decisions/0020-similar-active-memory-deduplication.md) | Records the M5 workflow rule that sends similar active memory proposals to review instead of blindly inserting duplicates. |
 | [Decision 0021: Memory Proposal Contradiction Detection](decisions/0021-memory-proposal-contradiction-detection.md) | Records the M5 workflow rule that sends clear conflicts with active memory to review before writing another durable fact. |
 | [Decision 0022: Memory Proposal Confidence Scoring](decisions/0022-memory-proposal-confidence-scoring.md) | Records the M5 broker confidence scoring table and review threshold for durable proposal decisions. |
+| [Decision 0023: Authorized Full-Text Memory Search](decisions/0023-authorized-full-text-memory-search.md) | Records the M6 full-text search path over `memory_chunks.search_vector` with authorization predicates inside SQL. |
 
 ## Dictionary
 
@@ -54,6 +55,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Durable memory | Memory intended to persist beyond the current session or task. |
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
+| Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
 | Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |

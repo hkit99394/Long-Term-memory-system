@@ -81,7 +81,7 @@ Status values:
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| M6-01 | P0 | Todo | Add full-text search. | `memory_chunks.search_vector` is populated and queried inside authorized predicates. |
+| M6-01 | P0 | Done | Add full-text search. | `memory_chunks.search_vector` is populated and queried inside authorized predicates. |
 | M6-02 | P0 | Todo | Add embedding provider adapter. | Chunks can be embedded with a selected model and dimension. |
 | M6-03 | P0 | Todo | Add pgvector semantic search. | Vector queries use the chosen distance operator and never rank unauthorized rows. |
 | M6-04 | P0 | Todo | Implement hybrid ranking. | Relevance, confidence, recency, authority, and scope match are combined into a final score. |
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M6-01`: Add full-text search.
+1. `M6-02`: Add embedding provider adapter.
