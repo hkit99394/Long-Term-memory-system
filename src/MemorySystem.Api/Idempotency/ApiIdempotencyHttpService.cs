@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using System.Text.Json;
+using MemorySystem.Api.Http;
 using MemorySystem.Infrastructure.Idempotency;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -33,7 +33,7 @@ public sealed class ApiIdempotencyHttpService(
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         ArgumentNullException.ThrowIfNull(operation);
 
-        if (!TryGetPrincipalId(httpContext, out var principalId))
+        if (!ApiRequestHelpers.TryGetPrincipalId(httpContext, out var principalId))
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status401Unauthorized,
@@ -140,13 +140,6 @@ public sealed class ApiIdempotencyHttpService(
             await store.MarkFailedAsync(record.Id, requestHash, CancellationToken.None);
             throw;
         }
-    }
-
-    private static bool TryGetPrincipalId(HttpContext httpContext, out Guid principalId)
-    {
-        var principalIdValue = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        return Guid.TryParse(principalIdValue, out principalId);
     }
 
     private static string? InferContentType(object? body)

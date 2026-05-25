@@ -94,8 +94,9 @@ public static class SqlMigrationRunner
 
         var migrations = Directory
             .EnumerateFiles(migrationsDirectory, "*.sql", SearchOption.TopDirectoryOnly)
-            .Order(StringComparer.Ordinal)
             .Select(ReadMigration)
+            .OrderBy(migration => migration.Ordinal)
+            .ThenBy(migration => migration.Name, StringComparer.Ordinal)
             .ToArray();
 
         ValidateCurrentMigrationsAreContiguous(migrations);
@@ -117,20 +118,26 @@ public static class SqlMigrationRunner
     {
         var separatorIndex = migrationName.IndexOf('_', StringComparison.Ordinal);
 
-        if (separatorIndex <= 0)
+        if (separatorIndex < 3)
         {
             throw new InvalidOperationException(
-                $"Migration filename '{migrationName}' must start with a numeric ordinal followed by '_'.");
+                $"Migration filename '{migrationName}' must start with at least a three-digit numeric ordinal followed by '_'.");
         }
 
         var ordinalText = migrationName[..separatorIndex];
+
+        if (ordinalText.Length > 3 && ordinalText[0] == '0')
+        {
+            throw new InvalidOperationException(
+                $"Migration filename '{migrationName}' must not contain extra leading zeroes.");
+        }
 
         return ordinalText.All(char.IsDigit)
             && int.TryParse(ordinalText, out var ordinal)
             && ordinal > 0
                 ? ordinal
                 : throw new InvalidOperationException(
-                    $"Migration filename '{migrationName}' must start with a positive numeric ordinal.");
+                    $"Migration filename '{migrationName}' must start with a positive numeric ordinal of at least three digits.");
     }
 
     private static void ValidateCurrentMigrationsAreContiguous(IReadOnlyList<SqlMigration> migrations)

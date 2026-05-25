@@ -23,10 +23,7 @@ builder.Services.AddMemorySystemAccess();
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemMemoryFacts();
 builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-});
+builder.Services.ConfigureOptions<MemorySystemForwardedHeadersOptionsSetup>();
 
 builder.Services
     .AddHealthChecks()

@@ -69,6 +69,69 @@ public sealed class SqlMigrationRunnerOptionsTests
     }
 
     [Fact]
+    public async Task ApplyAsync_rejects_non_padded_migration_ordinals_before_opening_connection()
+    {
+        var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-non-padded-migrations-").FullName;
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(migrationsDirectory, "1_initial.sql"), "SELECT 1;");
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => SqlMigrationRunner.ApplyAsync(UnusedConnectionString, migrationsDirectory));
+
+            Assert.Contains("at least a three-digit numeric ordinal", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(migrationsDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyAsync_orders_four_digit_ordinals_numerically_before_validating_gaps()
+    {
+        var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-four-digit-migrations-").FullName;
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(migrationsDirectory, "001_initial.sql"), "SELECT 1;");
+            await File.WriteAllTextAsync(Path.Combine(migrationsDirectory, "999_late.sql"), "SELECT 999;");
+            await File.WriteAllTextAsync(Path.Combine(migrationsDirectory, "1000_future.sql"), "SELECT 1000;");
+
+            var exception = await Assert.ThrowsAsync<SqlMigrationHistoryGapException>(
+                () => SqlMigrationRunner.ApplyAsync(UnusedConnectionString, migrationsDirectory));
+
+            Assert.Equal("002_*.sql", exception.ExpectedMigrationName);
+            Assert.Equal("999_late.sql", exception.RecordedMigrationName);
+        }
+        finally
+        {
+            Directory.Delete(migrationsDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyAsync_rejects_over_padded_migration_ordinals_before_opening_connection()
+    {
+        var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-over-padded-migrations-").FullName;
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(migrationsDirectory, "0001_initial.sql"), "SELECT 1;");
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => SqlMigrationRunner.ApplyAsync(UnusedConnectionString, migrationsDirectory));
+
+            Assert.Contains("extra leading zeroes", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(migrationsDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ApplyAsync_rejects_current_migration_directory_gaps_before_opening_connection()
     {
         var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-gap-migrations-").FullName;
