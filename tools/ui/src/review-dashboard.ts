@@ -1,0 +1,390 @@
+type ReviewAction = "approve" | "reject" | "edit" | "expire" | "delete" | "supersede";
+
+interface PendingReviewsResponse {
+  reviews: PendingReview[];
+}
+
+interface PendingReview {
+  id: string;
+  reviewStatus: string;
+  reviewerId: string | null;
+  notes: string | null;
+  sourceEventId: string;
+  sourceLink: string;
+  createdAt: string;
+  updatedAt: string;
+  memory: PendingMemory;
+}
+
+interface PendingMemory {
+  id: string;
+  scopeType: string;
+  scopeId: string;
+  namespace: string;
+  memoryType: string;
+  visibility: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  confidence: number;
+  trustLevel: string;
+  status: string;
+  sourceEventId: string;
+  sourceLink: string;
+  proposedByPrincipalId: string | null;
+}
+
+interface ReviewActionResponse {
+  action: ReviewAction;
+  review: PendingReview;
+  replacementMemoryFactId: string | null;
+}
+
+interface DashboardState {
+  reviews: PendingReview[];
+  selectedReviewId: string | null;
+  selectedAction: ReviewAction;
+  busy: boolean;
+}
+
+const actions: ReviewAction[] = ["approve", "reject", "edit", "expire", "delete", "supersede"];
+const actionLabels: Record<ReviewAction, string> = {
+  approve: "Approve",
+  reject: "Reject",
+  edit: "Edit",
+  expire: "Expire",
+  delete: "Delete",
+  supersede: "Supersede"
+};
+
+const state: DashboardState = {
+  reviews: [],
+  selectedReviewId: null,
+  selectedAction: "approve",
+  busy: false
+};
+
+const elements = {
+  apiBase: byId<HTMLInputElement>("api-base"),
+  apiKey: byId<HTMLInputElement>("api-key"),
+  refresh: byId<HTMLButtonElement>("refresh"),
+  status: byId<HTMLElement>("status"),
+  reviewList: byId<HTMLElement>("review-list"),
+  detail: byId<HTMLElement>("review-detail"),
+  actionTabs: byId<HTMLElement>("action-tabs"),
+  actionForm: byId<HTMLFormElement>("action-form"),
+  sourceEventId: byId<HTMLInputElement>("action-source-event-id"),
+  notes: byId<HTMLTextAreaElement>("action-notes"),
+  subject: byId<HTMLInputElement>("action-subject"),
+  predicate: byId<HTMLInputElement>("action-predicate"),
+  object: byId<HTMLTextAreaElement>("action-object"),
+  contentFields: byId<HTMLElement>("content-fields"),
+  submit: byId<HTMLButtonElement>("action-submit"),
+  activity: byId<HTMLElement>("activity")
+};
+
+elements.refresh.addEventListener("click", () => void loadReviews());
+elements.actionForm.addEventListener("submit", event => {
+  event.preventDefault();
+  void submitAction();
+});
+
+for (const action of actions) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.action = action;
+  button.className = action === "reject" || action === "delete" ? "tool danger" : "tool";
+  button.textContent = actionLabels[action];
+  button.addEventListener("click", () => selectAction(action));
+  elements.actionTabs.append(button);
+}
+
+render();
+
+function byId<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+
+  if (!element) {
+    throw new Error(`Missing element '${id}'.`);
+  }
+
+  return element as T;
+}
+
+async function loadReviews(): Promise<void> {
+  setBusy(true);
+  setStatus("Loading");
+
+  try {
+    const response = await apiFetch<PendingReviewsResponse>("/api/reviews/pending?limit=50");
+    state.reviews = response.reviews;
+    state.selectedReviewId = response.reviews[0]?.id ?? null;
+    setStatus(`${response.reviews.length} pending`);
+    writeActivity("Pending queue refreshed.");
+  } catch (error) {
+    setStatus("Error");
+    writeActivity(errorMessage(error));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+async function submitAction(): Promise<void> {
+  const review = selectedReview();
+
+  if (!review) {
+    return;
+  }
+
+  setBusy(true);
+
+  try {
+    const body: Record<string, string | null> = {
+      sourceEventId: elements.sourceEventId.value.trim(),
+      notes: emptyToNull(elements.notes.value)
+    };
+
+    if (requiresContent(state.selectedAction)) {
+      body.subject = elements.subject.value.trim();
+      body.predicate = elements.predicate.value.trim();
+      body.object = elements.object.value.trim();
+    }
+
+    const response = await apiFetch<ReviewActionResponse>(
+      `/api/reviews/${review.id}/${state.selectedAction}`,
+      {
+        method: "POST",
+        body: JSON.stringify(body)
+      });
+
+    writeActivity(`${actionLabels[response.action]} completed.`);
+    await loadReviews();
+  } catch (error) {
+    writeActivity(errorMessage(error));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
+  const headers = new Headers(init.headers);
+  const apiKey = elements.apiKey.value.trim();
+
+  if (apiKey) {
+    headers.set("X-Api-Key", apiKey);
+  }
+
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    headers
+  });
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    const detail = payload?.detail ?? payload?.title ?? response.statusText;
+    throw new Error(`${response.status} ${detail}`);
+  }
+
+  return payload as T;
+}
+
+function render(): void {
+  renderReviewList();
+  renderDetail();
+  renderAction();
+}
+
+function renderReviewList(): void {
+  elements.reviewList.replaceChildren();
+
+  if (state.reviews.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No pending reviews";
+    elements.reviewList.append(empty);
+    return;
+  }
+
+  for (const review of state.reviews) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = review.id === state.selectedReviewId ? "review selected" : "review";
+    button.addEventListener("click", () => {
+      state.selectedReviewId = review.id;
+      fillActionDefaults(review);
+      render();
+    });
+
+    button.append(
+      line(review.memory.subject, "review-title"),
+      line(`${review.memory.scopeType} / ${review.memory.memoryType} / ${review.memory.status}`, "review-meta"),
+      line(shortDate(review.createdAt), "review-date"));
+    elements.reviewList.append(button);
+  }
+}
+
+function renderDetail(): void {
+  const review = selectedReview();
+  elements.detail.replaceChildren();
+
+  if (!review) {
+    elements.detail.append(emptyPanel("Select a review"));
+    return;
+  }
+
+  const rows: [string, string][] = [
+    ["Review", review.id],
+    ["Review source", review.sourceLink],
+    ["Memory", review.memory.id],
+    ["Memory source", review.memory.sourceLink],
+    ["Scope", `${review.memory.scopeType}:${review.memory.scopeId}`],
+    ["Namespace", review.memory.namespace],
+    ["Predicate", review.memory.predicate],
+    ["Confidence", review.memory.confidence.toFixed(3)],
+    ["Trust", review.memory.trustLevel],
+    ["Proposed by", review.memory.proposedByPrincipalId ?? ""]
+  ];
+
+  elements.detail.append(
+    heading(review.memory.subject),
+    paragraph(review.memory.object, "memory-object"),
+    detailGrid(rows),
+    paragraph(review.notes ?? "", "notes"));
+}
+
+function renderAction(): void {
+  const review = selectedReview();
+
+  for (const button of elements.actionTabs.querySelectorAll<HTMLButtonElement>("button")) {
+    button.classList.toggle("active", button.dataset.action === state.selectedAction);
+  }
+
+  elements.actionForm.hidden = review === null;
+  elements.contentFields.hidden = !requiresContent(state.selectedAction);
+  elements.submit.textContent = actionLabels[state.selectedAction];
+  elements.submit.disabled = state.busy || review === null;
+
+  if (review) {
+    fillActionDefaults(review);
+  }
+}
+
+function fillActionDefaults(review: PendingReview): void {
+  if (!elements.sourceEventId.value) {
+    elements.sourceEventId.value = review.sourceEventId;
+  }
+
+  if (!elements.subject.value) {
+    elements.subject.value = review.memory.subject;
+  }
+
+  if (!elements.predicate.value) {
+    elements.predicate.value = review.memory.predicate;
+  }
+
+  if (!elements.object.value) {
+    elements.object.value = review.memory.object;
+  }
+}
+
+function selectAction(action: ReviewAction): void {
+  state.selectedAction = action;
+  const review = selectedReview();
+
+  if (review) {
+    elements.sourceEventId.value = review.sourceEventId;
+    elements.subject.value = review.memory.subject;
+    elements.predicate.value = review.memory.predicate;
+    elements.object.value = review.memory.object;
+  }
+
+  render();
+}
+
+function selectedReview(): PendingReview | null {
+  return state.reviews.find(review => review.id === state.selectedReviewId) ?? null;
+}
+
+function requiresContent(action: ReviewAction): boolean {
+  return action === "edit" || action === "supersede";
+}
+
+function setBusy(busy: boolean): void {
+  state.busy = busy;
+  elements.refresh.disabled = busy;
+}
+
+function setStatus(value: string): void {
+  elements.status.textContent = value;
+}
+
+function writeActivity(value: string): void {
+  elements.activity.textContent = value;
+}
+
+function emptyToNull(value: string): string | null {
+  const trimmed = value.trim();
+
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function shortDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function line(value: string, className: string): HTMLElement {
+  const element = document.createElement("span");
+  element.className = className;
+  element.textContent = value;
+  return element;
+}
+
+function heading(value: string): HTMLElement {
+  const element = document.createElement("h2");
+  element.textContent = value;
+  return element;
+}
+
+function paragraph(value: string, className: string): HTMLElement {
+  const element = document.createElement("p");
+  element.className = className;
+  element.textContent = value;
+  return element;
+}
+
+function detailGrid(rows: [string, string][]): HTMLElement {
+  const grid = document.createElement("dl");
+  grid.className = "detail-grid";
+
+  for (const [label, value] of rows) {
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    grid.append(term, description);
+  }
+
+  return grid;
+}
+
+function emptyPanel(value: string): HTMLElement {
+  const panel = document.createElement("div");
+  panel.className = "empty";
+  panel.textContent = value;
+  return panel;
+}

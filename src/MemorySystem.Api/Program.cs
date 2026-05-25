@@ -5,7 +5,9 @@ using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Api.MemoryFacts;
 using MemorySystem.Api.MemoryProposals;
+using MemorySystem.Api.MemoryReviews;
 using MemorySystem.Api.Scopes;
+using MemorySystem.Api.VaultExports;
 using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Health;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
@@ -25,6 +27,8 @@ builder.Services.AddMemorySystemAccess();
 builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemMemoryFacts();
 builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
+builder.Services.AddMemorySystemMemoryReviews();
+builder.Services.AddMemorySystemVaultExports();
 builder.Services.ConfigureOptions<MemorySystemForwardedHeadersOptionsSetup>();
 
 builder.Services
@@ -54,6 +58,8 @@ if (RequiresTransportSecurity(app.Environment))
     app.UseHttpsRedirection();
 }
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -84,6 +90,8 @@ app.MapGet("/", () => "Hello World!").AllowAnonymous();
 app.MapMemorySystemEventEndpoints();
 app.MapMemorySystemMemoryFactEndpoints();
 app.MapMemorySystemMemoryProposalEndpoints();
+app.MapMemorySystemMemoryReviewEndpoints();
+app.MapMemorySystemVaultExportEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))
 {

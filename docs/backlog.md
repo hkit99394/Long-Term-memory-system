@@ -92,11 +92,11 @@ Status values:
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| M7-01 | P0 | Todo | Build pending review API. | Pending memories can be listed with source event links. |
-| M7-02 | P0 | Todo | Build review dashboard. | TypeScript UI supports approve, reject, edit, expire, delete, and supersede workflows. |
-| M7-03 | P0 | Todo | Implement Obsidian export. | Approved summaries and decisions export with source IDs. |
-| M7-04 | P0 | Todo | Handle stale exports. | Deleted or redacted memory marks vault exports stale or regenerates them. |
-| M7-05 | P1 | Todo | Add archive export. | Old or superseded memory can be exported in a readable archive format. |
+| M7-01 | P0 | Done | Build pending review API. | Pending memories can be listed with source event links. |
+| M7-02 | P0 | Done | Build review dashboard. | TypeScript UI supports approve, reject, edit, expire, delete, and supersede workflows. |
+| M7-03 | P0 | Done | Implement Obsidian export. | Approved summaries and decisions export with source IDs. |
+| M7-04 | P0 | Done | Handle stale exports. | Deleted or redacted memory marks vault exports stale or regenerates them. |
+| M7-05 | P1 | Done | Add archive export. | Old or superseded memory can be exported in a readable archive format. |
 
 ## M8 Operational Readiness
 
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M7-01`: Build pending review API.
+1. `M8-01`: Add operational health checks.

@@ -1,0 +1,9 @@
+{
+  "name": "memory-system-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-review-dashboard.mjs",
+    "check": "node --check ../../src/MemorySystem.Api/wwwroot/reviews/review-dashboard.js"
+  }
+}

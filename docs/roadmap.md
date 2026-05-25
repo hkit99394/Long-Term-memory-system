@@ -87,6 +87,14 @@ Before M6 implementation:
 - Context packet size and source-link expectations are decided in [Decision 0027](decisions/0027-context-packet-builder.md): packets cap at 12 memories, group by memory category, include source event ids, and leave source links null until an event-read endpoint exists.
 - Retrieval evaluation metrics are decided in [Decision 0028](decisions/0028-retrieval-evaluation-tests.md): deterministic tests measure relevance, compactness, write precision, false positives, and contradiction quality.
 
+Before M7 implementation:
+
+- Pending review queue behavior is decided in [Decision 0029](decisions/0029-pending-review-api.md): `GET /api/reviews/pending` lists pending memory reviews only when the principal has review permission for the memory scope and namespace.
+- Review dashboard behavior is decided in [Decision 0030](decisions/0030-review-dashboard.md): the TypeScript dashboard serves at `/reviews/` and completes approve, reject, edit, expire, delete, and supersede workflows through provenance-backed review action endpoints.
+- Obsidian export behavior is decided in [Decision 0031](decisions/0031-obsidian-export.md): `GET /api/vault/exports/obsidian` renders approved decisions and summaries with source IDs, and `tools/vault-sync` writes those documents to the export-only vault.
+- Stale vault export behavior is decided in [Decision 0032](decisions/0032-stale-vault-exports.md): Obsidian exports are tracked in PostgreSQL, and deleted, redacted, expired, superseded, or contradicted memories return audit-safe stale marker documents.
+- Archive vault export behavior is decided in [Decision 0033](decisions/0033-archive-vault-exports.md): `GET /api/vault/exports/obsidian/archive` exports readable superseded, expired, and contradicted memory under `90 Archive/`.
+
 ## First Build Sequence
 
 1. Create the .NET solution and project layout.

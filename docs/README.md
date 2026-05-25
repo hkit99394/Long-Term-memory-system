@@ -46,6 +46,11 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0026: Hybrid Memory Ranking](decisions/0026-hybrid-memory-ranking.md) | Records the M6 hybrid search endpoint and final-score formula combining relevance, confidence, recency, authority, and scope match. |
 | [Decision 0027: Context Packet Builder](decisions/0027-context-packet-builder.md) | Records the M6 context packet endpoint, packet grouping, compactness limit, source links, and ranking explanation fields. |
 | [Decision 0028: Retrieval Evaluation Tests](decisions/0028-retrieval-evaluation-tests.md) | Records the M6 retrieval evaluation scorecard for relevance, compactness, write precision, false positives, and contradiction quality. |
+| [Decision 0029: Pending Review API](decisions/0029-pending-review-api.md) | Records the M7 pending review queue endpoint and review-permission filtering rule. |
+| [Decision 0030: Review Dashboard](decisions/0030-review-dashboard.md) | Records the M7 TypeScript review dashboard and review action endpoint behavior. |
+| [Decision 0031: Obsidian Export](decisions/0031-obsidian-export.md) | Records the M7 Obsidian export endpoint, Markdown source metadata, and vault-sync tool behavior. |
+| [Decision 0032: Stale Vault Exports](decisions/0032-stale-vault-exports.md) | Records the M7 stale marker workflow for deleted, redacted, expired, superseded, and contradicted vault exports. |
+| [Decision 0033: Archive Vault Exports](decisions/0033-archive-vault-exports.md) | Records the M7 archive export endpoint for readable superseded, expired, and contradicted memory. |
 
 ## Dictionary
 
@@ -53,6 +58,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | --- | --- |
 | Agent | An AI process or role that can use memory to complete tasks. |
 | Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
+| Archive export | A readable Markdown projection of inactive but non-redacted memory, such as superseded, expired, or contradicted memory. |
 | Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
 | Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
 | Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |
@@ -71,15 +77,18 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Memory read service | The application service that loads a memory fact and returns it only after the caller has read access to its scope and namespace. |
 | Memory status lifecycle | The supported memory fact states: active, tentative, superseded, contradicted, expired, deleted, and redacted. Normal retrieval includes active facts only. |
 | Namespace | A parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
+| Obsidian export | The authorized projection of approved decision and summary memory into source-linked Markdown documents for the vault. |
 | Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
 | One-off task instruction | A short-lived instruction for the current answer, request, task, temporary file, or bug. The broker treats it as session-only rather than durable memory. |
 | Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
+| Pending review | A `memory_reviews` row with `pending` status that points at a memory fact awaiting human review. |
 | pgvector | PostgreSQL extension used to store and search vector embeddings. |
 | Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
 | Principal | A human, agent, or service account making a request to the memory system. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |
 | Redaction | Removal or masking of sensitive content from facts, chunks, exports, and event payloads where policy requires erasure. |
+| Review dashboard | The TypeScript UI for listing pending memory reviews and completing approve, reject, edit, expire, delete, or supersede actions. |
 | Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
 | Role lens base fact | The memory fact that a role lens interprets. Its scope must match the lens type: global for global role lenses, same organization for organization role lenses, or target project/same organization for project-role lenses. |
 | Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
@@ -89,6 +98,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Session memory | Temporary memory for the current task or conversation only. |
 | Similar active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate but a different object. |
 | Structured memory search | A repository query over structured `memory_facts` columns such as scope, memory type, subject, and status. It does not use chunks, full-text search, embeddings, or vectors. |
+| Stale vault export | A Markdown marker that replaces an exported vault note when the authoritative memory fact is no longer active. |
 | Supersession | The process of replacing an outdated or contradicted memory with a newer memory while preserving audit history. |
 | Trust level | Metadata that separates trusted system or human-approved content from user-scoped, agent-private, tool, web, or retrieved content. |
 | Vector index | Search index used for semantic recall. It is not the source of truth. |

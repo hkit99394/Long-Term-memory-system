@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory Review Dashboard</title>
+  <link rel="stylesheet" href="/reviews/review-dashboard.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>Memory Reviews</h1>
+        <div id="status" class="status">Idle</div>
+      </div>
+      <form class="connection" autocomplete="off">
+        <label>
+          <span>API</span>
+          <input id="api-base" name="api-base" type="url" placeholder="http://localhost:5000">
+        </label>
+        <label>
+          <span>Key</span>
+          <input id="api-key" name="api-key" type="password">
+        </label>
+        <button id="refresh" type="button">Refresh</button>
+      </form>
+    </header>
+
+    <section class="workspace" aria-label="Review workspace">
+      <aside class="queue" aria-label="Pending reviews">
+        <div class="panel-title">Pending</div>
+        <div id="review-list" class="review-list"></div>
+      </aside>
+
+      <section class="detail-panel" aria-label="Review detail">
+        <div id="review-detail" class="review-detail"></div>
+      </section>
+
+      <aside class="action-panel" aria-label="Review actions">
+        <div class="panel-title">Action</div>
+        <div id="action-tabs" class="action-tabs" role="toolbar"></div>
+        <form id="action-form" class="action-form" hidden>
+          <label>
+            <span>Source event</span>
+            <input id="action-source-event-id" name="sourceEventId" required>
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea id="action-notes" name="notes" rows="4"></textarea>
+          </label>
+          <div id="content-fields" class="content-fields" hidden>
+            <label>
+              <span>Subject</span>
+              <input id="action-subject" name="subject">
+            </label>
+            <label>
+              <span>Predicate</span>
+              <input id="action-predicate" name="predicate">
+            </label>
+            <label>
+              <span>Object</span>
+              <textarea id="action-object" name="object" rows="6"></textarea>
+            </label>
+          </div>
+          <button id="action-submit" type="submit">Approve</button>
+        </form>
+        <div id="activity" class="activity"></div>
+      </aside>
+    </section>
+  </main>
+  <script type="module" src="/reviews/review-dashboard.js"></script>
+</body>
+</html>
