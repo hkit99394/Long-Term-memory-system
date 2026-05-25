@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -27,7 +28,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 confidence,
                 trust_level,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @memory_fact_id,
@@ -44,7 +46,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 0.900,
                 'user_scoped',
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
@@ -55,6 +58,7 @@ public sealed partial class MigrationSchemaConstraintTests
         command.Parameters.AddWithValue("project_id", ids.ProjectId);
         command.Parameters.AddWithValue("org_id", ids.OrgId);
         command.Parameters.AddWithValue("event_id", ids.EventId);
+        command.Parameters.AddWithValue("principal_id", ids.PrincipalId);
 
         await command.ExecuteNonQueryAsync();
 
@@ -66,6 +70,12 @@ public sealed partial class MigrationSchemaConstraintTests
         ProjectFixtureIds ids)
     {
         var memoryFactId = Guid.NewGuid();
+        var eventId = await InsertScopedEventAsync(
+            connection,
+            ids.PrincipalId,
+            "org",
+            ids.OrgId.ToString(),
+            scopeOrgId: ids.OrgId);
 
         await using var command = new NpgsqlCommand(
             """
@@ -83,7 +93,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 confidence,
                 trust_level,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @memory_fact_id,
@@ -99,7 +110,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 0.900,
                 'user_scoped',
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
@@ -108,7 +120,8 @@ public sealed partial class MigrationSchemaConstraintTests
         command.Parameters.AddWithValue("org_id_text", ids.OrgId.ToString());
         command.Parameters.AddWithValue("namespace", $"/org/{ids.OrgId}/principles");
         command.Parameters.AddWithValue("org_id", ids.OrgId);
-        command.Parameters.AddWithValue("event_id", ids.EventId);
+        command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", ids.PrincipalId);
 
         await command.ExecuteNonQueryAsync();
 
@@ -117,7 +130,8 @@ public sealed partial class MigrationSchemaConstraintTests
 
     private static async Task<Guid> InsertGlobalMemoryFactAsync(
         NpgsqlConnection connection,
-        Guid eventId)
+        Guid eventId,
+        Guid principalId)
     {
         var memoryFactId = Guid.NewGuid();
 
@@ -136,7 +150,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 confidence,
                 trust_level,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @memory_fact_id,
@@ -151,13 +166,15 @@ public sealed partial class MigrationSchemaConstraintTests
                 0.900,
                 'user_scoped',
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
 
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
         command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", principalId);
 
         await command.ExecuteNonQueryAsync();
 
@@ -200,7 +217,8 @@ public sealed partial class MigrationSchemaConstraintTests
     private static async Task<Guid> InsertProjectRoleMemoryLensAsync(
         NpgsqlConnection connection,
         ProjectFixtureIds ids,
-        Guid baseMemoryFactId)
+        Guid baseMemoryFactId,
+        Guid? sourceEventId = null)
     {
         var lensId = Guid.NewGuid();
 
@@ -217,7 +235,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 interpretation,
                 confidence,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @lens_id,
@@ -230,7 +249,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 'The CTO view treats PostgreSQL as a risk-reduction decision.',
                 0.900,
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
@@ -240,7 +260,8 @@ public sealed partial class MigrationSchemaConstraintTests
         command.Parameters.AddWithValue("org_id", ids.OrgId);
         command.Parameters.AddWithValue("project_id", ids.ProjectId);
         command.Parameters.AddWithValue("base_memory_fact_id", baseMemoryFactId);
-        command.Parameters.AddWithValue("event_id", ids.EventId);
+        command.Parameters.AddWithValue("event_id", sourceEventId ?? ids.EventId);
+        command.Parameters.AddWithValue("principal_id", ids.PrincipalId);
 
         await command.ExecuteNonQueryAsync();
 
@@ -253,6 +274,12 @@ public sealed partial class MigrationSchemaConstraintTests
         Guid baseMemoryFactId)
     {
         var lensId = Guid.NewGuid();
+        var eventId = await InsertScopedEventAsync(
+            connection,
+            ids.PrincipalId,
+            "org",
+            ids.OrgId.ToString(),
+            scopeOrgId: ids.OrgId);
 
         await using var command = new NpgsqlCommand(
             """
@@ -266,7 +293,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 interpretation,
                 confidence,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @lens_id,
@@ -278,7 +306,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 'The CTO view treats org data boundaries as mandatory.',
                 0.900,
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
@@ -287,7 +316,8 @@ public sealed partial class MigrationSchemaConstraintTests
         command.Parameters.AddWithValue("org_id_text", ids.OrgId.ToString());
         command.Parameters.AddWithValue("org_id", ids.OrgId);
         command.Parameters.AddWithValue("base_memory_fact_id", baseMemoryFactId);
-        command.Parameters.AddWithValue("event_id", ids.EventId);
+        command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", ids.PrincipalId);
 
         await command.ExecuteNonQueryAsync();
 
@@ -297,6 +327,7 @@ public sealed partial class MigrationSchemaConstraintTests
     private static async Task<Guid> InsertGlobalRoleMemoryLensAsync(
         NpgsqlConnection connection,
         Guid eventId,
+        Guid principalId,
         Guid baseMemoryFactId)
     {
         var lensId = Guid.NewGuid();
@@ -312,7 +343,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 interpretation,
                 confidence,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @lens_id,
@@ -323,7 +355,8 @@ public sealed partial class MigrationSchemaConstraintTests
                 'The CTO view treats auditable source boundaries as a shared principle.',
                 0.900,
                 'active',
-                @event_id
+                @event_id,
+                @principal_id
             );
             """,
             connection);
@@ -331,10 +364,25 @@ public sealed partial class MigrationSchemaConstraintTests
         command.Parameters.AddWithValue("lens_id", lensId);
         command.Parameters.AddWithValue("base_memory_fact_id", baseMemoryFactId);
         command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", principalId);
 
         await command.ExecuteNonQueryAsync();
 
         return lensId;
+    }
+
+    private static async Task<Guid> ReadRoleMemoryLensSourceEventIdAsync(
+        NpgsqlConnection connection,
+        Guid lensId)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT source_event_id FROM role_memory_lenses WHERE id = @lens_id;",
+            connection);
+        command.Parameters.AddWithValue("lens_id", lensId);
+
+        return await command.ExecuteScalarAsync() is Guid sourceEventId
+            ? sourceEventId
+            : throw new InvalidOperationException($"Role memory lens {lensId} was not found.");
     }
 
     private static async Task<ProjectFixtureIds> InsertProjectFixtureAsync(
@@ -406,6 +454,57 @@ public sealed partial class MigrationSchemaConstraintTests
         }
 
         return new ProjectFixtureIds(principalId, orgId, otherOrgId, projectId, eventId);
+    }
+
+    private static async Task<Guid> InsertScopedEventAsync(
+        NpgsqlConnection connection,
+        Guid principalId,
+        string scopeType,
+        string scopeId,
+        Guid? scopeOrgId = null,
+        Guid? scopeProjectId = null)
+    {
+        var eventId = Guid.NewGuid();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO events (
+                id,
+                principal_id,
+                scope_type,
+                scope_id,
+                scope_org_id,
+                scope_project_id,
+                event_type,
+                content,
+                trust_level
+            )
+            VALUES (
+                @event_id,
+                @principal_id,
+                @scope_type,
+                @scope_id,
+                @scope_org_id,
+                @scope_project_id,
+                'user_message',
+                '{}'::jsonb,
+                'user_scoped'
+            );
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("scope_type", scopeType);
+        command.Parameters.AddWithValue("scope_id", scopeId);
+        command.Parameters.Add("scope_org_id", NpgsqlDbType.Uuid).Value =
+            scopeOrgId.HasValue ? scopeOrgId.Value : DBNull.Value;
+        command.Parameters.Add("scope_project_id", NpgsqlDbType.Uuid).Value =
+            scopeProjectId.HasValue ? scopeProjectId.Value : DBNull.Value;
+
+        await command.ExecuteNonQueryAsync();
+
+        return eventId;
     }
 
     private sealed record ProjectFixtureIds(

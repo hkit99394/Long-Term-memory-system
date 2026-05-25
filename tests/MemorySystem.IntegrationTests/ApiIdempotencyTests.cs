@@ -1,8 +1,13 @@
+using MemorySystem.Application.Authentication;
+using Microsoft.AspNetCore.Hosting;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -16,6 +21,37 @@ public sealed class ApiIdempotencyTests
     private const string TestEndpoint = "POST /__test/idempotency/widgets";
 
     [Fact]
+    public async Task Invalid_idempotency_key_variants_use_generic_problem_title()
+    {
+        using var factory = CreateNoDatabaseFactory();
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(TestApiKey, new string('a', 201), """{"value":"alpha"}""");
+
+        using var response = await client.SendAsync(request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Invalid idempotency key.", document.RootElement.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task Oversized_mutating_request_body_returns_payload_too_large_before_idempotency_store()
+    {
+        using var factory = CreateNoDatabaseFactory(new Dictionary<string, string?>
+        {
+            ["ApiIdempotency:MaxBodyBytes"] = "12"
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(TestApiKey, "oversized-body-key", """{"value":"alpha"}""");
+
+        using var response = await client.SendAsync(request);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal((HttpStatusCode)413, response.StatusCode);
+        Assert.Equal("Request body is too large.", document.RootElement.GetProperty("title").GetString());
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Mutating_endpoint_requires_idempotency_key()
     {
@@ -42,7 +78,7 @@ public sealed class ApiIdempotencyTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Same_idempotency_key_and_request_hash_replays_original_response()
     {
@@ -72,6 +108,7 @@ public sealed class ApiIdempotencyTests
             Assert.StartsWith("sha256:", record.RequestHash, StringComparison.Ordinal);
             Assert.Equal(71, record.RequestHash.Length);
             Assert.Equal(201, record.ResponseStatus);
+            Assert.Equal("application/json; charset=utf-8", record.ResponseContentType);
             Assert.Equal("completed", record.Status);
             Assert.True(record.ExpiresAt > DateTimeOffset.UtcNow);
 
@@ -84,7 +121,44 @@ public sealed class ApiIdempotencyTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Problem_details_response_preserves_content_type_on_first_response_and_replay()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_idempotency_problem_content_type_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString, Guid.Parse(TestPrincipalId));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            const string idempotencyKey = "problem-content-type-key";
+
+            using var firstRequest = CreateRequest(TestApiKey, idempotencyKey, """{"value":""}""");
+            using var firstResponse = await client.SendAsync(firstRequest);
+            using var secondRequest = CreateRequest(TestApiKey, idempotencyKey, """{"value":""}""");
+            using var secondResponse = await client.SendAsync(secondRequest);
+            var records = await ReadIdempotencyRecordsAsync(databaseConnectionString);
+
+            Assert.Equal(HttpStatusCode.BadRequest, firstResponse.StatusCode);
+            Assert.Equal("application/problem+json", firstResponse.Content.Headers.ContentType?.MediaType);
+            Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
+            Assert.Equal("application/problem+json", secondResponse.Content.Headers.ContentType?.MediaType);
+
+            var record = Assert.Single(records);
+            Assert.Equal(400, record.ResponseStatus);
+            Assert.Equal("application/problem+json; charset=utf-8", record.ResponseContentType);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Same_idempotency_key_with_different_request_hash_returns_conflict()
     {
@@ -120,7 +194,7 @@ public sealed class ApiIdempotencyTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Idempotency_key_scope_includes_principal()
     {
@@ -156,7 +230,7 @@ public sealed class ApiIdempotencyTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Expired_processing_idempotency_key_can_start_again()
     {
@@ -260,6 +334,41 @@ public sealed class ApiIdempotencyTests
         return MemorySystemApiTestFactory.Create(postgresConnectionString, apiKeys);
     }
 
+    private static WebApplicationFactory<Program> CreateNoDatabaseFactory(
+        Dictionary<string, string?>? additionalConfiguration = null)
+    {
+        return new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Testing");
+                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                {
+                    var configuration = new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:Postgres"] =
+                            "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
+                        ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId,
+                        ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
+                    };
+
+                    if (additionalConfiguration is not null)
+                    {
+                        foreach (var (key, value) in additionalConfiguration)
+                        {
+                            configuration[key] = value;
+                        }
+                    }
+
+                    configurationBuilder.AddInMemoryCollection(configuration);
+                });
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton<IApiKeyPrincipalValidator>(new AlwaysActiveApiKeyPrincipalValidator());
+                });
+            });
+    }
+
     private static async Task<int> CountIdempotencyRecordsAsync(string connectionString)
     {
         return await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(connectionString);
@@ -318,5 +427,13 @@ public sealed class ApiIdempotencyTests
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(body));
 
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private sealed class AlwaysActiveApiKeyPrincipalValidator : IApiKeyPrincipalValidator
+    {
+        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
     }
 }

@@ -83,6 +83,19 @@ public sealed class ApiAuthorizationTests
     }
 
     [Fact]
+    public async Task Fallback_authorization_policy_surfaces_principal_validator_failures()
+    {
+        using var factory = CreateFactory(new ThrowingApiKeyPrincipalValidator());
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", TestApiKey);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.GetAsync("/__test/auth/fallback"));
+
+        Assert.Contains("principal store unavailable", exception.Message, StringComparison.Ordinal);
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Fallback_authorization_policy_accepts_api_key_for_active_database_principal()
     {
@@ -108,7 +121,7 @@ public sealed class ApiAuthorizationTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Fallback_authorization_policy_rejects_api_key_for_disabled_database_principal()
     {
@@ -193,6 +206,15 @@ public sealed class ApiAuthorizationTests
 
     private static WebApplicationFactory<Program> CreateFactory(IEnumerable<string>? activePrincipalIds = null)
     {
+        return CreateFactory(
+            new TestApiKeyPrincipalValidator(
+                activePrincipalIds is null
+                    ? new HashSet<Guid> { Guid.Parse(TestPrincipalId), Guid.Parse(SecondPrincipalId) }
+                    : activePrincipalIds.Select(Guid.Parse).ToHashSet()));
+    }
+
+    private static WebApplicationFactory<Program> CreateFactory(IApiKeyPrincipalValidator principalValidator)
+    {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -203,11 +225,7 @@ public sealed class ApiAuthorizationTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    services.AddSingleton<IApiKeyPrincipalValidator>(
-                        new TestApiKeyPrincipalValidator(
-                            activePrincipalIds is null
-                                ? new HashSet<Guid> { Guid.Parse(TestPrincipalId), Guid.Parse(SecondPrincipalId) }
-                                : activePrincipalIds.Select(Guid.Parse).ToHashSet()));
+                    services.AddSingleton(principalValidator);
                 });
             });
     }
@@ -317,6 +335,14 @@ public sealed class ApiAuthorizationTests
         public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(activePrincipalIds.Contains(principalId));
+        }
+    }
+
+    private sealed class ThrowingApiKeyPrincipalValidator : IApiKeyPrincipalValidator
+    {
+        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("principal store unavailable");
         }
     }
 }

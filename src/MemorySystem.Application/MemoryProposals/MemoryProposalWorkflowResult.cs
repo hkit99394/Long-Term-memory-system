@@ -42,8 +42,26 @@ public sealed record MemoryProposalWorkflowResult(
             true,
             InvalidReason: null,
             decision,
-            "memory_fact",
+            ResourceTypeFor(decision),
             decision.MemoryId,
             IdempotencyAlreadyCompleted: true);
+    }
+
+    public static MemoryProposalWorkflowResult CompletedDecision(MemoryProposalDecision decision)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+
+        return new MemoryProposalWorkflowResult(
+            true,
+            InvalidReason: null,
+            decision,
+            IdempotencyAlreadyCompleted: true);
+    }
+
+    private static string ResourceTypeFor(MemoryProposalDecision decision)
+    {
+        return decision.CandidateKind == MemoryCandidateClassifications.RoleLens
+            ? "role_memory_lens"
+            : "memory_fact";
     }
 }

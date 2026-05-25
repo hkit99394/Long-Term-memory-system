@@ -4,4 +4,6 @@ public sealed record MemoryProposalDecision(
     string Decision,
     string Reason,
     Guid? MemoryId,
-    Guid? SourceEventId);
+    Guid? SourceEventId,
+    string CandidateKind = MemoryCandidateClassifications.Unsupported,
+    decimal? Confidence = null);

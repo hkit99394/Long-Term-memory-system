@@ -1,8 +1,8 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.RoleMemoryLenses;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.RoleMemoryLenses;
 
@@ -58,7 +58,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Role memory lens query limit must be between 1 and 500.");
         }
 
-        var lensScope = ResolveLensScope(query.Scope);
+        var lensScope = RoleMemoryLensStorageRules.ResolveLensScope(query.Scope);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
@@ -74,7 +74,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             """,
             connection);
         command.Parameters.AddWithValue("role_id", query.RoleId);
-        AddScopeParameters(command, lensScope);
+        RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
         command.Parameters.AddWithValue("status", query.Status);
         command.Parameters.AddWithValue("limit", query.Limit);
 
@@ -114,6 +114,11 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             throw new ArgumentException("Source event id must not be empty.", nameof(command));
         }
 
+        if (command.ProposedByPrincipalId == Guid.Empty)
+        {
+            throw new ArgumentException("Proposed-by principal id must not be empty.", nameof(command));
+        }
+
         if (!MemoryFactStatuses.IsSupported(command.Status))
         {
             throw new ArgumentException($"Role memory lens status '{command.Status}' is not supported.", nameof(command));
@@ -125,15 +130,25 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         }
 
         var roleMemoryLensId = command.Id ?? Guid.NewGuid();
-        var lensScope = ResolveLensScope(command.Scope);
+        var lensScope = RoleMemoryLensStorageRules.ResolveLensScope(command.Scope);
+        var interpretation = command.Interpretation.Trim();
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         await ValidateBaseMemoryFactScopeAsync(
             connection,
+            transaction,
             lensScope,
             command.BaseMemoryFactId,
             command.Status,
+            cancellationToken);
+        var trustLevel = await ValidateSourceEventScopeAsync(
+            connection,
+            transaction,
+            lensScope,
+            command.SourceEventId,
+            command.ProposedByPrincipalId,
             cancellationToken);
 
         await using var insert = new NpgsqlCommand(
@@ -149,7 +164,8 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
                 interpretation,
                 confidence,
                 status,
-                source_event_id
+                source_event_id,
+                proposed_by_principal_id
             )
             VALUES (
                 @id,
@@ -162,21 +178,55 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
                 @interpretation,
                 @confidence,
                 @status,
-                @source_event_id
+                @source_event_id,
+                @proposed_by_principal_id
             );
             """,
-            connection);
+            connection,
+            transaction);
         insert.Parameters.AddWithValue("id", roleMemoryLensId);
         insert.Parameters.AddWithValue("role_id", command.RoleId);
-        AddScopeParameters(insert, lensScope);
-        AddOwnerParameters(insert, lensScope);
+        RoleMemoryLensStorageRules.AddScopeParameters(insert, lensScope);
+        RoleMemoryLensStorageRules.AddOwnerParameters(insert, lensScope);
         insert.Parameters.AddWithValue("base_memory_fact_id", command.BaseMemoryFactId);
-        insert.Parameters.AddWithValue("interpretation", command.Interpretation);
+        insert.Parameters.AddWithValue("interpretation", interpretation);
         insert.Parameters.AddWithValue("confidence", command.Confidence);
         insert.Parameters.AddWithValue("status", command.Status);
         insert.Parameters.AddWithValue("source_event_id", command.SourceEventId);
+        insert.Parameters.AddWithValue("proposed_by_principal_id", command.ProposedByPrincipalId);
 
         await insert.ExecuteNonQueryAsync(cancellationToken);
+
+        if (MemoryFactStatuses.IsNormalRetrievalStatus(command.Status))
+        {
+            var chunkScope = RoleMemoryLensStorageRules.ResolveChunkScope(lensScope, command.RoleId);
+            var chunkId = Guid.NewGuid();
+            await MemoryIndexWriteOperations.InsertMemoryChunkAsync(
+                connection,
+                transaction,
+                chunkId,
+                MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType,
+                roleMemoryLensId,
+                chunkScope.Namespace,
+                chunkScope.ScopeType,
+                chunkScope.ScopeId,
+                command.RoleId,
+                interpretation,
+                trustLevel,
+                command.SourceEventId,
+                cancellationToken);
+            await MemoryIndexWriteOperations.InsertOutboxJobAsync(
+                connection,
+                transaction,
+                Guid.NewGuid(),
+                MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType,
+                roleMemoryLensId,
+                chunkId,
+                command.SourceEventId,
+                cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
 
         var roleMemoryLens = await FindAsync(roleMemoryLensId, cancellationToken);
 
@@ -196,7 +246,8 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             interpretation,
             confidence,
             status,
-            source_event_id
+            source_event_id,
+            proposed_by_principal_id
         FROM role_memory_lenses
         """;
 
@@ -213,12 +264,14 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             reader.GetString(7),
             reader.GetDecimal(8),
             reader.GetString(9),
-            reader.GetGuid(10));
+            reader.GetGuid(10),
+            reader.GetGuid(11));
     }
 
     private static async Task ValidateBaseMemoryFactScopeAsync(
         NpgsqlConnection connection,
-        LensScopeColumns lensScope,
+        NpgsqlTransaction transaction,
+        RoleMemoryLensStorageScope lensScope,
         Guid baseMemoryFactId,
         string lensStatus,
         CancellationToken cancellationToken)
@@ -227,9 +280,11 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             """
             SELECT scope_type, org_id, project_id, status
             FROM memory_facts
-            WHERE id = @base_memory_fact_id;
+            WHERE id = @base_memory_fact_id
+            FOR UPDATE;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("base_memory_fact_id", baseMemoryFactId);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -251,81 +306,45 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             throw new InvalidOperationException("Active role memory lenses must reference active memory facts.");
         }
 
-        if (!IsValidBaseMemoryFactScope(lensScope, baseScope))
+        if (!RoleMemoryLensStorageRules.IsValidBaseMemoryFactScope(
+            lensScope,
+            baseScope.ScopeType,
+            baseScope.OrgId,
+            baseScope.ProjectId))
         {
-            throw new InvalidOperationException(BuildInvalidBaseScopeMessage(lensScope));
+            throw new InvalidOperationException(RoleMemoryLensStorageRules.BuildInvalidBaseScopeMessage(lensScope));
         }
     }
 
-    private static bool IsValidBaseMemoryFactScope(
-        LensScopeColumns lensScope,
-        BaseMemoryFactScope baseScope)
+    private static async Task<string> ValidateSourceEventScopeAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RoleMemoryLensStorageScope lensScope,
+        Guid sourceEventId,
+        Guid proposedByPrincipalId,
+        CancellationToken cancellationToken)
     {
-        return lensScope.ScopeType switch
-        {
-            "global" => baseScope.ScopeType == "global",
-            "org" => baseScope.ScopeType == "org"
-                && baseScope.OrgId == lensScope.OrgId,
-            "project" => (baseScope.ScopeType == "project" && baseScope.ProjectId == lensScope.ProjectId)
-                || (baseScope.ScopeType == "org" && baseScope.OrgId == lensScope.OrgId),
-            _ => false
-        };
-    }
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT trust_level
+            FROM events
+            WHERE id = @source_event_id
+                AND COALESCE(principal_id, scope_principal_id, agent_principal_id, '00000000-0000-4000-8000-000000000007'::uuid) = @principal_id
+                AND scope_type = @scope_type
+                AND scope_id = @scope_id
+                AND retention_class <> 'erasure_requested'
+                AND redaction_status = 'none';
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+        command.Parameters.AddWithValue("principal_id", proposedByPrincipalId);
+        RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
 
-    private static string BuildInvalidBaseScopeMessage(LensScopeColumns lensScope)
-    {
-        return lensScope.ScopeType switch
-        {
-            "global" => "Global role lenses must reference global memory facts.",
-            "org" => "Organization role lenses must reference memory facts from the same organization.",
-            "project" => "Project role lenses must reference memory facts from the target project or its organization.",
-            _ => $"Unsupported role memory lens scope type '{lensScope.ScopeType}'."
-        };
+        return await command.ExecuteScalarAsync(cancellationToken) as string
+            ?? throw new InvalidOperationException(
+                $"Source event {sourceEventId} does not exist for the role memory lens scope.");
     }
-
-    private static LensScopeColumns ResolveLensScope(MemoryScopeResolution scope)
-    {
-        return scope.ScopeType switch
-        {
-            "global" when scope.ScopeId == "global" => new LensScopeColumns("global", "global"),
-            "org" => new LensScopeColumns(
-                "org",
-                Require(scope.OrgId, "Organization role lens scope requires an organization id.").ToString(),
-                OrgId: Require(scope.OrgId, "Organization role lens scope requires an organization id.")),
-            "project" => new LensScopeColumns(
-                "project",
-                Require(scope.ProjectId, "Project role lens scope requires a project id.").ToString(),
-                OrgId: Require(scope.OrgId, "Project role lens scope requires an organization id."),
-                ProjectId: Require(scope.ProjectId, "Project role lens scope requires a project id.")),
-            "global" => throw new InvalidOperationException("Global role lens scope requires scope id 'global'."),
-            _ => throw new InvalidOperationException($"Unsupported role memory lens scope type '{scope.ScopeType}'.")
-        };
-    }
-
-    private static Guid Require(Guid? value, string message)
-    {
-        return value ?? throw new InvalidOperationException(message);
-    }
-
-    private static void AddScopeParameters(NpgsqlCommand command, LensScopeColumns lensScope)
-    {
-        command.Parameters.AddWithValue("scope_type", lensScope.ScopeType);
-        command.Parameters.AddWithValue("scope_id", lensScope.ScopeId);
-    }
-
-    private static void AddOwnerParameters(NpgsqlCommand command, LensScopeColumns lensScope)
-    {
-        command.Parameters.Add("org_id", NpgsqlDbType.Uuid).Value =
-            lensScope.OrgId.HasValue ? lensScope.OrgId.Value : DBNull.Value;
-        command.Parameters.Add("project_id", NpgsqlDbType.Uuid).Value =
-            lensScope.ProjectId.HasValue ? lensScope.ProjectId.Value : DBNull.Value;
-    }
-
-    private sealed record LensScopeColumns(
-        string ScopeType,
-        string ScopeId,
-        Guid? OrgId = null,
-        Guid? ProjectId = null);
 
     private sealed record BaseMemoryFactScope(
         string ScopeType,

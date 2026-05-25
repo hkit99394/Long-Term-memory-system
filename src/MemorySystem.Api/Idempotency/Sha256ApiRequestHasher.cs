@@ -1,17 +1,21 @@
 using System.Buffers;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.Idempotency;
 
-public sealed class Sha256ApiRequestHasher : IApiRequestHasher
+public sealed class Sha256ApiRequestHasher(IOptions<ApiIdempotencyOptions> options) : IApiRequestHasher
 {
     private const string Prefix = "sha256:";
+    private const int BufferThreshold = 30 * 1024;
 
     public async Task<string> ComputeHashAsync(HttpRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        request.EnableBuffering();
+        var maxBodyBytes = options.Value.MaxBodyBytes;
+
+        request.EnableBuffering(BufferThreshold, maxBodyBytes);
 
         if (request.Body.CanSeek)
         {
@@ -20,6 +24,7 @@ public sealed class Sha256ApiRequestHasher : IApiRequestHasher
 
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = ArrayPool<byte>.Shared.Rent(81920);
+        var totalBytesRead = 0L;
 
         try
         {
@@ -32,8 +37,19 @@ public sealed class Sha256ApiRequestHasher : IApiRequestHasher
                     break;
                 }
 
+                totalBytesRead += bytesRead;
+
+                if (totalBytesRead > maxBodyBytes)
+                {
+                    throw new ApiRequestBodyTooLargeException(maxBodyBytes);
+                }
+
                 hash.AppendData(buffer.AsSpan(0, bytesRead));
             }
+        }
+        catch (IOException exception)
+        {
+            throw new ApiRequestBodyTooLargeException(maxBodyBytes, exception);
         }
         finally
         {

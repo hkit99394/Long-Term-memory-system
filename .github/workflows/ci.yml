@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.2-pg17-bookworm
+        env:
+          POSTGRES_DB: memory_system
+          POSTGRES_USER: memory_system
+          POSTGRES_PASSWORD: memory_system_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "PGPASSWORD=memory_system_dev_password pg_isready -h 127.0.0.1 -p 5432 -U memory_system -d memory_system"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet restore MemorySystem.sln
+
+      - run: dotnet build MemorySystem.sln --configuration Release --no-restore
+
+      - run: dotnet test MemorySystem.sln --configuration Release --no-build --filter "Category!=Database"
+
+      - run: dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"

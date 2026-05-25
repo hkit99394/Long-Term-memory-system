@@ -646,6 +646,7 @@ CREATE TABLE api_idempotency_keys (
     request_hash TEXT NOT NULL,
     response_status INT,
     response_body JSONB,
+    response_content_type TEXT,
     resource_type TEXT,
     resource_id UUID,
     status TEXT NOT NULL,

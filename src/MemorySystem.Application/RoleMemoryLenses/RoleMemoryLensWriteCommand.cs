@@ -10,5 +10,6 @@ public sealed record RoleMemoryLensWriteCommand(
     string Interpretation,
     decimal Confidence,
     Guid SourceEventId,
+    Guid ProposedByPrincipalId,
     string Status = MemoryFactStatuses.Active,
     Guid? Id = null);

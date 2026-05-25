@@ -11,6 +11,7 @@ internal static class PostgresApiIdempotencyCompleter
         string requestHash,
         int responseStatus,
         string? responseBody,
+        string? responseContentType,
         string? resourceType,
         Guid? resourceId,
         string failureMessage,
@@ -25,6 +26,7 @@ internal static class PostgresApiIdempotencyCompleter
             requestHash,
             responseStatus,
             responseBody,
+            responseContentType,
             resourceType,
             resourceId,
             failureMessage,
@@ -38,6 +40,7 @@ internal static class PostgresApiIdempotencyCompleter
         string requestHash,
         int responseStatus,
         string? responseBody,
+        string? responseContentType,
         string? resourceType,
         Guid? resourceId,
         string failureMessage,
@@ -51,6 +54,7 @@ internal static class PostgresApiIdempotencyCompleter
             SET
                 response_status = @response_status,
                 response_body = @response_body,
+                response_content_type = @response_content_type,
                 resource_type = @resource_type,
                 resource_id = @resource_id,
                 status = 'completed'
@@ -68,6 +72,8 @@ internal static class PostgresApiIdempotencyCompleter
         command.Parameters.AddWithValue("response_status", responseStatus);
         command.Parameters.Add("response_body", NpgsqlDbType.Jsonb).Value =
             responseBody is null ? DBNull.Value : responseBody;
+        command.Parameters.Add("response_content_type", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(responseContentType) ? DBNull.Value : responseContentType;
         command.Parameters.AddWithValue("resource_type", string.IsNullOrWhiteSpace(resourceType) ? DBNull.Value : resourceType);
         command.Parameters.AddWithValue("resource_id", resourceId.HasValue ? resourceId.Value : DBNull.Value);
 

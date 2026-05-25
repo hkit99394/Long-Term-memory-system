@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using MemorySystem.Infrastructure.Idempotency;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.Idempotency;
@@ -45,12 +46,25 @@ public sealed class ApiIdempotencyHttpService(
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
-                title: "Idempotency key is required.",
+                title: "Invalid idempotency key.",
                 detail: idempotencyKeyResult.Error);
         }
 
         var cancellationToken = httpContext.RequestAborted;
-        var requestHash = await requestHasher.ComputeHashAsync(httpContext.Request, cancellationToken);
+        string requestHash;
+
+        try
+        {
+            requestHash = await requestHasher.ComputeHashAsync(httpContext.Request, cancellationToken);
+        }
+        catch (ApiRequestBodyTooLargeException exception)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status413PayloadTooLarge,
+                title: "Request body is too large.",
+                detail: $"Mutating request bodies must be {exception.MaxBodyBytes} bytes or fewer.");
+        }
+
         var expiresAt = DateTimeOffset.UtcNow.Add(options.Value.RetentionPeriod);
         var beginResult = await store.BeginAsync(
             principalId,
@@ -70,7 +84,9 @@ public sealed class ApiIdempotencyHttpService(
                 cancellationToken),
             ApiIdempotencyBeginStatus.Replay => new StoredJsonResult(
                 beginResult.Record.ResponseStatus!.Value,
-                beginResult.Record.ResponseBody),
+                beginResult.Record.ResponseBody,
+                beginResult.Record.ResponseContentType
+                    ?? InferStoredContentType(beginResult.Record.ResponseStatus.Value, beginResult.Record.ResponseBody)),
             ApiIdempotencyBeginStatus.Conflict => Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Idempotency key conflict.",
@@ -102,6 +118,7 @@ public sealed class ApiIdempotencyHttpService(
             var responseBody = response.Body is null
                 ? null
                 : JsonSerializer.Serialize(response.Body, JsonOptions);
+            var contentType = response.ContentType ?? InferContentType(response.Body);
 
             if (!response.IdempotencyAlreadyCompleted)
             {
@@ -110,12 +127,13 @@ public sealed class ApiIdempotencyHttpService(
                     requestHash,
                     response.StatusCode,
                     responseBody,
+                    contentType,
                     response.ResourceType,
                     response.ResourceId,
                     cancellationToken);
             }
 
-            return new StoredJsonResult(response.StatusCode, responseBody);
+            return new StoredJsonResult(response.StatusCode, responseBody, contentType);
         }
         catch
         {
@@ -129,6 +147,28 @@ public sealed class ApiIdempotencyHttpService(
         var principalIdValue = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return Guid.TryParse(principalIdValue, out principalId);
+    }
+
+    private static string? InferContentType(object? body)
+    {
+        return body switch
+        {
+            null => null,
+            ProblemDetails => "application/problem+json; charset=utf-8",
+            _ => "application/json; charset=utf-8"
+        };
+    }
+
+    private static string? InferStoredContentType(int responseStatus, string? responseBody)
+    {
+        if (responseBody is null)
+        {
+            return null;
+        }
+
+        return responseStatus >= StatusCodes.Status400BadRequest
+            ? "application/problem+json; charset=utf-8"
+            : "application/json; charset=utf-8";
     }
 
     private static IdempotencyKeyResult TryGetIdempotencyKey(

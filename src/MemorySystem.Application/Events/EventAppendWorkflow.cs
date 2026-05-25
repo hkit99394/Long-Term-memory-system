@@ -58,7 +58,8 @@ public sealed class EventAppendWorkflow(
             new MemoryAccessRequest(
                 request.AuthenticatedPrincipalId,
                 MemoryAccessPermissions.Write,
-                scopeResult.Resolution!),
+                scopeResult.Resolution!,
+                EventAuthorizationNamespace(scopeResult.Resolution!)),
             cancellationToken);
 
         if (!accessDecision.Allowed)
@@ -200,5 +201,12 @@ public sealed class EventAppendWorkflow(
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
 
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string? EventAuthorizationNamespace(MemoryScopeResolution scope)
+    {
+        return scope.ScopeType is "global" or "session"
+            ? MemoryNamespaceParser.BuildScopePrefix(scope.ScopeType, scope.ScopeId) + "events"
+            : null;
     }
 }

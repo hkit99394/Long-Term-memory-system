@@ -5,4 +5,6 @@ public sealed record ApiIdempotencyResponse(
     object? Body,
     string? ResourceType = null,
     Guid? ResourceId = null,
-    bool IdempotencyAlreadyCompleted = false);
+    // Set only when the operation store completed idempotency in the same transaction as its durable write.
+    bool IdempotencyAlreadyCompleted = false,
+    string? ContentType = null);

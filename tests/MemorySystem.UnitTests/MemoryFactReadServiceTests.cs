@@ -123,6 +123,13 @@ public sealed class MemoryFactReadServiceTests
             throw new NotSupportedException();
         }
 
+        public Task<IReadOnlyList<MemoryFactRecord>> FindActiveBySubjectPredicateAsync(
+            MemoryFactSubjectPredicateQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<MemoryFactRecord> StoreAsync(
             MemoryFactWriteCommand command,
             CancellationToken cancellationToken = default)

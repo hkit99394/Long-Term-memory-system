@@ -17,7 +17,7 @@ public sealed class ApiEventTests
     private const string TestProjectId = "33333333-3333-4333-8333-333333333333";
     private const string TestAgentPrincipalId = "44444444-4444-4444-8444-444444444444";
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_stores_event_and_idempotency_record()
     {
@@ -66,7 +66,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_replays_original_event_for_same_idempotency_key_and_body()
     {
@@ -94,7 +94,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_conflicts_when_idempotency_key_is_reused_with_different_body()
     {
@@ -125,7 +125,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_returns_bad_request_for_non_json_content_type()
     {
@@ -164,7 +164,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_derives_project_scope_organization()
     {
@@ -203,7 +203,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_forbids_project_scope_without_membership()
     {
@@ -248,7 +248,44 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseTheory]
+    [InlineData("global", "global", "/global/events", "global")]
+    [InlineData("session", "session-1", "/session/session-1/events", "session")]
+    [Trait("Category", "Database")]
+    public async Task Post_events_forbids_open_scopes_without_namespace_grant(
+        string scopeType,
+        string scopeId,
+        string expectedNamespace,
+        string idempotencyKeySuffix)
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_events_open_scope_forbidden_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload) = await SendEventResponseAsync(
+                client,
+                $"event-open-scope-forbidden-{idempotencyKeySuffix}",
+                CreateScopedEventBody(scopeType, scopeId));
+
+            Assert.Equal(HttpStatusCode.Forbidden, statusCode);
+            Assert.Equal("Event scope is forbidden.", payload.GetProperty("title").GetString());
+            Assert.Contains(expectedNamespace, payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal(0, await CountEventsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_rejects_elevated_external_trust_level()
     {
@@ -288,7 +325,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_rejects_role_attribution_outside_role_scope()
     {
@@ -328,7 +365,7 @@ public sealed class ApiEventTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_events_resolves_organization_role_agent_and_session_scopes()
     {
@@ -344,6 +381,11 @@ public sealed class ApiEventTests
                 Guid.Parse(TestAgentPrincipalId),
                 principalType: "agent",
                 displayName: "Test Agent");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                "/session/session-1/events",
+                "write",
+                principalId: Guid.Parse(TestPrincipalId));
 
             using var factory = CreateFactory(databaseConnectionString);
             using var client = factory.CreateClient();

@@ -15,8 +15,9 @@ public sealed class MemoryFactRepositoryTests
     private static readonly Guid ProjectEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid RoleEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
     private static readonly Guid AgentEventId = Guid.Parse("88888888-8888-4888-8888-888888888888");
+    private static readonly Guid LegacyAgentEventId = Guid.Parse("99999999-9999-4999-8999-999999999999");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_round_trips_user_project_role_and_agent_private_memory()
     {
@@ -79,6 +80,8 @@ public sealed class MemoryFactRepositoryTests
             await AssertSingleScopedFactAsync(repository, ProjectScope(), "decision", projectDecision.Id);
             await AssertSingleScopedFactAsync(repository, RoleScope(), "role_principle", roleMemory.Id);
             await AssertSingleScopedFactAsync(repository, AgentScope(), "agent_private", agentPrivate.Id);
+            Assert.Equal(4, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "memory_chunks"));
+            Assert.Equal(4, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "outbox_jobs"));
         }
         finally
         {
@@ -86,7 +89,7 @@ public sealed class MemoryFactRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task FindByScopeAsync_filters_lifecycle_statuses_for_normal_retrieval()
     {
@@ -143,7 +146,45 @@ public sealed class MemoryFactRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_does_not_enqueue_indexing_for_inactive_direct_writes()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_fact_inactive_indexing_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+
+            var deleted = await repository.StoreAsync(CreateWriteCommand(
+                UserScope(),
+                $"/user/{PrincipalId}/preferences",
+                "preference",
+                "private",
+                "deleted preference",
+                "should not be indexed",
+                UserEventId,
+                PrincipalId) with
+            {
+                Status = MemoryFactStatuses.Deleted
+            });
+
+            Assert.Equal(MemoryFactStatuses.Deleted, deleted.Status);
+            Assert.Equal(0, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "memory_chunks"));
+            Assert.Equal(0, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "outbox_jobs"));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task SearchAsync_filters_by_scope_type_subject_and_status_without_vector_retrieval()
     {
@@ -228,6 +269,129 @@ public sealed class MemoryFactRepositoryTests
 
             Assert.Equal(expired.Id, expiredResult.Id);
             Assert.Equal(MemoryFactStatuses.Expired, expiredResult.Status);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_trims_subject_predicate_and_object_for_direct_writes()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_fact_trim_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+
+            var stored = await repository.StoreAsync(new MemoryFactWriteCommand(
+                UserScope(),
+                $"/user/{PrincipalId}/preferences",
+                "preference",
+                "private",
+                " editor theme ",
+                " prefers ",
+                " dark mode ",
+                0.950m,
+                UserEventId,
+                PrincipalId));
+
+            Assert.Equal("editor theme", stored.Subject);
+            Assert.Equal("prefers", stored.Predicate);
+            Assert.Equal("dark mode", stored.Object);
+
+            var results = await repository.FindActiveBySubjectPredicateAsync(
+                new MemoryFactSubjectPredicateQuery(
+                    UserScope(),
+                    "preference",
+                    " EDITOR THEME ",
+                    " prefers "));
+            var result = Assert.Single(results);
+
+            Assert.Equal(stored.Id, result.Id);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_accepts_legacy_agent_source_event_actor()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_fact_legacy_agent_source_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertLegacyAgentSourceEventAsync(
+                databaseConnectionString,
+                LegacyAgentEventId,
+                AgentPrincipalId,
+                "agent",
+                AgentPrincipalId.ToString());
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+
+            var memoryFact = await repository.StoreAsync(CreateWriteCommand(
+                AgentScope(),
+                $"/agent/{AgentPrincipalId}/private",
+                "agent_private",
+                "private",
+                "legacy agent source event",
+                "writes durable private memory",
+                LegacyAgentEventId,
+                AgentPrincipalId));
+
+            Assert.Equal(AgentPrincipalId, memoryFact.AgentPrincipalId);
+            Assert.Equal(AgentPrincipalId, memoryFact.ProposedByPrincipalId);
+            Assert.Equal("agent_private", memoryFact.TrustLevel);
+            Assert.Equal(LegacyAgentEventId, memoryFact.SourceEventId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_rejects_source_event_outside_fact_scope()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_fact_source_scope_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                repository.StoreAsync(CreateWriteCommand(
+                    UserScope(),
+                    $"/user/{PrincipalId}/preferences",
+                    "preference",
+                    "private",
+                    "misattributed source event",
+                    "should be rejected",
+                    ProjectEventId,
+                    PrincipalId)));
+
+            Assert.Contains("does not exist for the memory fact scope", exception.Message, StringComparison.Ordinal);
         }
         finally
         {

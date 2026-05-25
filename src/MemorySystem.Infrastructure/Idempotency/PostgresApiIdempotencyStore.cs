@@ -61,6 +61,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
         string requestHash,
         int responseStatus,
         string? responseBody,
+        string? responseContentType,
         string? resourceType,
         Guid? resourceId,
         CancellationToken cancellationToken = default)
@@ -71,6 +72,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
             requestHash,
             responseStatus,
             responseBody,
+            responseContentType,
             resourceType,
             resourceId,
             "The idempotency record could not be completed.",
@@ -166,6 +168,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
                 request_hash,
                 response_status,
                 response_body::text,
+                response_content_type,
                 resource_type,
                 resource_id,
                 status,
@@ -200,6 +203,7 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
                 request_hash,
                 response_status,
                 response_body::text,
+                response_content_type,
                 resource_type,
                 resource_id,
                 status,
@@ -266,8 +270,9 @@ public sealed class PostgresApiIdempotencyStore(NpgsqlDataSource dataSource) : I
             reader.IsDBNull(5) ? null : reader.GetInt32(5),
             reader.IsDBNull(6) ? null : reader.GetString(6),
             reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.IsDBNull(8) ? null : reader.GetGuid(8),
-            reader.GetString(9),
-            reader.GetFieldValue<DateTimeOffset>(10));
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetGuid(9),
+            reader.GetString(10),
+            reader.GetFieldValue<DateTimeOffset>(11));
     }
 }

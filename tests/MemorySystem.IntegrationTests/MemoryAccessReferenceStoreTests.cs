@@ -11,7 +11,7 @@ public sealed class MemoryAccessReferenceStoreTests
     private static readonly Guid OrgId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid ProjectId = Guid.Parse("33333333-3333-4333-8333-333333333333");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task HasNamespaceGrantAsync_treats_grant_prefix_as_literal_text()
     {
@@ -50,7 +50,7 @@ public sealed class MemoryAccessReferenceStoreTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task FindProjectAccessLevelAsync_ignores_inactive_projects()
     {
@@ -84,7 +84,7 @@ public sealed class MemoryAccessReferenceStoreTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Role_scope_checks_do_not_accept_project_role_assignments()
     {

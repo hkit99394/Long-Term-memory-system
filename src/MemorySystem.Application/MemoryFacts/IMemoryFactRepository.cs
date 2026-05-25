@@ -14,6 +14,10 @@ public interface IMemoryFactRepository
         MemoryFactSearchQuery query,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<MemoryFactRecord>> FindActiveBySubjectPredicateAsync(
+        MemoryFactSubjectPredicateQuery query,
+        CancellationToken cancellationToken = default);
+
     Task<MemoryFactRecord> StoreAsync(
         MemoryFactWriteCommand command,
         CancellationToken cancellationToken = default);

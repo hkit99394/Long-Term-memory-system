@@ -26,12 +26,14 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
 
         await using var command = new NpgsqlCommand(
             """
-            SELECT id, trust_level
+            SELECT id, trust_level, sensitivity
             FROM events
             WHERE id = @event_id
-                AND principal_id = @principal_id
+                AND COALESCE(principal_id, scope_principal_id, agent_principal_id, '00000000-0000-4000-8000-000000000007'::uuid) = @principal_id
                 AND scope_type = @scope_type
-                AND scope_id = @scope_id;
+                AND scope_id = @scope_id
+                AND retention_class <> 'erasure_requested'
+                AND redaction_status = 'none';
             """,
             connection);
         command.Parameters.AddWithValue("event_id", eventId);
@@ -42,7 +44,7 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         return await reader.ReadAsync(cancellationToken)
-            ? new SourceEventReference(reader.GetGuid(0), reader.GetString(1))
+            ? new SourceEventReference(reader.GetGuid(0), reader.GetString(1), reader.GetString(2))
             : null;
     }
 
@@ -146,6 +148,7 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
             requestHash,
             201,
             JsonSerializer.Serialize(new AppendEventResponseBody(eventId), JsonOptions),
+            "application/json; charset=utf-8",
             "event",
             eventId,
             "The event idempotency record could not be completed.",

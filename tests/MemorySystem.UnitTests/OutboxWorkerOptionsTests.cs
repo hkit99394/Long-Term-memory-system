@@ -10,9 +10,24 @@ namespace MemorySystem.UnitTests;
 public sealed class OutboxWorkerOptionsTests
 {
     [Fact]
-    public void Read_disables_worker_by_default()
+    public void Read_enables_worker_by_default()
     {
         var options = OutboxWorkerOptions.Read(new ConfigurationBuilder().Build());
+
+        Assert.True(options.Enabled);
+    }
+
+    [Fact]
+    public void Read_allows_worker_to_be_explicitly_disabled()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["OutboxWorker:Enabled"] = "false"
+            })
+            .Build();
+
+        var options = OutboxWorkerOptions.Read(configuration);
 
         Assert.False(options.Enabled);
     }

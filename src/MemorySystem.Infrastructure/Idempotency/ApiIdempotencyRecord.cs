@@ -8,6 +8,7 @@ public sealed record ApiIdempotencyRecord(
     string RequestHash,
     int? ResponseStatus,
     string? ResponseBody,
+    string? ResponseContentType,
     string? ResourceType,
     Guid? ResourceId,
     string Status,

@@ -47,6 +47,7 @@ public static class SqlMigrationRunner
             var recordedMigrations = await LoadRecordedMigrationsAsync(connection, cancellationToken);
             ValidateMigrationsExistForInitialRun(recordedMigrations, migrations, migrationsDirectory);
             ValidateRecordedMigrationsExist(recordedMigrations, migrations);
+            ValidateRecordedMigrationsAreContiguous(recordedMigrations, migrations);
 
             var appliedMigrations = new List<AppliedSqlMigration>();
             var skippedMigrations = new List<AppliedSqlMigration>();
@@ -91,10 +92,15 @@ public static class SqlMigrationRunner
             throw new DirectoryNotFoundException($"Migration directory '{migrationsDirectory}' does not exist.");
         }
 
-        return [.. Directory
+        var migrations = Directory
             .EnumerateFiles(migrationsDirectory, "*.sql", SearchOption.TopDirectoryOnly)
             .Order(StringComparer.Ordinal)
-            .Select(ReadMigration)];
+            .Select(ReadMigration)
+            .ToArray();
+
+        ValidateCurrentMigrationsAreContiguous(migrations);
+
+        return migrations;
     }
 
     private static SqlMigration ReadMigration(string path)
@@ -102,8 +108,59 @@ public static class SqlMigrationRunner
         var bytes = File.ReadAllBytes(path);
         var checksum = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         var sql = Encoding.UTF8.GetString(bytes);
+        var name = Path.GetFileName(path);
 
-        return new SqlMigration(Path.GetFileName(path), sql, checksum);
+        return new SqlMigration(name, ParseMigrationOrdinal(name), sql, checksum);
+    }
+
+    private static int ParseMigrationOrdinal(string migrationName)
+    {
+        var separatorIndex = migrationName.IndexOf('_', StringComparison.Ordinal);
+
+        if (separatorIndex <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Migration filename '{migrationName}' must start with a numeric ordinal followed by '_'.");
+        }
+
+        var ordinalText = migrationName[..separatorIndex];
+
+        return ordinalText.All(char.IsDigit)
+            && int.TryParse(ordinalText, out var ordinal)
+            && ordinal > 0
+                ? ordinal
+                : throw new InvalidOperationException(
+                    $"Migration filename '{migrationName}' must start with a positive numeric ordinal.");
+    }
+
+    private static void ValidateCurrentMigrationsAreContiguous(IReadOnlyList<SqlMigration> migrations)
+    {
+        if (migrations.Count > 0 && migrations[0].Ordinal != 1)
+        {
+            throw new SqlMigrationHistoryGapException(
+                "001_*.sql",
+                migrations[0].Name);
+        }
+
+        for (var index = 1; index < migrations.Count; index++)
+        {
+            var previousMigration = migrations[index - 1];
+            var migration = migrations[index];
+            var expectedOrdinal = previousMigration.Ordinal + 1;
+
+            if (migration.Ordinal == previousMigration.Ordinal)
+            {
+                throw new InvalidOperationException(
+                    $"Migration ordinal {migration.Ordinal:D3} is used by more than one migration file.");
+            }
+
+            if (migration.Ordinal != expectedOrdinal)
+            {
+                throw new SqlMigrationHistoryGapException(
+                    $"{expectedOrdinal:D3}_*.sql",
+                    migration.Name);
+            }
+        }
     }
 
     private static async Task AcquireLockAsync(
@@ -216,6 +273,26 @@ public static class SqlMigrationRunner
         }
     }
 
+    private static void ValidateRecordedMigrationsAreContiguous(
+        IReadOnlyDictionary<string, string> recordedMigrations,
+        IReadOnlyList<SqlMigration> currentMigrations)
+    {
+        var recordedMigrationNames = recordedMigrations.Keys
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        for (var index = 0; index < recordedMigrationNames.Length; index++)
+        {
+            var expectedMigrationName = currentMigrations[index].Name;
+            var recordedMigrationName = recordedMigrationNames[index];
+
+            if (!string.Equals(recordedMigrationName, expectedMigrationName, StringComparison.Ordinal))
+            {
+                throw new SqlMigrationHistoryGapException(expectedMigrationName, recordedMigrationName);
+            }
+        }
+    }
+
     private static async Task RecordMigrationAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -245,5 +322,5 @@ public static class SqlMigrationRunner
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private sealed record SqlMigration(string Name, string Sql, string ChecksumSha256);
+    private sealed record SqlMigration(string Name, int Ordinal, string Sql, string ChecksumSha256);
 }

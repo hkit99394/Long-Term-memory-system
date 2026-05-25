@@ -10,7 +10,7 @@ public sealed class MemoryFactScopeConstraintTests
     private static readonly Guid OtherPrincipalId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid SourceEventId = Guid.Parse("33333333-3333-4333-8333-333333333333");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Memory_facts_reject_owner_column_drift_on_update()
     {
@@ -39,7 +39,7 @@ public sealed class MemoryFactScopeConstraintTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Memory_facts_reject_session_namespace_prefix_drift_without_like_wildcards()
     {

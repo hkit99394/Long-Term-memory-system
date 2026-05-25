@@ -20,4 +20,17 @@ public static class MemorySystemHealthChecksBuilderExtensions
             tags: ["database", "postgres", "ready"],
             timeout: PostgresHealthCheck.Timeout));
     }
+
+    public static IHealthChecksBuilder AddMemorySystemOutboxBacklog(this IHealthChecksBuilder builder)
+    {
+        return builder.Add(new HealthCheckRegistration(
+            "outbox",
+            serviceProvider =>
+            {
+                return new OutboxBacklogHealthCheck(serviceProvider.GetRequiredService<NpgsqlDataSource>());
+            },
+            failureStatus: HealthStatus.Degraded,
+            tags: ["outbox", "worker", "ready"],
+            timeout: OutboxBacklogHealthCheck.Timeout));
+    }
 }

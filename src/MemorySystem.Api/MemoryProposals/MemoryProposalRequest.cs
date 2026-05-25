@@ -25,4 +25,8 @@ public sealed class MemoryProposalRequest
     public string? TrustLevel { get; init; }
 
     public string? Sensitivity { get; init; }
+
+    public string? RoleId { get; init; }
+
+    public Guid? BaseMemoryFactId { get; init; }
 }

@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -80,8 +81,51 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         command.Parameters.Add("memory_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.MemoryType) ? DBNull.Value : query.MemoryType;
         command.Parameters.Add("subject", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.Subject) ? DBNull.Value : query.Subject;
+            string.IsNullOrWhiteSpace(query.Subject) ? DBNull.Value : query.Subject.Trim();
         command.Parameters.AddWithValue("limit", query.Limit);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var memoryFacts = new List<MemoryFactRecord>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            memoryFacts.Add(ReadMemoryFact(reader));
+        }
+
+        return memoryFacts;
+    }
+
+    public async Task<IReadOnlyList<MemoryFactRecord>> FindActiveBySubjectPredicateAsync(
+        MemoryFactSubjectPredicateQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(query.Scope);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.MemoryType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.Subject);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.Predicate);
+
+        var subject = query.Subject.Trim();
+        var predicate = query.Predicate.Trim();
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+
+        await using var command = new NpgsqlCommand(
+            $"""
+            {SelectMemoryFactSql}
+            WHERE scope_type = @scope_type
+                AND scope_id = @scope_id
+                AND status = 'active'
+                AND memory_type = @memory_type
+                AND lower(btrim(subject)) = lower(btrim(@subject))
+                AND lower(btrim(predicate)) = lower(btrim(@predicate))
+            ORDER BY updated_at DESC, created_at DESC, id;
+            """,
+            connection);
+        AddScopeParameters(command, query.Scope);
+        command.Parameters.AddWithValue("memory_type", query.MemoryType);
+        command.Parameters.AddWithValue("subject", subject);
+        command.Parameters.AddWithValue("predicate", predicate);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var memoryFacts = new List<MemoryFactRecord>();
@@ -119,10 +163,14 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         }
 
         var memoryFactId = command.Id ?? Guid.NewGuid();
+        var subject = command.Subject.Trim();
+        var predicate = command.Predicate.Trim();
+        var objectValue = command.Object.Trim();
         var ownerColumns = ResolveOwnerColumns(command.Scope);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        var trustLevel = await FindSourceEventTrustLevelAsync(connection, command.SourceEventId, cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var trustLevel = await FindScopedSourceEventTrustLevelAsync(connection, transaction, command, cancellationToken);
 
         await using var insert = new NpgsqlCommand(
             """
@@ -169,16 +217,17 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
                 @proposed_by_principal_id
             );
             """,
-            connection);
+            connection,
+            transaction);
         insert.Parameters.AddWithValue("id", memoryFactId);
         AddScopeParameters(insert, command.Scope);
         insert.Parameters.AddWithValue("namespace", command.Namespace);
         AddOwnerParameters(insert, ownerColumns);
         insert.Parameters.AddWithValue("memory_type", command.MemoryType);
         insert.Parameters.AddWithValue("visibility", command.Visibility);
-        insert.Parameters.AddWithValue("subject", command.Subject);
-        insert.Parameters.AddWithValue("predicate", command.Predicate);
-        insert.Parameters.AddWithValue("object", command.Object);
+        insert.Parameters.AddWithValue("subject", subject);
+        insert.Parameters.AddWithValue("predicate", predicate);
+        insert.Parameters.AddWithValue("object", objectValue);
         insert.Parameters.AddWithValue("confidence", command.Confidence);
         insert.Parameters.AddWithValue("trust_level", trustLevel);
         insert.Parameters.AddWithValue("status", command.Status);
@@ -187,28 +236,72 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
 
         await insert.ExecuteNonQueryAsync(cancellationToken);
 
+        if (MemoryFactStatuses.IsNormalRetrievalStatus(command.Status))
+        {
+            var chunkId = Guid.NewGuid();
+            await MemoryIndexWriteOperations.InsertMemoryChunkAsync(
+                connection,
+                transaction,
+                chunkId,
+                MemoryIndexOutboxJobContract.AggregateType,
+                memoryFactId,
+                command.Namespace,
+                command.Scope.ScopeType,
+                command.Scope.ScopeId,
+                subject,
+                BuildChunkContent(subject, predicate, objectValue),
+                trustLevel,
+                command.SourceEventId,
+                cancellationToken);
+            await MemoryIndexWriteOperations.InsertOutboxJobAsync(
+                connection,
+                transaction,
+                Guid.NewGuid(),
+                MemoryIndexOutboxJobContract.AggregateType,
+                memoryFactId,
+                chunkId,
+                command.SourceEventId,
+                cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
         var memoryFact = await FindAsync(memoryFactId, cancellationToken);
 
         return memoryFact
             ?? throw new InvalidOperationException($"Stored memory fact {memoryFactId} could not be read back.");
     }
 
-    private static async Task<string> FindSourceEventTrustLevelAsync(
+    private static async Task<string> FindScopedSourceEventTrustLevelAsync(
         NpgsqlConnection connection,
-        Guid sourceEventId,
+        NpgsqlTransaction transaction,
+        MemoryFactWriteCommand memoryFact,
         CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT trust_level
             FROM events
-            WHERE id = @source_event_id;
+            WHERE id = @source_event_id
+                AND COALESCE(principal_id, scope_principal_id, agent_principal_id, '00000000-0000-4000-8000-000000000007'::uuid) = @principal_id
+                AND scope_type = @scope_type
+                AND scope_id = @scope_id
+                AND retention_class <> 'erasure_requested'
+                AND redaction_status = 'none';
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("source_event_id", memoryFact.SourceEventId);
+        command.Parameters.AddWithValue("principal_id", memoryFact.ProposedByPrincipalId);
+        AddScopeParameters(command, memoryFact.Scope);
 
         return await command.ExecuteScalarAsync(cancellationToken) as string
-            ?? throw new InvalidOperationException($"Source event {sourceEventId} does not exist.");
+            ?? throw new InvalidOperationException(
+                $"Source event {memoryFact.SourceEventId} does not exist for the memory fact scope.");
+    }
+
+    private static string BuildChunkContent(string subject, string predicate, string objectValue)
+    {
+        return $"{subject} {predicate} {objectValue}";
     }
 
     private const string SelectMemoryFactSql = """

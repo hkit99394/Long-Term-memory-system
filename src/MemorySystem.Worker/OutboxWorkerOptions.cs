@@ -5,7 +5,7 @@ namespace MemorySystem.Worker;
 
 public sealed class OutboxWorkerOptions
 {
-    public bool Enabled { get; init; }
+    public bool Enabled { get; init; } = true;
 
     public string WorkerId { get; init; } = $"{Environment.MachineName}-{Guid.NewGuid():N}";
 

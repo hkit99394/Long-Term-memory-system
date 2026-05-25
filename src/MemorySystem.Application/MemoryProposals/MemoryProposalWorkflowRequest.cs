@@ -15,4 +15,6 @@ public sealed record MemoryProposalWorkflowRequest(
     string? Object,
     decimal? Confidence,
     string? TrustLevel,
-    string? Sensitivity);
+    string? Sensitivity,
+    string? RoleId = null,
+    Guid? BaseMemoryFactId = null);

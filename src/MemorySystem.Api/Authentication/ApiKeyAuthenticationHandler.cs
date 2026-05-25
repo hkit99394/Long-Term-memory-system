@@ -63,20 +63,8 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAu
             return AuthenticateResult.Fail("Invalid API key.");
         }
 
-        try
+        if (!await principalValidator.IsActiveAsync(principalId, Context.RequestAborted))
         {
-            if (!await principalValidator.IsActiveAsync(principalId, Context.RequestAborted))
-            {
-                return AuthenticateResult.Fail("Invalid API key.");
-            }
-        }
-        catch (OperationCanceledException) when (Context.RequestAborted.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            Logger.LogWarning(exception, "API key principal validation failed.");
             return AuthenticateResult.Fail("Invalid API key.");
         }
 

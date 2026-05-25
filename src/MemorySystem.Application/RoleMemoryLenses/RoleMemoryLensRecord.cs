@@ -13,7 +13,8 @@ public sealed record RoleMemoryLensRecord(
     string Interpretation,
     decimal Confidence,
     string Status,
-    Guid SourceEventId)
+    Guid SourceEventId,
+    Guid ProposedByPrincipalId)
 {
     public bool IsSharedRolePrinciple => ProjectId is null;
 

@@ -19,15 +19,16 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
             throw new InvalidOperationException($"Unsupported outbox job type '{job.JobType}'.");
         }
 
-        if (!string.Equals(job.AggregateType, MemoryIndexOutboxJobContract.AggregateType, StringComparison.Ordinal))
+        if (!MemoryIndexOutboxJobContract.IsSupportedAggregateType(job.AggregateType))
         {
             throw new InvalidOperationException(
-                $"Outbox job '{MemoryIndexOutboxJobContract.JobType}' requires aggregate type '{MemoryIndexOutboxJobContract.AggregateType}'.");
+                $"Outbox job '{MemoryIndexOutboxJobContract.JobType}' has unsupported aggregate type '{job.AggregateType}'.");
         }
 
         var payload = MemoryIndexOutboxJobContract.ParsePayload(job.PayloadJson);
 
-        if (payload.MemoryFactId != job.AggregateId)
+        if (!string.Equals(payload.AggregateType, job.AggregateType, StringComparison.Ordinal)
+            || payload.AggregateId != job.AggregateId)
         {
             throw new InvalidOperationException("Memory index payload does not match the outbox aggregate id.");
         }
@@ -37,20 +38,37 @@ public sealed class MemoryIndexOutboxJobHandler(NpgsqlDataSource dataSource) : I
             """
             SELECT EXISTS (
                 SELECT 1
-                FROM memory_facts AS fact
-                JOIN memory_chunks AS chunk
-                    ON chunk.source_type = @aggregate_type
-                    AND chunk.source_id = fact.id
-                WHERE fact.id = @memory_fact_id
-                    AND fact.source_event_id = @source_event_id
+                FROM memory_chunks AS chunk
+                WHERE chunk.source_type = @aggregate_type
+                    AND chunk.source_id = @aggregate_id
                     AND chunk.id = @chunk_id
                     AND chunk.source_event_id = @source_event_id
                     AND chunk.search_vector IS NOT NULL
+                    AND (
+                        (
+                            @aggregate_type = 'memory_fact'
+                            AND EXISTS (
+                                SELECT 1
+                                FROM memory_facts AS fact
+                                WHERE fact.id = @aggregate_id
+                                    AND fact.source_event_id = @source_event_id
+                            )
+                        )
+                        OR (
+                            @aggregate_type = 'role_memory_lens'
+                            AND EXISTS (
+                                SELECT 1
+                                FROM role_memory_lenses AS lens
+                                WHERE lens.id = @aggregate_id
+                                    AND lens.source_event_id = @source_event_id
+                            )
+                        )
+                    )
             );
             """,
             connection);
-        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
-        command.Parameters.AddWithValue("memory_fact_id", payload.MemoryFactId);
+        command.Parameters.AddWithValue("aggregate_type", payload.AggregateType);
+        command.Parameters.AddWithValue("aggregate_id", payload.AggregateId);
         command.Parameters.AddWithValue("chunk_id", payload.ChunkId);
         command.Parameters.AddWithValue("source_event_id", payload.SourceEventId);
 

@@ -15,6 +15,7 @@ public interface IApiIdempotencyStore
         string requestHash,
         int responseStatus,
         string? responseBody,
+        string? responseContentType,
         string? resourceType,
         Guid? resourceId,
         CancellationToken cancellationToken = default);

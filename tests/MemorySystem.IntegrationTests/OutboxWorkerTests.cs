@@ -10,7 +10,7 @@ namespace MemorySystem.IntegrationTests;
 
 public sealed class OutboxWorkerTests
 {
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task LeaseAvailableAsync_skips_locked_rows_and_leases_each_job_once()
     {
@@ -65,7 +65,7 @@ public sealed class OutboxWorkerTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task ProcessAvailableAsync_retries_then_dead_letters_unsupported_jobs()
     {
@@ -116,7 +116,7 @@ public sealed class OutboxWorkerTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task ProcessAvailableAsync_dead_letters_expired_processing_job_over_retry_cap_without_invoking_handler()
     {

@@ -30,7 +30,9 @@ internal static class MemoryProposalRequestMapper
             request.Object,
             request.Confidence,
             request.TrustLevel,
-            request.Sensitivity);
+            request.Sensitivity,
+            request.RoleId,
+            request.BaseMemoryFactId);
     }
 
     public static ApiIdempotencyResponse ToApiResponse(MemoryProposalWorkflowResult result)

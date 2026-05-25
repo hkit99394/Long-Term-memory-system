@@ -190,7 +190,10 @@ internal static class ApiDatabaseTestSupport
         Guid? scopeOrgId = null,
         Guid? scopeProjectId = null,
         string? scopeRoleId = null,
-        string trustLevel = "user_scoped")
+        string trustLevel = "user_scoped",
+        string sensitivity = "none",
+        string retentionClass = "standard",
+        string redactionStatus = "none")
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -205,6 +208,7 @@ internal static class ApiDatabaseTestSupport
                 content_hash,
                 retention_class,
                 sensitivity,
+                redaction_status,
                 trust_level,
                 scope_type,
                 scope_id,
@@ -219,8 +223,9 @@ internal static class ApiDatabaseTestSupport
                 'user_message',
                 @content,
                 'sha256:test',
-                'standard',
-                'none',
+                @retention_class,
+                @sensitivity,
+                @redaction_status,
                 @trust_level,
                 @scope_type,
                 @scope_id,
@@ -234,6 +239,85 @@ internal static class ApiDatabaseTestSupport
         command.Parameters.AddWithValue("event_id", eventId);
         command.Parameters.AddWithValue("principal_id", principalId);
         command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = """{"message":"source"}""";
+        command.Parameters.AddWithValue("retention_class", retentionClass);
+        command.Parameters.AddWithValue("sensitivity", sensitivity);
+        command.Parameters.AddWithValue("redaction_status", redactionStatus);
+        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("scope_type", scopeType);
+        command.Parameters.AddWithValue("scope_id", scopeId);
+        command.Parameters.Add("scope_org_id", NpgsqlDbType.Uuid).Value =
+            scopeOrgId.HasValue ? scopeOrgId.Value : DBNull.Value;
+        command.Parameters.Add("scope_project_id", NpgsqlDbType.Uuid).Value =
+            scopeProjectId.HasValue ? scopeProjectId.Value : DBNull.Value;
+        command.Parameters.Add("scope_principal_id", NpgsqlDbType.Uuid).Value =
+            scopeType is "user" or "agent" ? Guid.Parse(scopeId) : DBNull.Value;
+        command.Parameters.Add("scope_role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(scopeRoleId) ? DBNull.Value : scopeRoleId;
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public static async Task InsertLegacyAgentSourceEventAsync(
+        string connectionString,
+        Guid eventId,
+        Guid agentPrincipalId,
+        string scopeType,
+        string scopeId,
+        Guid? scopeOrgId = null,
+        Guid? scopeProjectId = null,
+        string? scopeRoleId = null,
+        string trustLevel = "agent_private",
+        string sensitivity = "none",
+        string retentionClass = "standard",
+        string redactionStatus = "none")
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO events (
+                id,
+                agent_principal_id,
+                event_type,
+                content,
+                content_hash,
+                retention_class,
+                sensitivity,
+                redaction_status,
+                trust_level,
+                scope_type,
+                scope_id,
+                scope_org_id,
+                scope_project_id,
+                scope_principal_id,
+                scope_role_id
+            )
+            VALUES (
+                @event_id,
+                @agent_principal_id,
+                'assistant_message',
+                @content,
+                'sha256:test',
+                @retention_class,
+                @sensitivity,
+                @redaction_status,
+                @trust_level,
+                @scope_type,
+                @scope_id,
+                @scope_org_id,
+                @scope_project_id,
+                @scope_principal_id,
+                @scope_role_id
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("event_id", eventId);
+        command.Parameters.AddWithValue("agent_principal_id", agentPrincipalId);
+        command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = """{"message":"legacy agent source"}""";
+        command.Parameters.AddWithValue("retention_class", retentionClass);
+        command.Parameters.AddWithValue("sensitivity", sensitivity);
+        command.Parameters.AddWithValue("redaction_status", redactionStatus);
         command.Parameters.AddWithValue("trust_level", trustLevel);
         command.Parameters.AddWithValue("scope_type", scopeType);
         command.Parameters.AddWithValue("scope_id", scopeId);
@@ -309,6 +393,7 @@ internal static class ApiDatabaseTestSupport
                 request_hash,
                 response_status,
                 response_body::text,
+                response_content_type,
                 status,
                 expires_at
             FROM api_idempotency_keys
@@ -329,8 +414,9 @@ internal static class ApiDatabaseTestSupport
                 reader.GetString(3),
                 reader.GetInt32(4),
                 reader.GetString(5),
-                reader.GetString(6),
-                reader.GetFieldValue<DateTimeOffset>(7)));
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.GetString(7),
+                reader.GetFieldValue<DateTimeOffset>(8)));
         }
 
         return records;
@@ -342,7 +428,8 @@ internal static class ApiDatabaseTestSupport
         "events",
         "memory_chunks",
         "memory_facts",
-        "outbox_jobs"
+        "outbox_jobs",
+        "role_memory_lenses"
     };
 }
 
@@ -361,5 +448,6 @@ internal sealed record ApiIdempotencyRecordDetail(
     string RequestHash,
     int ResponseStatus,
     string ResponseBody,
+    string? ResponseContentType,
     string Status,
     DateTimeOffset ExpiresAt);

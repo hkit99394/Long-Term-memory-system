@@ -7,6 +7,12 @@ internal static class PostgresTestDatabase
     public static string? AdminConnectionString =>
         Environment.GetEnvironmentVariable("MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING");
 
+    public const string MissingAdminConnectionStringSkipReason =
+        "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING.";
+
+    public static bool HasAdminConnectionString =>
+        !string.IsNullOrWhiteSpace(AdminConnectionString);
+
     public static string RequireAdminConnectionString()
     {
         var connectionString = AdminConnectionString;

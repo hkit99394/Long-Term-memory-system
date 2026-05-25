@@ -1,4 +1,5 @@
 using MemorySystem.Application.Access;
+using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.MemoryProposals;
@@ -7,6 +8,7 @@ public sealed class MemoryProposalWorkflow(
     IMemoryProposalBroker broker,
     IMemoryProposalWriteStore writeStore,
     ISourceEventReferenceStore sourceEvents,
+    IMemoryFactRepository memoryFacts,
     IMemoryScopeResolver scopeResolver,
     IMemoryAccessAuthorizer accessAuthorizer) : IMemoryProposalWorkflow
 {
@@ -47,7 +49,7 @@ public sealed class MemoryProposalWorkflow(
                 request.AuthenticatedPrincipalId,
                 request.ScopeType,
                 request.ScopeId,
-                request.Namespace),
+                ScopeResolutionNamespaceFor(proposal)),
             cancellationToken);
 
         if (!scopeResult.Succeeded)
@@ -60,6 +62,21 @@ public sealed class MemoryProposalWorkflow(
             ScopeType = scopeResult.Resolution!.ScopeType,
             ScopeId = scopeResult.Resolution.ScopeId
         };
+
+        if (proposal.CandidateKind != MemoryCandidateClassifications.RoleLens
+            && IsReservedRoleLensNamespace(proposal.Namespace))
+        {
+            return MemoryProposalWorkflowResult.Invalid(
+                "Role-lens namespaces are reserved for role-lens proposals.");
+        }
+
+        if (!TryValidateRoleLensStructure(
+            scopeResult.Resolution,
+            proposal,
+            out var namespaceError))
+        {
+            return MemoryProposalWorkflowResult.Invalid(namespaceError!);
+        }
 
         if (!MemoryProposalDecisionRules.IsSessionOnly(proposal))
         {
@@ -84,10 +101,58 @@ public sealed class MemoryProposalWorkflow(
         proposal = proposal with
         {
             SourceEventExists = sourceEvent is not null,
-            TrustLevel = sourceEvent?.TrustLevel ?? proposal.TrustLevel
+            TrustLevel = sourceEvent?.TrustLevel ?? proposal.TrustLevel,
+            Sensitivity = sourceEvent is null
+                ? proposal.Sensitivity
+                : MoreRestrictiveSensitivity(proposal.Sensitivity, sourceEvent.Sensitivity)
         };
 
         var decision = broker.Decide(proposal);
+        proposal = ApplyDecisionConfidence(proposal, decision);
+
+        if (decision.Decision is MemoryProposalDecisions.Rejected or MemoryProposalDecisions.SessionOnly)
+        {
+            return MemoryProposalWorkflowResult.Decided(decision);
+        }
+
+        if (proposal.CandidateKind == MemoryCandidateClassifications.RoleLens)
+        {
+            var roleLensBaseFactFailure = await ValidateRoleLensBaseMemoryFactAsync(
+                request.AuthenticatedPrincipalId,
+                scopeResult.Resolution!,
+                proposal,
+                cancellationToken);
+
+            if (roleLensBaseFactFailure is not null)
+            {
+                return roleLensBaseFactFailure;
+            }
+        }
+        else if (decision.Decision == MemoryProposalDecisions.Stored)
+        {
+            var activeMemoryCandidates = await FindActiveMemoryCandidatesAsync(
+                scopeResult.Resolution!,
+                proposal,
+                cancellationToken);
+
+            var conflictingActiveMemory = FindConflictingActiveMemory(activeMemoryCandidates, proposal);
+
+            if (conflictingActiveMemory is not null)
+            {
+                return ReviewRequired(
+                    proposal,
+                    "A conflicting active memory already exists and should be reviewed before storing another version.");
+            }
+
+            var similarActiveMemory = FindSimilarActiveMemory(activeMemoryCandidates, proposal);
+
+            if (similarActiveMemory is not null)
+            {
+                return ReviewRequired(
+                    proposal,
+                    "A similar active memory already exists and should be reviewed before storing another version.");
+            }
+        }
 
         if (decision.Decision != MemoryProposalDecisions.Stored)
         {
@@ -101,7 +166,31 @@ public sealed class MemoryProposalWorkflow(
             request.RequestHash,
             cancellationToken);
 
-        return MemoryProposalWorkflowResult.Stored(decision);
+        return decision.Decision == MemoryProposalDecisions.Stored
+            ? MemoryProposalWorkflowResult.Stored(decision)
+            : MemoryProposalWorkflowResult.CompletedDecision(decision);
+    }
+
+    private static MemoryProposalWorkflowResult ReviewRequired(
+        MemoryProposalCommand proposal,
+        string reason)
+    {
+        return MemoryProposalWorkflowResult.Decided(new MemoryProposalDecision(
+            MemoryProposalDecisions.ReviewRequired,
+            reason,
+            MemoryId: null,
+            proposal.SourceEventId,
+            proposal.CandidateKind,
+            proposal.Confidence));
+    }
+
+    private static MemoryProposalCommand ApplyDecisionConfidence(
+        MemoryProposalCommand proposal,
+        MemoryProposalDecision decision)
+    {
+        return decision.Confidence.HasValue
+            ? proposal with { Confidence = decision.Confidence.Value }
+            : proposal;
     }
 
     private static bool TryMap(
@@ -188,7 +277,9 @@ public sealed class MemoryProposalWorkflow(
             request.Object?.Trim() ?? string.Empty,
             request.Confidence,
             trustLevel,
-            sensitivity);
+            sensitivity,
+            Normalize(request.RoleId),
+            request.BaseMemoryFactId);
         return true;
     }
 
@@ -205,6 +296,242 @@ public sealed class MemoryProposalWorkflow(
                 proposal.ScopeId,
                 cancellationToken)
             : null;
+    }
+
+    private static bool TryValidateRoleLensStructure(
+        MemoryScopeResolution scope,
+        MemoryProposalCommand proposal,
+        out string? error)
+    {
+        error = null;
+
+        if (proposal.CandidateKind != MemoryCandidateClassifications.RoleLens)
+        {
+            return true;
+        }
+
+        if (scope.ScopeType is not ("global" or "org" or "project"))
+        {
+            error = "Role-lens proposals require global, organization, or project scope.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(proposal.RoleId)
+            || !MemoryScopePolicy.RoleIds.Contains(proposal.RoleId))
+        {
+            error = "Role-lens proposals require a supported roleId.";
+            return false;
+        }
+
+        if (!proposal.BaseMemoryFactId.HasValue || proposal.BaseMemoryFactId.Value == Guid.Empty)
+        {
+            error = "baseMemoryFactId is required for role-lens proposals.";
+            return false;
+        }
+
+        var canonicalNamespace = BuildRoleLensCanonicalNamespace(scope, proposal.RoleId);
+
+        if (!IsNamespaceAtOrBelow(proposal.Namespace, canonicalNamespace))
+        {
+            error = $"Role-lens namespace must match roleId '{proposal.RoleId}' and start with '{canonicalNamespace}'.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string ScopeResolutionNamespaceFor(MemoryProposalCommand proposal)
+    {
+        if (proposal.CandidateKind == MemoryCandidateClassifications.RoleLens
+            && proposal.ScopeType == "global"
+            && !string.IsNullOrWhiteSpace(proposal.RoleId)
+            && MemoryScopePolicy.RoleIds.Contains(proposal.RoleId)
+            && IsNamespaceAtOrBelow(proposal.Namespace, $"/role/{proposal.RoleId}/shared"))
+        {
+            return "/global/role-lens";
+        }
+
+        return proposal.Namespace;
+    }
+
+    private static string BuildRoleLensCanonicalNamespace(MemoryScopeResolution scope, string roleId)
+    {
+        return scope.ScopeType switch
+        {
+            "global" => $"/role/{roleId}/shared",
+            "org" => $"/org/{RequireGuid(scope.OrgId, "Organization role-lens namespace requires organization scope.")}/role/{roleId}/lens",
+            "project" => $"/project/{RequireGuid(scope.ProjectId, "Project role-lens namespace requires project scope.")}/role/{roleId}/lens",
+            _ => throw new InvalidOperationException($"Unsupported role-lens scope type '{scope.ScopeType}'.")
+        };
+    }
+
+    private static bool IsNamespaceAtOrBelow(string namespaceValue, string expectedNamespace)
+    {
+        return string.Equals(namespaceValue, expectedNamespace, StringComparison.Ordinal)
+            || namespaceValue.StartsWith(expectedNamespace + "/", StringComparison.Ordinal);
+    }
+
+    private static bool IsReservedRoleLensNamespace(string namespaceValue)
+    {
+        if (!MemoryNamespaceParser.TryParse(namespaceValue, out var memoryNamespace, out _))
+        {
+            return false;
+        }
+
+        var segments = memoryNamespace.Segments;
+
+        return memoryNamespace.ScopeType switch
+        {
+            "role" => segments.Count >= 3
+                && MemoryScopePolicy.RoleIds.Contains(segments[1])
+                && string.Equals(segments[2], "shared", StringComparison.Ordinal),
+            "org" or "project" => segments.Count >= 5
+                && string.Equals(segments[2], "role", StringComparison.Ordinal)
+                && MemoryScopePolicy.RoleIds.Contains(segments[3])
+                && string.Equals(segments[4], "lens", StringComparison.Ordinal),
+            _ => false
+        };
+    }
+
+    private static Guid RequireGuid(Guid? value, string message)
+    {
+        return value ?? throw new InvalidOperationException(message);
+    }
+
+    private async Task<IReadOnlyList<MemoryFactRecord>> FindActiveMemoryCandidatesAsync(
+        MemoryScopeResolution scope,
+        MemoryProposalCommand proposal,
+        CancellationToken cancellationToken)
+    {
+        return await memoryFacts.FindActiveBySubjectPredicateAsync(
+            new MemoryFactSubjectPredicateQuery(
+                scope,
+                proposal.MemoryType,
+                proposal.Subject,
+                proposal.Predicate),
+            cancellationToken);
+    }
+
+    private async Task<MemoryProposalWorkflowResult?> ValidateRoleLensBaseMemoryFactAsync(
+        Guid authenticatedPrincipalId,
+        MemoryScopeResolution scope,
+        MemoryProposalCommand proposal,
+        CancellationToken cancellationToken)
+    {
+        if (!proposal.BaseMemoryFactId.HasValue || proposal.BaseMemoryFactId.Value == Guid.Empty)
+        {
+            return MemoryProposalWorkflowResult.Invalid("baseMemoryFactId is required for role-lens proposals.");
+        }
+
+        var baseMemoryFact = await memoryFacts.FindAsync(
+            proposal.BaseMemoryFactId.Value,
+            cancellationToken);
+
+        if (baseMemoryFact is null)
+        {
+            return MemoryProposalWorkflowResult.Invalid("baseMemoryFactId must reference an existing memory fact.");
+        }
+
+        var accessDecision = await accessAuthorizer.AuthorizeAsync(
+            new MemoryAccessRequest(
+                authenticatedPrincipalId,
+                MemoryAccessPermissions.Read,
+                baseMemoryFact.ToScopeResolution(),
+                baseMemoryFact.Namespace),
+            cancellationToken);
+
+        if (!accessDecision.Allowed)
+        {
+            return MemoryProposalWorkflowResult.Forbidden(accessDecision.Reason!);
+        }
+
+        if (!string.Equals(baseMemoryFact.Status, MemoryFactStatuses.Active, StringComparison.Ordinal))
+        {
+            return MemoryProposalWorkflowResult.Invalid("baseMemoryFactId must reference an active memory fact.");
+        }
+
+        return IsValidRoleLensBaseMemoryFactScope(scope, baseMemoryFact)
+            ? null
+            : MemoryProposalWorkflowResult.Invalid(BuildInvalidRoleLensBaseScopeMessage(scope.ScopeType));
+    }
+
+    private static bool IsValidRoleLensBaseMemoryFactScope(
+        MemoryScopeResolution scope,
+        MemoryFactRecord baseMemoryFact)
+    {
+        return scope.ScopeType switch
+        {
+            "global" => baseMemoryFact.ScopeType == "global",
+            "org" => baseMemoryFact.ScopeType == "org"
+                && baseMemoryFact.OrgId == scope.OrgId,
+            "project" => (baseMemoryFact.ScopeType == "project" && baseMemoryFact.ProjectId == scope.ProjectId)
+                || (baseMemoryFact.ScopeType == "org" && baseMemoryFact.OrgId == scope.OrgId),
+            _ => false
+        };
+    }
+
+    private static string BuildInvalidRoleLensBaseScopeMessage(string scopeType)
+    {
+        return scopeType switch
+        {
+            "global" => "Global role-lens proposals must reference global memory facts.",
+            "org" => "Organization role-lens proposals must reference memory facts from the same organization.",
+            "project" => "Project role-lens proposals must reference memory facts from the target project or its organization.",
+            _ => $"Role-lens proposals do not support scope type '{scopeType}'."
+        };
+    }
+
+    private static string MoreRestrictiveSensitivity(string requestSensitivity, string sourceEventSensitivity)
+    {
+        return SensitivityRank(sourceEventSensitivity) > SensitivityRank(requestSensitivity)
+            ? sourceEventSensitivity
+            : requestSensitivity;
+    }
+
+    private static int SensitivityRank(string sensitivity)
+    {
+        return sensitivity switch
+        {
+            "none" => 0,
+            "personal" => 1,
+            "secret" => 2,
+            "regulated" => 3,
+            _ => 0
+        };
+    }
+
+    private static MemoryFactRecord? FindConflictingActiveMemory(
+        IReadOnlyList<MemoryFactRecord> memoryFactsInScope,
+        MemoryProposalCommand proposal)
+    {
+        return memoryFactsInScope.FirstOrDefault(memoryFact =>
+            SameText(memoryFact.Subject, proposal.Subject)
+            && SameText(memoryFact.Predicate, proposal.Predicate)
+            && !SameText(memoryFact.Object, proposal.Object)
+            && MemoryProposalContradictionRules.AreContradictory(memoryFact.Object, proposal.Object));
+    }
+
+    private static MemoryFactRecord? FindSimilarActiveMemory(
+        IReadOnlyList<MemoryFactRecord> memoryFactsInScope,
+        MemoryProposalCommand proposal)
+    {
+        return memoryFactsInScope.FirstOrDefault(memoryFact =>
+            SameText(memoryFact.Subject, proposal.Subject)
+            && SameText(memoryFact.Predicate, proposal.Predicate)
+            && !SameText(memoryFact.Object, proposal.Object));
+    }
+
+    private static bool SameText(string left, string right)
+    {
+        return string.Equals(
+            NormalizeComparableText(left),
+            NormalizeComparableText(right),
+            StringComparison.Ordinal);
+    }
+
+    private static string NormalizeComparableText(string value)
+    {
+        return value.Trim().ToLowerInvariant();
     }
 
     private static string Normalize(string? value, string defaultValue = "")

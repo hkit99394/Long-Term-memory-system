@@ -13,4 +13,9 @@ public sealed record MemoryProposalCommand(
     string Object,
     decimal? Confidence,
     string TrustLevel,
-    string Sensitivity);
+    string Sensitivity,
+    string? RoleId = null,
+    Guid? BaseMemoryFactId = null)
+{
+    public string CandidateKind => MemoryCandidateClassifier.Classify(this);
+}

@@ -35,6 +35,11 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0015: Role Memory Lens Repository](decisions/0015-role-memory-lens-repository.md) | Records the M4 repository boundary for shared role principles and project-role lenses. |
 | [Decision 0016: Role Lens Base Fact Validation](decisions/0016-role-lens-base-fact-validation.md) | Records the M4 validation rules connecting role lenses to allowed base memory fact scopes. |
 | [Decision 0017: Structured Memory Fact Search](decisions/0017-structured-memory-fact-search.md) | Records the M4 repository search path for filtering memory facts by scope, type, subject, and status without vector retrieval. |
+| [Decision 0018: Memory Candidate Classification](decisions/0018-memory-candidate-classification.md) | Records the M5 broker classification kinds returned with memory proposal decisions. |
+| [Decision 0019: Session-Only Task Instructions](decisions/0019-session-only-task-instructions.md) | Records the M5 broker rule that keeps one-off task instructions out of durable memory. |
+| [Decision 0020: Similar Active Memory Deduplication](decisions/0020-similar-active-memory-deduplication.md) | Records the M5 workflow rule that sends similar active memory proposals to review instead of blindly inserting duplicates. |
+| [Decision 0021: Memory Proposal Contradiction Detection](decisions/0021-memory-proposal-contradiction-detection.md) | Records the M5 workflow rule that sends clear conflicts with active memory to review before writing another durable fact. |
+| [Decision 0022: Memory Proposal Confidence Scoring](decisions/0022-memory-proposal-confidence-scoring.md) | Records the M5 broker confidence scoring table and review threshold for durable proposal decisions. |
 
 ## Dictionary
 
@@ -42,6 +47,9 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | --- | --- |
 | Agent | An AI process or role that can use memory to complete tasks. |
 | Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
+| Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
+| Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
+| Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |
 | Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
 | Embedding | A vector representation of text used for semantic similarity search. |
@@ -55,6 +63,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Memory status lifecycle | The supported memory fact states: active, tentative, superseded, contradicted, expired, deleted, and redacted. Normal retrieval includes active facts only. |
 | Namespace | A parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
 | Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
+| One-off task instruction | A short-lived instruction for the current answer, request, task, temporary file, or bug. The broker treats it as session-only rather than durable memory. |
 | Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
 | pgvector | PostgreSQL extension used to store and search vector embeddings. |
 | Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
@@ -67,6 +76,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
 | Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
 | Session memory | Temporary memory for the current task or conversation only. |
+| Similar active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate but a different object. |
 | Structured memory search | A repository query over structured `memory_facts` columns such as scope, memory type, subject, and status. It does not use chunks, full-text search, embeddings, or vectors. |
 | Supersession | The process of replacing an outdated or contradicted memory with a newer memory while preserving audit history. |
 | Trust level | Metadata that separates trusted system or human-approved content from user-scoped, agent-private, tool, web, or retrieved content. |

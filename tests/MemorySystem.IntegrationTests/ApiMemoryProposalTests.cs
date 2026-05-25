@@ -17,14 +17,16 @@ public sealed class ApiMemoryProposalTests
     private const string TestApiKey = "test-api-key";
     private const string TestPrincipalId = "11111111-1111-4111-8111-111111111111";
     private const string OtherPrincipalId = "22222222-2222-4222-8222-222222222222";
+    private const string AgentPrincipalId = "99999999-9999-4999-8999-999999999999";
     private const string TestOrgId = "33333333-3333-4333-8333-333333333333";
     private const string TestProjectId = "44444444-4444-4444-8444-444444444444";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid SourceEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid OtherSourceEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
     private static readonly Guid ProjectSourceEventId = Guid.Parse("88888888-8888-4888-8888-888888888888");
+    private static readonly Guid LegacyAgentSourceEventId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_returns_stored_decision_for_supported_durable_candidate()
     {
@@ -47,6 +49,8 @@ public sealed class ApiMemoryProposalTests
             var outboxJob = await ReadOutboxJobAsync(databaseConnectionString, memoryId);
 
             Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal("preference", payload.GetProperty("candidateKind").GetString());
+            Assert.Equal(0.900m, payload.GetProperty("confidence").GetDecimal());
             Assert.Equal(SourceEventId, payload.GetProperty("sourceEventId").GetGuid());
             Assert.Equal("The proposal was stored as durable memory.", payload.GetProperty("reason").GetString());
 
@@ -58,6 +62,7 @@ public sealed class ApiMemoryProposalTests
             Assert.Equal("technical planning format", memoryFact.Subject);
             Assert.Equal("prefers", memoryFact.Predicate);
             Assert.Equal("concise decision logs", memoryFact.Object);
+            Assert.Equal(0.900m, memoryFact.Confidence);
             Assert.Equal("user_scoped", memoryFact.TrustLevel);
             Assert.Equal(SourceEventId, memoryFact.SourceEventId);
             Assert.Equal(Guid.Parse(TestPrincipalId), memoryFact.ProposedByPrincipalId);
@@ -89,7 +94,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Memory_index_outbox_handler_completes_stored_proposal_job()
     {
@@ -134,12 +139,113 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_derives_trust_level_from_source_event()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
         var databaseName = $"memorysystem_proposal_source_trust_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString, sourceEventTrustLevel: "tool_output");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-source-trust-key",
+                CreateProposalBody(trustLevel: "user_scoped"));
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
+            var memoryChunk = await ReadMemoryChunkAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal(0.800m, payload.GetProperty("confidence").GetDecimal());
+            Assert.Equal(0.800m, memoryFact.Confidence);
+            Assert.Equal("tool_output", memoryFact.TrustLevel);
+            Assert.Equal("tool_output", memoryChunk.TrustLevel);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_accepts_legacy_agent_source_event_actor()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_legacy_agent_event_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(
+                databaseConnectionString,
+                Guid.Parse(AgentPrincipalId),
+                principalType: "agent",
+                displayName: "Legacy Agent Caller");
+            await ApiDatabaseTestSupport.InsertLegacyAgentSourceEventAsync(
+                databaseConnectionString,
+                LegacyAgentSourceEventId,
+                Guid.Parse(AgentPrincipalId),
+                "agent",
+                AgentPrincipalId);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/agent/{AgentPrincipalId}/private",
+                "write",
+                principalId: Guid.Parse(AgentPrincipalId));
+
+            using var factory = MemorySystemApiTestFactory.Create(
+                databaseConnectionString,
+                TestApiKey,
+                AgentPrincipalId,
+                "Legacy Agent Caller");
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-legacy-agent-source-key",
+                CreateProposalBody(
+                    sourceEventId: LegacyAgentSourceEventId,
+                    memoryType: "agent_private",
+                    scopeType: "agent",
+                    scopeId: AgentPrincipalId,
+                    namespaceValue: $"/agent/{AgentPrincipalId}/private",
+                    subject: "indexing worker",
+                    predicate: "prefers",
+                    objectValue: "short leases"));
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal("agent_private", payload.GetProperty("candidateKind").GetString());
+            Assert.Equal(0.850m, payload.GetProperty("confidence").GetDecimal());
+            Assert.Equal("agent", memoryFact.ScopeType);
+            Assert.Equal(AgentPrincipalId, memoryFact.ScopeId);
+            Assert.Equal(Guid.Parse(AgentPrincipalId), memoryFact.AgentPrincipalId);
+            Assert.Equal("agent_private", memoryFact.TrustLevel);
+            Assert.Equal(LegacyAgentSourceEventId, memoryFact.SourceEventId);
+            Assert.Equal(Guid.Parse(AgentPrincipalId), memoryFact.ProposedByPrincipalId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_routes_low_trust_evidence_to_review()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_low_trust_review_test_{Guid.NewGuid():N}";
         var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
 
         try
@@ -151,15 +257,14 @@ public sealed class ApiMemoryProposalTests
 
             var payload = await SendProposalAsync(
                 client,
-                "proposal-source-trust-key",
-                CreateProposalBody(trustLevel: "tool_output"));
-            var memoryId = payload.GetProperty("memoryId").GetGuid();
-            var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
-            var memoryChunk = await ReadMemoryChunkAsync(databaseConnectionString, memoryId);
+                "proposal-low-trust-review-key",
+                CreateProposalBody(confidence: 0.95m));
 
-            Assert.Equal("stored", payload.GetProperty("decision").GetString());
-            Assert.Equal("web_content", memoryFact.TrustLevel);
-            Assert.Equal("web_content", memoryChunk.TrustLevel);
+            Assert.Equal("review_required", payload.GetProperty("decision").GetString());
+            Assert.Equal("preference", payload.GetProperty("candidateKind").GetString());
+            Assert.Equal(0.650m, payload.GetProperty("confidence").GetDecimal());
+            Assert.Contains("confidence score", payload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            await AssertNoDurableProposalWritesAsync(databaseConnectionString);
         }
         finally
         {
@@ -167,7 +272,70 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_uses_source_event_sensitivity_for_review()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_source_sensitivity_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString, sourceEventSensitivity: "secret");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-source-sensitivity-key",
+                CreateProposalBody(sensitivity: "none"));
+
+            Assert.Equal("review_required", payload.GetProperty("decision").GetString());
+            Assert.Equal("preference", payload.GetProperty("candidateKind").GetString());
+            Assert.Contains("sensitive content", payload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            await AssertNoDurableProposalWritesAsync(databaseConnectionString);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_assigns_confidence_when_request_confidence_is_omitted()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_assigned_confidence_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-assigned-confidence-key",
+                CreateProposalBody(includeConfidence: false));
+            var memoryId = payload.GetProperty("memoryId").GetGuid();
+            var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
+
+            Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal(0.850m, payload.GetProperty("confidence").GetDecimal());
+            Assert.Equal(0.850m, memoryFact.Confidence);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_replays_original_decision_for_same_key_and_body()
     {
@@ -200,7 +368,43 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_keeps_one_off_instruction_session_only()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_one_off_instruction_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-one-off-instruction-key",
+                CreateProposalBody(
+                    subject: "task instruction",
+                    predicate: "says",
+                    objectValue: "For this answer, keep it short."));
+
+            Assert.Equal("session_only", payload.GetProperty("decision").GetString());
+            Assert.Equal("session_only_instruction", payload.GetProperty("candidateKind").GetString());
+            Assert.Contains("one-off", payload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Null(payload.GetProperty("memoryId").GetString());
+            Assert.Equal(SourceEventId, payload.GetProperty("sourceEventId").GetGuid());
+            await AssertNoDurableProposalWritesAsync(databaseConnectionString);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_reuses_existing_fact_for_duplicate_durable_candidate_with_new_key()
     {
@@ -221,6 +425,7 @@ public sealed class ApiMemoryProposalTests
             var secondPayload = await SendProposalAsync(client, "proposal-duplicate-second-key", body);
 
             Assert.Equal("stored", secondPayload.GetProperty("decision").GetString());
+            Assert.Equal("preference", secondPayload.GetProperty("candidateKind").GetString());
             Assert.Equal(firstMemoryId, secondPayload.GetProperty("memoryId").GetGuid());
             Assert.Equal(SourceEventId, secondPayload.GetProperty("sourceEventId").GetGuid());
             Assert.Contains("existing durable memory", secondPayload.GetProperty("reason").GetString(), StringComparison.Ordinal);
@@ -235,7 +440,232 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_reuses_existing_fact_for_normalized_duplicate_object()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_normalized_duplicate_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var firstPayload = await SendProposalAsync(
+                client,
+                "proposal-normalized-duplicate-first-key",
+                CreateProposalBody(objectValue: "Concise Decision Logs"));
+            var firstMemoryId = firstPayload.GetProperty("memoryId").GetGuid();
+            var secondPayload = await SendProposalAsync(
+                client,
+                "proposal-normalized-duplicate-second-key",
+                CreateProposalBody(objectValue: "concise decision logs"));
+
+            Assert.Equal("stored", secondPayload.GetProperty("decision").GetString());
+            Assert.Equal(firstMemoryId, secondPayload.GetProperty("memoryId").GetGuid());
+            Assert.Contains("existing durable memory", secondPayload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(2, await CountIdempotencyRecordsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryFactsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryChunksAsync(databaseConnectionString));
+            Assert.Equal(1, await CountOutboxJobsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_routes_similar_active_memory_to_review()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_similar_fact_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var firstPayload = await SendProposalAsync(
+                client,
+                "proposal-similar-first-key",
+                CreateProposalBody(objectValue: "concise decision logs"));
+            var secondPayload = await SendProposalAsync(
+                client,
+                "proposal-similar-second-key",
+                CreateProposalBody(objectValue: "verbose decision logs with full transcripts"));
+
+            Assert.Equal("stored", firstPayload.GetProperty("decision").GetString());
+            Assert.Equal("review_required", secondPayload.GetProperty("decision").GetString());
+            Assert.Equal("preference", secondPayload.GetProperty("candidateKind").GetString());
+            Assert.Null(secondPayload.GetProperty("memoryId").GetString());
+            Assert.Contains("similar active memory", secondPayload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(2, await CountIdempotencyRecordsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryFactsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryChunksAsync(databaseConnectionString));
+            Assert.Equal(1, await CountOutboxJobsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_routes_conflicting_active_memory_to_review()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_conflicting_fact_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var firstPayload = await SendProposalAsync(
+                client,
+                "proposal-conflict-first-key",
+                CreateProposalBody(
+                    subject: "automatic backups",
+                    predicate: "is",
+                    objectValue: "enabled"));
+            var secondPayload = await SendProposalAsync(
+                client,
+                "proposal-conflict-second-key",
+                CreateProposalBody(
+                    subject: "automatic backups",
+                    predicate: "is",
+                    objectValue: "disabled"));
+
+            Assert.Equal("stored", firstPayload.GetProperty("decision").GetString());
+            Assert.Equal("review_required", secondPayload.GetProperty("decision").GetString());
+            Assert.Equal("preference", secondPayload.GetProperty("candidateKind").GetString());
+            Assert.Null(secondPayload.GetProperty("memoryId").GetString());
+            Assert.Contains("conflicting active memory", secondPayload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(2, await CountIdempotencyRecordsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryFactsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryChunksAsync(databaseConnectionString));
+            Assert.Equal(1, await CountOutboxJobsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_allows_only_one_concurrent_active_subject_predicate()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_concurrent_subject_predicate_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            var firstTask = SendProposalAsync(
+                client,
+                "proposal-concurrent-first-key",
+                CreateProposalBody(
+                    subject: "parallel retention policy",
+                    predicate: "prefers",
+                    objectValue: "short retention"));
+            var secondTask = SendProposalAsync(
+                client,
+                "proposal-concurrent-second-key",
+                CreateProposalBody(
+                    subject: "parallel retention policy",
+                    predicate: "prefers",
+                    objectValue: "long retention"));
+
+            var payloads = await Task.WhenAll(firstTask, secondTask);
+            var decisions = payloads
+                .Select(payload => payload.GetProperty("decision").GetString())
+                .ToArray();
+
+            Assert.Contains("stored", decisions);
+            Assert.Contains("review_required", decisions);
+            Assert.Equal(2, await CountIdempotencyRecordsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryFactsAsync(databaseConnectionString));
+            Assert.Equal(1, await CountMemoryChunksAsync(databaseConnectionString));
+            Assert.Equal(1, await CountOutboxJobsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_detects_conflict_beyond_subject_search_page()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_conflict_after_decoys_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            await SendProposalAsync(
+                client,
+                "proposal-conflict-page-original-key",
+                CreateProposalBody(
+                    subject: "automatic backups",
+                    predicate: "is",
+                    objectValue: "enabled"));
+
+            for (var index = 0; index < 51; index++)
+            {
+                await SendProposalAsync(
+                    client,
+                    $"proposal-conflict-page-decoy-{index}",
+                    CreateProposalBody(
+                        subject: "automatic backups",
+                        predicate: $"decoy-predicate-{index}",
+                        objectValue: $"decoy value {index}"));
+            }
+
+            var payload = await SendProposalAsync(
+                client,
+                "proposal-conflict-page-new-key",
+                CreateProposalBody(
+                    subject: "automatic backups",
+                    predicate: "is",
+                    objectValue: "disabled"));
+
+            Assert.Equal("review_required", payload.GetProperty("decision").GetString());
+            Assert.Contains("conflicting active memory", payload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(53, await CountIdempotencyRecordsAsync(databaseConnectionString));
+            Assert.Equal(52, await CountMemoryFactsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_stores_project_proposal_with_membership_and_grant()
     {
@@ -259,6 +689,7 @@ public sealed class ApiMemoryProposalTests
             var memoryFact = await ReadMemoryFactAsync(databaseConnectionString, memoryId);
 
             Assert.Equal("stored", payload.GetProperty("decision").GetString());
+            Assert.Equal("decision", payload.GetProperty("candidateKind").GetString());
             Assert.Equal("project", memoryFact.ScopeType);
             Assert.Equal(TestProjectId, memoryFact.ScopeId);
             Assert.Equal($"/project/{TestProjectId}/decisions", memoryFact.Namespace);
@@ -273,7 +704,214 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_stores_project_role_lens_and_worker_indexes_chunk()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_project_role_lens_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await PrepareProjectScopeAsync(databaseConnectionString, includeMembershipAndGrant: true);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{TestProjectId}/role/cto/lens",
+                "write",
+                roleId: "cto");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var basePayload = await SendProposalAsync(
+                client,
+                "proposal-role-lens-base-key",
+                CreateProjectProposalBody());
+            var baseMemoryFactId = basePayload.GetProperty("memoryId").GetGuid();
+
+            var lensPayload = await SendProposalAsync(
+                client,
+                "proposal-role-lens-key",
+                CreateProjectRoleLensProposalBody(baseMemoryFactId));
+            var roleMemoryLensId = lensPayload.GetProperty("memoryId").GetGuid();
+            var roleMemoryLens = await ReadRoleMemoryLensAsync(databaseConnectionString, roleMemoryLensId);
+            var memoryChunk = await ReadMemoryChunkAsync(
+                databaseConnectionString,
+                roleMemoryLensId,
+                MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType);
+            var outboxJob = await ReadOutboxJobAsync(
+                databaseConnectionString,
+                roleMemoryLensId,
+                MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType);
+            var idempotencyRecord = await ReadIdempotencyRecordByKeyAsync(
+                databaseConnectionString,
+                "proposal-role-lens-key");
+
+            Assert.Equal("stored", lensPayload.GetProperty("decision").GetString());
+            Assert.Equal("role_lens", lensPayload.GetProperty("candidateKind").GetString());
+            Assert.Equal(ProjectSourceEventId, lensPayload.GetProperty("sourceEventId").GetGuid());
+            Assert.Equal("The proposal was stored as a role memory lens.", lensPayload.GetProperty("reason").GetString());
+
+            Assert.Equal("cto", roleMemoryLens.RoleId);
+            Assert.Equal("project", roleMemoryLens.ScopeType);
+            Assert.Equal(TestProjectId, roleMemoryLens.ScopeId);
+            Assert.Equal(Guid.Parse(TestOrgId), roleMemoryLens.OrgId);
+            Assert.Equal(Guid.Parse(TestProjectId), roleMemoryLens.ProjectId);
+            Assert.Equal(baseMemoryFactId, roleMemoryLens.BaseMemoryFactId);
+            Assert.Equal("prioritize reversible rollout checkpoints", roleMemoryLens.Interpretation);
+            Assert.Equal("active", roleMemoryLens.Status);
+            Assert.Equal(ProjectSourceEventId, roleMemoryLens.SourceEventId);
+            Assert.Equal(Guid.Parse(TestPrincipalId), roleMemoryLens.ProposedByPrincipalId);
+
+            Assert.Equal(MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType, memoryChunk.SourceType);
+            Assert.Equal(roleMemoryLensId, memoryChunk.SourceId);
+            Assert.Equal($"/project/{TestProjectId}/role/cto/lens", memoryChunk.Namespace);
+            Assert.Equal("project", memoryChunk.ScopeType);
+            Assert.Equal(TestProjectId, memoryChunk.ScopeId);
+            Assert.Contains("prioritize reversible rollout checkpoints", memoryChunk.Content, StringComparison.Ordinal);
+            Assert.Equal(ProjectSourceEventId, memoryChunk.SourceEventId);
+
+            Assert.Equal(MemoryIndexOutboxJobContract.JobType, outboxJob.JobType);
+            Assert.Equal(MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType, outboxJob.AggregateType);
+            Assert.Equal(roleMemoryLensId, outboxJob.AggregateId);
+            Assert.Equal("pending", outboxJob.Status);
+
+            Assert.Equal("role_memory_lens", idempotencyRecord.ResourceType);
+            Assert.Equal(roleMemoryLensId, idempotencyRecord.ResourceId);
+
+            var duplicateLensPayload = await SendProposalAsync(
+                client,
+                "proposal-role-lens-duplicate-key",
+                CreateProjectRoleLensProposalBody(baseMemoryFactId));
+
+            Assert.Equal("stored", duplicateLensPayload.GetProperty("decision").GetString());
+            Assert.Equal(roleMemoryLensId, duplicateLensPayload.GetProperty("memoryId").GetGuid());
+            Assert.Contains("existing durable role memory lens", duplicateLensPayload.GetProperty("reason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(1, await CountRoleMemoryLensesAsync(databaseConnectionString));
+            Assert.Equal(2, await CountMemoryChunksAsync(databaseConnectionString));
+            Assert.Equal(2, await CountOutboxJobsAsync(databaseConnectionString));
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var processor = new OutboxJobProcessor(
+                new PostgresOutboxJobStore(dataSource),
+                [new MemoryIndexOutboxJobHandler(dataSource)],
+                Options.Create(new OutboxWorkerOptions
+                {
+                    WorkerId = "role-lens-index-test-worker",
+                    BatchSize = 2,
+                    MaxAttempts = 2,
+                    LeaseDuration = TimeSpan.FromMinutes(1),
+                    HandlerTimeout = TimeSpan.FromSeconds(10),
+                    RetryDelay = TimeSpan.Zero
+                }),
+                NullLogger<OutboxJobProcessor>.Instance);
+
+            Assert.Equal(2, await processor.ProcessAvailableAsync());
+            outboxJob = await ReadOutboxJobAsync(
+                databaseConnectionString,
+                roleMemoryLensId,
+                MemoryIndexOutboxJobContract.RoleMemoryLensAggregateType);
+
+            Assert.Equal("completed", outboxJob.Status);
+            Assert.Equal(1, await CountRoleMemoryLensesAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_rejects_role_lens_namespace_that_does_not_match_role_id()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_role_lens_namespace_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await PrepareProjectScopeAsync(databaseConnectionString, includeMembershipAndGrant: true);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{TestProjectId}/role/cto/lens",
+                "write",
+                roleId: "cto");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var basePayload = await SendProposalAsync(
+                client,
+                "proposal-role-lens-namespace-base-key",
+                CreateProjectProposalBody());
+            var baseMemoryFactId = basePayload.GetProperty("memoryId").GetGuid();
+
+            var (statusCode, payload) = await SendProposalResponseAsync(
+                client,
+                "proposal-role-lens-namespace-key",
+                CreateProjectRoleLensProposalBody(baseMemoryFactId, roleId: "cfo"));
+            var idempotencyRecord = await ReadIdempotencyRecordByKeyAsync(
+                databaseConnectionString,
+                "proposal-role-lens-namespace-key");
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory proposal is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("roleId 'cfo'", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal("completed", idempotencyRecord.Status);
+            Assert.Equal(400, idempotencyRecord.ResponseStatus);
+            Assert.Equal(0, await CountRoleMemoryLensesAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_returns_bad_request_for_unknown_role_lens_base_fact()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_unknown_role_lens_base_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await PrepareProjectScopeAsync(databaseConnectionString, includeMembershipAndGrant: true);
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{TestProjectId}/role/cto/lens",
+                "write",
+                roleId: "cto");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload) = await SendProposalResponseAsync(
+                client,
+                "proposal-unknown-role-lens-base-key",
+                CreateProjectRoleLensProposalBody(Guid.NewGuid()));
+            var idempotencyRecord = await ReadIdempotencyRecordAsync(databaseConnectionString);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory proposal is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("baseMemoryFactId", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Equal("completed", idempotencyRecord.Status);
+            Assert.Equal(400, idempotencyRecord.ResponseStatus);
+            Assert.Equal(0, await CountRoleMemoryLensesAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_forbids_project_proposal_without_membership_or_grant()
     {
@@ -308,7 +946,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_forbids_unauthorized_project_review_candidate_before_broker_decision()
     {
@@ -343,7 +981,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Theory]
+    [DatabaseTheory]
     [InlineData("review_required", 0.40, "preference", "user", "/user/11111111-1111-4111-8111-111111111111/preferences")]
     [InlineData("session_only", 0.95, "session_instruction", "session", "/session/session-1/instructions")]
     [Trait("Category", "Database")]
@@ -389,6 +1027,7 @@ public sealed class ApiMemoryProposalTests
             var payload = await SendProposalAsync(client, $"proposal-{expectedDecision}-key", body);
 
             Assert.Equal(expectedDecision, payload.GetProperty("decision").GetString());
+            Assert.True(payload.TryGetProperty("candidateKind", out _));
             Assert.Null(payload.GetProperty("memoryId").GetString());
             Assert.Equal(sourceEventId, payload.GetProperty("sourceEventId").GetGuid());
             await AssertNoDurableProposalWritesAsync(databaseConnectionString);
@@ -399,7 +1038,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_rejects_omitted_source_event()
     {
@@ -428,7 +1067,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_rejects_unknown_source_event()
     {
@@ -456,7 +1095,44 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseTheory]
+    [InlineData("erasure_requested", "none")]
+    [InlineData("standard", "redacted")]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_proposals_rejects_erased_or_redacted_source_event(
+        string sourceEventRetentionClass,
+        string sourceEventRedactionStatus)
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_proposal_inactive_source_event_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(
+                databaseConnectionString,
+                sourceEventRetentionClass: sourceEventRetentionClass,
+                sourceEventRedactionStatus: sourceEventRedactionStatus);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var payload = await SendProposalAsync(
+                client,
+                $"proposal-inactive-source-event-{sourceEventRetentionClass}-{sourceEventRedactionStatus}",
+                CreateProposalBody());
+
+            Assert.Equal("rejected", payload.GetProperty("decision").GetString());
+            Assert.Contains("source event", payload.GetProperty("reason").GetString(), StringComparison.OrdinalIgnoreCase);
+            await AssertNoDurableProposalWritesAsync(databaseConnectionString);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_rejects_source_event_from_other_principal_scope()
     {
@@ -491,7 +1167,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_rejects_user_scope_that_does_not_match_authenticated_principal()
     {
@@ -525,7 +1201,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Theory]
+    [DatabaseTheory]
     [InlineData("not-a-guid", "/user/not-a-guid/preferences", "private", "user_scoped", "scopeId must be a valid GUID")]
     [InlineData("11111111-1111-4111-8111-111111111111", "/user/22222222-2222-4222-8222-222222222222/preferences", "private", "user_scoped", "namespace must start")]
     [InlineData("11111111-1111-4111-8111-111111111111", "/user/11111111-1111-4111-8111-111111111111/preferences", "public", "user_scoped", "visibility is not supported")]
@@ -571,7 +1247,7 @@ public sealed class ApiMemoryProposalTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Post_memory_proposals_returns_bad_request_for_non_json_content_type()
     {
@@ -608,7 +1284,7 @@ public sealed class ApiMemoryProposalTests
 
     private static string CreateProposalBody(
         Guid? sourceEventId = null,
-        decimal confidence = 0.95m,
+        decimal? confidence = 0.95m,
         string memoryType = "preference",
         string scopeType = "user",
         string? scopeId = null,
@@ -616,7 +1292,13 @@ public sealed class ApiMemoryProposalTests
         string visibility = "private",
         string trustLevel = "user_scoped",
         string sensitivity = "none",
-        bool includeSourceEventId = true)
+        string subject = "technical planning format",
+        string predicate = "prefers",
+        string objectValue = "concise decision logs",
+        bool includeSourceEventId = true,
+        bool includeConfidence = true,
+        string? roleId = null,
+        Guid? baseMemoryFactId = null)
     {
         var resolvedScopeId = scopeId ?? TestPrincipalId;
         var resolvedNamespace = namespaceValue ?? $"/user/{TestPrincipalId}/preferences";
@@ -629,23 +1311,37 @@ public sealed class ApiMemoryProposalTests
             ["scopeId"] = resolvedScopeId,
             ["namespace"] = resolvedNamespace,
             ["visibility"] = visibility,
-            ["subject"] = "technical planning format",
-            ["predicate"] = "prefers",
-            ["object"] = "concise decision logs",
-            ["confidence"] = confidence,
+            ["subject"] = subject,
+            ["predicate"] = predicate,
+            ["object"] = objectValue,
             ["trustLevel"] = trustLevel,
             ["sensitivity"] = sensitivity
         };
+
+        if (includeConfidence)
+        {
+            body["confidence"] = confidence;
+        }
 
         if (includeSourceEventId)
         {
             body["sourceEventId"] = resolvedSourceEventId;
         }
 
+        if (!string.IsNullOrWhiteSpace(roleId))
+        {
+            body["roleId"] = roleId;
+        }
+
+        if (baseMemoryFactId.HasValue)
+        {
+            body["baseMemoryFactId"] = baseMemoryFactId.Value;
+        }
+
         return JsonSerializer.Serialize(body, JsonOptions);
     }
 
-    private static string CreateProjectProposalBody(decimal confidence = 0.95m)
+    private static string CreateProjectProposalBody(decimal? confidence = 0.95m)
     {
         return CreateProposalBody(
             sourceEventId: ProjectSourceEventId,
@@ -655,6 +1351,24 @@ public sealed class ApiMemoryProposalTests
             scopeId: TestProjectId,
             namespaceValue: $"/project/{TestProjectId}/decisions",
             visibility: "project_shared");
+    }
+
+    private static string CreateProjectRoleLensProposalBody(
+        Guid baseMemoryFactId,
+        string roleId = "cto")
+    {
+        return CreateProposalBody(
+            sourceEventId: ProjectSourceEventId,
+            memoryType: "project_role_lens",
+            scopeType: "project",
+            scopeId: TestProjectId,
+            namespaceValue: $"/project/{TestProjectId}/role/cto/lens",
+            visibility: "project_shared",
+            subject: "storage engine decision",
+            predicate: "means_for_role",
+            objectValue: "prioritize reversible rollout checkpoints",
+            roleId: roleId,
+            baseMemoryFactId: baseMemoryFactId);
     }
 
     private static async Task<JsonElement> SendProposalAsync(
@@ -694,7 +1408,12 @@ public sealed class ApiMemoryProposalTests
         return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, TestPrincipalId);
     }
 
-    private static async Task PrepareDatabaseAsync(string connectionString, string sourceEventTrustLevel = "user_scoped")
+    private static async Task PrepareDatabaseAsync(
+        string connectionString,
+        string sourceEventTrustLevel = "user_scoped",
+        string sourceEventSensitivity = "none",
+        string sourceEventRetentionClass = "standard",
+        string sourceEventRedactionStatus = "none")
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
         await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, Guid.Parse(TestPrincipalId));
@@ -704,7 +1423,10 @@ public sealed class ApiMemoryProposalTests
             Guid.Parse(TestPrincipalId),
             scopeType: "user",
             scopeId: TestPrincipalId,
-            trustLevel: sourceEventTrustLevel);
+            trustLevel: sourceEventTrustLevel,
+            sensitivity: sourceEventSensitivity,
+            retentionClass: sourceEventRetentionClass,
+            redactionStatus: sourceEventRedactionStatus);
         await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
             connectionString,
             $"/user/{TestPrincipalId}/preferences",
@@ -772,6 +1494,11 @@ public sealed class ApiMemoryProposalTests
         return await CountRowsAsync(connectionString, "outbox_jobs");
     }
 
+    private static async Task<int> CountRoleMemoryLensesAsync(string connectionString)
+    {
+        return await CountRowsAsync(connectionString, "role_memory_lenses");
+    }
+
     private static async Task AssertNoDurableProposalWritesAsync(string connectionString)
     {
         Assert.Equal(0, await CountMemoryFactsAsync(connectionString));
@@ -804,6 +1531,7 @@ public sealed class ApiMemoryProposalTests
                 subject,
                 predicate,
                 object,
+                confidence,
                 trust_level,
                 source_event_id,
                 proposed_by_principal_id
@@ -830,12 +1558,16 @@ public sealed class ApiMemoryProposalTests
             reader.GetString(9),
             reader.GetString(10),
             reader.GetString(11),
-            reader.GetString(12),
-            reader.GetGuid(13),
-            reader.GetGuid(14));
+            reader.GetDecimal(12),
+            reader.GetString(13),
+            reader.GetGuid(14),
+            reader.GetGuid(15));
     }
 
-    private static async Task<MemoryChunkState> ReadMemoryChunkAsync(string connectionString, Guid memoryId)
+    private static async Task<MemoryChunkState> ReadMemoryChunkAsync(
+        string connectionString,
+        Guid sourceId,
+        string sourceType = MemoryIndexOutboxJobContract.AggregateType)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -853,11 +1585,12 @@ public sealed class ApiMemoryProposalTests
                 trust_level,
                 source_event_id
             FROM memory_chunks
-            WHERE source_type = 'memory_fact'
-                AND source_id = @memory_id;
+            WHERE source_type = @source_type
+                AND source_id = @source_id;
             """,
             connection);
-        command.Parameters.AddWithValue("memory_id", memoryId);
+        command.Parameters.AddWithValue("source_type", sourceType);
+        command.Parameters.AddWithValue("source_id", sourceId);
 
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -875,7 +1608,55 @@ public sealed class ApiMemoryProposalTests
             reader.GetGuid(8));
     }
 
-    private static async Task<OutboxJobState> ReadOutboxJobAsync(string connectionString, Guid memoryId)
+    private static async Task<RoleMemoryLensState> ReadRoleMemoryLensAsync(
+        string connectionString,
+        Guid roleMemoryLensId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT
+                role_id,
+                scope_type,
+                scope_id,
+                org_id,
+                project_id,
+                base_memory_fact_id,
+                interpretation,
+                confidence,
+                status,
+                source_event_id,
+                proposed_by_principal_id
+            FROM role_memory_lenses
+            WHERE id = @role_memory_lens_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("role_memory_lens_id", roleMemoryLensId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        Assert.True(await reader.ReadAsync());
+
+        return new RoleMemoryLensState(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetGuid(3),
+            reader.IsDBNull(4) ? null : reader.GetGuid(4),
+            reader.GetGuid(5),
+            reader.GetString(6),
+            reader.GetDecimal(7),
+            reader.GetString(8),
+            reader.GetGuid(9),
+            reader.GetGuid(10));
+    }
+
+    private static async Task<OutboxJobState> ReadOutboxJobAsync(
+        string connectionString,
+        Guid aggregateId,
+        string aggregateType = MemoryIndexOutboxJobContract.AggregateType)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -885,11 +1666,11 @@ public sealed class ApiMemoryProposalTests
             SELECT job_type, aggregate_type, aggregate_id, status
             FROM outbox_jobs
             WHERE aggregate_type = @aggregate_type
-                AND aggregate_id = @memory_id;
+                AND aggregate_id = @aggregate_id;
             """,
             connection);
-        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
-        command.Parameters.AddWithValue("memory_id", memoryId);
+        command.Parameters.AddWithValue("aggregate_type", aggregateType);
+        command.Parameters.AddWithValue("aggregate_id", aggregateId);
 
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -915,6 +1696,35 @@ public sealed class ApiMemoryProposalTests
             record.ResourceId);
     }
 
+    private static async Task<IdempotencyRecordState> ReadIdempotencyRecordByKeyAsync(
+        string connectionString,
+        string idempotencyKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT endpoint, idempotency_key, status, response_status, resource_type, resource_id
+            FROM api_idempotency_keys
+            WHERE idempotency_key = @idempotency_key;
+            """,
+            connection);
+        command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        Assert.True(await reader.ReadAsync());
+
+        return new IdempotencyRecordState(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetInt32(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetGuid(5));
+    }
+
     private sealed record IdempotencyRecordState(
         string Endpoint,
         string IdempotencyKey,
@@ -936,6 +1746,7 @@ public sealed class ApiMemoryProposalTests
         string Subject,
         string Predicate,
         string Object,
+        decimal Confidence,
         string TrustLevel,
         Guid SourceEventId,
         Guid ProposedByPrincipalId);
@@ -950,6 +1761,19 @@ public sealed class ApiMemoryProposalTests
         string ContentHash,
         string TrustLevel,
         Guid SourceEventId);
+
+    private sealed record RoleMemoryLensState(
+        string RoleId,
+        string ScopeType,
+        string ScopeId,
+        Guid? OrgId,
+        Guid? ProjectId,
+        Guid BaseMemoryFactId,
+        string Interpretation,
+        decimal Confidence,
+        string Status,
+        Guid SourceEventId,
+        Guid ProposedByPrincipalId);
 
     private sealed record OutboxJobState(
         string JobType,

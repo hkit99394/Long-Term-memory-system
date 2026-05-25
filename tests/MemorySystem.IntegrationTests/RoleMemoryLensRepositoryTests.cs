@@ -10,6 +10,7 @@ namespace MemorySystem.IntegrationTests;
 public sealed class RoleMemoryLensRepositoryTests
 {
     private static readonly Guid PrincipalId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+    private static readonly Guid AgentPrincipalId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid OrgId = Guid.Parse("33333333-3333-4333-8333-333333333333");
     private static readonly Guid ProjectId = Guid.Parse("44444444-4444-4444-8444-444444444444");
     private static readonly Guid OtherProjectId = Guid.Parse("99999999-9999-4999-8999-999999999999");
@@ -17,8 +18,9 @@ public sealed class RoleMemoryLensRepositoryTests
     private static readonly Guid OrgEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid ProjectEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
     private static readonly Guid OtherProjectEventId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    private static readonly Guid LegacyAgentGlobalEventId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_round_trips_shared_role_principles_and_project_role_lens_separately()
     {
@@ -65,21 +67,24 @@ public sealed class RoleMemoryLensRepositoryTests
                 globalBaseFact.Id,
                 "For the CTO role, architecture decisions should make audit paths easy to inspect.",
                 0.920m,
-                GlobalEventId));
+                GlobalEventId,
+                PrincipalId));
             var orgSharedLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
                 OrgScope(),
                 "cto",
                 orgBaseFact.Id,
                 "For the CTO role in this organization, operational clarity is part of technical quality.",
                 0.910m,
-                OrgEventId));
+                OrgEventId,
+                PrincipalId));
             var projectRoleLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
                 ProjectScope(),
                 "cto",
                 projectBaseFact.Id,
                 "For this project, SQL-first storage reduces authorization and audit risk.",
                 0.900m,
-                ProjectEventId));
+                ProjectEventId,
+                PrincipalId));
 
             Assert.True(globalSharedLens.IsSharedRolePrinciple);
             Assert.False(globalSharedLens.IsProjectRoleLens);
@@ -107,6 +112,8 @@ public sealed class RoleMemoryLensRepositoryTests
                 new RoleMemoryLensScopeQuery(ProjectScope(), "cfo"));
 
             Assert.Empty(cfoProjectLenses);
+            Assert.Equal(6, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "memory_chunks"));
+            Assert.Equal(6, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "outbox_jobs"));
         }
         finally
         {
@@ -114,7 +121,7 @@ public sealed class RoleMemoryLensRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_allows_project_role_lens_backed_by_target_organization_fact()
     {
@@ -145,7 +152,8 @@ public sealed class RoleMemoryLensRepositoryTests
                 orgBaseFact.Id,
                 "For this project, the organization operating principle applies to platform decisions.",
                 0.900m,
-                ProjectEventId));
+                ProjectEventId,
+                PrincipalId));
 
             Assert.True(projectRoleLens.IsProjectRoleLens);
             Assert.Equal(orgBaseFact.Id, projectRoleLens.BaseMemoryFactId);
@@ -158,7 +166,152 @@ public sealed class RoleMemoryLensRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_accepts_legacy_agent_source_event_actor()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_legacy_agent_source_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(
+                databaseConnectionString,
+                AgentPrincipalId,
+                principalType: "agent",
+                displayName: "Legacy Lens Agent");
+            await ApiDatabaseTestSupport.InsertLegacyAgentSourceEventAsync(
+                databaseConnectionString,
+                LegacyAgentGlobalEventId,
+                AgentPrincipalId,
+                "global",
+                "global");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var globalBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                GlobalScope(),
+                "/global/role-principles",
+                "role_source",
+                "role_shared",
+                "legacy agent role lens source",
+                "can propose shared interpretations",
+                GlobalEventId));
+
+            var lens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                GlobalScope(),
+                "cto",
+                globalBaseFact.Id,
+                "A legacy agent source event can back a reviewed shared CTO interpretation.",
+                0.900m,
+                LegacyAgentGlobalEventId,
+                AgentPrincipalId));
+
+            Assert.Equal(LegacyAgentGlobalEventId, lens.SourceEventId);
+            Assert.Equal(AgentPrincipalId, lens.ProposedByPrincipalId);
+            Assert.True(lens.IsSharedRolePrinciple);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_does_not_enqueue_indexing_for_inactive_role_lenses()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_inactive_indexing_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "inactive role lens base",
+                "can be referenced by an inactive lens",
+                ProjectEventId));
+
+            var deletedLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                ProjectScope(),
+                "cto",
+                projectBaseFact.Id,
+                "A deleted CTO lens should not be indexed.",
+                0.900m,
+                ProjectEventId,
+                PrincipalId,
+                Status: MemoryFactStatuses.Deleted));
+
+            Assert.Equal(MemoryFactStatuses.Deleted, deletedLens.Status);
+            Assert.Equal(1, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "memory_chunks"));
+            Assert.Equal(1, await ApiDatabaseTestSupport.CountRowsAsync(databaseConnectionString, "outbox_jobs"));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_trims_interpretation_for_lens_and_index_chunk()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_trim_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "trimmed role lens base",
+                "backs a normalized role lens interpretation",
+                ProjectEventId));
+
+            var lens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                ProjectScope(),
+                "cto",
+                projectBaseFact.Id,
+                "  Interpret architecture decisions with auditability in mind.  ",
+                0.900m,
+                ProjectEventId,
+                PrincipalId));
+
+            var indexedContent = await ReadMemoryChunkContentAsync(databaseConnectionString, lens.Id);
+
+            Assert.Equal("Interpret architecture decisions with auditability in mind.", lens.Interpretation);
+            Assert.Equal(lens.Interpretation, indexedContent);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_rejects_active_role_lens_backed_by_inactive_fact()
     {
@@ -193,7 +346,8 @@ public sealed class RoleMemoryLensRepositoryTests
                     deletedBaseFact.Id,
                     "An active CTO lens cannot be backed by deleted durable memory.",
                     0.900m,
-                    ProjectEventId)));
+                    ProjectEventId,
+                    PrincipalId)));
 
             Assert.Contains("active memory facts", exception.Message, StringComparison.Ordinal);
         }
@@ -203,7 +357,56 @@ public sealed class RoleMemoryLensRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Database_rejects_promoting_inactive_role_lens_backed_by_inactive_fact()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_promote_inactive_base_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var deletedBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "deleted decision",
+                "can only back inactive role lenses",
+                ProjectEventId) with
+            {
+                Status = MemoryFactStatuses.Deleted
+            });
+            var deletedLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                ProjectScope(),
+                "cto",
+                deletedBaseFact.Id,
+                "A deleted CTO lens should not be promoted while its base fact is deleted.",
+                0.900m,
+                ProjectEventId,
+                PrincipalId,
+                Status: MemoryFactStatuses.Deleted));
+
+            var exception = await Assert.ThrowsAsync<PostgresException>(() =>
+                UpdateRoleMemoryLensStatusAsync(databaseConnectionString, deletedLens.Id, MemoryFactStatuses.Active));
+
+            Assert.Equal(PostgresErrorCodes.RaiseException, exception.SqlState);
+            Assert.Contains("active memory facts", exception.MessageText, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Database_rejects_deactivating_fact_referenced_by_active_role_lens()
     {
@@ -233,7 +436,8 @@ public sealed class RoleMemoryLensRepositoryTests
                 projectBaseFact.Id,
                 "The active CTO lens depends on this durable memory.",
                 0.900m,
-                ProjectEventId));
+                ProjectEventId,
+                PrincipalId));
 
             var exception = await Assert.ThrowsAsync<PostgresException>(() =>
                 UpdateMemoryFactStatusAsync(databaseConnectionString, projectBaseFact.Id, MemoryFactStatuses.Deleted));
@@ -247,7 +451,50 @@ public sealed class RoleMemoryLensRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task StoreAsync_rejects_source_event_outside_lens_scope()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_role_memory_lens_source_scope_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareDatabaseAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+
+            var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
+                ProjectScope(),
+                $"/project/{ProjectId}/decisions",
+                "decision",
+                "project_shared",
+                "lens source event validation",
+                "requires scoped evidence",
+                ProjectEventId));
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+                    ProjectScope(),
+                    "cto",
+                    projectBaseFact.Id,
+                    "The source event must belong to the same project lens scope.",
+                    0.900m,
+                    OrgEventId,
+                    PrincipalId)));
+
+            Assert.Contains("does not exist for the role memory lens scope", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_rejects_shared_role_principles_backed_by_project_fact()
     {
@@ -279,7 +526,8 @@ public sealed class RoleMemoryLensRepositoryTests
                     projectBaseFact.Id,
                     "A global shared CTO principle cannot be backed by one project's decision.",
                     0.900m,
-                    GlobalEventId)));
+                    GlobalEventId,
+                    PrincipalId)));
             var orgException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
                     OrgScope(),
@@ -287,7 +535,8 @@ public sealed class RoleMemoryLensRepositoryTests
                     projectBaseFact.Id,
                     "An organization shared CTO principle cannot be backed by one project's decision.",
                     0.900m,
-                    OrgEventId)));
+                    OrgEventId,
+                    PrincipalId)));
 
             Assert.Contains("Global role lenses must reference global memory facts", globalException.Message);
             Assert.Contains("Organization role lenses must reference memory facts from the same organization", orgException.Message);
@@ -298,7 +547,7 @@ public sealed class RoleMemoryLensRepositoryTests
         }
     }
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task StoreAsync_rejects_project_role_lens_backed_by_global_or_other_project_fact()
     {
@@ -347,7 +596,8 @@ public sealed class RoleMemoryLensRepositoryTests
                     globalBaseFact.Id,
                     "A project CTO lens cannot be backed by global truth.",
                     0.900m,
-                    ProjectEventId)));
+                    ProjectEventId,
+                    PrincipalId)));
             var otherProjectException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
                     ProjectScope(),
@@ -355,7 +605,8 @@ public sealed class RoleMemoryLensRepositoryTests
                     otherProjectBaseFact.Id,
                     "A project CTO lens cannot be backed by a different project's truth.",
                     0.900m,
-                    ProjectEventId)));
+                    ProjectEventId,
+                    PrincipalId)));
 
             Assert.Contains("Project role lenses must reference memory facts from the target project or its organization", globalException.Message);
             Assert.Contains("Project role lenses must reference memory facts from the target project or its organization", otherProjectException.Message);
@@ -435,6 +686,48 @@ public sealed class RoleMemoryLensRepositoryTests
         command.Parameters.AddWithValue("status", status);
 
         await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task UpdateRoleMemoryLensStatusAsync(
+        string connectionString,
+        Guid roleMemoryLensId,
+        string status)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE role_memory_lenses
+            SET status = @status
+            WHERE id = @role_memory_lens_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("role_memory_lens_id", roleMemoryLensId);
+        command.Parameters.AddWithValue("status", status);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<string> ReadMemoryChunkContentAsync(
+        string connectionString,
+        Guid aggregateId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT content
+            FROM memory_chunks
+            WHERE source_type = 'role_memory_lens'
+                AND source_id = @aggregate_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("aggregate_id", aggregateId);
+
+        return await command.ExecuteScalarAsync() as string
+            ?? throw new InvalidOperationException($"Memory chunk for aggregate {aggregateId} was not found.");
     }
 
     private static MemoryFactWriteCommand CreateMemoryFactCommand(

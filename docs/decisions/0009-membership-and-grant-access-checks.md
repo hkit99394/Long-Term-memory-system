@@ -30,13 +30,14 @@ Membership levels map upward by permission:
 - `review`: reviewer, admin, and organization owner.
 - `admin`: admin and organization owner.
 
-Namespace grants are required only when a request includes a namespace. This lets `POST /api/events` enforce append permission for the resolved scope, while `POST /api/memory/proposals` requires both scope access and a namespace write grant before durable memory is stored.
+Namespace grants are required only when a request includes a namespace. `POST /api/memory/proposals` requires both scope access and a namespace write grant before durable memory is stored. `POST /api/events` normally enforces append permission for the resolved scope, and additionally requires a synthetic namespace write grant for otherwise-open `global` and `session` event scopes (`/global/events` or `/session/{scope_id}/events`) so authenticated callers cannot create shared or arbitrary session provenance without an explicit grant.
 
 The PostgreSQL access reference store checks direct principal grants and role-based grants. Grant prefixes apply to the exact namespace or child namespaces. Grant permissions also map upward for read requests: a write, review, or admin grant satisfies read access; write is satisfied by write or admin; review is satisfied by review or admin; admin requires admin.
 
 ## Consequences
 
 - Project and organization event appends now return `403` when the authenticated principal lacks membership.
+- Global and session event appends now return `403` unless the authenticated principal has the corresponding event namespace write grant.
 - Stored memory proposals now return `403` and skip durable writes when the principal lacks either scope access or a namespace write grant.
 - Access SQL stays in infrastructure, while API endpoints and application workflows share one authorization policy surface.
 - [Decision 0010](0010-memory-fact-scope-consistency.md) adds the database guard for stored memory fact scope, owner, and namespace consistency.

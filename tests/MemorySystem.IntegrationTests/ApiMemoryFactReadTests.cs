@@ -17,7 +17,7 @@ public sealed class ApiMemoryFactReadTests
     private static readonly Guid ProjectAEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid ProjectBEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
 
-    [Fact]
+    [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task Get_memory_fact_hides_cross_project_memory_without_explicit_access()
     {
