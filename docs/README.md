@@ -44,6 +44,8 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0024: Embedding Provider Adapter](decisions/0024-embedding-provider-adapter.md) | Records the M6 embedding provider contract, deterministic local adapter, selected model/dimension configuration, and idempotent embedding storage path. |
 | [Decision 0025: Authorized pgvector Semantic Search](decisions/0025-authorized-pgvector-semantic-search.md) | Records the M6 semantic search endpoint, cosine distance operator, authorization-before-ranking query shape, and deferred ANN index choice. |
 | [Decision 0026: Hybrid Memory Ranking](decisions/0026-hybrid-memory-ranking.md) | Records the M6 hybrid search endpoint and final-score formula combining relevance, confidence, recency, authority, and scope match. |
+| [Decision 0027: Context Packet Builder](decisions/0027-context-packet-builder.md) | Records the M6 context packet endpoint, packet grouping, compactness limit, source links, and ranking explanation fields. |
+| [Decision 0028: Retrieval Evaluation Tests](decisions/0028-retrieval-evaluation-tests.md) | Records the M6 retrieval evaluation scorecard for relevance, compactness, write precision, false positives, and contradiction quality. |
 
 ## Dictionary
 
@@ -55,6 +57,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
 | Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |
 | Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
+| Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
@@ -80,6 +83,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
 | Role lens base fact | The memory fact that a role lens interprets. Its scope must match the lens type: global for global role lenses, same organization for organization role lenses, or target project/same organization for project-role lenses. |
 | Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
+| Retrieval evaluation | A deterministic scorecard over context-packet items and write observations that measures relevance, compactness, write precision, false positives, and contradiction quality. |
 | Semantic memory search | Vector retrieval over `memory_embeddings` using pgvector cosine distance, with authorized chunk filtering applied before distance ranking. |
 | Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
 | Session memory | Temporary memory for the current task or conversation only. |

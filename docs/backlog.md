@@ -85,8 +85,8 @@ Status values:
 | M6-02 | P0 | Done | Add embedding provider adapter. | Chunks can be embedded with a selected model and dimension. |
 | M6-03 | P0 | Done | Add pgvector semantic search. | Vector queries use the chosen distance operator and never rank unauthorized rows. |
 | M6-04 | P0 | Done | Implement hybrid ranking. | Relevance, confidence, recency, authority, and scope match are combined into a final score. |
-| M6-05 | P0 | Todo | Implement context packet builder. | Context packet is compact, source-linked, permission-aware, and explainable. |
-| M6-06 | P1 | Todo | Add retrieval evaluation tests. | Relevance, compactness, write precision, false positives, and contradiction quality can be measured. |
+| M6-05 | P0 | Done | Implement context packet builder. | Context packet is compact, source-linked, permission-aware, and explainable. |
+| M6-06 | P1 | Done | Add retrieval evaluation tests. | Relevance, compactness, write precision, false positives, and contradiction quality can be measured. |
 
 ## M7 Review and Vault Workflow
 
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M6-05`: Implement context packet builder.
+1. `M7-01`: Build pending review API.

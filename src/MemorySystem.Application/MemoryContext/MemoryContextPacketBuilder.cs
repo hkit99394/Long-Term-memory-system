@@ -1,0 +1,159 @@
+using MemorySystem.Application.MemoryChunks;
+
+namespace MemorySystem.Application.MemoryContext;
+
+public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSearch) : IContextPacketBuilder
+{
+    private const int MaxPacketItems = 12;
+    private const int MaxContentLength = 360;
+
+    public async Task<MemoryContextPacket> BuildAsync(
+        MemoryContextPacketQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.Query);
+
+        if (query.PrincipalId == Guid.Empty)
+        {
+            throw new ArgumentException("Principal id is required.", nameof(query));
+        }
+
+        if (query.Limit is < 1 or > MaxPacketItems)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Limit, $"Context packet limit must be between 1 and {MaxPacketItems}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(query.TargetScopeType) != string.IsNullOrWhiteSpace(query.TargetScopeId))
+        {
+            throw new ArgumentException("Context packet target scope type and id must be provided together.", nameof(query));
+        }
+
+        var targetScope = string.IsNullOrWhiteSpace(query.TargetScopeType)
+            ? null
+            : new MemoryContextTargetScope(query.TargetScopeType.Trim(), query.TargetScopeId!.Trim());
+        var trimmedQuery = query.Query.Trim();
+        var roleId = string.IsNullOrWhiteSpace(query.RoleId) ? null : query.RoleId.Trim();
+        var results = await hybridSearch.SearchAsync(
+            new MemoryChunkHybridSearchQuery(
+                query.PrincipalId,
+                trimmedQuery,
+                query.Limit,
+                targetScope?.ScopeType,
+                targetScope?.ScopeId),
+            cancellationToken);
+        var items = results
+            .Take(query.Limit)
+            .Select(ToPacketItem)
+            .ToArray();
+
+        return new MemoryContextPacket(
+            query.PrincipalId,
+            trimmedQuery,
+            targetScope,
+            roleId,
+            new MemoryContextCurrentTask(trimmedQuery, targetScope, roleId),
+            items.Where(IsUserPreference).ToArray(),
+            items.Where(IsProjectMemory).ToArray(),
+            items.Where(IsRoleMemory).ToArray(),
+            items.Where(IsRelevantDecision).ToArray(),
+            items
+                .Select(item => item.SourceEventId)
+                .Distinct()
+                .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, BuildSourceLink(sourceEventId)))
+                .ToArray());
+    }
+
+    private static MemoryContextPacketItem ToPacketItem(MemoryChunkHybridSearchResult result)
+    {
+        var kind = ResolveKind(result);
+
+        return new MemoryContextPacketItem(
+            kind,
+            result.ChunkId,
+            result.SourceType,
+            result.SourceId,
+            result.BaseMemoryFactId,
+            result.Namespace,
+            result.ScopeType,
+            result.ScopeId,
+            result.Title,
+            Compact(result.Content),
+            result.Rank,
+            result.TrustLevel,
+            result.SourceEventId,
+            BuildSourceLink(result.SourceEventId),
+            new MemoryContextExplanation(
+                result.Rank,
+                result.Components,
+                BuildExplanationSummary(result)));
+    }
+
+    private static string ResolveKind(MemoryChunkHybridSearchResult result)
+    {
+        if (string.Equals(result.SourceType, "role_memory_lens", StringComparison.Ordinal))
+        {
+            return string.Equals(result.ScopeType, "project", StringComparison.Ordinal)
+                ? "project_role_lens"
+                : "shared_role_principle";
+        }
+
+        if (string.Equals(result.MemoryKind, "preference", StringComparison.Ordinal))
+        {
+            return "user_preference";
+        }
+
+        if (string.Equals(result.MemoryKind, "decision", StringComparison.Ordinal))
+        {
+            return "project_decision";
+        }
+
+        return result.MemoryKind;
+    }
+
+    private static bool IsUserPreference(MemoryContextPacketItem item)
+    {
+        return string.Equals(item.Kind, "user_preference", StringComparison.Ordinal)
+            || item.Namespace.Contains("/preferences", StringComparison.Ordinal);
+    }
+
+    private static bool IsProjectMemory(MemoryContextPacketItem item)
+    {
+        return !IsRelevantDecision(item)
+            && !IsRoleMemory(item)
+            && item.ScopeType is "project" or "org" or "global";
+    }
+
+    private static bool IsRoleMemory(MemoryContextPacketItem item)
+    {
+        return item.SourceType is "role_memory_lens"
+            || item.Namespace.Contains("/role/", StringComparison.Ordinal);
+    }
+
+    private static bool IsRelevantDecision(MemoryContextPacketItem item)
+    {
+        return string.Equals(item.Kind, "project_decision", StringComparison.Ordinal)
+            || item.Namespace.Contains("/decisions", StringComparison.Ordinal);
+    }
+
+    private static string Compact(string content)
+    {
+        var normalized = string.Join(
+            " ",
+            content.Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries));
+
+        return normalized.Length <= MaxContentLength
+            ? normalized
+            : normalized[..(MaxContentLength - 1)] + "...";
+    }
+
+    private static string BuildSourceLink(Guid sourceEventId)
+    {
+        return $"/api/events/{sourceEventId}";
+    }
+
+    private static string BuildExplanationSummary(MemoryChunkHybridSearchResult result)
+    {
+        return "Rank combines relevance, confidence, recency, authority, and scope match.";
+    }
+}

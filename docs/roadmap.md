@@ -84,7 +84,8 @@ Before M6 implementation:
 - Embedding provider and vector dimension are decided in [Decision 0024](decisions/0024-embedding-provider-adapter.md): deterministic local adapter with configurable model and dimension for the MVP.
 - Vector distance operator is decided in [Decision 0025](decisions/0025-authorized-pgvector-semantic-search.md): pgvector cosine distance with exact ordering until a production model-specific ANN index is chosen.
 - Hybrid ranking formula is decided in [Decision 0026](decisions/0026-hybrid-memory-ranking.md): relevance, confidence, recency, authority, and scope match combine into the MVP final score.
-- Define context packet size and source-link expectations.
+- Context packet size and source-link expectations are decided in [Decision 0027](decisions/0027-context-packet-builder.md): packets cap at 12 memories, group by memory category, and include `/api/events/{sourceEventId}` source links with ranking explanations.
+- Retrieval evaluation metrics are decided in [Decision 0028](decisions/0028-retrieval-evaluation-tests.md): deterministic tests measure relevance, compactness, write precision, false positives, and contradiction quality.
 
 ## First Build Sequence
 

@@ -1,5 +1,6 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Application.MemoryChunks;
+using MemorySystem.Application.MemoryContext;
 using MemorySystem.Application.MemoryFacts;
 
 namespace MemorySystem.Api.MemoryFacts;
@@ -33,6 +34,15 @@ public static class MemoryFactEndpointExtensions
                 IMemoryChunkHybridSearch search,
                 CancellationToken cancellationToken) =>
                 await HybridSearchAsync(context, search, cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/memory/context",
+            async (
+                HttpContext context,
+                IContextPacketBuilder contextPacketBuilder,
+                CancellationToken cancellationToken) =>
+                await BuildContextPacketAsync(context, contextPacketBuilder, cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -163,6 +173,52 @@ public static class MemoryFactEndpointExtensions
         return Results.Ok(new MemoryHybridSearchResponse(results.Select(ToHybridSearchResultResponse).ToArray()));
     }
 
+    private static async Task<IResult> BuildContextPacketAsync(
+        HttpContext context,
+        IContextPacketBuilder contextPacketBuilder,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryGetPrincipalId(context, out var principalId))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Authenticated principal is invalid.",
+                detail: "The API key did not resolve to a valid principal id.");
+        }
+
+        var query = context.Request.Query["q"].ToString();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory context request is invalid.",
+                detail: "Query parameter 'q' is required.");
+        }
+
+        if (!TryReadLimit(context, maxLimit: 12, out var limit, out var error)
+            || !TryReadTargetScope(context, out var targetScopeType, out var targetScopeId, out error))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory context request is invalid.",
+                detail: error);
+        }
+
+        var roleId = context.Request.Query["roleId"].ToString();
+        var packet = await contextPacketBuilder.BuildAsync(
+            new MemoryContextPacketQuery(
+                principalId,
+                query,
+                limit,
+                targetScopeType,
+                targetScopeId,
+                string.IsNullOrWhiteSpace(roleId) ? null : roleId),
+            cancellationToken);
+
+        return Results.Ok(ToContextPacketResponse(packet));
+    }
+
     private static async Task<IResult> ReadAsync(
         Guid id,
         HttpContext context,
@@ -192,7 +248,12 @@ public static class MemoryFactEndpointExtensions
 
     private static bool TryReadLimit(HttpContext context, out int limit, out string? error)
     {
-        limit = 20;
+        return TryReadLimit(context, maxLimit: 50, out limit, out error);
+    }
+
+    private static bool TryReadLimit(HttpContext context, int maxLimit, out int limit, out string? error)
+    {
+        limit = Math.Min(20, maxLimit);
         error = null;
         var limitValue = context.Request.Query["limit"].ToString();
 
@@ -201,9 +262,9 @@ public static class MemoryFactEndpointExtensions
             return true;
         }
 
-        if (!int.TryParse(limitValue, out limit) || limit is < 1 or > 50)
+        if (!int.TryParse(limitValue, out limit) || limit < 1 || limit > maxLimit)
         {
-            error = "Query parameter 'limit' must be between 1 and 50.";
+            error = $"Query parameter 'limit' must be between 1 and {maxLimit}.";
             return false;
         }
 
@@ -272,6 +333,8 @@ public static class MemoryFactEndpointExtensions
             result.ChunkId,
             result.SourceType,
             result.SourceId,
+            result.MemoryKind,
+            result.BaseMemoryFactId,
             result.Namespace,
             result.ScopeType,
             result.ScopeId,
@@ -286,6 +349,69 @@ public static class MemoryFactEndpointExtensions
                 result.Components.Recency,
                 result.Components.Authority,
                 result.Components.ScopeMatch));
+    }
+
+    private static MemoryContextPacketResponse ToContextPacketResponse(MemoryContextPacket packet)
+    {
+        return new MemoryContextPacketResponse(
+            packet.PrincipalId,
+            packet.Query,
+            ToContextTargetScopeResponse(packet.TargetScope),
+            packet.RoleId,
+            ToCurrentTaskResponse(packet.CurrentTask),
+            packet.UserPreferences.Select(ToContextPacketItemResponse).ToArray(),
+            packet.ProjectMemory.Select(ToContextPacketItemResponse).ToArray(),
+            packet.RoleMemory.Select(ToContextPacketItemResponse).ToArray(),
+            packet.RelevantDecisions.Select(ToContextPacketItemResponse).ToArray(),
+            packet.SourceEvents.Select(ToSourceEventResponse).ToArray());
+    }
+
+    private static MemoryContextCurrentTaskResponse ToCurrentTaskResponse(MemoryContextCurrentTask currentTask)
+    {
+        return new MemoryContextCurrentTaskResponse(
+            currentTask.Query,
+            ToContextTargetScopeResponse(currentTask.TargetScope),
+            currentTask.RoleId);
+    }
+
+    private static MemoryContextTargetScopeResponse? ToContextTargetScopeResponse(MemoryContextTargetScope? targetScope)
+    {
+        return targetScope is null
+            ? null
+            : new MemoryContextTargetScopeResponse(targetScope.ScopeType, targetScope.ScopeId);
+    }
+
+    private static MemoryContextPacketItemResponse ToContextPacketItemResponse(MemoryContextPacketItem item)
+    {
+        return new MemoryContextPacketItemResponse(
+            item.Kind,
+            item.ChunkId,
+            item.SourceType,
+            item.SourceId,
+            item.BaseMemoryFactId,
+            item.Namespace,
+            item.ScopeType,
+            item.ScopeId,
+            item.Title,
+            item.Content,
+            item.Rank,
+            item.TrustLevel,
+            item.SourceEventId,
+            item.SourceLink,
+            new MemoryContextExplanationResponse(
+                item.Explanation.Rank,
+                new MemoryHybridRankComponentsResponse(
+                    item.Explanation.Components.Relevance,
+                    item.Explanation.Components.Confidence,
+                    item.Explanation.Components.Recency,
+                    item.Explanation.Components.Authority,
+                    item.Explanation.Components.ScopeMatch),
+                item.Explanation.Summary));
+    }
+
+    private static MemoryContextSourceEventResponse ToSourceEventResponse(MemoryContextSourceEvent sourceEvent)
+    {
+        return new MemoryContextSourceEventResponse(sourceEvent.Id, sourceEvent.Link);
     }
 
     private static MemoryFactResponse ToResponse(MemoryFactRecord memoryFact)

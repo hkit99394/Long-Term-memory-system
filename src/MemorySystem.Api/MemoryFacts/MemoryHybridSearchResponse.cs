@@ -7,6 +7,8 @@ public sealed record MemoryHybridSearchResultResponse(
     Guid ChunkId,
     string SourceType,
     Guid SourceId,
+    string MemoryKind,
+    Guid? BaseMemoryFactId,
     string Namespace,
     string ScopeType,
     string ScopeId,

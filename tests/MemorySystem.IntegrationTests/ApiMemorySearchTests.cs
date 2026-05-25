@@ -1,10 +1,13 @@
 using System.Net;
 using System.Text.Json;
 using MemorySystem.Application.MemoryEmbeddings;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.RoleMemoryLenses;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Infrastructure.MemoryFacts;
+using MemorySystem.Infrastructure.RoleMemoryLenses;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
@@ -227,6 +230,189 @@ public sealed class ApiMemorySearchTests
             Assert.Equal(HttpStatusCode.BadRequest, statusCode);
             Assert.Equal("Memory hybrid search is invalid.", payload.GetProperty("title").GetString());
             Assert.Contains("scopeType", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_context_returns_compact_source_linked_explainable_packet()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareContextPacketFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendContextPacketAsync(
+                client,
+                "cto context packet concise decision logs authorization predicates operational reversibility",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 6);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+            Assert.Equal(PrincipalId, payload.GetProperty("principalId").GetGuid());
+            Assert.Equal("cto", payload.GetProperty("roleId").GetString());
+            Assert.Equal("project", payload.GetProperty("targetScope").GetProperty("scopeType").GetString());
+            Assert.Equal(ProjectAId.ToString(), payload.GetProperty("targetScope").GetProperty("scopeId").GetString());
+            Assert.Equal("cto", payload.GetProperty("currentTask").GetProperty("roleId").GetString());
+
+            var userPreference = Assert.Single(payload.GetProperty("userPreferences").EnumerateArray());
+            Assert.Equal("user_preference", userPreference.GetProperty("kind").GetString());
+            Assert.True(userPreference.GetProperty("content").GetString()!.Length <= 360);
+            Assert.Equal(fixture.UserPreferenceEventId, userPreference.GetProperty("sourceEventId").GetGuid());
+            Assert.Equal($"/api/events/{fixture.UserPreferenceEventId}", userPreference.GetProperty("sourceLink").GetString());
+            Assert.True(userPreference.GetProperty("explanation").GetProperty("rank").GetDouble() > 0);
+            Assert.True(userPreference.GetProperty("explanation").GetProperty("components").GetProperty("relevance").GetDouble() >= 0);
+            Assert.Contains("confidence", userPreference.GetProperty("explanation").GetProperty("summary").GetString(), StringComparison.Ordinal);
+
+            var relevantDecision = Assert.Single(payload.GetProperty("relevantDecisions").EnumerateArray());
+            Assert.Equal(fixture.ProjectDecisionId, relevantDecision.GetProperty("sourceId").GetGuid());
+            Assert.Equal("project_decision", relevantDecision.GetProperty("kind").GetString());
+            Assert.Equal($"/api/events/{fixture.ProjectDecisionEventId}", relevantDecision.GetProperty("sourceLink").GetString());
+
+            var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
+            Assert.Equal("project_role_lens", roleMemory.GetProperty("kind").GetString());
+            Assert.Equal(fixture.RoleMemoryLensId, roleMemory.GetProperty("sourceId").GetGuid());
+            Assert.Equal(fixture.ProjectDecisionId, roleMemory.GetProperty("baseMemoryFactId").GetGuid());
+            Assert.Equal($"/api/events/{fixture.RoleLensEventId}", roleMemory.GetProperty("sourceLink").GetString());
+
+            var sourceEventIds = payload
+                .GetProperty("sourceEvents")
+                .EnumerateArray()
+                .Select(sourceEvent => sourceEvent.GetProperty("id").GetGuid())
+                .ToArray();
+
+            Assert.Contains(fixture.UserPreferenceEventId, sourceEventIds);
+            Assert.Contains(fixture.ProjectDecisionEventId, sourceEventIds);
+            Assert.Contains(fixture.RoleLensEventId, sourceEventIds);
+            Assert.DoesNotContain(fixture.ProjectBDecisionEventId, sourceEventIds);
+            Assert.DoesNotContain(fixture.ProjectBDecisionId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Project B private decision", responseBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_context_can_be_scored_with_retrieval_evaluation_metrics()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_eval_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareContextPacketFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendContextPacketAsync(
+                client,
+                "cto context packet concise decision logs authorization predicates operational reversibility",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 6);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var sessionOnlyCandidateId = Guid.Parse("88888888-8888-4888-8888-888888888888");
+            var evaluation = MemoryRetrievalEvaluator.Evaluate(
+                new MemoryRetrievalEvaluationCase(
+                    RelevantSourceIds:
+                    [
+                        fixture.UserPreferenceId,
+                        fixture.ProjectDecisionId,
+                        fixture.RoleMemoryLensId
+                    ],
+                    AllowedSourceIds:
+                    [
+                        fixture.UserPreferenceId,
+                        fixture.ProjectDecisionId,
+                        fixture.RoleMemoryLensId
+                    ],
+                    ForbiddenSourceIds: [fixture.ProjectBDecisionId],
+                    ContradictedSourceIds: [fixture.ContradictedProjectDecisionId],
+                    MaxItemCount: 6,
+                    MaxContentLength: 360,
+                    WriteObservations:
+                    [
+                        new MemoryRetrievalWriteObservation(
+                            fixture.UserPreferenceId,
+                            ExpectedDurable: true,
+                            StoredDurably: true),
+                        new MemoryRetrievalWriteObservation(
+                            sessionOnlyCandidateId,
+                            ExpectedDurable: false,
+                            StoredDurably: false),
+                        new MemoryRetrievalWriteObservation(
+                            fixture.ContradictedProjectDecisionId,
+                            ExpectedDurable: false,
+                            StoredDurably: false,
+                            ExpectedContradiction: true,
+                            RoutedAsContradiction: true)
+                    ]),
+                ReadContextPacketEvaluationItems(payload));
+
+            Assert.Equal(1.0d, evaluation.Relevance, precision: 3);
+            Assert.True(evaluation.IsCompact);
+            Assert.Equal(1.0d, evaluation.Compactness, precision: 3);
+            Assert.Equal(1.0d, evaluation.WritePrecision, precision: 3);
+            Assert.Equal(0, evaluation.RetrievalFalsePositiveCount);
+            Assert.Equal(0, evaluation.DurableWriteFalsePositiveCount);
+            Assert.Equal(0.0d, evaluation.FalsePositiveRate, precision: 3);
+            Assert.Equal(1.0d, evaluation.ContradictionQuality, precision: 3);
+            Assert.Empty(evaluation.MissingRelevantSourceIds);
+            Assert.Empty(evaluation.FalsePositiveSourceIds);
+            Assert.Empty(evaluation.FalsePositiveWriteCandidateIds);
+            Assert.Empty(evaluation.OversizedSourceIds);
+            Assert.Empty(evaluation.RetrievedContradictedSourceIds);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_context_rejects_large_packet_limit()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_limit_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendContextPacketAsync(
+                client,
+                "context packet",
+                limit: 13);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory context request is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("between 1 and 12", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -469,6 +655,156 @@ public sealed class ApiMemorySearchTests
         return (targetMemory.Id, staleMemory.Id, unauthorizedMemory.Id, query);
     }
 
+    private static async Task<ContextPacketFixture> PrepareContextPacketFixtureAsync(string connectionString)
+    {
+        await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, PrincipalId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgAId, ProjectAId);
+        await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(connectionString, OrgBId, ProjectBId);
+        await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+            connectionString,
+            ProjectAId,
+            PrincipalId,
+            "reader");
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/user/{PrincipalId}/preferences",
+            "read",
+            principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/decisions",
+            "read",
+            principalId: PrincipalId);
+        await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+            connectionString,
+            $"/project/{ProjectAId}/role/cto/lens",
+            "read",
+            principalId: PrincipalId);
+
+        var userPreferenceEventId = Guid.NewGuid();
+        var projectDecisionEventId = Guid.NewGuid();
+        var contradictedProjectDecisionEventId = Guid.NewGuid();
+        var roleLensEventId = Guid.NewGuid();
+        var projectBDecisionEventId = Guid.NewGuid();
+
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            userPreferenceEventId,
+            PrincipalId,
+            "user",
+            PrincipalId.ToString());
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            projectDecisionEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            contradictedProjectDecisionEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            roleLensEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            projectBDecisionEventId,
+            PrincipalId,
+            "project",
+            ProjectBId.ToString(),
+            scopeOrgId: OrgBId,
+            scopeProjectId: ProjectBId,
+            trustLevel: "human_approved");
+
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        var memoryFacts = new PostgresMemoryFactRepository(dataSource);
+        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+        var userPreference = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("user", PrincipalId.ToString(), PrincipalId: PrincipalId),
+            $"/user/{PrincipalId}/preferences",
+            "preference",
+            "private",
+            "technical planning format",
+            "prefers",
+            "concise decision logs with short rationale and explicit tradeoffs for technical planning " +
+            "while keeping packet text compact enough for prompt assembly and avoiding unnecessary repetition " +
+            "across the final context packet response",
+            0.900m,
+            userPreferenceEventId,
+            PrincipalId));
+        var projectDecision = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "Long-Term Memory System retrieval",
+            "uses",
+            "authorization predicates before hybrid ranking and context packet construction",
+            0.950m,
+            projectDecisionEventId,
+            PrincipalId));
+        var contradictedProjectDecision = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "Long-Term Memory System retrieval",
+            "uses",
+            "client-side filtering after ranking",
+            0.910m,
+            contradictedProjectDecisionEventId,
+            PrincipalId,
+            MemoryFactStatuses.Contradicted));
+        var projectBDecision = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectBId.ToString(), OrgId: OrgBId, ProjectId: ProjectBId),
+            $"/project/{ProjectBId}/decisions",
+            "decision",
+            "project_shared",
+            "Project B private decision",
+            "uses",
+            "confidential retrieval policy that must not leak into Project A packets",
+            0.990m,
+            projectBDecisionEventId,
+            PrincipalId));
+        var roleLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            "cto",
+            projectDecision.Id,
+            "CTO context packet should foreground operational reversibility, authorization boundaries, delivery sequencing, and source-linked explanations.",
+            0.920m,
+            roleLensEventId,
+            PrincipalId));
+
+        await EmbedMemoryChunksAsync(dataSource);
+
+        return new ContextPacketFixture(
+            userPreference.Id,
+            projectDecision.Id,
+            roleLens.Id,
+            projectBDecision.Id,
+            contradictedProjectDecision.Id,
+            userPreferenceEventId,
+            projectDecisionEventId,
+            roleLensEventId,
+            projectBDecisionEventId,
+            contradictedProjectDecisionEventId);
+    }
+
     private static async Task SetMemoryCreatedAtAsync(
         string connectionString,
         Guid memoryFactId,
@@ -592,6 +928,41 @@ public sealed class ApiMemorySearchTests
         return (response.StatusCode, document.RootElement.Clone(), responseBody);
     }
 
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload, string Body)> SendContextPacketAsync(
+        HttpClient client,
+        string query,
+        int limit = 10,
+        string? scopeType = null,
+        string? scopeId = null,
+        string? roleId = null)
+    {
+        var uri = $"/api/memory/context?q={Uri.EscapeDataString(query)}&limit={limit}";
+
+        if (!string.IsNullOrWhiteSpace(scopeType))
+        {
+            uri += $"&scopeType={Uri.EscapeDataString(scopeType)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(scopeId))
+        {
+            uri += $"&scopeId={Uri.EscapeDataString(scopeId)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(roleId))
+        {
+            uri += $"&roleId={Uri.EscapeDataString(roleId)}";
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Add("X-Api-Key", TestApiKey);
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(responseBody);
+        return (response.StatusCode, document.RootElement.Clone(), responseBody);
+    }
+
     private static double ComputeHybridScore(JsonElement components)
     {
         return (components.GetProperty("relevance").GetDouble() * 0.40d)
@@ -601,8 +972,37 @@ public sealed class ApiMemorySearchTests
             + (components.GetProperty("scopeMatch").GetDouble() * 0.05d);
     }
 
+    private static IReadOnlyList<MemoryRetrievalEvaluationItem> ReadContextPacketEvaluationItems(JsonElement payload)
+    {
+        var items = new List<MemoryRetrievalEvaluationItem>();
+
+        foreach (var groupName in new[] { "userPreferences", "projectMemory", "roleMemory", "relevantDecisions" })
+        {
+            foreach (var item in payload.GetProperty(groupName).EnumerateArray())
+            {
+                items.Add(new MemoryRetrievalEvaluationItem(
+                    item.GetProperty("sourceId").GetGuid(),
+                    item.GetProperty("content").GetString() ?? string.Empty));
+            }
+        }
+
+        return items;
+    }
+
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
     {
         return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, PrincipalId.ToString());
     }
+
+    private sealed record ContextPacketFixture(
+        Guid UserPreferenceId,
+        Guid ProjectDecisionId,
+        Guid RoleMemoryLensId,
+        Guid ProjectBDecisionId,
+        Guid ContradictedProjectDecisionId,
+        Guid UserPreferenceEventId,
+        Guid ProjectDecisionEventId,
+        Guid RoleLensEventId,
+        Guid ProjectBDecisionEventId,
+        Guid ContradictedProjectDecisionEventId);
 }

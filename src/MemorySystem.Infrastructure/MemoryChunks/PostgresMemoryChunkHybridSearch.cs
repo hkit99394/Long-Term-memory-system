@@ -86,19 +86,21 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 reader.GetString(1),
                 reader.GetGuid(2),
                 reader.GetString(3),
-                reader.GetString(4),
+                reader.IsDBNull(4) ? null : reader.GetGuid(4),
                 reader.GetString(5),
-                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.GetString(6),
                 reader.GetString(7),
-                reader.GetDouble(8),
+                reader.IsDBNull(8) ? null : reader.GetString(8),
                 reader.GetString(9),
-                reader.GetGuid(10),
+                reader.GetDouble(10),
+                reader.GetString(11),
+                reader.GetGuid(12),
                 new MemoryChunkHybridRankComponents(
-                    reader.GetDouble(11),
-                    reader.GetDouble(12),
                     reader.GetDouble(13),
                     reader.GetDouble(14),
-                    reader.GetDouble(15))));
+                    reader.GetDouble(15),
+                    reader.GetDouble(16),
+                    reader.GetDouble(17))));
         }
 
         return results;
@@ -113,6 +115,15 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 chunk.id,
                 chunk.source_type,
                 chunk.source_id,
+                CASE
+                    WHEN chunk.source_type = 'memory_fact' THEN fact.memory_type
+                    WHEN chunk.source_type = 'role_memory_lens' THEN 'role_lens'
+                    ELSE chunk.source_type
+                END AS memory_kind,
+                CASE
+                    WHEN chunk.source_type = 'role_memory_lens' THEN lens.base_memory_fact_id
+                    ELSE NULL
+                END AS base_memory_fact_id,
                 chunk.namespace,
                 chunk.scope_type,
                 chunk.scope_id,
@@ -296,6 +307,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 authorized.id,
                 authorized.source_type,
                 authorized.source_id,
+                authorized.memory_kind,
+                authorized.base_memory_fact_id,
                 authorized.namespace,
                 authorized.scope_type,
                 authorized.scope_id,
@@ -374,6 +387,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
             final.id,
             final.source_type,
             final.source_id,
+            final.memory_kind,
+            final.base_memory_fact_id,
             final.namespace,
             final.scope_type,
             final.scope_id,
