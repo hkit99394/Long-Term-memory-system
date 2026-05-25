@@ -35,7 +35,9 @@ builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddMemorySystemPostgres()
-    .AddMemorySystemOutboxBacklog();
+    .AddMemorySystemOutboxBacklog()
+    .AddMemorySystemWorkerHeartbeat()
+    .AddMemorySystemEmbeddingProvider();
 
 var app = builder.Build();
 

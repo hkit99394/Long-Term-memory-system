@@ -102,7 +102,7 @@ Status values:
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| M8-01 | P0 | In Progress | Add operational health checks. | API reports database and outbox backlog health; worker heartbeat and embedding provider health remain. |
+| M8-01 | P0 | Done | Add operational health checks. | API readiness reports database, outbox backlog, worker heartbeat freshness, and embedding provider usability. |
 | M8-02 | P0 | Todo | Add structured logging. | Broker decisions, retrieval decisions, and redaction actions are logged without leaking sensitive payloads. |
 | M8-03 | P0 | Todo | Add retention policy. | Raw event payload retention, erasure, legal hold, and audit preservation are documented. |
 | M8-04 | P0 | Todo | Add backup and restore notes. | Database backup and restore process is documented and tested locally. |
@@ -112,4 +112,4 @@ Status values:
 
 Continue here:
 
-1. `M8-01`: Add operational health checks.
+1. `M8-02`: Add structured logging.

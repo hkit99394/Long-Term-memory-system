@@ -95,6 +95,10 @@ Before M7 implementation:
 - Stale vault export behavior is decided in [Decision 0032](decisions/0032-stale-vault-exports.md): Obsidian exports are tracked in PostgreSQL, and deleted, redacted, expired, superseded, or contradicted memories return audit-safe stale marker documents.
 - Archive vault export behavior is decided in [Decision 0033](decisions/0033-archive-vault-exports.md): `GET /api/vault/exports/obsidian/archive` exports readable superseded, expired, and contradicted memory under `90 Archive/`.
 
+Before M8 implementation:
+
+- Operational health behavior is decided in [Decision 0034](decisions/0034-operational-health-checks.md): `/health/live` stays process-only, while readiness reports PostgreSQL, outbox backlog, outbox worker heartbeat freshness, and embedding provider usability without probing billable embedding APIs.
+
 ## First Build Sequence
 
 1. Create the .NET solution and project layout.

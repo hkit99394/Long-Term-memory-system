@@ -1,6 +1,7 @@
 using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Outbox;
+using MemorySystem.Infrastructure.Workers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -31,6 +32,7 @@ public static class OutboxWorkerServiceCollectionExtensions
         services.AddMemorySystemPostgresDataSource(configuration, environment);
         services.AddMemorySystemEmbeddings(configuration);
         services.AddSingleton<IOutboxJobStore, PostgresOutboxJobStore>();
+        services.AddSingleton<IWorkerHeartbeatStore, PostgresWorkerHeartbeatStore>();
         services.AddMemorySystemOutboxJobHandler<MemoryIndexOutboxJobHandler>();
         services.AddSingleton<OutboxJobProcessor>();
         services.AddHostedService<OutboxWorkerService>();

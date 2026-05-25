@@ -1,5 +1,6 @@
 using MemorySystem.Infrastructure.Migrations;
 using MemorySystem.Infrastructure.Outbox;
+using MemorySystem.Infrastructure.Workers;
 using MemorySystem.Worker;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -10,6 +11,53 @@ namespace MemorySystem.IntegrationTests;
 
 public sealed class OutboxWorkerTests
 {
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task PostgresWorkerHeartbeatStore_records_and_updates_latest_heartbeat()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_worker_heartbeat_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresWorkerHeartbeatStore(dataSource);
+
+            await store.RecordAsync(new WorkerHeartbeatUpdate(
+                WorkerHeartbeatTypes.Outbox,
+                "heartbeat-test-worker",
+                WorkerHeartbeatStatuses.Running));
+
+            var runningHeartbeat = await store.ReadLatestAsync(WorkerHeartbeatTypes.Outbox);
+
+            Assert.NotNull(runningHeartbeat);
+            Assert.Equal("heartbeat-test-worker", runningHeartbeat.WorkerId);
+            Assert.Equal(WorkerHeartbeatStatuses.Running, runningHeartbeat.Status);
+            Assert.NotNull(runningHeartbeat.LastSuccessAt);
+            Assert.Null(runningHeartbeat.LastError);
+
+            await store.RecordAsync(new WorkerHeartbeatUpdate(
+                WorkerHeartbeatTypes.Outbox,
+                "heartbeat-test-worker",
+                WorkerHeartbeatStatuses.Error,
+                "database unavailable"));
+
+            var errorHeartbeat = await store.ReadLatestAsync(WorkerHeartbeatTypes.Outbox);
+
+            Assert.NotNull(errorHeartbeat);
+            Assert.Equal(WorkerHeartbeatStatuses.Error, errorHeartbeat.Status);
+            Assert.NotNull(errorHeartbeat.LastSuccessAt);
+            Assert.Equal("database unavailable", errorHeartbeat.LastError);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task LeaseAvailableAsync_skips_locked_rows_and_leases_each_job_once()

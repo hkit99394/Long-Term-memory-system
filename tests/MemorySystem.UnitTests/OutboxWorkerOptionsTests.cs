@@ -1,5 +1,6 @@
 using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
+using MemorySystem.Infrastructure.Workers;
 using MemorySystem.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,6 +93,7 @@ public sealed class OutboxWorkerOptionsTests
         var exception = Assert.Throws<InvalidOperationException>(() => new OutboxWorkerService(
             processor,
             Options.Create(new OutboxWorkerOptions { Enabled = true }),
+            new FakeWorkerHeartbeatStore(),
             NullLogger<OutboxWorkerService>.Instance));
 
         Assert.Contains("no outbox job handlers", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -156,6 +158,7 @@ public sealed class OutboxWorkerOptionsTests
 
         Assert.Equal("composition-test-worker", provider.GetRequiredService<IOptions<OutboxWorkerOptions>>().Value.WorkerId);
         Assert.IsType<PostgresOutboxJobStore>(provider.GetRequiredService<IOutboxJobStore>());
+        Assert.IsType<PostgresWorkerHeartbeatStore>(provider.GetRequiredService<IWorkerHeartbeatStore>());
         Assert.NotEmpty(provider.GetServices<IOutboxJobHandler>());
         Assert.NotNull(provider.GetRequiredService<OutboxJobProcessor>());
         Assert.Contains(provider.GetServices<IHostedService>(), service => service is OutboxWorkerService);
@@ -319,6 +322,23 @@ public sealed class OutboxWorkerOptionsTests
             FailureError = error;
 
             return Task.FromResult(true);
+        }
+    }
+
+    private sealed class FakeWorkerHeartbeatStore : IWorkerHeartbeatStore
+    {
+        public Task RecordAsync(
+            WorkerHeartbeatUpdate update,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<WorkerHeartbeatSnapshot?> ReadLatestAsync(
+            string workerType,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<WorkerHeartbeatSnapshot?>(null);
         }
     }
 

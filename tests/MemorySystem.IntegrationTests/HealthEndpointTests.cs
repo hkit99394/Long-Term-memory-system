@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using MemorySystem.Infrastructure.Workers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +37,8 @@ public sealed class HealthEndpointTests
         Assert.Contains("\"name\":\"self\"", body, StringComparison.Ordinal);
         Assert.DoesNotContain("\"name\":\"postgres\"", body, StringComparison.Ordinal);
         Assert.DoesNotContain("\"name\":\"outbox\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"name\":\"worker\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"name\":\"embedding_provider\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -64,6 +67,8 @@ public sealed class HealthEndpointTests
         Assert.Contains("\"status\":\"Unhealthy\"", body, StringComparison.Ordinal);
         Assert.Contains("\"name\":\"postgres\"", body, StringComparison.Ordinal);
         Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"name\":\"embedding_provider\"", body, StringComparison.Ordinal);
         Assert.DoesNotContain("\"name\":\"self\"", body, StringComparison.Ordinal);
     }
 
@@ -74,6 +79,51 @@ public sealed class HealthEndpointTests
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
 
         var databaseName = $"memorysystem_health_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await InsertWorkerHeartbeatAsync(databaseConnectionString, WorkerHeartbeatStatuses.Running, DateTimeOffset.UtcNow);
+
+            using var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                    {
+                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                        {
+                            ["ConnectionStrings:Postgres"] = databaseConnectionString
+                        });
+                    });
+                });
+
+            var client = factory.CreateClient();
+
+            using var response = await client.GetAsync("/health");
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("\"status\":\"Healthy\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"postgres\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"embedding_provider\"", body, StringComparison.Ordinal);
+            Assert.Contains("readyPending", body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Health_reports_degraded_when_worker_heartbeat_has_not_been_observed()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_health_worker_missing_test_{Guid.NewGuid():N}";
         var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
 
         try
@@ -98,10 +148,54 @@ public sealed class HealthEndpointTests
             var body = await response.Content.ReadAsStringAsync();
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Contains("\"status\":\"Healthy\"", body, StringComparison.Ordinal);
-            Assert.Contains("\"name\":\"postgres\"", body, StringComparison.Ordinal);
-            Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
-            Assert.Contains("readyPending", body, StringComparison.Ordinal);
+            Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
+            Assert.Contains("No outbox worker heartbeat", body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Health_ready_returns_unavailable_when_worker_heartbeat_is_stale()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_health_worker_stale_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await InsertWorkerHeartbeatAsync(
+                databaseConnectionString,
+                WorkerHeartbeatStatuses.Running,
+                DateTimeOffset.UtcNow.AddMinutes(-10));
+
+            using var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                    {
+                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                        {
+                            ["ConnectionStrings:Postgres"] = databaseConnectionString
+                        });
+                    });
+                });
+
+            var client = factory.CreateClient();
+
+            using var response = await client.GetAsync("/health/ready");
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
+            Assert.Contains("worker heartbeat is stale", body, StringComparison.Ordinal);
         }
         finally
         {
@@ -356,6 +450,49 @@ public sealed class HealthEndpointTests
         command.Parameters.AddWithValue("attempts", attempts);
         command.Parameters.Add("last_error", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(lastError) ? DBNull.Value : lastError;
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task InsertWorkerHeartbeatAsync(
+        string connectionString,
+        string status,
+        DateTimeOffset lastSeenAt,
+        string workerId = "health-test-worker")
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        var lastSuccessAt = string.Equals(status, WorkerHeartbeatStatuses.Running, StringComparison.Ordinal)
+            ? lastSeenAt
+            : (DateTimeOffset?)null;
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO worker_heartbeats (
+                worker_type,
+                worker_id,
+                status,
+                last_seen_at,
+                last_success_at,
+                updated_at
+            )
+            VALUES (
+                @worker_type,
+                @worker_id,
+                @status,
+                @last_seen_at,
+                @last_success_at,
+                @updated_at
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("worker_type", WorkerHeartbeatTypes.Outbox);
+        command.Parameters.AddWithValue("worker_id", workerId);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("last_seen_at", lastSeenAt);
+        command.Parameters.AddWithValue("last_success_at", lastSuccessAt.HasValue ? lastSuccessAt.Value : DBNull.Value);
+        command.Parameters.AddWithValue("updated_at", lastSeenAt);
 
         await command.ExecuteNonQueryAsync();
     }

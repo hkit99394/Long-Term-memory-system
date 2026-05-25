@@ -51,6 +51,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0031: Obsidian Export](decisions/0031-obsidian-export.md) | Records the M7 Obsidian export endpoint, Markdown source metadata, and vault-sync tool behavior. |
 | [Decision 0032: Stale Vault Exports](decisions/0032-stale-vault-exports.md) | Records the M7 stale marker workflow for deleted, redacted, expired, superseded, and contradicted vault exports. |
 | [Decision 0033: Archive Vault Exports](decisions/0033-archive-vault-exports.md) | Records the M7 archive export endpoint for readable superseded, expired, and contradicted memory. |
+| [Decision 0034: Operational Health Checks](decisions/0034-operational-health-checks.md) | Records the M8 API liveness/readiness split, worker heartbeat freshness check, and embedding provider health behavior. |
 
 ## Dictionary
 
