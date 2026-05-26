@@ -6,12 +6,14 @@ public sealed record MemoryReviewWorkflowResult(
     int FailureStatusCode,
     string? Action,
     MemoryReviewRecord? Review,
-    Guid? ReplacementMemoryFactId)
+    Guid? ReplacementMemoryFactId,
+    bool IdempotencyAlreadyCompleted = false)
 {
     public static MemoryReviewWorkflowResult Completed(
         string action,
         MemoryReviewRecord review,
-        Guid? replacementMemoryFactId = null)
+        Guid? replacementMemoryFactId = null,
+        bool idempotencyAlreadyCompleted = false)
     {
         return new MemoryReviewWorkflowResult(
             true,
@@ -19,7 +21,8 @@ public sealed record MemoryReviewWorkflowResult(
             FailureStatusCode: 0,
             action,
             review,
-            replacementMemoryFactId);
+            replacementMemoryFactId,
+            idempotencyAlreadyCompleted);
     }
 
     public static MemoryReviewWorkflowResult Invalid(string error)

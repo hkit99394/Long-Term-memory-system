@@ -2,6 +2,8 @@ namespace MemorySystem.Application.MemoryReviews;
 
 public sealed record MemoryReviewActionCommand(
     Guid PrincipalId,
+    Guid IdempotencyRecordId,
+    string RequestHash,
     Guid ReviewId,
     string Action,
     Guid SourceEventId,

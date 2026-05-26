@@ -18,6 +18,11 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Obsidian export candidate limit must be between 1 and 500.");
         }
 
+        if (query.Offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Offset, "Obsidian export candidate offset must not be negative.");
+        }
+
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(
             """
@@ -57,7 +62,8 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
                     )
                 )
             ORDER BY fact.scope_type, fact.scope_id, fact.memory_type, lower(fact.subject), fact.id
-            LIMIT @limit;
+            LIMIT @limit
+            OFFSET @offset;
             """,
             connection);
         command.Parameters.Add("scope_type", NpgsqlTypes.NpgsqlDbType.Text).Value =
@@ -65,6 +71,7 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
         command.Parameters.Add("scope_id", NpgsqlTypes.NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var candidates = new List<ObsidianExportCandidate>();
@@ -86,6 +93,11 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
         if (query.Limit is < 1 or > 500)
         {
             throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Obsidian stale export candidate limit must be between 1 and 500.");
+        }
+
+        if (query.Offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Offset, "Obsidian stale export candidate offset must not be negative.");
         }
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
@@ -123,7 +135,8 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
                 AND fact.status IN ('superseded', 'contradicted', 'expired', 'deleted', 'redacted')
                 AND (@scope_type IS NULL OR (fact.scope_type = @scope_type AND fact.scope_id = @scope_id))
             ORDER BY export.updated_at, export.id
-            LIMIT @limit;
+            LIMIT @limit
+            OFFSET @offset;
             """,
             connection);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
@@ -131,6 +144,7 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var candidates = new List<ObsidianStaleExportCandidate>();
@@ -157,6 +171,11 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
         if (query.Limit is < 1 or > 500)
         {
             throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Obsidian archive export candidate limit must be between 1 and 500.");
+        }
+
+        if (query.Offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Offset, "Obsidian archive export candidate offset must not be negative.");
         }
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
@@ -188,7 +207,8 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             WHERE fact.status IN ('superseded', 'contradicted', 'expired')
                 AND (@scope_type IS NULL OR (fact.scope_type = @scope_type AND fact.scope_id = @scope_id))
             ORDER BY fact.updated_at DESC, fact.created_at DESC, fact.id
-            LIMIT @limit;
+            LIMIT @limit
+            OFFSET @offset;
             """,
             connection);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
@@ -196,6 +216,7 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var candidates = new List<ObsidianArchiveExportCandidate>();

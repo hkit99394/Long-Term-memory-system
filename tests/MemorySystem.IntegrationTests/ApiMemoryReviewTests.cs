@@ -2,8 +2,10 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.MemoryReviews;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.MemoryFacts;
+using MemorySystem.Infrastructure.MemoryReviews;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 
@@ -207,6 +209,51 @@ public sealed class ApiMemoryReviewTests
             Assert.Equal("completed", idempotencyRecord.Status);
             Assert.Equal("memory_review", idempotencyRecord.ResourceType);
             Assert.Equal(fixture.ProjectAReviewId, idempotencyRecord.ResourceId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Review_action_store_rolls_back_when_idempotency_completion_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_review_idempotency_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(databaseConnectionString, grantReviewAccess: true);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresMemoryReviewActionStore(dataSource);
+            var review = await store.FindPendingAsync(fixture.ProjectAReviewId)
+                ?? throw new InvalidOperationException("Pending review fixture was not created.");
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => store.ApplyAsync(new MemoryReviewActionStoreCommand(
+                    review,
+                    MemoryReviewActions.Approve,
+                    PrincipalId,
+                    fixture.ProjectAReviewEventId,
+                    Guid.NewGuid(),
+                    "missing-idempotency-request-hash",
+                    "Reviewed from rollback test.",
+                    Subject: null,
+                    Predicate: null,
+                    Object: null)));
+
+            Assert.Contains("idempotency record", exception.Message, StringComparison.OrdinalIgnoreCase);
+
+            var row = await ReadReviewAndMemoryStatusAsync(databaseConnectionString, fixture.ProjectAReviewId);
+
+            Assert.Equal("pending", row.ReviewStatus);
+            Assert.Equal("tentative", row.MemoryStatus);
+            Assert.Null(row.ReviewerId);
+            Assert.Equal(0, await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(databaseConnectionString));
         }
         finally
         {

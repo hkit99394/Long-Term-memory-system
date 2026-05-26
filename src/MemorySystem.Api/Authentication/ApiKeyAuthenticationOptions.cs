@@ -1,3 +1,4 @@
+using MemorySystem.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication;
 
 namespace MemorySystem.Api.Authentication;
@@ -55,6 +56,20 @@ public sealed class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
             .ToArray();
 
         return configuredSecrets.Length == configuredSecrets.Distinct(StringComparer.Ordinal).Count();
+    }
+
+    public static bool HasProductionSafeKeyValues(ApiKeyAuthenticationOptions options)
+    {
+        var keys = options.Keys;
+
+        if (keys is null || keys.Count == 0)
+        {
+            return true;
+        }
+
+        return keys.Values.All(credential =>
+            string.IsNullOrWhiteSpace(credential?.Key)
+            || ProductionSecretSafety.IsProductionSafeSecretValue(credential.Key));
     }
 
     private static bool IsConfigured(KeyValuePair<string, ApiKeyCredentialOptions> entry)

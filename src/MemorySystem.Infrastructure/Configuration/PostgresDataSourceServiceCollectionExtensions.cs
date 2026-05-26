@@ -21,6 +21,7 @@ public static class PostgresDataSourceServiceCollectionExtensions
 
             return NpgsqlDataSource.Create(connectionString);
         });
+        services.AddHostedService<PostgresConnectionStringValidationHostedService>();
 
         return services;
     }

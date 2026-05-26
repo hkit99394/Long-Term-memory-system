@@ -4,11 +4,16 @@ using Microsoft.Extensions.Options;
 namespace MemorySystem.Infrastructure.MemoryEmbeddings;
 
 internal sealed class MemoryEmbeddingOptionsValidationHostedService(
-    IOptions<MemoryEmbeddingOptions> options) : IHostedService
+    IOptions<MemoryEmbeddingOptions> options,
+    IHostEnvironment environment) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _ = options.Value;
+        var embeddingOptions = options.Value;
+        MemoryEmbeddingEnvironmentPolicy.ThrowIfProductionCredentialIsNotSafe(
+            environment,
+            embeddingOptions,
+            "Embedding provider");
         return Task.CompletedTask;
     }
 

@@ -23,10 +23,11 @@ public sealed class EmbeddingProviderHealthCheck(
         {
             options.Validate();
 
-            if (!MemoryEmbeddingEnvironmentPolicy.HasUsableProvider(environment, options))
+            var unusableReason = MemoryEmbeddingEnvironmentPolicy.GetUnusableReason(environment, options);
+            if (unusableReason is not null)
             {
                 return Task.FromResult(HealthCheckResult.Unhealthy(
-                    "Embedding provider is not usable for this environment.",
+                    $"Embedding provider is not usable: {unusableReason}",
                     data: data));
             }
 

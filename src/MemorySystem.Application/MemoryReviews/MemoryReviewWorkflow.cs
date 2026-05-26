@@ -19,6 +19,16 @@ public sealed class MemoryReviewWorkflow(
             return MemoryReviewWorkflowResult.Invalid("Authenticated principal id is required.");
         }
 
+        if (command.IdempotencyRecordId == Guid.Empty)
+        {
+            return MemoryReviewWorkflowResult.Invalid("Idempotency record id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.RequestHash))
+        {
+            return MemoryReviewWorkflowResult.Invalid("Idempotency request hash is required.");
+        }
+
         if (command.ReviewId == Guid.Empty)
         {
             return MemoryReviewWorkflowResult.Invalid("Review id is required.");
@@ -82,6 +92,8 @@ public sealed class MemoryReviewWorkflow(
                 action,
                 command.PrincipalId,
                 command.SourceEventId,
+                command.IdempotencyRecordId,
+                command.RequestHash,
                 string.IsNullOrWhiteSpace(command.Notes) ? null : command.Notes.Trim(),
                 command.Subject?.Trim(),
                 command.Predicate?.Trim(),
@@ -91,7 +103,8 @@ public sealed class MemoryReviewWorkflow(
         return MemoryReviewWorkflowResult.Completed(
             action,
             result.Review,
-            result.ReplacementMemoryFactId);
+            result.ReplacementMemoryFactId,
+            idempotencyAlreadyCompleted: true);
     }
 
     private static bool ActionRequiresReplacementContent(string action)

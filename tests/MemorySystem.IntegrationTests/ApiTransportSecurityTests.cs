@@ -14,6 +14,9 @@ namespace MemorySystem.IntegrationTests;
 
 public sealed class ApiTransportSecurityTests
 {
+    private const string StagingApiKey = "staging-api-key-0123456789abcdef";
+    private const string StagingOpenAiKey = "staging-openai-key-0123456789abcdef";
+
     [Fact]
     public async Task Non_testing_http_requests_are_rejected_before_api_key_authentication()
     {
@@ -28,7 +31,7 @@ public sealed class ApiTransportSecurityTests
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
                     });
@@ -42,7 +45,7 @@ public sealed class ApiTransportSecurityTests
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/");
-        request.Headers.Add("X-Api-Key", "test-api-key");
+        request.Headers.Add("X-Api-Key", StagingApiKey);
 
         using var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
@@ -64,7 +67,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
                     });
@@ -90,7 +93,7 @@ public sealed class ApiTransportSecurityTests
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller",
                         ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
@@ -102,6 +105,34 @@ public sealed class ApiTransportSecurityTests
         var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
 
         Assert.Contains("OpenAI embedding provider", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Non_testing_openai_embedding_provider_rejects_placeholder_api_key_at_startup()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Staging");
+                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                {
+                    configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:Postgres"] =
+                            "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
+                        ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
+                        ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller",
+                        ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+                        ["Embeddings:ApiKey"] = "test-openai-key"
+                    });
+                });
+            });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+
+        Assert.Contains("production-safe OpenAI API key", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -118,7 +149,7 @@ public sealed class ApiTransportSecurityTests
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
                     });
@@ -153,7 +184,7 @@ public sealed class ApiTransportSecurityTests
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
                     });
@@ -178,7 +209,7 @@ public sealed class ApiTransportSecurityTests
         })
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.Add("X-Api-Key", "test-api-key");
+            request.Headers.Add("X-Api-Key", StagingApiKey);
             request.Headers.Add("X-Forwarded-Proto", "https");
 
             using var response = await client.SendAsync(request);
@@ -203,13 +234,13 @@ public sealed class ApiTransportSecurityTests
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
-                        ["Authentication:ApiKey:Keys:test-key:Key"] = "test-api-key",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller",
                         ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
                         ["Embeddings:Model"] = "text-embedding-3-small",
                         ["Embeddings:Dimension"] = "1536",
-                        ["Embeddings:ApiKey"] = "test-openai-key"
+                        ["Embeddings:ApiKey"] = StagingOpenAiKey
                     });
                 });
                 builder.ConfigureTestServices(services =>
@@ -235,7 +266,7 @@ public sealed class ApiTransportSecurityTests
         })
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.Add("X-Api-Key", "test-api-key");
+            request.Headers.Add("X-Api-Key", StagingApiKey);
             request.Headers.Add("X-Forwarded-Proto", "https");
 
             using var response = await client.SendAsync(request);

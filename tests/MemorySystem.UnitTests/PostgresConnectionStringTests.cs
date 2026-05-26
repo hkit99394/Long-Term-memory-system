@@ -124,6 +124,18 @@ public sealed class PostgresConnectionStringTests
     }
 
     [Fact]
+    public void Resolve_rejects_local_docker_compose_connection_string_outside_development_or_testing()
+    {
+        const string configured =
+            "Host=localhost;Port=55432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password";
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => PostgresConnectionString.Resolve(_ => null, configured, environmentName: "Production"));
+
+        Assert.Contains("Local Docker Compose PostgreSQL defaults", exception.Message);
+    }
+
+    [Fact]
     public void Resolve_allows_explicit_parts_outside_development_or_testing()
     {
         var values = new Dictionary<string, string?>
@@ -143,6 +155,26 @@ public sealed class PostgresConnectionStringTests
         Assert.Equal("prod-db", builder.Host);
         Assert.Equal(5432, builder.Port);
         Assert.Equal("memory_prod", builder.Database);
+    }
+
+    [Fact]
+    public void Resolve_rejects_development_password_outside_development_or_testing()
+    {
+        var values = new Dictionary<string, string?>
+        {
+            [PostgresConnectionString.HostKey] = "prod-db",
+            [PostgresConnectionString.PortKey] = "5432",
+            [PostgresConnectionString.DatabaseKey] = "memory_prod",
+            [PostgresConnectionString.UsernameKey] = "memory_user",
+            [PostgresConnectionString.PasswordKey] = PostgresConnectionString.DefaultPassword
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => PostgresConnectionString.Resolve(
+                key => values.GetValueOrDefault(key),
+                environmentName: "Production"));
+
+        Assert.Contains("local/test placeholder", exception.Message);
     }
 
     [Fact]

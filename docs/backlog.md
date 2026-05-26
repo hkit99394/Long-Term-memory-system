@@ -106,10 +106,8 @@ Status values:
 | M8-02 | P0 | Done | Add structured logging. | Broker decisions, retrieval decisions, review actions, and delete/expire redaction actions are logged without proposal, query, note, or memory payload leakage. |
 | M8-03 | P0 | Done | Add retention policy. | Raw event payload retention, erasure, legal hold, and audit preservation are documented. |
 | M8-04 | P0 | Done | Add backup and restore notes. | Database backup and restore process is documented and tested locally. |
-| M8-05 | P1 | Todo | Add production secret handling. | API keys, connection strings, and embedding provider credentials are configured safely. |
+| M8-05 | P1 | Done | Add production secret handling. | API keys, connection strings, and embedding provider credentials are configured safely. |
 
 ## Immediate Next Items
 
-Continue here:
-
-1. `M8-05`: Add production secret handling.
+M8 operational readiness backlog is complete.

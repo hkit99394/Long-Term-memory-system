@@ -11,6 +11,9 @@ namespace MemorySystem.IntegrationTests;
 
 public sealed class HealthEndpointTests
 {
+    private const string TestApiKey = "test-api-key";
+    private static readonly Guid PrincipalId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+
     [Fact]
     public async Task Health_live_returns_healthy_without_database_readiness_checks()
     {
@@ -84,26 +87,15 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
             await InsertWorkerHeartbeatAsync(databaseConnectionString, WorkerHeartbeatStatuses.Running, DateTimeOffset.UtcNow);
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString
-                        });
-                    });
-                });
-
+            using var factory = CreateFactory(databaseConnectionString);
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, statusCode);
             Assert.Contains("\"status\":\"Healthy\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"postgres\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
@@ -129,25 +121,14 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString
-                        });
-                    });
-                });
-
+            using var factory = CreateFactory(databaseConnectionString);
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, statusCode);
             Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
             Assert.Contains("No outbox worker heartbeat", body, StringComparison.Ordinal);
@@ -170,32 +151,58 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
             await InsertWorkerHeartbeatAsync(
                 databaseConnectionString,
                 WorkerHeartbeatStatuses.Running,
                 DateTimeOffset.UtcNow.AddMinutes(-10));
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString
-                        });
-                    });
-                });
-
+            using var factory = CreateFactory(databaseConnectionString);
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health/ready");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health/ready", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, statusCode);
             Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
             Assert.Contains("worker heartbeat is stale", body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Health_ready_redacts_operational_details_for_anonymous_callers()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_health_ready_redaction_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await InsertWorkerHeartbeatAsync(
+                databaseConnectionString,
+                WorkerHeartbeatStatuses.Error,
+                DateTimeOffset.UtcNow,
+                workerId: "sensitive-worker-id");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            var client = factory.CreateClient();
+
+            var (statusCode, body) = await GetHealthAsync(client, "/health/ready", authenticate: false);
+
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, statusCode);
+            Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"worker\"", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("sensitive-worker-id", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("lastError", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("description", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"data\"", body, StringComparison.Ordinal);
         }
         finally
         {
@@ -215,26 +222,15 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
             await InsertOutboxJobAsync(databaseConnectionString, "dead_letter");
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString
-                        });
-                    });
-                });
-
+            using var factory = CreateFactory(databaseConnectionString);
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, statusCode);
             Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
             Assert.Contains("deadLetter", body, StringComparison.Ordinal);
@@ -257,26 +253,15 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
             await InsertOutboxJobAsync(databaseConnectionString, "pending", attempts: 1, lastError: "first attempt failed");
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString
-                        });
-                    });
-                });
-
+            using var factory = CreateFactory(databaseConnectionString);
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, statusCode);
             Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
             Assert.Contains("retryingFailed", body, StringComparison.Ordinal);
@@ -299,27 +284,20 @@ public sealed class HealthEndpointTests
         try
         {
             await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
             await InsertOutboxJobAsync(databaseConnectionString, "pending");
 
-            using var factory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
+            using var factory = CreateFactory(
+                databaseConnectionString,
+                new Dictionary<string, string?>
                 {
-                    builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-                    {
-                        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                        {
-                            ["ConnectionStrings:Postgres"] = databaseConnectionString,
-                            ["OutboxBacklogHealth:MaxReadyPendingJobs"] = "0"
-                        });
-                    });
+                    ["OutboxBacklogHealth:MaxReadyPendingJobs"] = "0"
                 });
-
             var client = factory.CreateClient();
 
-            using var response = await client.GetAsync("/health");
-            var body = await response.Content.ReadAsStringAsync();
+            var (statusCode, body) = await GetHealthAsync(client, "/health", authenticate: true);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, statusCode);
             Assert.Contains("\"status\":\"Degraded\"", body, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"outbox\"", body, StringComparison.Ordinal);
             Assert.Contains("readyPending", body, StringComparison.Ordinal);
@@ -404,6 +382,55 @@ public sealed class HealthEndpointTests
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Expected unreachable database health check to finish in under 5 seconds, but it took {stopwatch.Elapsed}.");
+    }
+
+    private static WebApplicationFactory<Program> CreateFactory(
+        string postgresConnectionString,
+        IReadOnlyDictionary<string, string?>? extraConfiguration = null)
+    {
+        return new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Testing");
+                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                {
+                    var configuration = new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:Postgres"] = postgresConnectionString,
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
+                        ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = PrincipalId.ToString(),
+                        ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Health test API caller"
+                    };
+
+                    if (extraConfiguration is not null)
+                    {
+                        foreach (var entry in extraConfiguration)
+                        {
+                            configuration[entry.Key] = entry.Value;
+                        }
+                    }
+
+                    configurationBuilder.AddInMemoryCollection(configuration);
+                });
+            });
+    }
+
+    private static async Task<(HttpStatusCode StatusCode, string Body)> GetHealthAsync(
+        HttpClient client,
+        string path,
+        bool authenticate)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+
+        if (authenticate)
+        {
+            request.Headers.Add("X-Api-Key", TestApiKey);
+        }
+
+        using var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        return (response.StatusCode, body);
     }
 
     private static async Task InsertOutboxJobAsync(

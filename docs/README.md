@@ -17,6 +17,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
+| [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
 | [Scenario 0001: User Preference, Project Decision, and CTO Context](scenarios/0001-user-preference-project-decision-cto-context.md) | Defines the first M1-M6 implementation throughline and sample data. |
@@ -57,6 +58,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0035: Structured Operational Logging](decisions/0035-structured-operational-logging.md) | Records the M8 structured logging contract for proposal, retrieval, review, and redaction decision points without payload leakage. |
 | [Decision 0036: Retention and Erasure Policy](decisions/0036-retention-and-erasure-policy.md) | Records the M8 raw event payload retention windows, legal hold behavior, erasure expectations, and audit-preservation policy. |
 | [Decision 0037: Backup and Restore Runbook](decisions/0037-backup-and-restore-runbook.md) | Records the M8 PostgreSQL custom-format backup, restore validation, migration, and retention-aware recovery process. |
+| [Decision 0038: Production Secret Handling](decisions/0038-production-secret-handling.md) | Records the M8 production secret configuration, runtime guardrails, and rotation expectations. |
 
 ## Dictionary
 
@@ -93,6 +95,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | pgvector | PostgreSQL extension used to store and search vector embeddings. |
 | Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
 | Principal | A human, agent, or service account making a request to the memory system. |
+| Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |
@@ -104,6 +107,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Retrieval evaluation | A deterministic scorecard over context-packet items and write observations that measures relevance, compactness, write precision, false positives, and contradiction quality. |
 | Semantic memory search | Vector retrieval over `memory_embeddings` using pgvector cosine distance, with authorized chunk filtering applied before distance ranking. |
 | Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
+| Secret store | A deployment-controlled system for storing and injecting secret values such as API keys, database credentials, and provider tokens. |
 | Session memory | Temporary memory for the current task or conversation only. |
 | Similar active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate but a different object. |
 | Structured memory search | A repository query over structured `memory_facts` columns such as scope, memory type, subject, and status. It does not use chunks, full-text search, embeddings, or vectors. |

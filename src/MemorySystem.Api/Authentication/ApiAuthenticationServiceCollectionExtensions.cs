@@ -28,6 +28,10 @@ public static class ApiAuthenticationServiceCollectionExtensions
                 "Authentication:ApiKey:Keys must not contain duplicate Key values.")
             .Validate(
                 options => ApiKeyAuthenticationOptions.AllowsMissingKeys(environment.EnvironmentName)
+                    || ApiKeyAuthenticationOptions.HasProductionSafeKeyValues(options),
+                "Authentication:ApiKey:Keys values must be production-safe outside Development and Testing environments.")
+            .Validate(
+                options => ApiKeyAuthenticationOptions.AllowsMissingKeys(environment.EnvironmentName)
                     || ApiKeyAuthenticationOptions.HasConfiguredKeys(options),
                 "Authentication:ApiKey:Keys must contain at least one configured key outside Development and Testing environments.")
             .ValidateOnStart();

@@ -6,11 +6,11 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 
 ## Current Track
 
-Current milestone: M7 Review and Vault Workflow, with M8 operational hardening underway.
+Current milestone: M8 Operational Readiness is complete through the current backlog.
 
-Completed milestones: M0 Planning Baseline through M6 Hybrid Retrieval.
+Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: M8 Operational Readiness.
+Next milestone: post-MVP production deployment hardening.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -26,7 +26,7 @@ The first production-shaped win is in place: a local API and database can accept
 | M5 | Broker Intelligence | The broker separates durable memory from temporary instructions. | Candidate classification, dedupe, contradiction checks, confidence, and review-required decisions are tested. |
 | M6 | Hybrid Retrieval | Context packets combine structured, keyword, and vector recall safely. | Full-text and pgvector search run inside authorized predicates; ranking is explainable; context packets include source links. |
 | M7 | Review and Vault Workflow | Humans can inspect, approve, correct, export, and remove memories. | Review dashboard supports approve/reject/edit/expire/delete/supersede; Obsidian export is source-linked and stale-aware. |
-| M8 | Operational Readiness | The system can be run, observed, backed up, and recovered. | Health checks, structured logs, retention policy, backup/restore notes, and production secret handling are documented. |
+| M8 | Operational Readiness | The system can be run, observed, backed up, and recovered. | Health checks, structured logs, retention policy, backup/restore notes, and production secret handling are documented and guarded at runtime. |
 
 ## MVP Boundary
 
@@ -101,6 +101,7 @@ Before M8 implementation:
 - Structured logging behavior is decided in [Decision 0035](decisions/0035-structured-operational-logging.md): proposal, retrieval, review, and delete/expire redaction logs include operational metadata and counts, but omit proposal content, query text, review notes, memory body text, and raw event payloads.
 - Retention and erasure behavior is decided in [Decision 0036](decisions/0036-retention-and-erasure-policy.md): raw event payload retention classes, legal hold precedence, erasure workflow expectations, audit-safe metadata, and current automation gaps are documented in [Retention Policy](retention-policy.md).
 - Backup and restore behavior is decided in [Decision 0037](decisions/0037-backup-and-restore-runbook.md): PostgreSQL custom-format backups, restore validation databases, migration checks, readiness checks, and retention-aware restore caveats are documented in [Backup and Restore Runbook](backup-restore.md).
+- Production secret handling is decided in [Decision 0038](decisions/0038-production-secret-handling.md): API keys, PostgreSQL credentials, and embedding provider credentials are supplied from runtime configuration or a secret store, with startup guardrails documented in [Production Secret Handling](production-secrets.md).
 
 ## First Build Sequence
 

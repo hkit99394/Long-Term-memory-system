@@ -196,7 +196,7 @@ public sealed class OutboxWorkerOptionsTests
             ["ConnectionStrings:Postgres"] =
                 "Host=127.0.0.1;Port=1;Database=missing;Username=missing;Password=missing",
             ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
-            ["Embeddings:ApiKey"] = "test-openai-key",
+            ["Embeddings:ApiKey"] = "production-openai-key-0123456789abcdef",
             ["OutboxWorker:WorkerId"] = "composition-test-worker"
         });
 
@@ -206,6 +206,28 @@ public sealed class OutboxWorkerOptionsTests
 
         Assert.Equal(MemoryEmbeddingOptions.OpenAiProvider, provider.GetRequiredService<IOptions<MemoryEmbeddingOptions>>().Value.Provider);
         Assert.Contains(provider.GetServices<IHostedService>(), service => service is OutboxWorkerService);
+    }
+
+    [Fact]
+    public void AddMemorySystemOutboxWorker_rejects_placeholder_openai_key_outside_development_and_testing()
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = "Staging"
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] =
+                "Host=127.0.0.1;Port=1;Database=missing;Username=missing;Password=missing",
+            ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+            ["Embeddings:ApiKey"] = "test-openai-key",
+            ["OutboxWorker:WorkerId"] = "composition-test-worker"
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment));
+
+        Assert.Contains("production-safe OpenAI API key", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

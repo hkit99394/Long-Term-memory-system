@@ -30,65 +30,27 @@ public sealed class ObsidianExportService(
         }
 
         var (scopeType, scopeId) = NormalizeScope(query);
-        var candidates = await candidateStore.ListCandidatesAsync(
-            new ObsidianExportCandidateQuery(scopeType, scopeId, CandidateReadLimit),
+        var candidates = await ListAuthorizedCandidatesAsync(
+            candidateStore.ListCandidatesAsync,
+            candidate => candidate.MemoryFact,
+            scopeType,
+            scopeId,
+            query.PrincipalId,
+            query.Limit,
             cancellationToken);
-        var documents = new List<ObsidianExportDocument>(query.Limit);
-
-        foreach (var candidate in candidates)
-        {
-            var memoryFact = candidate.MemoryFact;
-            var access = await accessAuthorizer.AuthorizeAsync(
-                new MemoryAccessRequest(
-                    query.PrincipalId,
-                    MemoryAccessPermissions.Read,
-                    memoryFact.ToScopeResolution(),
-                    memoryFact.Namespace),
-                cancellationToken);
-
-            if (!access.Allowed)
-            {
-                continue;
-            }
-
-            documents.Add(RenderDocument(candidate));
-
-            if (documents.Count == query.Limit)
-            {
-                break;
-            }
-        }
+        var documents = candidates.Select(RenderDocument).ToArray();
 
         await candidateStore.RecordExportedAsync(documents, cancellationToken);
 
-        var staleCandidates = await candidateStore.ListStaleCandidatesAsync(
-            new ObsidianExportCandidateQuery(scopeType, scopeId, CandidateReadLimit),
+        var staleCandidates = await ListAuthorizedCandidatesAsync(
+            candidateStore.ListStaleCandidatesAsync,
+            candidate => candidate.MemoryFact,
+            scopeType,
+            scopeId,
+            query.PrincipalId,
+            query.Limit,
             cancellationToken);
-        var staleDocuments = new List<ObsidianStaleExportDocument>(query.Limit);
-
-        foreach (var candidate in staleCandidates)
-        {
-            var memoryFact = candidate.MemoryFact;
-            var access = await accessAuthorizer.AuthorizeAsync(
-                new MemoryAccessRequest(
-                    query.PrincipalId,
-                    MemoryAccessPermissions.Read,
-                    memoryFact.ToScopeResolution(),
-                    memoryFact.Namespace),
-                cancellationToken);
-
-            if (!access.Allowed)
-            {
-                continue;
-            }
-
-            staleDocuments.Add(RenderStaleDocument(candidate));
-
-            if (staleDocuments.Count == query.Limit)
-            {
-                break;
-            }
-        }
+        var staleDocuments = staleCandidates.Select(RenderStaleDocument).ToArray();
 
         await candidateStore.RecordStaleAsync(staleDocuments, cancellationToken);
 
@@ -112,38 +74,77 @@ public sealed class ObsidianExportService(
         }
 
         var (scopeType, scopeId) = NormalizeScope(query);
-        var candidates = await candidateStore.ListArchiveCandidatesAsync(
-            new ObsidianExportCandidateQuery(scopeType, scopeId, CandidateReadLimit),
+        var candidates = await ListAuthorizedCandidatesAsync(
+            candidateStore.ListArchiveCandidatesAsync,
+            candidate => candidate.MemoryFact,
+            scopeType,
+            scopeId,
+            query.PrincipalId,
+            query.Limit,
             cancellationToken);
-        var documents = new List<ObsidianArchiveExportDocument>(query.Limit);
-
-        foreach (var candidate in candidates)
-        {
-            var memoryFact = candidate.MemoryFact;
-            var access = await accessAuthorizer.AuthorizeAsync(
-                new MemoryAccessRequest(
-                    query.PrincipalId,
-                    MemoryAccessPermissions.Read,
-                    memoryFact.ToScopeResolution(),
-                    memoryFact.Namespace),
-                cancellationToken);
-
-            if (!access.Allowed)
-            {
-                continue;
-            }
-
-            documents.Add(RenderArchiveDocument(candidate));
-
-            if (documents.Count == query.Limit)
-            {
-                break;
-            }
-        }
+        var documents = candidates.Select(RenderArchiveDocument).ToArray();
 
         await candidateStore.RecordArchiveAsync(documents, cancellationToken);
 
         return new ObsidianArchiveExportBundle(DateTimeOffset.UtcNow, documents);
+    }
+
+    private async Task<IReadOnlyList<TCandidate>> ListAuthorizedCandidatesAsync<TCandidate>(
+        Func<ObsidianExportCandidateQuery, CancellationToken, Task<IReadOnlyList<TCandidate>>> readPageAsync,
+        Func<TCandidate, MemoryFactRecord> getMemoryFact,
+        string? scopeType,
+        string? scopeId,
+        Guid principalId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var authorized = new List<TCandidate>(limit);
+        var offset = 0;
+
+        while (authorized.Count < limit)
+        {
+            var candidates = await readPageAsync(
+                new ObsidianExportCandidateQuery(scopeType, scopeId, CandidateReadLimit, offset),
+                cancellationToken);
+
+            if (candidates.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var candidate in candidates)
+            {
+                var memoryFact = getMemoryFact(candidate);
+                var access = await accessAuthorizer.AuthorizeAsync(
+                    new MemoryAccessRequest(
+                        principalId,
+                        MemoryAccessPermissions.Read,
+                        memoryFact.ToScopeResolution(),
+                        memoryFact.Namespace),
+                    cancellationToken);
+
+                if (!access.Allowed)
+                {
+                    continue;
+                }
+
+                authorized.Add(candidate);
+
+                if (authorized.Count == limit)
+                {
+                    break;
+                }
+            }
+
+            if (candidates.Count < CandidateReadLimit)
+            {
+                break;
+            }
+
+            offset += candidates.Count;
+        }
+
+        return authorized;
     }
 
     private static (string? ScopeType, string? ScopeId) NormalizeScope(ObsidianExportQuery query)

@@ -25,19 +25,19 @@ public static class PostgresConnectionString
     {
         ArgumentNullException.ThrowIfNull(getValue);
 
+        var allowsLocalDefaults = AllowsLocalDefaults(environmentName);
+
         if (!string.IsNullOrWhiteSpace(configuredConnectionString))
         {
-            return configuredConnectionString;
+            return EnsureProductionSafeConnectionString(configuredConnectionString, allowsLocalDefaults);
         }
 
         var environmentConnectionString = getValue(ConnectionStringKey);
 
         if (!string.IsNullOrWhiteSpace(environmentConnectionString))
         {
-            return environmentConnectionString;
+            return EnsureProductionSafeConnectionString(environmentConnectionString, allowsLocalDefaults);
         }
-
-        var allowsLocalDefaults = AllowsLocalDefaults(environmentName);
 
         if (!allowsLocalDefaults && !HasRequiredConnectionParts(getValue))
         {
@@ -54,7 +54,7 @@ public static class PostgresConnectionString
             Password = GetValue(getValue, PasswordKey, DefaultPassword)
         };
 
-        return builder.ConnectionString;
+        return EnsureProductionSafeConnectionString(builder.ConnectionString, allowsLocalDefaults);
     }
 
     public static string ResolveLocalDefaults(
@@ -101,5 +101,47 @@ public static class PostgresConnectionString
         var value = getValue(key);
 
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string EnsureProductionSafeConnectionString(
+        string connectionString,
+        bool allowsLocalDefaults)
+    {
+        if (allowsLocalDefaults)
+        {
+            return connectionString;
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        if (UsesLocalDockerComposeDefaults(builder))
+        {
+            throw new InvalidOperationException(
+                "Local Docker Compose PostgreSQL defaults must not be used outside Development and Testing environments.");
+        }
+
+        if (ProductionSecretSafety.IsKnownUnsafeSecretValue(builder.Password))
+        {
+            throw new InvalidOperationException(
+                "The PostgreSQL password uses a local/test placeholder and must not be used outside Development and Testing environments.");
+        }
+
+        return connectionString;
+    }
+
+    private static bool UsesLocalDockerComposeDefaults(NpgsqlConnectionStringBuilder builder)
+    {
+        return IsLocalHost(builder.Host)
+            && builder.Port == DefaultPort
+            && string.Equals(builder.Database, DefaultDatabase, StringComparison.Ordinal)
+            && string.Equals(builder.Username, DefaultUsername, StringComparison.Ordinal)
+            && string.Equals(builder.Password, DefaultPassword, StringComparison.Ordinal);
+    }
+
+    private static bool IsLocalHost(string? host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase);
     }
 }

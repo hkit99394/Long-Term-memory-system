@@ -104,6 +104,8 @@ public static class MemoryReviewEndpointExtensions
         var result = await workflow.CompleteAsync(
             new MemoryReviewActionCommand(
                 idempotency.PrincipalId,
+                idempotency.RecordId,
+                idempotency.RequestHash,
                 id,
                 action,
                 request.SourceEventId,
@@ -134,7 +136,8 @@ public static class MemoryReviewEndpointExtensions
             StatusCodes.Status200OK,
             ToActionResponse(result),
             "memory_review",
-            id);
+            id,
+            result.IdempotencyAlreadyCompleted);
     }
 
     private static void LogReviewActionCompleted(

@@ -12,14 +12,32 @@ public sealed class OpenAiMemoryEmbeddingProvider : IMemoryEmbeddingProvider, ID
 
     private readonly MemoryEmbeddingOptions options;
     private readonly HttpClient httpClient;
+    private readonly bool ownsHttpClient;
 
     public OpenAiMemoryEmbeddingProvider(IOptions<MemoryEmbeddingOptions> options)
+        : this(options, new HttpClient(), ownsHttpClient: true)
+    {
+    }
+
+    public OpenAiMemoryEmbeddingProvider(
+        IOptions<MemoryEmbeddingOptions> options,
+        HttpClient httpClient)
+        : this(options, httpClient, ownsHttpClient: false)
+    {
+    }
+
+    private OpenAiMemoryEmbeddingProvider(
+        IOptions<MemoryEmbeddingOptions> options,
+        HttpClient httpClient,
+        bool ownsHttpClient)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(httpClient);
 
         this.options = options.Value;
         this.options.Validate();
-        this.httpClient = new HttpClient();
+        this.httpClient = httpClient;
+        this.ownsHttpClient = ownsHttpClient;
     }
 
     public string ProviderName => options.Provider;
@@ -73,7 +91,10 @@ public sealed class OpenAiMemoryEmbeddingProvider : IMemoryEmbeddingProvider, ID
 
     public void Dispose()
     {
-        httpClient.Dispose();
+        if (ownsHttpClient)
+        {
+            httpClient.Dispose();
+        }
     }
 
     private static string Truncate(string value, int maxLength)

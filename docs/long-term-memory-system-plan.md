@@ -1177,6 +1177,7 @@ Success criteria:
 - database health is visible
 - backup and restore validation has a documented local path
 - memory deletion and expiry behavior is auditable
+- production secrets are supplied through runtime configuration and guarded against local/test placeholders
 
 ## Testing Strategy
 

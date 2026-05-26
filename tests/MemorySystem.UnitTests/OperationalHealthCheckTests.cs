@@ -46,13 +46,32 @@ public sealed class OperationalHealthCheckTests
                 Provider = MemoryEmbeddingOptions.OpenAiProvider,
                 Model = MemoryEmbeddingOptions.DefaultOpenAiModel,
                 Dimension = MemoryEmbeddingOptions.DefaultOpenAiDimension,
-                ApiKey = "test-openai-key"
+                ApiKey = "production-openai-key-0123456789abcdef"
             });
 
         var result = await check.CheckHealthAsync(new HealthCheckContext());
 
         Assert.Equal(HealthStatus.Healthy, result.Status);
         Assert.Equal(MemoryEmbeddingOptions.OpenAiProvider, result.Data["provider"]);
+    }
+
+    [Fact]
+    public async Task EmbeddingProviderHealthCheck_rejects_placeholder_openai_key_outside_development_and_testing()
+    {
+        var check = new EmbeddingProviderHealthCheck(
+            new TestHostEnvironment("Staging"),
+            new MemoryEmbeddingOptions
+            {
+                Provider = MemoryEmbeddingOptions.OpenAiProvider,
+                Model = MemoryEmbeddingOptions.DefaultOpenAiModel,
+                Dimension = MemoryEmbeddingOptions.DefaultOpenAiDimension,
+                ApiKey = "test-openai-key"
+            });
+
+        var result = await check.CheckHealthAsync(new HealthCheckContext());
+
+        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        Assert.Contains("production-safe OpenAI API key", result.Description, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

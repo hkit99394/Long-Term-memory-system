@@ -1,5 +1,6 @@
 using MemorySystem.Api.Authentication;
 using MemorySystem.Application.Authentication;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Migrations;
 using System.Net;
 using System.Text.Json;
@@ -19,6 +20,9 @@ public sealed class ApiAuthorizationTests
     private const string TestPrincipalId = "11111111-1111-1111-1111-111111111111";
     private const string SecondApiKey = "second-test-api-key";
     private const string SecondPrincipalId = "22222222-2222-2222-2222-222222222222";
+    private const string ProductionSafeApiKey = "production-api-key-0123456789abcdef";
+    private const string SecondProductionSafeApiKey = "production-api-key-fedcba9876543210";
+    private const string ProductionSafeOpenAiKey = "production-openai-key-0123456789abcdef";
 
     [Fact]
     public async Task Root_endpoint_remains_anonymous()
@@ -165,9 +169,9 @@ public sealed class ApiAuthorizationTests
     {
         using var factory = CreateProductionFactory(new Dictionary<string, string?>
         {
-            ["Authentication:ApiKey:Keys:first-key:Key"] = TestApiKey,
+            ["Authentication:ApiKey:Keys:first-key:Key"] = ProductionSafeApiKey,
             ["Authentication:ApiKey:Keys:first-key:PrincipalId"] = TestPrincipalId,
-            ["Authentication:ApiKey:Keys:second-key:Key"] = TestApiKey,
+            ["Authentication:ApiKey:Keys:second-key:Key"] = ProductionSafeApiKey,
             ["Authentication:ApiKey:Keys:second-key:PrincipalId"] = SecondPrincipalId
         });
 
@@ -181,13 +185,59 @@ public sealed class ApiAuthorizationTests
     {
         using var factory = CreateProductionFactory(new Dictionary<string, string?>
         {
-            ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
+            ["Authentication:ApiKey:Keys:test-key:Key"] = ProductionSafeApiKey,
             ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "not-a-guid"
         });
 
         var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
 
         Assert.Contains("PrincipalId must be a valid GUID", exception.Message);
+    }
+
+    [Fact]
+    public void Production_host_rejects_placeholder_api_key_values()
+    {
+        using var factory = CreateProductionFactory(new Dictionary<string, string?>
+        {
+            ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
+            ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId
+        });
+
+        var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+
+        Assert.Contains("production-safe", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Production_host_accepts_production_safe_api_key_values()
+    {
+        using var factory = CreateProductionFactory(new Dictionary<string, string?>
+        {
+            ["Authentication:ApiKey:Keys:test-key:Key"] = ProductionSafeApiKey,
+            ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId,
+            ["Authentication:ApiKey:Keys:second-key:Key"] = SecondProductionSafeApiKey,
+            ["Authentication:ApiKey:Keys:second-key:PrincipalId"] = SecondPrincipalId
+        });
+
+        using var client = factory.CreateClient();
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void Production_host_rejects_local_postgres_defaults()
+    {
+        using var factory = CreateProductionFactory(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Postgres"] =
+                "Host=localhost;Port=55432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password",
+            ["Authentication:ApiKey:Keys:test-key:Key"] = ProductionSafeApiKey,
+            ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+
+        Assert.Contains("Local Docker Compose PostgreSQL defaults", exception.Message);
     }
 
     private static async Task<JsonElement> GetFallbackAuthPayloadAsync(WebApplicationFactory<Program> factory, string apiKey)
@@ -292,7 +342,9 @@ public sealed class ApiAuthorizationTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=prod-db;Database=memory_prod;Username=memory_user;Password=prod-password",
-                        ["ForwardedHeaders:KnownProxies:0"] = "10.0.0.10"
+                        ["ForwardedHeaders:KnownProxies:0"] = "10.0.0.10",
+                        ["Embeddings:Provider"] = MemoryEmbeddingOptions.OpenAiProvider,
+                        ["Embeddings:ApiKey"] = ProductionSafeOpenAiKey
                     };
 
                     if (apiKeyConfiguration is not null)

@@ -5,6 +5,8 @@ public sealed record MemoryReviewActionStoreCommand(
     string Action,
     Guid ReviewerId,
     Guid SourceEventId,
+    Guid IdempotencyRecordId,
+    string RequestHash,
     string? Notes,
     string? Subject,
     string? Predicate,

@@ -66,6 +66,65 @@ public sealed class ApiVaultExportTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Get_obsidian_export_returns_authorized_document_after_large_inaccessible_prefix()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_obsidian_export_page_auth_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareExportFixtureAsync(databaseConnectionString);
+            var prefixOrgId = Guid.Parse("00000000-0000-4000-8000-000000000010");
+            var prefixProjectId = Guid.Parse("00000000-0000-4000-8000-000000000011");
+            var prefixSourceEventId = Guid.NewGuid();
+
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, prefixOrgId, prefixProjectId);
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                prefixSourceEventId,
+                PrincipalId,
+                "project",
+                prefixProjectId.ToString(),
+                scopeOrgId: prefixOrgId,
+                scopeProjectId: prefixProjectId,
+                trustLevel: "human_approved");
+
+            for (var index = 0; index < 501; index++)
+            {
+                await InsertProjectMemoryFactAsync(
+                    databaseConnectionString,
+                    prefixProjectId,
+                    prefixOrgId,
+                    prefixSourceEventId,
+                    "decision",
+                    $"/project/{prefixProjectId}/decisions",
+                    $"Inaccessible prefix decision {index:D3}",
+                    "records",
+                    $"an inaccessible row before authorized exports {index:D3}",
+                    "human_approved");
+            }
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendObsidianExportAsync(client, limit: 1);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+
+            var document = Assert.Single(payload.GetProperty("documents").EnumerateArray());
+            Assert.Equal(fixture.DecisionMemoryId, document.GetProperty("memoryFactId").GetGuid());
+            Assert.DoesNotContain(prefixProjectId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Inaccessible prefix decision", responseBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Get_obsidian_export_marks_deleted_or_redacted_previous_exports_stale()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();

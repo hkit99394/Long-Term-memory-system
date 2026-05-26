@@ -68,7 +68,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("live"),
-    ResponseWriter = WriteHealthResponseAsync
+    ResponseWriter = WritePublicHealthResponseAsync
 }).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
@@ -147,6 +147,28 @@ if (app.Environment.IsEnvironment("Testing"))
 app.Run();
 
 static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    return context.User.Identity?.IsAuthenticated == true
+        ? WriteDetailedHealthResponseAsync(context, report)
+        : WritePublicHealthResponseAsync(context, report);
+}
+
+static Task WritePublicHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+
+    return context.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.Select(entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString()
+        })
+    });
+}
+
+static Task WriteDetailedHealthResponseAsync(HttpContext context, HealthReport report)
 {
     context.Response.ContentType = "application/json";
 

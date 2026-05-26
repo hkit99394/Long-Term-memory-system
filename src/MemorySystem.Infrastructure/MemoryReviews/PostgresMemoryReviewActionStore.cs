@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryReviews;
+using MemorySystem.Infrastructure.Idempotency;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 using NpgsqlTypes;
@@ -10,6 +12,8 @@ namespace MemorySystem.Infrastructure.MemoryReviews;
 
 public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource) : IMemoryReviewActionStore
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     public async Task<MemoryReviewRecord?> FindPendingAsync(
         Guid reviewId,
         CancellationToken cancellationToken = default)
@@ -164,9 +168,39 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             cancellationToken)
             ?? throw new InvalidOperationException($"Review {current.Id} could not be read after update.");
 
+        await CompleteIdempotencyAsync(
+            connection,
+            transaction,
+            command,
+            updatedReview,
+            replacementMemoryFactId,
+            cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         return new MemoryReviewActionStoreResult(updatedReview, replacementMemoryFactId);
+    }
+
+    private static async Task CompleteIdempotencyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        MemoryReviewActionStoreCommand command,
+        MemoryReviewRecord review,
+        Guid? replacementMemoryFactId,
+        CancellationToken cancellationToken)
+    {
+        await PostgresApiIdempotencyCompleter.CompleteAsync(
+            connection,
+            transaction,
+            command.IdempotencyRecordId,
+            command.RequestHash,
+            200,
+            JsonSerializer.Serialize(ToActionResponse(command.Action, review, replacementMemoryFactId), JsonOptions),
+            "application/json; charset=utf-8",
+            "memory_review",
+            review.Id,
+            "The review action idempotency record could not be completed.",
+            cancellationToken);
     }
 
     private static async Task<MemoryReviewRecord?> FindReviewAsync(
@@ -580,6 +614,56 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         return $"{subject} {predicate} {objectValue}";
     }
 
+    private static MemoryReviewActionResponseBody ToActionResponse(
+        string action,
+        MemoryReviewRecord review,
+        Guid? replacementMemoryFactId)
+    {
+        return new MemoryReviewActionResponseBody(
+            action,
+            ToReviewResponse(review),
+            replacementMemoryFactId);
+    }
+
+    private static PendingMemoryReviewResponseBody ToReviewResponse(MemoryReviewRecord review)
+    {
+        return new PendingMemoryReviewResponseBody(
+            review.Id,
+            review.ReviewStatus,
+            review.ReviewerId,
+            review.Notes,
+            review.SourceEventId,
+            BuildSourceEventLink(review.SourceEventId),
+            review.CreatedAt,
+            review.UpdatedAt,
+            ToMemoryResponse(review.MemoryFact));
+    }
+
+    private static PendingMemoryReviewFactResponseBody ToMemoryResponse(MemoryFactRecord memoryFact)
+    {
+        return new PendingMemoryReviewFactResponseBody(
+            memoryFact.Id,
+            memoryFact.ScopeType,
+            memoryFact.ScopeId,
+            memoryFact.Namespace,
+            memoryFact.MemoryType,
+            memoryFact.Visibility,
+            memoryFact.Subject,
+            memoryFact.Predicate,
+            memoryFact.Object,
+            memoryFact.Confidence,
+            memoryFact.TrustLevel,
+            memoryFact.Status,
+            memoryFact.SourceEventId,
+            BuildSourceEventLink(memoryFact.SourceEventId),
+            memoryFact.ProposedByPrincipalId);
+    }
+
+    private static string BuildSourceEventLink(Guid sourceEventId)
+    {
+        return $"/api/events/{sourceEventId}";
+    }
+
     private static string ComputeSha256(string value)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
@@ -590,6 +674,39 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
     private sealed record SourceEventEvidence(
         string TrustLevel,
         Guid ProposedByPrincipalId);
+
+    private sealed record MemoryReviewActionResponseBody(
+        string Action,
+        PendingMemoryReviewResponseBody Review,
+        Guid? ReplacementMemoryFactId);
+
+    private sealed record PendingMemoryReviewResponseBody(
+        Guid Id,
+        string ReviewStatus,
+        Guid? ReviewerId,
+        string? Notes,
+        Guid SourceEventId,
+        string SourceLink,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt,
+        PendingMemoryReviewFactResponseBody Memory);
+
+    private sealed record PendingMemoryReviewFactResponseBody(
+        Guid Id,
+        string ScopeType,
+        string ScopeId,
+        string Namespace,
+        string MemoryType,
+        string Visibility,
+        string Subject,
+        string Predicate,
+        string Object,
+        decimal Confidence,
+        string TrustLevel,
+        string Status,
+        Guid SourceEventId,
+        string SourceLink,
+        Guid? ProposedByPrincipalId);
 
     private static MemoryReviewRecord ReadReview(NpgsqlDataReader reader)
     {
