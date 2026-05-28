@@ -112,6 +112,28 @@ public sealed class SqlMigrationRunnerOptionsTests
     }
 
     [Fact]
+    public void OrderRecordedMigrationNamesForValidation_uses_current_numeric_order_for_four_digit_ordinals()
+    {
+        var currentMigrationNames = Enumerable
+            .Range(1, 1000)
+            .Select(ordinal => $"{ordinal:D3}_noop.sql")
+            .ToArray();
+        var recordedMigrations = currentMigrationNames.ToDictionary(
+            migrationName => migrationName,
+            _ => "sha256-placeholder",
+            StringComparer.Ordinal);
+
+        var orderedMigrationNames = SqlMigrationRunner.OrderRecordedMigrationNamesForValidation(
+            recordedMigrations,
+            currentMigrationNames);
+
+        Assert.Equal(1000, orderedMigrationNames.Length);
+        Assert.Equal("001_noop.sql", orderedMigrationNames[0]);
+        Assert.Equal("999_noop.sql", orderedMigrationNames[998]);
+        Assert.Equal("1000_noop.sql", orderedMigrationNames[^1]);
+    }
+
+    [Fact]
     public async Task ApplyAsync_rejects_over_padded_migration_ordinals_before_opening_connection()
     {
         var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-over-padded-migrations-").FullName;

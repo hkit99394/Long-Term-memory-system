@@ -1,3 +1,4 @@
+using MemorySystem.Api.Events;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryContext;
 using MemorySystem.Application.MemoryFacts;
@@ -12,6 +13,7 @@ public static class ApiMemoryFactServiceCollectionExtensions
 {
     public static IServiceCollection AddMemorySystemMemoryFacts(this IServiceCollection services)
     {
+        services.AddMemorySystemSourceEventLinks();
         services.AddSingleton<IMemoryChunkFullTextSearch, PostgresMemoryChunkFullTextSearch>();
         services.AddSingleton<IMemoryChunkSemanticSearch, PostgresMemoryChunkSemanticSearch>();
         services.AddSingleton<IMemoryChunkHybridSearch, PostgresMemoryChunkHybridSearch>();

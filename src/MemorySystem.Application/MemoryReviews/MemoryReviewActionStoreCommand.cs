@@ -13,5 +13,12 @@ public sealed record MemoryReviewActionStoreCommand(
     string? Object);
 
 public sealed record MemoryReviewActionStoreResult(
-    MemoryReviewRecord Review,
-    Guid? ReplacementMemoryFactId);
+    MemoryReviewRecord? Review,
+    Guid? ReplacementMemoryFactId,
+    bool Applied = true)
+{
+    public static MemoryReviewActionStoreResult NotApplied()
+    {
+        return new MemoryReviewActionStoreResult(null, null, Applied: false);
+    }
+}

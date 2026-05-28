@@ -14,6 +14,10 @@ public interface IMemoryAccessReferenceStore
         Guid projectId,
         CancellationToken cancellationToken = default);
 
+    Task<Guid?> FindActiveProjectOrganizationIdAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> HasRoleAssignmentAsync(
         Guid principalId,
         string roleId,

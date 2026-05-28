@@ -10,7 +10,7 @@ internal static class PostgresTestDatabase
     private static readonly Lazy<bool> DefaultLocalPostgresIsReachable = new(IsDefaultLocalPostgresReachableCore);
 
     public const string MissingAdminConnectionStringSkipReason =
-        "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING or the local Docker PostgreSQL on 127.0.0.1:55432.";
+        "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING or the local Docker PostgreSQL on 127.0.0.1:55432. Set MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true to fail instead of skip when running full local verification.";
 
     public static string? AdminConnectionString
     {
@@ -42,6 +42,7 @@ internal static class PostgresTestDatabase
                 "Database integration tests require MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING " +
                 "or the local Docker PostgreSQL on 127.0.0.1:55432. " +
                 "Run fast tests with --filter \"Category!=Database\", start Docker Compose PostgreSQL, " +
+                "set MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true when full verification must not skip, " +
                 "or provide a PostgreSQL connection string.");
         }
 

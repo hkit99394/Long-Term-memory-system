@@ -21,6 +21,7 @@ Runtime checks enforce these rules:
 - OpenAI embedding configuration requires an API key and an absolute HTTPS endpoint.
 - OpenAI API keys outside `Development` and `Testing` must be non-placeholder secrets with at least 16 characters.
 - The outbox worker refuses deterministic embeddings outside `Development` and `Testing`; API semantic routes return unavailable and readiness reports unhealthy until a production embedding provider is configured.
+- The API rejects plain HTTP outside `Development` and `Testing`. Forwarded headers are trusted only when explicitly enabled and restricted to configured proxies or networks.
 
 These guardrails are not a replacement for a managed secret store. They catch accidental local, test, or placeholder values before production traffic depends on them.
 
@@ -130,12 +131,27 @@ Rotation pattern:
 5. Revoke the old provider key.
 6. Record the provider key id, operator, and verification result.
 
+## Transport Security
+
+Production-shaped API environments require HTTPS. If the API receives direct HTTPS traffic, no forwarded-header trust configuration is required.
+
+When the API runs behind a TLS-terminating reverse proxy, enable forwarded headers and restrict trust to the proxy addresses:
+
+```text
+TransportSecurity:ForwardedHeadersEnabled=true
+ForwardedHeaders:KnownProxies:0=<proxy-ip>
+ForwardedHeaders:KnownNetworks:0=<proxy-cidr>
+```
+
+Configure either `KnownProxies` or `KnownNetworks`. Values can be provided as indexed configuration entries or as comma/semicolon-delimited strings. Do not enable forwarded headers without a trusted proxy or network allowlist; startup validation rejects that shape outside `Development` and `Testing`.
+
 ## Operator Checklist
 
 Before promoting a production configuration:
 
 - no secret values are present in committed `appsettings` files
 - API key values are unique, long-lived only by policy, and mapped to active principals
+- direct HTTPS reaches the API, or forwarded headers are enabled with trusted proxy/network values
 - PostgreSQL does not use local Docker Compose credentials
 - OpenAI endpoint is HTTPS and the API key is stored outside the repository
 - API and worker processes use the same PostgreSQL and embedding provider configuration

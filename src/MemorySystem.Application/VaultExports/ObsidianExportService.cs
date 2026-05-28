@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using MemorySystem.Application.Access;
+using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
 
@@ -8,7 +9,8 @@ namespace MemorySystem.Application.VaultExports;
 
 public sealed class ObsidianExportService(
     IObsidianExportCandidateStore candidateStore,
-    IMemoryAccessAuthorizer accessAuthorizer) : IObsidianExportService
+    IMemoryAccessAuthorizer accessAuthorizer,
+    ISourceEventLinkBuilder sourceEventLinks) : IObsidianExportService
 {
     public const int MaxLimit = 100;
     private const int CandidateReadLimit = 500;
@@ -172,11 +174,11 @@ public sealed class ObsidianExportService(
         return (normalizedScopeType, normalizedScopeId);
     }
 
-    private static ObsidianExportDocument RenderDocument(ObsidianExportCandidate candidate)
+    private ObsidianExportDocument RenderDocument(ObsidianExportCandidate candidate)
     {
         var memoryFact = candidate.MemoryFact;
         var title = memoryFact.Subject.Trim();
-        var sourceLink = BuildSourceLink(memoryFact.SourceEventId);
+        var sourceLink = sourceEventLinks.Build(memoryFact.SourceEventId);
         var path = BuildVaultPath(memoryFact);
         var content = BuildMarkdown(candidate, title, sourceLink);
 
@@ -228,10 +230,10 @@ public sealed class ObsidianExportService(
         return builder.ToString();
     }
 
-    private static ObsidianStaleExportDocument RenderStaleDocument(ObsidianStaleExportCandidate candidate)
+    private ObsidianStaleExportDocument RenderStaleDocument(ObsidianStaleExportCandidate candidate)
     {
         var memoryFact = candidate.MemoryFact;
-        var sourceLink = BuildSourceLink(memoryFact.SourceEventId);
+        var sourceLink = sourceEventLinks.Build(memoryFact.SourceEventId);
 
         return new ObsidianStaleExportDocument(
             candidate.ExportPath,
@@ -247,11 +249,11 @@ public sealed class ObsidianExportService(
             BuildStaleMarkdown(candidate, sourceLink));
     }
 
-    private static ObsidianArchiveExportDocument RenderArchiveDocument(ObsidianArchiveExportCandidate candidate)
+    private ObsidianArchiveExportDocument RenderArchiveDocument(ObsidianArchiveExportCandidate candidate)
     {
         var memoryFact = candidate.MemoryFact;
         var title = memoryFact.Subject.Trim();
-        var sourceLink = BuildSourceLink(memoryFact.SourceEventId);
+        var sourceLink = sourceEventLinks.Build(memoryFact.SourceEventId);
         var path = BuildArchivePath(memoryFact);
 
         return new ObsidianArchiveExportDocument(
@@ -427,8 +429,4 @@ public sealed class ObsidianExportService(
         builder.AppendLine("\"");
     }
 
-    private static string BuildSourceLink(Guid sourceEventId)
-    {
-        return $"/api/events/{sourceEventId}";
-    }
 }

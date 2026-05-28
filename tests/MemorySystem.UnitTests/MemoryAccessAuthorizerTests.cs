@@ -68,6 +68,46 @@ public sealed class MemoryAccessAuthorizerTests
     }
 
     [Fact]
+    public async Task AuthorizeAsync_allows_project_review_through_active_project_org_admin()
+    {
+        var store = new FakeMemoryAccessReferenceStore
+        {
+            OrganizationAccessLevel = "admin",
+            HasGrant = true
+        };
+        var authorizer = new MemoryAccessAuthorizer(store);
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Review,
+            ProjectScope(),
+            $"/project/{ProjectId}/decisions"));
+
+        Assert.True(decision.Allowed);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_denies_project_review_through_org_admin_when_project_is_inactive()
+    {
+        var store = new FakeMemoryAccessReferenceStore
+        {
+            ActiveProjectOrgId = null,
+            OrganizationAccessLevel = "admin",
+            HasGrant = true
+        };
+        var authorizer = new MemoryAccessAuthorizer(store);
+
+        var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+            PrincipalId,
+            MemoryAccessPermissions.Review,
+            ProjectScope(),
+            $"/project/{ProjectId}/decisions"));
+
+        Assert.False(decision.Allowed);
+        Assert.Contains("not active", decision.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AuthorizeAsync_denies_role_namespace_without_matching_role_assignment()
     {
         var store = new FakeMemoryAccessReferenceStore
@@ -202,6 +242,7 @@ public sealed class MemoryAccessAuthorizerTests
     {
         public string? OrganizationAccessLevel { get; init; }
         public string? ProjectAccessLevel { get; init; }
+        public Guid? ActiveProjectOrgId { get; init; } = OrgId;
         public bool HasRoleAssignment { get; init; }
         public bool HasGrant { get; init; }
 
@@ -219,6 +260,13 @@ public sealed class MemoryAccessAuthorizerTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(ProjectAccessLevel);
+        }
+
+        public Task<Guid?> FindActiveProjectOrganizationIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(ActiveProjectOrgId);
         }
 
         public Task<bool> HasRoleAssignmentAsync(

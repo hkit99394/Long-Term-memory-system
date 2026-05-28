@@ -598,7 +598,10 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
 
     private static string BuildChunkContent(MemoryProposalCommand proposal)
     {
-        return $"{NormalizeStorageText(proposal.Subject)} {NormalizeStorageText(proposal.Predicate)} {NormalizeStorageText(proposal.Object)}";
+        return MemoryIndexWriteOperations.BuildFactChunkContent(
+            NormalizeStorageText(proposal.Subject),
+            NormalizeStorageText(proposal.Predicate),
+            NormalizeStorageText(proposal.Object));
     }
 
     private static string NormalizeComparableText(string value)

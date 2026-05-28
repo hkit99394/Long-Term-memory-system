@@ -260,7 +260,8 @@ public static class SqlMigrationRunner
 
         var missingMigrationNames = recordedMigrations.Keys
             .Where(migrationName => !currentMigrationNames.Contains(migrationName))
-            .Order(StringComparer.Ordinal)
+            .OrderBy(GetMigrationOrdinalForDiagnostics)
+            .ThenBy(migrationName => migrationName, StringComparer.Ordinal)
             .ToArray();
 
         if (missingMigrationNames.Length > 0)
@@ -284,9 +285,9 @@ public static class SqlMigrationRunner
         IReadOnlyDictionary<string, string> recordedMigrations,
         IReadOnlyList<SqlMigration> currentMigrations)
     {
-        var recordedMigrationNames = recordedMigrations.Keys
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var recordedMigrationNames = OrderRecordedMigrationNamesForValidation(
+            recordedMigrations,
+            currentMigrations.Select(migration => migration.Name).ToArray());
 
         for (var index = 0; index < recordedMigrationNames.Length; index++)
         {
@@ -298,6 +299,31 @@ public static class SqlMigrationRunner
                 throw new SqlMigrationHistoryGapException(expectedMigrationName, recordedMigrationName);
             }
         }
+    }
+
+    internal static string[] OrderRecordedMigrationNamesForValidation(
+        IReadOnlyDictionary<string, string> recordedMigrations,
+        IReadOnlyList<string> currentMigrationNames)
+    {
+        var currentMigrationOrder = currentMigrationNames
+            .Select((migrationName, index) => new { MigrationName = migrationName, Index = index })
+            .ToDictionary(migration => migration.MigrationName, migration => migration.Index, StringComparer.Ordinal);
+
+        return recordedMigrations.Keys
+            .OrderBy(migrationName => currentMigrationOrder[migrationName])
+            .ThenBy(migrationName => migrationName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static int GetMigrationOrdinalForDiagnostics(string migrationName)
+    {
+        var separatorIndex = migrationName.IndexOf('_', StringComparison.Ordinal);
+
+        return separatorIndex >= 3
+            && int.TryParse(migrationName[..separatorIndex], out var ordinal)
+            && ordinal > 0
+                ? ordinal
+                : int.MaxValue;
     }
 
     private static async Task RecordMigrationAsync(

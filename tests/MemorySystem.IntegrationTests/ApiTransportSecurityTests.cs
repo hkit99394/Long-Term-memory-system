@@ -30,7 +30,6 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
-                        ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
                         ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
@@ -55,7 +54,7 @@ public sealed class ApiTransportSecurityTests
     }
 
     [Fact]
-    public void Non_testing_environment_requires_forwarded_header_trust_configuration()
+    public async Task Non_testing_https_requests_do_not_require_forwarded_header_trust_configuration()
     {
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -74,9 +73,43 @@ public sealed class ApiTransportSecurityTests
                 });
             });
 
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        using var response = await client.GetAsync("/");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Hello World!", body);
+    }
+
+    [Fact]
+    public void Non_testing_forwarded_headers_enabled_requires_trust_configuration()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Staging");
+                builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+                {
+                    configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:Postgres"] =
+                            "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
+                        ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
+                        ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
+                        ["Authentication:ApiKey:Keys:test-key:DisplayName"] = "Test API caller"
+                    });
+                });
+            });
+
         var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
 
-        Assert.Contains("ForwardedHeaders:KnownProxies", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("TransportSecurity:ForwardedHeadersEnabled", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -92,6 +125,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
@@ -120,6 +154,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
@@ -148,6 +183,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
@@ -183,6 +219,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",
@@ -233,6 +270,7 @@ public sealed class ApiTransportSecurityTests
                     {
                         ["ConnectionStrings:Postgres"] =
                             "Host=unused;Database=unused;Username=unused;Password=unused",
+                        ["TransportSecurity:ForwardedHeadersEnabled"] = "true",
                         ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
                         ["Authentication:ApiKey:Keys:test-key:Key"] = StagingApiKey,
                         ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = "11111111-1111-1111-1111-111111111111",

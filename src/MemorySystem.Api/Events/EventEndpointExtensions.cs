@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
@@ -46,7 +45,7 @@ public static class EventEndpointExtensions
         IEventReadService eventReadService,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -88,24 +87,6 @@ public static class EventEndpointExtensions
         var result = await workflow.AppendAsync(workflowRequest, cancellationToken);
 
         return AppendEventRequestMapper.ToApiResponse(result);
-    }
-
-    private static bool TryReadPrincipalId(
-        HttpContext context,
-        out Guid principalId,
-        [NotNullWhen(false)] out IResult? failure)
-    {
-        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
-        {
-            failure = null;
-            return true;
-        }
-
-        failure = Results.Problem(
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Authenticated principal is invalid.",
-            detail: "The API key did not resolve to a valid principal id.");
-        return false;
     }
 
     private static EventResponse ToResponse(EventRecord eventRecord)

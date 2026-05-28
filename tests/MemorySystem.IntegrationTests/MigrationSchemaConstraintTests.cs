@@ -2331,6 +2331,46 @@ public sealed partial class MigrationSchemaConstraintTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Memory_required_role_id_extracts_role_namespaces_from_shared_database_function()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_role_requirement_function_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await CreateMigratedDatabaseAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(databaseConnectionString);
+            await connection.OpenAsync();
+
+            var projectId = Guid.Parse("33333333-3333-4333-8333-333333333333");
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT
+                    memory_required_role_id('/project/' || @project_id || '/role/designer/lens', 'project', @project_id, NULL),
+                    memory_required_role_id('/role/developer/shared', 'role', 'developer', NULL),
+                    memory_required_role_id('/project/' || @project_id || '/decisions', 'project', @project_id, NULL),
+                    memory_required_role_id('/role/', 'global', 'global', NULL);
+                """,
+                connection);
+            command.Parameters.AddWithValue("project_id", projectId.ToString());
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("designer", reader.GetString(0));
+            Assert.Equal("developer", reader.GetString(1));
+            Assert.True(reader.IsDBNull(2));
+            Assert.True(reader.IsDBNull(3));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task<string> CreateMigratedDatabaseAsync(string adminConnectionString, string databaseName)
     {
         var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);

@@ -1,3 +1,4 @@
+using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryContext;
 
@@ -30,7 +31,7 @@ public sealed class MemoryContextPacketBuilderTests
                 sourceEventId,
                 new MemoryChunkHybridRankComponents(1, 1, 1, 1, 1))
         ]);
-        var builder = new MemoryContextPacketBuilder(search);
+        var builder = new MemoryContextPacketBuilder(search, new TestSourceEventLinkBuilder());
 
         var packet = await builder.BuildAsync(new MemoryContextPacketQuery(PrincipalId, "decision", Limit: 1));
 
@@ -44,7 +45,7 @@ public sealed class MemoryContextPacketBuilderTests
     public async Task BuildAsync_normalizes_target_scope_and_role_before_searching()
     {
         var search = new FakeHybridSearch([]);
-        var builder = new MemoryContextPacketBuilder(search);
+        var builder = new MemoryContextPacketBuilder(search, new TestSourceEventLinkBuilder());
         const string projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
         var packet = await builder.BuildAsync(new MemoryContextPacketQuery(
@@ -74,7 +75,7 @@ public sealed class MemoryContextPacketBuilderTests
             CreateRoleLensResult(cfoLensId, projectId, "cfo"),
             CreateRoleLensResult(ctoLensId, projectId, "cto")
         ]);
-        var builder = new MemoryContextPacketBuilder(search);
+        var builder = new MemoryContextPacketBuilder(search, new TestSourceEventLinkBuilder());
 
         var packet = await builder.BuildAsync(new MemoryContextPacketQuery(
             PrincipalId,
@@ -111,7 +112,7 @@ public sealed class MemoryContextPacketBuilderTests
                 Guid.NewGuid(),
                 new MemoryChunkHybridRankComponents(1, 1, 1, 1, 1))
         ]);
-        var builder = new MemoryContextPacketBuilder(search);
+        var builder = new MemoryContextPacketBuilder(search, new TestSourceEventLinkBuilder());
 
         var packet = await builder.BuildAsync(new MemoryContextPacketQuery(
             PrincipalId,
@@ -155,6 +156,14 @@ public sealed class MemoryContextPacketBuilderTests
             LastQuery = query;
 
             return Task.FromResult(results);
+        }
+    }
+
+    private sealed class TestSourceEventLinkBuilder : ISourceEventLinkBuilder
+    {
+        public string Build(Guid sourceEventId)
+        {
+            return $"/api/events/{sourceEventId}";
         }
     }
 }

@@ -100,6 +100,11 @@ public sealed class MemoryReviewWorkflow(
                 command.Object?.Trim()),
             cancellationToken);
 
+        if (!result.Applied || result.Review is null)
+        {
+            return MemoryReviewWorkflowResult.NotFound("The pending review does not exist or has already been completed.");
+        }
+
         return MemoryReviewWorkflowResult.Completed(
             action,
             result.Review,

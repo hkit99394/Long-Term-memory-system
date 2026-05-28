@@ -121,6 +121,7 @@ async function loadReviews(): Promise<void> {
     const response = await apiFetch<PendingReviewsResponse>("/api/reviews/pending?limit=50");
     state.reviews = response.reviews;
     state.selectedReviewId = response.reviews[0]?.id ?? null;
+    resetActionDefaults(selectedReview());
     setStatus(`${response.reviews.length} pending`);
     writeActivity("Pending queue refreshed.");
   } catch (error) {
@@ -235,7 +236,7 @@ function renderReviewList(): void {
     button.className = review.id === state.selectedReviewId ? "review selected" : "review";
     button.addEventListener("click", () => {
       state.selectedReviewId = review.id;
-      fillActionDefaults(review);
+      resetActionDefaults(review);
       render();
     });
 
@@ -288,40 +289,19 @@ function renderAction(): void {
   elements.submit.textContent = actionLabels[state.selectedAction];
   elements.submit.disabled = state.busy || review === null;
 
-  if (review) {
-    fillActionDefaults(review);
-  }
 }
 
-function fillActionDefaults(review: PendingReview): void {
-  if (!elements.sourceEventId.value) {
-    elements.sourceEventId.value = review.sourceEventId;
-  }
-
-  if (!elements.subject.value) {
-    elements.subject.value = review.memory.subject;
-  }
-
-  if (!elements.predicate.value) {
-    elements.predicate.value = review.memory.predicate;
-  }
-
-  if (!elements.object.value) {
-    elements.object.value = review.memory.object;
-  }
+function resetActionDefaults(review: PendingReview | null): void {
+  elements.sourceEventId.value = review?.sourceEventId ?? "";
+  elements.notes.value = "";
+  elements.subject.value = review?.memory.subject ?? "";
+  elements.predicate.value = review?.memory.predicate ?? "";
+  elements.object.value = review?.memory.object ?? "";
 }
 
 function selectAction(action: ReviewAction): void {
   state.selectedAction = action;
-  const review = selectedReview();
-
-  if (review) {
-    elements.sourceEventId.value = review.sourceEventId;
-    elements.subject.value = review.memory.subject;
-    elements.predicate.value = review.memory.predicate;
-    elements.object.value = review.memory.object;
-  }
-
+  resetActionDefaults(selectedReview());
   render();
 }
 

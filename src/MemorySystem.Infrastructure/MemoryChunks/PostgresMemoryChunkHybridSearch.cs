@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryEmbeddings;
+using MemorySystem.Infrastructure.Access;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using Npgsql;
 using NpgsqlTypes;
@@ -46,7 +47,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
         command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId.Trim();
         command.Parameters.AddWithValue("limit", query.Limit);
-        PostgresMemorySearchCommandParameters.AddAuthorizationParameters(command);
+        PostgresMemoryAccessSql.AddReadParameters(command);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<MemoryChunkHybridSearchResult>();
@@ -78,7 +79,12 @@ public sealed class PostgresMemoryChunkHybridSearch(
         return results;
     }
 
-    private const string SearchSql = """
+    private static readonly string SearchSql = SearchSqlTemplate.Replace(
+        "/*READ_AUTHORIZATION_PREDICATE*/",
+        PostgresMemoryAccessSql.BuildReadPredicate("candidate"),
+        StringComparison.Ordinal);
+
+    private const string SearchSqlTemplate = """
         WITH fts AS (
             SELECT websearch_to_tsquery('english', @query) AS query
         ),
@@ -93,7 +99,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
             END
                 AND project.status = 'active'
         ),
-        authorized_chunks AS MATERIALIZED (
+        candidate_chunks AS MATERIALIZED (
             SELECT
                 chunk.id,
                 chunk.source_type,
@@ -155,19 +161,11 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 ON chunk.source_type = 'role_memory_lens'
                 AND lens.id = chunk.source_id
             LEFT JOIN LATERAL (
-                SELECT COALESCE(
-                    CASE
-                        WHEN chunk.source_type = 'role_memory_lens' THEN lens.role_id
-                        ELSE NULL
-                    END,
-                    CASE
-                        WHEN chunk.scope_type = 'role' THEN chunk.scope_id
-                        WHEN chunk.namespace LIKE '/role/%' THEN split_part(chunk.namespace, '/', 3)
-                        WHEN chunk.namespace LIKE '/project/%/role/%' THEN split_part(chunk.namespace, '/', 5)
-                        WHEN chunk.namespace LIKE '/org/%/role/%' THEN split_part(chunk.namespace, '/', 5)
-                        ELSE NULL
-                    END
-                ) AS required_role_id
+                SELECT memory_required_role_id(
+                    chunk.namespace,
+                    chunk.scope_type,
+                    chunk.scope_id,
+                    lens.role_id) AS required_role_id
             ) AS role_requirement ON TRUE
             CROSS JOIN fts
             WHERE chunk.redacted_at IS NULL
@@ -190,169 +188,11 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     chunk.search_vector @@ fts.query
                     OR embedding.embedding IS NOT NULL
                 )
-                AND (
-                    chunk.scope_type = 'global'
-                    OR (
-                        chunk.scope_type IN ('user', 'agent')
-                        AND chunk.scope_id = @principal_id_text
-                    )
-                    OR (
-                        chunk.scope_type = 'role'
-                        AND EXISTS (
-                            SELECT 1
-                            FROM role_assignments AS assignment
-                            WHERE assignment.principal_id = @principal_id
-                                AND assignment.role_id = chunk.scope_id
-                                AND assignment.scope_type = 'global'
-                        )
-                    )
-                    OR (
-                        chunk.scope_type = 'org'
-                        AND EXISTS (
-                            SELECT 1
-                            FROM organization_memberships AS membership
-                            WHERE membership.principal_id = @principal_id
-                                AND membership.org_id = CASE
-                                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                    WHEN chunk.scope_type = 'project' THEN project.org_id
-                                    ELSE NULL
-                                END
-                                AND membership.access_level = ANY(@read_org_access_levels)
-                        )
-                    )
-                    OR (
-                        chunk.scope_type = 'project'
-                        AND (
-                            EXISTS (
-                                SELECT 1
-                                FROM project_memberships AS membership
-                                INNER JOIN projects AS project_membership
-                                    ON project_membership.id = membership.project_id
-                                    AND project_membership.status = 'active'
-                                WHERE membership.principal_id = @principal_id
-                                    AND membership.project_id = CASE
-                                        WHEN chunk.scope_type = 'project' THEN project.id
-                                        ELSE NULL
-                                    END
-                                    AND membership.access_level = ANY(@read_project_access_levels)
-                            )
-                            OR EXISTS (
-                                SELECT 1
-                                FROM organization_memberships AS membership
-                                WHERE membership.principal_id = @principal_id
-                                    AND membership.org_id = CASE
-                                        WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                        WHEN chunk.scope_type = 'project' THEN project.org_id
-                                        ELSE NULL
-                                    END
-                                    AND membership.access_level = ANY(@admin_org_access_levels)
-                            )
-                        )
-                    )
-                )
-                AND (
-                    role_requirement.required_role_id IS NULL
-                    OR EXISTS (
-                        SELECT 1
-                        FROM role_assignments AS assignment
-                        WHERE assignment.principal_id = @principal_id
-                            AND assignment.role_id = role_requirement.required_role_id
-                            AND (
-                                assignment.scope_type = 'global'
-                                OR (
-                                    chunk.scope_type <> 'role'
-                                    AND (
-                                        CASE
-                                            WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                            WHEN chunk.scope_type = 'project' THEN project.org_id
-                                            ELSE NULL
-                                        END
-                                    ) IS NOT NULL
-                                    AND assignment.scope_type = 'org'
-                                    AND assignment.scope_id = CASE
-                                        WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                        WHEN chunk.scope_type = 'project' THEN project.org_id
-                                        ELSE NULL
-                                    END
-                                )
-                                OR (
-                                    chunk.scope_type <> 'role'
-                                    AND (
-                                        CASE
-                                            WHEN chunk.scope_type = 'project' THEN project.id
-                                            ELSE NULL
-                                        END
-                                    ) IS NOT NULL
-                                    AND assignment.scope_type = 'project'
-                                    AND assignment.scope_id = CASE
-                                        WHEN chunk.scope_type = 'project' THEN project.id
-                                        ELSE NULL
-                                    END
-                                )
-                            )
-                    )
-                )
-                AND (
-                    EXISTS (
-                        SELECT 1
-                        FROM memory_access_grants AS grant_record
-                        WHERE grant_record.principal_id = @principal_id
-                            AND grant_record.permission = ANY(@read_permissions)
-                            AND (
-                                chunk.namespace = grant_record.namespace_prefix
-                                OR left(chunk.namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
-                            )
-                    )
-                    OR EXISTS (
-                        SELECT 1
-                        FROM memory_access_grants AS grant_record
-                        WHERE grant_record.role_id IS NOT NULL
-                            AND grant_record.permission = ANY(@read_permissions)
-                            AND (
-                                chunk.namespace = grant_record.namespace_prefix
-                                OR left(chunk.namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
-                            )
-                            AND EXISTS (
-                                SELECT 1
-                                FROM role_assignments AS assignment
-                                WHERE assignment.principal_id = @principal_id
-                                    AND assignment.role_id = grant_record.role_id
-                                    AND (
-                                        assignment.scope_type = 'global'
-                                        OR (
-                                            chunk.scope_type <> 'role'
-                                            AND (
-                                                CASE
-                                                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                                    WHEN chunk.scope_type = 'project' THEN project.org_id
-                                                    ELSE NULL
-                                                END
-                                            ) IS NOT NULL
-                                            AND assignment.scope_type = 'org'
-                                            AND assignment.scope_id = CASE
-                                                WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
-                                                WHEN chunk.scope_type = 'project' THEN project.org_id
-                                                ELSE NULL
-                                            END
-                                        )
-                                        OR (
-                                            chunk.scope_type <> 'role'
-                                            AND (
-                                                CASE
-                                                    WHEN chunk.scope_type = 'project' THEN project.id
-                                                    ELSE NULL
-                                                END
-                                            ) IS NOT NULL
-                                            AND assignment.scope_type = 'project'
-                                            AND assignment.scope_id = CASE
-                                                WHEN chunk.scope_type = 'project' THEN project.id
-                                                ELSE NULL
-                                            END
-                                        )
-                                    )
-                            )
-                    )
-                )
+        ),
+        authorized_chunks AS MATERIALIZED (
+            SELECT candidate.*
+            FROM candidate_chunks AS candidate
+            WHERE /*READ_AUTHORIZATION_PREDICATE*/
         ),
         component_scores AS (
             SELECT

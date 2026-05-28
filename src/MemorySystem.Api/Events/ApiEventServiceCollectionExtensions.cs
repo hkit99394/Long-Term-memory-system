@@ -11,6 +11,7 @@ public static class ApiEventServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
+        services.AddMemorySystemSourceEventLinks();
         services.AddSingleton<PostgresEventStore>();
         services.AddSingleton<IEventAppendWorkflow, EventAppendWorkflow>();
         services.AddSingleton<IEventReadService, EventReadService>();

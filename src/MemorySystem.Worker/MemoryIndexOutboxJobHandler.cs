@@ -46,18 +46,22 @@ public sealed class MemoryIndexOutboxJobHandler(
             return;
         }
 
-        var embedding = await embeddingProvider.EmbedAsync(new MemoryEmbeddingRequest(input), cancellationToken);
+        var embedding = await embeddingProvider.EmbedAsync(new MemoryEmbeddingRequest(input.SearchableInput), cancellationToken);
 
         await embeddingStore.StoreAsync(
             new MemoryChunkEmbeddingWriteCommand(
                 payload.ChunkId,
                 embedding.Model,
                 embedding.Dimension,
-                embedding.Values),
+                embedding.Values,
+                input.ContentHash,
+                input.SourceEventId,
+                payload.AggregateType,
+                payload.AggregateId),
             cancellationToken);
     }
 
-    private async Task<string?> ReadSearchableChunkInputAsync(
+    private async Task<MemoryIndexChunkInput?> ReadSearchableChunkInputAsync(
         Guid jobId,
         MemoryIndexOutboxPayload payload,
         CancellationToken cancellationToken)
@@ -70,6 +74,7 @@ public sealed class MemoryIndexOutboxJobHandler(
                 chunk.redacted_at IS NOT NULL,
                 chunk.search_vector IS NULL,
                 concat_ws(' ', chunk.title, chunk.content),
+                chunk.content_hash,
                 fact.status,
                 lens.status
             FROM memory_chunks AS chunk
@@ -102,8 +107,9 @@ public sealed class MemoryIndexOutboxJobHandler(
             reader.GetBoolean(1),
             reader.GetBoolean(2),
             reader.GetString(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
-            reader.IsDBNull(5) ? null : reader.GetString(5));
+            reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6));
 
         if (chunk.SourceEventId != payload.SourceEventId)
         {
@@ -153,7 +159,7 @@ public sealed class MemoryIndexOutboxJobHandler(
         return string.IsNullOrWhiteSpace(chunk.SearchableInput)
             ? throw new InvalidOperationException(
                 $"Memory index outbox job {jobId} references chunk {payload.ChunkId} without searchable input.")
-            : chunk.SearchableInput;
+            : new MemoryIndexChunkInput(chunk.SearchableInput, chunk.ContentHash, chunk.SourceEventId);
     }
 
     private sealed record MemoryIndexChunkState(
@@ -161,6 +167,12 @@ public sealed class MemoryIndexOutboxJobHandler(
         bool Redacted,
         bool SearchVectorMissing,
         string SearchableInput,
+        string ContentHash,
         string? MemoryFactStatus,
         string? RoleMemoryLensStatus);
+
+    private sealed record MemoryIndexChunkInput(
+        string SearchableInput,
+        string ContentHash,
+        Guid SourceEventId);
 }

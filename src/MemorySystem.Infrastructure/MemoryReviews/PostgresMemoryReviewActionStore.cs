@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryReviews;
 using MemorySystem.Infrastructure.Idempotency;
@@ -10,10 +7,10 @@ using NpgsqlTypes;
 
 namespace MemorySystem.Infrastructure.MemoryReviews;
 
-public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource) : IMemoryReviewActionStore
+public sealed class PostgresMemoryReviewActionStore(
+    NpgsqlDataSource dataSource,
+    IMemoryReviewActionIdempotencyResponseSerializer responseSerializer) : IMemoryReviewActionStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public async Task<MemoryReviewRecord?> FindPendingAsync(
         Guid reviewId,
         CancellationToken cancellationToken = default)
@@ -45,8 +42,13 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             command.Review.Id,
             pendingOnly: true,
             forUpdate: true,
-            cancellationToken)
-            ?? throw new InvalidOperationException($"Pending review {command.Review.Id} could not be locked.");
+            cancellationToken);
+
+        if (current is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return MemoryReviewActionStoreResult.NotApplied();
+        }
 
         var replacementMemoryFactId = command.Action == MemoryReviewActions.Supersede
             ? Guid.NewGuid()
@@ -124,15 +126,21 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                     current.MemoryFact.Id,
                     MemoryFactStatuses.Deleted,
                     cancellationToken);
-                break;
-
-            case MemoryReviewActions.Supersede:
-                await UpdateMemoryFactStatusAsync(
+                await MemoryIndexWriteOperations.RedactMemoryFactChunksAsync(
                     connection,
                     transaction,
                     current.MemoryFact.Id,
-                    MemoryFactStatuses.Superseded,
                     cancellationToken);
+                await InsertMemoryRedactionAsync(
+                    connection,
+                    transaction,
+                    current.MemoryFact.Id,
+                    command.ReviewerId,
+                    command.SourceEventId,
+                    cancellationToken);
+                break;
+
+            case MemoryReviewActions.Supersede:
                 await InsertReplacementMemoryFactAsync(
                     connection,
                     transaction,
@@ -142,6 +150,12 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
                     command.Predicate!,
                     command.Object!,
                     command.SourceEventId,
+                    cancellationToken);
+                await MarkMemoryFactSupersededAsync(
+                    connection,
+                    transaction,
+                    current.MemoryFact.Id,
+                    replacementMemoryFactId.Value,
                     cancellationToken);
                 break;
 
@@ -174,6 +188,7 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             command,
             updatedReview,
             replacementMemoryFactId,
+            responseSerializer,
             cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
@@ -187,18 +202,21 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         MemoryReviewActionStoreCommand command,
         MemoryReviewRecord review,
         Guid? replacementMemoryFactId,
+        IMemoryReviewActionIdempotencyResponseSerializer responseSerializer,
         CancellationToken cancellationToken)
     {
+        var response = responseSerializer.Serialize(command.Action, review, replacementMemoryFactId);
+
         await PostgresApiIdempotencyCompleter.CompleteAsync(
             connection,
             transaction,
             command.IdempotencyRecordId,
             command.RequestHash,
-            200,
-            JsonSerializer.Serialize(ToActionResponse(command.Action, review, replacementMemoryFactId), JsonOptions),
-            "application/json; charset=utf-8",
-            "memory_review",
-            review.Id,
+            response.StatusCode,
+            response.BodyJson,
+            response.ContentType,
+            response.ResourceType,
+            response.ResourceId,
             "The review action idempotency record could not be completed.",
             cancellationToken);
     }
@@ -227,7 +245,7 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         return await reader.ReadAsync(cancellationToken)
-            ? ReadReview(reader)
+            ? PostgresMemoryReviewRows.ReadReview(reader)
             : null;
     }
 
@@ -248,6 +266,29 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             transaction);
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
         command.Parameters.AddWithValue("status", status);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task MarkMemoryFactSupersededAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid memoryFactId,
+        Guid supersededByMemoryFactId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_facts
+            SET status = @status,
+                superseded_by = @superseded_by
+            WHERE id = @memory_fact_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+        command.Parameters.AddWithValue("status", MemoryFactStatuses.Superseded);
+        command.Parameters.AddWithValue("superseded_by", supersededByMemoryFactId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -396,6 +437,46 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             cancellationToken);
     }
 
+    private static async Task InsertMemoryRedactionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid memoryFactId,
+        Guid requestedByPrincipalId,
+        Guid sourceEventId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_redactions (
+                id,
+                target_type,
+                target_id,
+                redaction_type,
+                reason,
+                requested_by_principal_id,
+                source_event_id
+            )
+            VALUES (
+                @id,
+                'memory_fact',
+                @target_id,
+                'delete',
+                @reason,
+                @requested_by_principal_id,
+                @source_event_id
+            );
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("target_id", memoryFactId);
+        command.Parameters.AddWithValue("reason", "Memory review delete action.");
+        command.Parameters.AddWithValue("requested_by_principal_id", requestedByPrincipalId);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task CompleteReviewAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -434,31 +515,34 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         Guid sourceEventId,
         CancellationToken cancellationToken)
     {
-        var chunkContent = BuildChunkContent(memoryFact.Subject, memoryFact.Predicate, memoryFact.Object);
+        var chunkContent = MemoryIndexWriteOperations.BuildFactChunkContent(
+            memoryFact.Subject,
+            memoryFact.Predicate,
+            memoryFact.Object);
         var chunkId = await FindMemoryChunkIdAsync(connection, transaction, memoryFact.Id, cancellationToken);
 
         if (chunkId.HasValue)
         {
-            await using var update = new NpgsqlCommand(
-                """
-                UPDATE memory_chunks
-                SET namespace = @namespace,
-                    scope_type = @scope_type,
-                    scope_id = @scope_id,
-                    title = @title,
-                    content = @content,
-                    content_hash = @content_hash,
-                    trust_level = @trust_level,
-                    source_event_id = @source_event_id,
-                    redacted_at = NULL
-                WHERE id = @chunk_id;
-                """,
+            await MemoryIndexWriteOperations.UpdateMemoryChunkAsync(
                 connection,
-                transaction);
-            update.Parameters.AddWithValue("chunk_id", chunkId.Value);
-            AddChunkParameters(update, memoryFact, chunkContent, sourceEventId);
-            await update.ExecuteNonQueryAsync(cancellationToken);
-            await UpsertOutboxJobAsync(connection, transaction, memoryFact.Id, chunkId.Value, sourceEventId, cancellationToken);
+                transaction,
+                chunkId.Value,
+                memoryFact.Namespace,
+                memoryFact.ScopeType,
+                memoryFact.ScopeId,
+                memoryFact.Subject,
+                chunkContent,
+                memoryFact.TrustLevel,
+                sourceEventId,
+                cancellationToken);
+            await MemoryIndexWriteOperations.UpsertOutboxJobAsync(
+                connection,
+                transaction,
+                MemoryIndexOutboxJobContract.AggregateType,
+                memoryFact.Id,
+                chunkId.Value,
+                sourceEventId,
+                cancellationToken);
             return;
         }
 
@@ -477,7 +561,14 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             memoryFact.TrustLevel,
             sourceEventId,
             cancellationToken);
-        await UpsertOutboxJobAsync(connection, transaction, memoryFact.Id, chunkId.Value, sourceEventId, cancellationToken);
+        await MemoryIndexWriteOperations.UpsertOutboxJobAsync(
+            connection,
+            transaction,
+            MemoryIndexOutboxJobContract.AggregateType,
+            memoryFact.Id,
+            chunkId.Value,
+            sourceEventId,
+            cancellationToken);
     }
 
     private static async Task<Guid?> FindMemoryChunkIdAsync(
@@ -502,75 +593,6 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
         var result = await command.ExecuteScalarAsync(cancellationToken);
 
         return result is Guid chunkId ? chunkId : null;
-    }
-
-    private static async Task UpsertOutboxJobAsync(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        Guid memoryFactId,
-        Guid chunkId,
-        Guid sourceEventId,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new NpgsqlCommand(
-            """
-            INSERT INTO outbox_jobs (
-                id,
-                job_type,
-                aggregate_type,
-                aggregate_id,
-                idempotency_key,
-                payload,
-                status
-            )
-            VALUES (
-                @id,
-                @job_type,
-                @aggregate_type,
-                @aggregate_id,
-                @idempotency_key,
-                @payload,
-                'pending'
-            )
-            ON CONFLICT (idempotency_key)
-            DO UPDATE SET
-                payload = EXCLUDED.payload,
-                status = 'pending',
-                attempts = 0,
-                available_at = now(),
-                locked_until = NULL,
-                locked_by = NULL,
-                last_error = NULL;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("id", Guid.NewGuid());
-        command.Parameters.AddWithValue("job_type", MemoryIndexOutboxJobContract.JobType);
-        command.Parameters.AddWithValue("aggregate_type", MemoryIndexOutboxJobContract.AggregateType);
-        command.Parameters.AddWithValue("aggregate_id", memoryFactId);
-        command.Parameters.AddWithValue(
-            "idempotency_key",
-            MemoryIndexOutboxJobContract.CreateIdempotencyKey(memoryFactId));
-        command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value =
-            MemoryIndexOutboxJobContract.SerializePayload(memoryFactId, chunkId, sourceEventId);
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static void AddChunkParameters(
-        NpgsqlCommand command,
-        MemoryFactRecord memoryFact,
-        string chunkContent,
-        Guid sourceEventId)
-    {
-        command.Parameters.AddWithValue("namespace", memoryFact.Namespace);
-        command.Parameters.AddWithValue("scope_type", memoryFact.ScopeType);
-        command.Parameters.AddWithValue("scope_id", memoryFact.ScopeId);
-        command.Parameters.AddWithValue("title", memoryFact.Subject);
-        command.Parameters.AddWithValue("content", chunkContent);
-        command.Parameters.AddWithValue("content_hash", ComputeSha256(chunkContent));
-        command.Parameters.AddWithValue("trust_level", memoryFact.TrustLevel);
-        command.Parameters.AddWithValue("source_event_id", sourceEventId);
     }
 
     private static async Task<SourceEventEvidence> FindSourceEventEvidenceAsync(
@@ -609,139 +631,9 @@ public sealed class PostgresMemoryReviewActionStore(NpgsqlDataSource dataSource)
             : MemoryReviewStatuses.Approved;
     }
 
-    private static string BuildChunkContent(string subject, string predicate, string objectValue)
-    {
-        return $"{subject} {predicate} {objectValue}";
-    }
-
-    private static MemoryReviewActionResponseBody ToActionResponse(
-        string action,
-        MemoryReviewRecord review,
-        Guid? replacementMemoryFactId)
-    {
-        return new MemoryReviewActionResponseBody(
-            action,
-            ToReviewResponse(review),
-            replacementMemoryFactId);
-    }
-
-    private static PendingMemoryReviewResponseBody ToReviewResponse(MemoryReviewRecord review)
-    {
-        return new PendingMemoryReviewResponseBody(
-            review.Id,
-            review.ReviewStatus,
-            review.ReviewerId,
-            review.Notes,
-            review.SourceEventId,
-            BuildSourceEventLink(review.SourceEventId),
-            review.CreatedAt,
-            review.UpdatedAt,
-            ToMemoryResponse(review.MemoryFact));
-    }
-
-    private static PendingMemoryReviewFactResponseBody ToMemoryResponse(MemoryFactRecord memoryFact)
-    {
-        return new PendingMemoryReviewFactResponseBody(
-            memoryFact.Id,
-            memoryFact.ScopeType,
-            memoryFact.ScopeId,
-            memoryFact.Namespace,
-            memoryFact.MemoryType,
-            memoryFact.Visibility,
-            memoryFact.Subject,
-            memoryFact.Predicate,
-            memoryFact.Object,
-            memoryFact.Confidence,
-            memoryFact.TrustLevel,
-            memoryFact.Status,
-            memoryFact.SourceEventId,
-            BuildSourceEventLink(memoryFact.SourceEventId),
-            memoryFact.ProposedByPrincipalId);
-    }
-
-    private static string BuildSourceEventLink(Guid sourceEventId)
-    {
-        return $"/api/events/{sourceEventId}";
-    }
-
-    private static string ComputeSha256(string value)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-
-        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
     private sealed record SourceEventEvidence(
         string TrustLevel,
         Guid ProposedByPrincipalId);
-
-    private sealed record MemoryReviewActionResponseBody(
-        string Action,
-        PendingMemoryReviewResponseBody Review,
-        Guid? ReplacementMemoryFactId);
-
-    private sealed record PendingMemoryReviewResponseBody(
-        Guid Id,
-        string ReviewStatus,
-        Guid? ReviewerId,
-        string? Notes,
-        Guid SourceEventId,
-        string SourceLink,
-        DateTimeOffset CreatedAt,
-        DateTimeOffset UpdatedAt,
-        PendingMemoryReviewFactResponseBody Memory);
-
-    private sealed record PendingMemoryReviewFactResponseBody(
-        Guid Id,
-        string ScopeType,
-        string ScopeId,
-        string Namespace,
-        string MemoryType,
-        string Visibility,
-        string Subject,
-        string Predicate,
-        string Object,
-        decimal Confidence,
-        string TrustLevel,
-        string Status,
-        Guid SourceEventId,
-        string SourceLink,
-        Guid? ProposedByPrincipalId);
-
-    private static MemoryReviewRecord ReadReview(NpgsqlDataReader reader)
-    {
-        var memoryFact = new MemoryFactRecord(
-            reader.GetGuid(8),
-            reader.GetString(9),
-            reader.GetString(10),
-            reader.GetString(11),
-            reader.IsDBNull(12) ? null : reader.GetGuid(12),
-            reader.IsDBNull(13) ? null : reader.GetGuid(13),
-            reader.IsDBNull(14) ? null : reader.GetGuid(14),
-            reader.IsDBNull(15) ? null : reader.GetString(15),
-            reader.IsDBNull(16) ? null : reader.GetGuid(16),
-            reader.GetString(17),
-            reader.GetString(18),
-            reader.GetString(19),
-            reader.GetString(20),
-            reader.GetString(21),
-            reader.GetDecimal(22),
-            reader.GetString(23),
-            reader.GetString(24),
-            reader.GetGuid(25),
-            reader.IsDBNull(26) ? null : reader.GetGuid(26));
-
-        return new MemoryReviewRecord(
-            reader.GetGuid(0),
-            reader.GetGuid(1),
-            reader.GetString(2),
-            reader.IsDBNull(3) ? null : reader.GetGuid(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
-            reader.GetGuid(5),
-            reader.GetFieldValue<DateTimeOffset>(6),
-            reader.GetFieldValue<DateTimeOffset>(7),
-            memoryFact);
-    }
 
     private const string FindReviewSql = """
         SELECT

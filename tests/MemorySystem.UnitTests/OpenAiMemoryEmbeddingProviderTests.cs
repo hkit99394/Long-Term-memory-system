@@ -71,10 +71,11 @@ public sealed class OpenAiMemoryEmbeddingProviderTests
     [Fact]
     public async Task EmbedAsync_reports_failed_status_without_returning_response_body_verbatim()
     {
+        const string providerResponseBody = "provider echoed secret input payload";
         using var httpClient = new HttpClient(new RecordingHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
-                Content = new StringContent(new string('x', 700))
+                Content = new StringContent(providerResponseBody)
             })));
         var provider = CreateProvider(httpClient);
 
@@ -82,7 +83,8 @@ public sealed class OpenAiMemoryEmbeddingProviderTests
             () => provider.EmbedAsync(new MemoryEmbeddingRequest("project memory text")));
 
         Assert.Contains("status 400", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.True(exception.Message.Length < 650);
+        Assert.DoesNotContain(providerResponseBody, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret input", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static OpenAiMemoryEmbeddingProvider CreateProvider(HttpClient httpClient)

@@ -249,7 +249,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
                 command.Scope.ScopeType,
                 command.Scope.ScopeId,
                 subject,
-                BuildChunkContent(subject, predicate, objectValue),
+                MemoryIndexWriteOperations.BuildFactChunkContent(subject, predicate, objectValue),
                 trustLevel,
                 command.SourceEventId,
                 cancellationToken);
@@ -297,11 +297,6 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         return await command.ExecuteScalarAsync(cancellationToken) as string
             ?? throw new InvalidOperationException(
                 $"Source event {memoryFact.SourceEventId} does not exist for the memory fact scope.");
-    }
-
-    private static string BuildChunkContent(string subject, string predicate, string objectValue)
-    {
-        return $"{subject} {predicate} {objectValue}";
     }
 
     private const string SelectMemoryFactSql = """

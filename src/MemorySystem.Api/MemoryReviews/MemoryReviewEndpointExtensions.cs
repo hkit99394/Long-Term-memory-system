@@ -1,8 +1,6 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
-using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryReviews;
 
 namespace MemorySystem.Api.MemoryReviews;
@@ -18,8 +16,9 @@ public static class MemoryReviewEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryReviewQueue reviewQueue,
+                ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
-                await ListPendingAsync(context, reviewQueue, cancellationToken))
+                await ListPendingAsync(context, reviewQueue, sourceEventLinks, cancellationToken))
             .RequireAuthorization();
 
         MapReviewActionEndpoint(endpoints, MemoryReviewActions.Approve);
@@ -41,6 +40,7 @@ public static class MemoryReviewEndpointExtensions
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
                 IMemoryReviewWorkflow workflow,
+                ISourceEventLinkBuilder sourceEventLinks,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await idempotency.ExecuteAsync(
@@ -52,6 +52,7 @@ public static class MemoryReviewEndpointExtensions
                             action,
                             context,
                             workflow,
+                            sourceEventLinks,
                             loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
                             idempotencyContext,
                             operationCancellationToken)))
@@ -61,9 +62,10 @@ public static class MemoryReviewEndpointExtensions
     private static async Task<IResult> ListPendingAsync(
         HttpContext context,
         IMemoryReviewQueue reviewQueue,
+        ISourceEventLinkBuilder sourceEventLinks,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -80,8 +82,7 @@ public static class MemoryReviewEndpointExtensions
             new MemoryPendingReviewQuery(principalId, limit),
             cancellationToken);
 
-        return Results.Ok(new PendingMemoryReviewsResponse(
-            reviews.Select(ToPendingReviewResponse).ToArray()));
+        return Results.Ok(MemoryReviewResponseMapper.ToPendingReviewsResponse(reviews, sourceEventLinks));
     }
 
     private static async Task<ApiIdempotencyResponse> CompleteReviewAsync(
@@ -89,18 +90,22 @@ public static class MemoryReviewEndpointExtensions
         string action,
         HttpContext context,
         IMemoryReviewWorkflow workflow,
+        ISourceEventLinkBuilder sourceEventLinks,
         ILogger logger,
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
-        var requestResult = await ReadActionRequestAsync(context, cancellationToken);
+        var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<MemoryReviewActionRequest>(
+            context.Request,
+            "Memory review action is invalid.",
+            cancellationToken);
 
         if (!requestResult.Succeeded)
         {
-            return requestResult.Failure!;
+            return requestResult.Problem!;
         }
 
-        var request = requestResult.Request!;
+        var request = requestResult.Value!;
         var result = await workflow.CompleteAsync(
             new MemoryReviewActionCommand(
                 idempotency.PrincipalId,
@@ -134,7 +139,11 @@ public static class MemoryReviewEndpointExtensions
 
         return new ApiIdempotencyResponse(
             StatusCodes.Status200OK,
-            ToActionResponse(result),
+            MemoryReviewResponseMapper.ToActionResponse(
+                result.Action!,
+                result.Review!,
+                result.ReplacementMemoryFactId,
+                sourceEventLinks),
             "memory_review",
             id,
             result.IdempotencyAlreadyCompleted);
@@ -186,142 +195,13 @@ public static class MemoryReviewEndpointExtensions
         return action is MemoryReviewActions.Delete or MemoryReviewActions.Expire;
     }
 
-    private static async Task<ActionRequestReadResult> ReadActionRequestAsync(
-        HttpContext context,
-        CancellationToken cancellationToken)
-    {
-        if (!context.Request.HasJsonContentType())
-        {
-            return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
-                StatusCodes.Status400BadRequest,
-                "Memory review action is invalid.",
-                "Request Content-Type must be application/json."));
-        }
-
-        MemoryReviewActionRequest? request;
-
-        try
-        {
-            request = await context.Request.ReadFromJsonAsync<MemoryReviewActionRequest>(cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
-                StatusCodes.Status400BadRequest,
-                "Memory review action is invalid.",
-                "Request body must be valid JSON."));
-        }
-
-        if (request is not null)
-        {
-            return ActionRequestReadResult.Success(request);
-        }
-
-        return ActionRequestReadResult.Failed(ApiRequestHelpers.Problem(
-            StatusCodes.Status400BadRequest,
-            "Memory review action is invalid.",
-            "Request body is required."));
-    }
-
-    private static bool TryReadPrincipalId(
-        HttpContext context,
-        out Guid principalId,
-        [NotNullWhen(false)] out IResult? failure)
-    {
-        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
-        {
-            failure = null;
-            return true;
-        }
-
-        failure = Results.Problem(
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Authenticated principal is invalid.",
-            detail: "The API key did not resolve to a valid principal id.");
-        return false;
-    }
-
     private static bool TryReadLimit(HttpContext context, out int limit, out string? error)
     {
-        limit = 20;
-        error = null;
-        var limitValue = context.Request.Query["limit"].ToString();
-
-        if (string.IsNullOrWhiteSpace(limitValue))
-        {
-            return true;
-        }
-
-        if (!int.TryParse(limitValue, out limit) || limit < 1 || limit > MaxPendingReviewLimit)
-        {
-            error = $"Query parameter 'limit' must be between 1 and {MaxPendingReviewLimit}.";
-            return false;
-        }
-
-        return true;
-    }
-
-    private static PendingMemoryReviewResponse ToPendingReviewResponse(MemoryReviewRecord review)
-    {
-        return new PendingMemoryReviewResponse(
-            review.Id,
-            review.ReviewStatus,
-            review.ReviewerId,
-            review.Notes,
-            review.SourceEventId,
-            BuildSourceEventLink(review.SourceEventId),
-            review.CreatedAt,
-            review.UpdatedAt,
-            ToPendingMemoryResponse(review.MemoryFact));
-    }
-
-    private static MemoryReviewActionResponse ToActionResponse(MemoryReviewWorkflowResult result)
-    {
-        return new MemoryReviewActionResponse(
-            result.Action!,
-            ToPendingReviewResponse(result.Review!),
-            result.ReplacementMemoryFactId);
-    }
-
-    private static PendingMemoryReviewFactResponse ToPendingMemoryResponse(MemoryFactRecord memoryFact)
-    {
-        return new PendingMemoryReviewFactResponse(
-            memoryFact.Id,
-            memoryFact.ScopeType,
-            memoryFact.ScopeId,
-            memoryFact.Namespace,
-            memoryFact.MemoryType,
-            memoryFact.Visibility,
-            memoryFact.Subject,
-            memoryFact.Predicate,
-            memoryFact.Object,
-            memoryFact.Confidence,
-            memoryFact.TrustLevel,
-            memoryFact.Status,
-            memoryFact.SourceEventId,
-            BuildSourceEventLink(memoryFact.SourceEventId),
-            memoryFact.ProposedByPrincipalId);
-    }
-
-    private static string BuildSourceEventLink(Guid sourceEventId)
-    {
-        return $"/api/events/{sourceEventId}";
-    }
-
-    private sealed record ActionRequestReadResult(
-        MemoryReviewActionRequest? Request,
-        ApiIdempotencyResponse? Failure)
-    {
-        public bool Succeeded => Failure is null;
-
-        public static ActionRequestReadResult Success(MemoryReviewActionRequest request)
-        {
-            return new ActionRequestReadResult(request, Failure: null);
-        }
-
-        public static ActionRequestReadResult Failed(ApiIdempotencyResponse failure)
-        {
-            return new ActionRequestReadResult(Request: null, failure);
-        }
+        return ApiRequestHelpers.TryReadLimitQuery(
+            context,
+            defaultLimit: 20,
+            maxLimit: MaxPendingReviewLimit,
+            out limit,
+            out error);
     }
 }

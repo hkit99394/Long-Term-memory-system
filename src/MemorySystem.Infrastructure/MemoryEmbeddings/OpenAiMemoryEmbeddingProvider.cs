@@ -63,9 +63,8 @@ public sealed class OpenAiMemoryEmbeddingProvider : IMemoryEmbeddingProvider, ID
 
         if (!response.IsSuccessStatusCode)
         {
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new InvalidOperationException(
-                $"OpenAI embedding request failed with status {(int)response.StatusCode}. {Truncate(responseBody, 512)}");
+                $"OpenAI embedding request failed with status {(int)response.StatusCode} ({response.StatusCode}).");
         }
 
         await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -95,11 +94,6 @@ public sealed class OpenAiMemoryEmbeddingProvider : IMemoryEmbeddingProvider, ID
         {
             httpClient.Dispose();
         }
-    }
-
-    private static string Truncate(string value, int maxLength)
-    {
-        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     private sealed record OpenAiEmbeddingRequest(string Model, string Input, int Dimensions);

@@ -78,7 +78,7 @@ public static class MemoryFactEndpointExtensions
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -128,7 +128,7 @@ public static class MemoryFactEndpointExtensions
             return configurationFailure;
         }
 
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -178,7 +178,7 @@ public static class MemoryFactEndpointExtensions
             return configurationFailure;
         }
 
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -229,7 +229,7 @@ public static class MemoryFactEndpointExtensions
             return configurationFailure;
         }
 
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -239,7 +239,7 @@ public static class MemoryFactEndpointExtensions
             return queryFailure;
         }
 
-        if (!TryReadLimit(context, maxLimit: 12, out var limit, out var error)
+        if (!TryReadLimit(context, defaultLimit: 12, maxLimit: 12, out var limit, out var error)
             || !TryReadTargetScope(context, out var targetScopeType, out var targetScopeId, out error))
         {
             return Results.Problem(
@@ -328,7 +328,7 @@ public static class MemoryFactEndpointExtensions
         IMemoryFactReadService readService,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -344,24 +344,6 @@ public static class MemoryFactEndpointExtensions
         }
 
         return Results.Ok(ToResponse(result.MemoryFact!));
-    }
-
-    private static bool TryReadPrincipalId(
-        HttpContext context,
-        out Guid principalId,
-        [NotNullWhen(false)] out IResult? failure)
-    {
-        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
-        {
-            failure = null;
-            return true;
-        }
-
-        failure = Results.Problem(
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Authenticated principal is invalid.",
-            detail: "The API key did not resolve to a valid principal id.");
-        return false;
     }
 
     private static bool TryEnsureSemanticRetrievalConfigured(
@@ -405,27 +387,22 @@ public static class MemoryFactEndpointExtensions
 
     private static bool TryReadLimit(HttpContext context, out int limit, out string? error)
     {
-        return TryReadLimit(context, maxLimit: 50, out limit, out error);
+        return TryReadLimit(context, defaultLimit: 20, maxLimit: 50, out limit, out error);
     }
 
-    private static bool TryReadLimit(HttpContext context, int maxLimit, out int limit, out string? error)
+    private static bool TryReadLimit(
+        HttpContext context,
+        int defaultLimit,
+        int maxLimit,
+        out int limit,
+        out string? error)
     {
-        limit = Math.Min(20, maxLimit);
-        error = null;
-        var limitValue = context.Request.Query["limit"].ToString();
-
-        if (string.IsNullOrWhiteSpace(limitValue))
-        {
-            return true;
-        }
-
-        if (!int.TryParse(limitValue, out limit) || limit < 1 || limit > maxLimit)
-        {
-            error = $"Query parameter 'limit' must be between 1 and {maxLimit}.";
-            return false;
-        }
-
-        return true;
+        return ApiRequestHelpers.TryReadLimitQuery(
+            context,
+            defaultLimit,
+            maxLimit,
+            out limit,
+            out error);
     }
 
     private static bool TryReadTargetScope(
@@ -434,36 +411,7 @@ public static class MemoryFactEndpointExtensions
         out string? scopeId,
         out string? error)
     {
-        scopeType = context.Request.Query["scopeType"].ToString();
-        scopeId = context.Request.Query["scopeId"].ToString();
-        error = null;
-
-        if (string.IsNullOrWhiteSpace(scopeType) && string.IsNullOrWhiteSpace(scopeId))
-        {
-            scopeType = null;
-            scopeId = null;
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(scopeType) || string.IsNullOrWhiteSpace(scopeId))
-        {
-            error = "Query parameters 'scopeType' and 'scopeId' must be provided together.";
-            return false;
-        }
-
-        if (!MemoryScopePolicy.TryNormalizeTargetScope(
-            scopeType,
-            scopeId,
-            out var normalizedScopeType,
-            out var normalizedScopeId,
-            out error))
-        {
-            return false;
-        }
-
-        scopeType = normalizedScopeType;
-        scopeId = normalizedScopeId;
-        return true;
+        return ApiRequestHelpers.TryReadOptionalTargetScopeQuery(context, out scopeType, out scopeId, out error);
     }
 
     private static bool TryReadRoleId(

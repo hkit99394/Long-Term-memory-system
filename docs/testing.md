@@ -16,13 +16,15 @@ dotnet test MemorySystem.sln --configuration Release --no-build --filter "Catego
 
 The fast test command intentionally excludes tests marked `Category=Database`. Database tests use `MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING` when it is set; otherwise they automatically use the default Docker Compose PostgreSQL connection when `127.0.0.1:55432` is reachable. If neither is available, unfiltered local solution test runs skip database tests cleanly instead of failing during setup.
 
+When you intend to run full local verification, set `MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true`. That makes database tests fail loudly if PostgreSQL is missing instead of reporting a green run with the database slice skipped.
+
 ## Database-Backed Integration Verification
 
 Use this path after the Release build when schema, migration, PostgreSQL health, Npgsql, or pgvector behavior changes:
 
 ```bash
 docker compose up -d --wait postgres
-dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
 docker compose stop postgres
 ```
 
@@ -31,6 +33,7 @@ Docker Compose maps PostgreSQL to local port `55432` by default to avoid collidi
 ```bash
 MEMORYSYSTEM_POSTGRES_PORT=55433 docker compose up -d --wait postgres
 MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING="Host=127.0.0.1;Port=55433;Database=memory_system;Username=memory_system;Password=memory_system_dev_password" \
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true \
   dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
 docker compose stop postgres
 ```
@@ -58,7 +61,7 @@ dotnet test MemorySystem.sln --configuration Release --no-build --filter "Catego
 docker compose up -d --wait postgres
 trap 'docker compose stop postgres' EXIT
 
-dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Database"
 ```
 
 The fast test command covers deterministic application policy, including namespace parsing, scope normalization, broker decisions, broker candidate classification, confidence scoring, session-only task instruction handling, active-memory dedupe and contradiction review routing, retrieval evaluation metric scoring, embedding provider configuration and deterministic adapter behavior, production secret guardrails, access authorization, memory status lifecycle policy, and direct memory read authorization.

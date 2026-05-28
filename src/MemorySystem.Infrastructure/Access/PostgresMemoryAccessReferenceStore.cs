@@ -52,6 +52,27 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
         return await command.ExecuteScalarAsync(cancellationToken) as string;
     }
 
+    public async Task<Guid?> FindActiveProjectOrganizationIdAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT org_id
+            FROM projects
+            WHERE id = @project_id
+                AND status = 'active';
+            """,
+            connection);
+        command.Parameters.AddWithValue("project_id", projectId);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+
+        return result is Guid orgId ? orgId : null;
+    }
+
     public async Task<bool> HasRoleAssignmentAsync(
         Guid principalId,
         string roleId,
@@ -154,7 +175,7 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
             connection);
         AddScopeParameters(command, principalId, scope);
         command.Parameters.Add("permissions", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
-            GrantPermissionsFor(permission);
+            MemoryAccessPolicy.GrantPermissionsFor(permission);
         command.Parameters.AddWithValue("namespace", namespaceValue);
 
         return await command.ExecuteScalarAsync(cancellationToken) is true;
@@ -170,29 +191,4 @@ public sealed class PostgresMemoryAccessReferenceStore(NpgsqlDataSource dataSour
             scope.ProjectId.HasValue ? scope.ProjectId.Value : DBNull.Value;
     }
 
-    private static string[] GrantPermissionsFor(string permission)
-    {
-        return permission switch
-        {
-            MemoryAccessPermissions.Read =>
-            [
-                MemoryAccessPermissions.Read,
-                MemoryAccessPermissions.Write,
-                MemoryAccessPermissions.Review,
-                MemoryAccessPermissions.Admin
-            ],
-            MemoryAccessPermissions.Write =>
-            [
-                MemoryAccessPermissions.Write,
-                MemoryAccessPermissions.Admin
-            ],
-            MemoryAccessPermissions.Review =>
-            [
-                MemoryAccessPermissions.Review,
-                MemoryAccessPermissions.Admin
-            ],
-            MemoryAccessPermissions.Admin => [MemoryAccessPermissions.Admin],
-            _ => [permission]
-        };
-    }
 }

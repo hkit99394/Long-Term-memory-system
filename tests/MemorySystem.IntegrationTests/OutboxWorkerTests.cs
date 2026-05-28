@@ -1,3 +1,8 @@
+using MemorySystem.Application.MemoryEmbeddings;
+using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.MemoryEmbeddings;
+using MemorySystem.Infrastructure.MemoryFacts;
 using MemorySystem.Infrastructure.Migrations;
 using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Infrastructure.Workers;
@@ -11,6 +16,8 @@ namespace MemorySystem.IntegrationTests;
 
 public sealed class OutboxWorkerTests
 {
+    private static readonly Guid PrincipalId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+
     [DatabaseFact]
     [Trait("Category", "Database")]
     public async Task PostgresWorkerHeartbeatStore_records_and_updates_latest_heartbeat()
@@ -267,6 +274,76 @@ public sealed class OutboxWorkerTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Memory_index_handler_does_not_store_embedding_when_chunk_is_redacted_after_read()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_outbox_redacted_embedding_race_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            var sourceEventId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                sourceEventId,
+                PrincipalId,
+                "global",
+                "global",
+                trustLevel: "human_approved");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+            var memory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("global", "global"),
+                "/global/decisions",
+                "decision",
+                "system",
+                "Embedding redaction race",
+                "must",
+                "not persist stale sensitive embeddings",
+                0.950m,
+                sourceEventId,
+                PrincipalId,
+                MemoryFactStatuses.Active));
+            var chunkId = await ReadMemoryFactChunkIdAsync(databaseConnectionString, memory.Id);
+            var handler = new MemoryIndexOutboxJobHandler(
+                dataSource,
+                new RedactingEmbeddingProvider(() => RedactMemoryFactChunksForTestAsync(
+                    databaseConnectionString,
+                    memory.Id)),
+                new PostgresMemoryChunkEmbeddingStore(dataSource),
+                NullLogger<MemoryIndexOutboxJobHandler>.Instance);
+            var job = new OutboxJob(
+                Guid.NewGuid(),
+                MemoryIndexOutboxJobContract.JobType,
+                MemoryIndexOutboxJobContract.AggregateType,
+                memory.Id,
+                MemoryIndexOutboxJobContract.CreateIdempotencyKey(memory.Id),
+                MemoryIndexOutboxJobContract.SerializePayload(memory.Id, chunkId, sourceEventId),
+                "processing",
+                1,
+                DateTimeOffset.UtcNow,
+                null,
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow);
+
+            await handler.ProcessAsync(job, CancellationToken.None);
+
+            Assert.Equal(0, await CountEmbeddingsForChunkAsync(databaseConnectionString, chunkId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task<Guid> InsertOutboxJobAsync(
         string connectionString,
         string jobType,
@@ -321,6 +398,70 @@ public sealed class OutboxWorkerTests
         await command.ExecuteNonQueryAsync();
 
         return jobId;
+    }
+
+    private static async Task<Guid> ReadMemoryFactChunkIdAsync(
+        string connectionString,
+        Guid memoryFactId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT id
+            FROM memory_chunks
+            WHERE source_type = 'memory_fact'
+                AND source_id = @memory_fact_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+        return await command.ExecuteScalarAsync() is Guid chunkId
+            ? chunkId
+            : throw new InvalidOperationException("Expected memory fact chunk was not created.");
+    }
+
+    private static async Task RedactMemoryFactChunksForTestAsync(
+        string connectionString,
+        Guid memoryFactId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_chunks
+            SET title = NULL,
+                content = '[redacted]',
+                content_hash = 'sha256:test-redacted',
+                redacted_at = now()
+            WHERE source_type = 'memory_fact'
+                AND source_id = @memory_fact_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<int> CountEmbeddingsForChunkAsync(
+        string connectionString,
+        Guid chunkId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT count(*)
+            FROM memory_embeddings
+            WHERE chunk_id = @chunk_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("chunk_id", chunkId);
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private static async Task<OutboxJobState> ReadOutboxJobStateAsync(
@@ -380,6 +521,24 @@ public sealed class OutboxWorkerTests
             WasInvoked = true;
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RedactingEmbeddingProvider(Func<Task> redactAsync) : IMemoryEmbeddingProvider
+    {
+        public string ProviderName => "test";
+
+        public string Model => "test-embedding-model";
+
+        public int Dimension => 3;
+
+        public async Task<MemoryEmbeddingVector> EmbedAsync(
+            MemoryEmbeddingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await redactAsync();
+
+            return new MemoryEmbeddingVector(Model, Dimension, [0.1f, 0.2f, 0.3f]);
         }
     }
 }

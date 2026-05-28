@@ -21,6 +21,7 @@ Add runtime guardrails for every environment except `Development` and `Testing`:
 - OpenAI embedding configuration requires an HTTPS endpoint and a non-placeholder API key.
 - The outbox worker continues to refuse deterministic embeddings outside `Development` and `Testing`.
 - The API keeps non-semantic routes available when deterministic embeddings are configured outside `Development` and `Testing`, but readiness and semantic routes remain unavailable until a production provider is configured.
+- The API requires HTTPS outside `Development` and `Testing`; forwarded headers are accepted only when explicitly enabled and restricted to configured proxies or networks.
 
 Production secret values are still expected to live in a managed secret store. Environment variables are an acceptable delivery mechanism, not the long-term source of record.
 

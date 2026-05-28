@@ -9,17 +9,6 @@ public sealed class MigrationRunnerTests
     private const string InitialMigration = "001_initial_memory_schema.sql";
     private const string ScopeHardeningMigration = "002_scope_constraints_and_outbox_hardening.sql";
     private const string MemoryFactScopeConsistencyMigration = "003_memory_fact_scope_consistency.sql";
-    private const string MemoryFactTrustLevelMigration = "004_memory_fact_trust_level.sql";
-    private const string RoleMemoryLensActiveBaseFactMigration = "005_role_memory_lens_active_base_fact.sql";
-    private const string MemoryFactSubjectPredicateLookupMigration = "006_memory_fact_subject_predicate_lookup.sql";
-    private const string MemoryFactConflictAndLensSourceScopeMigration = "007_memory_fact_conflict_and_lens_source_scope.sql";
-    private const string RoleMemoryLensActiveDedupeMigration = "008_role_memory_lens_active_dedupe.sql";
-    private const string MemoryAccessGrantTargetValidationMigration = "009_memory_access_grant_target_validation.sql";
-    private const string EventReferenceUpdateGuardsMigration = "010_event_reference_update_guards.sql";
-    private const string ApiIdempotencyResponseContentTypeMigration = "011_api_idempotency_response_content_type.sql";
-    private const string MemoryChunkFullTextSearchMigration = "012_memory_chunk_full_text_search.sql";
-    private const string OutboxProcessingLeaseMetadataMigration = "013_outbox_processing_lease_metadata.sql";
-    private const string MemoryEmbeddingVectorIndexMigration = "014_memory_embedding_vector_index.sql";
 
     [DatabaseFact]
     [Trait("Category", "Database")]
@@ -35,36 +24,11 @@ public sealed class MigrationRunnerTests
         {
             var firstRun = await SqlMigrationRunner.ApplyAsync(databaseConnectionString, migrationsDirectory);
             var secondRun = await SqlMigrationRunner.ApplyAsync(databaseConnectionString, migrationsDirectory);
+            var expectedMigrationNames = GetExpectedMigrationNames(migrationsDirectory);
 
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == InitialMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ScopeHardeningMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactTrustLevelMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == RoleMemoryLensActiveBaseFactMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactSubjectPredicateLookupMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryFactConflictAndLensSourceScopeMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == RoleMemoryLensActiveDedupeMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryAccessGrantTargetValidationMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == OutboxProcessingLeaseMetadataMigration);
-            Assert.Contains(firstRun.AppliedMigrations, migration => migration.Name == MemoryEmbeddingVectorIndexMigration);
+            Assert.Equal(expectedMigrationNames, firstRun.AppliedMigrations.Select(migration => migration.Name));
             Assert.Empty(secondRun.AppliedMigrations);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == InitialMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ScopeHardeningMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactScopeConsistencyMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactTrustLevelMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == RoleMemoryLensActiveBaseFactMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactSubjectPredicateLookupMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryFactConflictAndLensSourceScopeMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == RoleMemoryLensActiveDedupeMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryAccessGrantTargetValidationMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == EventReferenceUpdateGuardsMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == ApiIdempotencyResponseContentTypeMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryChunkFullTextSearchMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == OutboxProcessingLeaseMetadataMigration);
-            Assert.Contains(secondRun.SkippedMigrations, migration => migration.Name == MemoryEmbeddingVectorIndexMigration);
+            Assert.Equal(expectedMigrationNames, secondRun.SkippedMigrations.Select(migration => migration.Name));
         }
         finally
         {
@@ -146,20 +110,7 @@ public sealed class MigrationRunnerTests
             var exception = await Assert.ThrowsAsync<SqlMigrationMissingException>(
                 () => SqlMigrationRunner.ApplyAsync(databaseConnectionString, emptyMigrationsDirectory));
 
-            Assert.Contains(InitialMigration, exception.MigrationNames);
-            Assert.Contains(ScopeHardeningMigration, exception.MigrationNames);
-            Assert.Contains(MemoryFactScopeConsistencyMigration, exception.MigrationNames);
-            Assert.Contains(MemoryFactTrustLevelMigration, exception.MigrationNames);
-            Assert.Contains(RoleMemoryLensActiveBaseFactMigration, exception.MigrationNames);
-            Assert.Contains(MemoryFactSubjectPredicateLookupMigration, exception.MigrationNames);
-            Assert.Contains(MemoryFactConflictAndLensSourceScopeMigration, exception.MigrationNames);
-            Assert.Contains(RoleMemoryLensActiveDedupeMigration, exception.MigrationNames);
-            Assert.Contains(MemoryAccessGrantTargetValidationMigration, exception.MigrationNames);
-            Assert.Contains(EventReferenceUpdateGuardsMigration, exception.MigrationNames);
-            Assert.Contains(ApiIdempotencyResponseContentTypeMigration, exception.MigrationNames);
-            Assert.Contains(MemoryChunkFullTextSearchMigration, exception.MigrationNames);
-            Assert.Contains(OutboxProcessingLeaseMetadataMigration, exception.MigrationNames);
-            Assert.Contains(MemoryEmbeddingVectorIndexMigration, exception.MigrationNames);
+            Assert.Equal(GetExpectedMigrationNames(migrationsDirectory), exception.MigrationNames);
             Assert.Contains("schema_migrations", exception.Message, StringComparison.Ordinal);
         }
         finally
@@ -261,5 +212,22 @@ public sealed class MigrationRunnerTests
         }
 
         return targetDirectory;
+    }
+
+    private static string[] GetExpectedMigrationNames(string migrationsDirectory)
+    {
+        return Directory
+            .EnumerateFiles(migrationsDirectory, "*.sql", SearchOption.TopDirectoryOnly)
+            .Select(path => Path.GetFileName(path)!)
+            .OrderBy(ParseMigrationOrdinal)
+            .ThenBy(fileName => fileName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static int ParseMigrationOrdinal(string migrationName)
+    {
+        var separatorIndex = migrationName.IndexOf('_', StringComparison.Ordinal);
+
+        return int.Parse(migrationName[..separatorIndex]);
     }
 }

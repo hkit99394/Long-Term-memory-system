@@ -43,8 +43,12 @@ var app = builder.Build();
 
 if (RequiresTransportSecurity(app.Environment))
 {
-    ValidateForwardedHeaderTrust(app.Configuration);
-    app.UseForwardedHeaders();
+    if (ForwardedHeadersEnabled(app.Configuration))
+    {
+        ValidateForwardedHeaderTrust(app.Configuration);
+        app.UseForwardedHeaders();
+    }
+
     app.Use(async (context, next) =>
     {
         if (!context.Request.IsHttps)
@@ -191,6 +195,12 @@ static bool RequiresTransportSecurity(IHostEnvironment environment)
         && !environment.IsEnvironment("Testing");
 }
 
+static bool ForwardedHeadersEnabled(IConfiguration configuration)
+{
+    return bool.TryParse(configuration["TransportSecurity:ForwardedHeadersEnabled"], out var enabled)
+        && enabled;
+}
+
 static void ValidateForwardedHeaderTrust(IConfiguration configuration)
 {
     var forwardedHeaders = configuration.GetSection("ForwardedHeaders");
@@ -202,7 +212,7 @@ static void ValidateForwardedHeaderTrust(IConfiguration configuration)
     }
 
     throw new InvalidOperationException(
-        "ForwardedHeaders:KnownProxies or ForwardedHeaders:KnownNetworks must be configured outside Development and Testing environments.");
+        "ForwardedHeaders:KnownProxies or ForwardedHeaders:KnownNetworks must be configured when TransportSecurity:ForwardedHeadersEnabled is true outside Development and Testing environments.");
 }
 
 static bool HasConfiguredValues(IConfigurationSection section)

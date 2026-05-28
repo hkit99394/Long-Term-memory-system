@@ -1,6 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
 using MemorySystem.Api.Http;
-using MemorySystem.Application.Scopes;
 using MemorySystem.Application.VaultExports;
 
 namespace MemorySystem.Api.VaultExports;
@@ -35,7 +33,7 @@ public static class VaultExportEndpointExtensions
         IObsidianExportService exportService,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -64,7 +62,7 @@ public static class VaultExportEndpointExtensions
         IObsidianExportService exportService,
         CancellationToken cancellationToken)
     {
-        if (!TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
         {
             return principalFailure;
         }
@@ -87,42 +85,14 @@ public static class VaultExportEndpointExtensions
             export.Documents.Select(ToResponse).ToArray()));
     }
 
-    private static bool TryReadPrincipalId(
-        HttpContext context,
-        out Guid principalId,
-        [NotNullWhen(false)] out IResult? failure)
-    {
-        if (ApiRequestHelpers.TryGetPrincipalId(context, out principalId))
-        {
-            failure = null;
-            return true;
-        }
-
-        failure = Results.Problem(
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Authenticated principal is invalid.",
-            detail: "The API key did not resolve to a valid principal id.");
-        return false;
-    }
-
     private static bool TryReadLimit(HttpContext context, out int limit, out string? error)
     {
-        limit = 50;
-        error = null;
-        var limitValue = context.Request.Query["limit"].ToString();
-
-        if (string.IsNullOrWhiteSpace(limitValue))
-        {
-            return true;
-        }
-
-        if (!int.TryParse(limitValue, out limit) || limit < 1 || limit > ObsidianExportService.MaxLimit)
-        {
-            error = $"Query parameter 'limit' must be between 1 and {ObsidianExportService.MaxLimit}.";
-            return false;
-        }
-
-        return true;
+        return ApiRequestHelpers.TryReadLimitQuery(
+            context,
+            defaultLimit: 50,
+            maxLimit: ObsidianExportService.MaxLimit,
+            out limit,
+            out error);
     }
 
     private static bool TryReadScope(
@@ -131,36 +101,7 @@ public static class VaultExportEndpointExtensions
         out string? scopeId,
         out string? error)
     {
-        scopeType = context.Request.Query["scopeType"].ToString();
-        scopeId = context.Request.Query["scopeId"].ToString();
-        error = null;
-
-        if (string.IsNullOrWhiteSpace(scopeType) && string.IsNullOrWhiteSpace(scopeId))
-        {
-            scopeType = null;
-            scopeId = null;
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(scopeType) || string.IsNullOrWhiteSpace(scopeId))
-        {
-            error = "Query parameters 'scopeType' and 'scopeId' must be provided together.";
-            return false;
-        }
-
-        if (!MemoryScopePolicy.TryNormalizeTargetScope(
-            scopeType,
-            scopeId,
-            out var normalizedScopeType,
-            out var normalizedScopeId,
-            out error))
-        {
-            return false;
-        }
-
-        scopeType = normalizedScopeType;
-        scopeId = normalizedScopeId;
-        return true;
+        return ApiRequestHelpers.TryReadOptionalTargetScopeQuery(context, out scopeType, out scopeId, out error);
     }
 
     private static ObsidianExportDocumentResponse ToResponse(ObsidianExportDocument document)

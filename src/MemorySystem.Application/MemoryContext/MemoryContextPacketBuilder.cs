@@ -1,9 +1,12 @@
+using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.MemoryContext;
 
-public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSearch) : IContextPacketBuilder
+public sealed class MemoryContextPacketBuilder(
+    IMemoryChunkHybridSearch hybridSearch,
+    ISourceEventLinkBuilder sourceEventLinks) : IContextPacketBuilder
 {
     private const int MaxPacketItems = 12;
     private const int MaxContentLength = 360;
@@ -66,7 +69,7 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
             items
                 .Select(item => item.SourceEventId)
                 .Distinct()
-                .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, BuildSourceLink(sourceEventId)))
+                .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, sourceEventLinks.Build(sourceEventId)))
                 .ToArray());
     }
 
@@ -90,7 +93,7 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
         return new MemoryContextTargetScope(normalizedScopeType, normalizedScopeId);
     }
 
-    private static MemoryContextPacketItem ToPacketItem(MemoryChunkHybridSearchResult result)
+    private MemoryContextPacketItem ToPacketItem(MemoryChunkHybridSearchResult result)
     {
         var kind = ResolveKind(result);
 
@@ -108,7 +111,7 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
             result.Rank,
             result.TrustLevel,
             result.SourceEventId,
-            BuildSourceLink(result.SourceEventId),
+            sourceEventLinks.Build(result.SourceEventId),
             new MemoryContextExplanation(
                 result.Rank,
                 result.Components,
@@ -193,11 +196,6 @@ public sealed class MemoryContextPacketBuilder(IMemoryChunkHybridSearch hybridSe
         return normalized.Length <= MaxContentLength
             ? normalized
             : normalized[..(MaxContentLength - 3)] + "...";
-    }
-
-    private static string? BuildSourceLink(Guid sourceEventId)
-    {
-        return $"/api/events/{sourceEventId}";
     }
 
     private static string BuildExplanationSummary(MemoryChunkHybridSearchResult result)

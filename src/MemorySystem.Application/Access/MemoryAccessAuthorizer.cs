@@ -122,7 +122,7 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
             request.Scope.OrgId.Value,
             cancellationToken);
 
-        return HasRequiredAccessLevel(accessLevel, request.Permission, allowOwner: true)
+        return MemoryAccessPolicy.HasRequiredAccessLevel(accessLevel, request.Permission, allowOwner: true)
             ? MemoryAccessDecision.Allow()
             : MemoryAccessDecision.Deny(
                 $"Principal {request.PrincipalId} does not have {request.Permission} membership access to organization {request.Scope.OrgId.Value}.");
@@ -137,48 +137,45 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
             return MemoryAccessDecision.Deny("Project scope requires a project id.");
         }
 
+        var activeProjectOrgId = await referenceStore.FindActiveProjectOrganizationIdAsync(
+            request.Scope.ProjectId.Value,
+            cancellationToken);
+
+        if (!activeProjectOrgId.HasValue)
+        {
+            return MemoryAccessDecision.Deny(
+                $"Project {request.Scope.ProjectId.Value} is not active or does not exist.");
+        }
+
+        if (request.Scope.OrgId.HasValue && request.Scope.OrgId.Value != activeProjectOrgId.Value)
+        {
+            return MemoryAccessDecision.Deny(
+                $"Project {request.Scope.ProjectId.Value} does not belong to organization {request.Scope.OrgId.Value}.");
+        }
+
         var projectAccessLevel = await referenceStore.FindProjectAccessLevelAsync(
             request.PrincipalId,
             request.Scope.ProjectId.Value,
             cancellationToken);
 
-        if (HasRequiredAccessLevel(projectAccessLevel, request.Permission, allowOwner: false))
+        if (MemoryAccessPolicy.HasRequiredAccessLevel(projectAccessLevel, request.Permission, allowOwner: false))
         {
             return MemoryAccessDecision.Allow();
         }
 
-        if (request.Scope.OrgId.HasValue)
-        {
-            var orgAccessLevel = await referenceStore.FindOrganizationAccessLevelAsync(
-                request.PrincipalId,
-                request.Scope.OrgId.Value,
-                cancellationToken);
+        var orgAccessLevel = await referenceStore.FindOrganizationAccessLevelAsync(
+            request.PrincipalId,
+            activeProjectOrgId.Value,
+            cancellationToken);
 
-            if (HasRequiredAccessLevel(orgAccessLevel, request.Permission, allowOwner: true)
-                && orgAccessLevel is "admin" or "owner")
-            {
-                return MemoryAccessDecision.Allow();
-            }
+        if (MemoryAccessPolicy.HasRequiredAccessLevel(orgAccessLevel, request.Permission, allowOwner: true)
+            && orgAccessLevel is "admin" or "owner")
+        {
+            return MemoryAccessDecision.Allow();
         }
 
         return MemoryAccessDecision.Deny(
             $"Principal {request.PrincipalId} does not have {request.Permission} membership access to project {request.Scope.ProjectId.Value}.");
     }
 
-    private static bool HasRequiredAccessLevel(string? accessLevel, string permission, bool allowOwner)
-    {
-        if (string.IsNullOrWhiteSpace(accessLevel))
-        {
-            return false;
-        }
-
-        return permission switch
-        {
-            MemoryAccessPermissions.Read => accessLevel is "reader" or "contributor" or "reviewer" or "admin" || (allowOwner && accessLevel == "owner"),
-            MemoryAccessPermissions.Write => accessLevel is "contributor" or "reviewer" or "admin" || (allowOwner && accessLevel == "owner"),
-            MemoryAccessPermissions.Review => accessLevel is "reviewer" or "admin" || (allowOwner && accessLevel == "owner"),
-            MemoryAccessPermissions.Admin => accessLevel is "admin" || (allowOwner && accessLevel == "owner"),
-            _ => false
-        };
-    }
 }
