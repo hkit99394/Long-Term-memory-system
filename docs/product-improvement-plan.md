@@ -76,7 +76,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 29, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text and expose recent retrieval feedback metrics in the operator summary. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 29, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text and expose recent retrieval feedback metrics in the operator summary. The next planned slices are the full LMSS benchmark smoke contradiction overlay and the production-pilot deployment shape. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
