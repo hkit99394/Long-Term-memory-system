@@ -44,6 +44,8 @@ Run the worker in a second terminal:
 dotnet run --project src/MemorySystem.Worker
 ```
 
+The worker processes outbox jobs and runs the first retention automation. By default it minimizes unreferenced `ephemeral` source-event payloads after seven days, once on startup and then hourly.
+
 For authenticated API calls, configure an API key and make sure the mapped principal exists in PostgreSQL. Local integration tests show the canonical test principal:
 
 ```text

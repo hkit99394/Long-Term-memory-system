@@ -41,6 +41,8 @@ Run the outbox worker in another terminal:
 dotnet run --project src/MemorySystem.Worker
 ```
 
+The worker also runs the first retention automation for expired, unreferenced `ephemeral` event payloads.
+
 Useful local endpoints:
 
 - `GET /health/live`

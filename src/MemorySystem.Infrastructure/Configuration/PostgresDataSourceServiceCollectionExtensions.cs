@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 
@@ -12,7 +13,7 @@ public static class PostgresDataSourceServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddSingleton(_ =>
+        services.TryAddSingleton(_ =>
         {
             var connectionString = PostgresConnectionString.Resolve(
                 key => configuration[key],
@@ -21,7 +22,7 @@ public static class PostgresDataSourceServiceCollectionExtensions
 
             return NpgsqlDataSource.Create(connectionString);
         });
-        services.AddHostedService<PostgresConnectionStringValidationHostedService>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, PostgresConnectionStringValidationHostedService>());
 
         return services;
     }

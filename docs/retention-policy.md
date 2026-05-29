@@ -111,10 +111,12 @@ Implemented:
 - Normal retrieval excludes inactive and redacted memory through lifecycle and chunk filters.
 - Vault export marks deleted, redacted, expired, superseded, and contradicted exported memory stale; archive export does not return deleted or redacted bodies.
 - Structured operational logs avoid proposal content, search text, review notes, memory body text, and raw event payloads.
+- The worker minimizes expired, unreferenced `ephemeral` event payloads by replacing raw `events.content` with an audit-safe marker, clearing any external payload URI, setting `redaction_status = 'redacted'`, and recording `redacted_at`.
 
 Not yet automated:
 
-- scheduled payload minimization for expired retention windows
+- payload minimization for events that are still referenced by durable memory, review, redaction, or export records
+- payload minimization for `standard` and `audit` retention windows
 - legal-hold create, release, and reporting endpoints
 - erasure execution that rewrites event payload markers and clears derived chunk bodies in one transaction
 - external payload store retention checks for `external_payload_uri`

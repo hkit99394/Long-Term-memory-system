@@ -4,5 +4,6 @@ using Microsoft.Extensions.Hosting;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
+builder.Services.AddMemorySystemEphemeralEventRetentionWorker(builder.Configuration, builder.Environment);
 
 await builder.Build().RunAsync();
