@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Application.MemoryEvaluations;
@@ -216,6 +217,108 @@ public sealed partial class ApiMemorySearchTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_memory_context_feedback_records_hashed_quality_signal()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_feedback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareContextPacketFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var query = "cto context packet concise decision logs authorization predicates operational reversibility";
+            var (contextStatusCode, contextPayload, _) = await SendContextPacketAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 6);
+
+            Assert.Equal(HttpStatusCode.OK, contextStatusCode);
+            Assert.Contains(
+                contextPayload.GetProperty("relevantDecisions").EnumerateArray(),
+                item => item.GetProperty("sourceId").GetGuid() == fixture.ProjectDecisionId);
+
+            var (feedbackStatusCode, feedbackPayload, feedbackBody) = await SendContextFeedbackAsync(
+                client,
+                $$"""
+                {
+                  "query": "{{query}}",
+                  "targetScopeType": "project",
+                  "targetScopeId": "{{ProjectAId}}",
+                  "roleId": "cto",
+                  "sourceType": "memory_fact",
+                  "sourceId": "{{fixture.ProjectDecisionId}}",
+                  "feedbackType": "useful"
+                }
+                """);
+
+            Assert.Equal(HttpStatusCode.Created, feedbackStatusCode);
+            Assert.DoesNotContain(query, feedbackBody, StringComparison.Ordinal);
+
+            var feedbackId = feedbackPayload.GetProperty("id").GetGuid();
+            var storedFeedback = await ReadRetrievalFeedbackAsync(databaseConnectionString, feedbackId);
+
+            Assert.Equal(PrincipalId, storedFeedback.PrincipalId);
+            Assert.Equal("context_packet", storedFeedback.RetrievalMode);
+            Assert.StartsWith("sha256:", storedFeedback.QueryHash, StringComparison.Ordinal);
+            Assert.Equal(feedbackPayload.GetProperty("queryHash").GetString(), storedFeedback.QueryHash);
+            Assert.DoesNotContain("concise decision logs", storedFeedback.QueryHash, StringComparison.Ordinal);
+            Assert.Equal("project", storedFeedback.TargetScopeType);
+            Assert.Equal(ProjectAId.ToString(), storedFeedback.TargetScopeId);
+            Assert.Equal("cto", storedFeedback.RoleId);
+            Assert.Equal("memory_fact", storedFeedback.SourceType);
+            Assert.Equal(fixture.ProjectDecisionId, storedFeedback.SourceId);
+            Assert.Equal("useful", storedFeedback.FeedbackType);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_context_feedback_rejects_source_feedback_without_source()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_feedback_validation_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendContextFeedbackAsync(
+                client,
+                """
+                {
+                  "query": "context packet",
+                  "feedbackType": "stale"
+                }
+                """);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory context feedback is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("must identify a retrieved source", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Get_memory_context_rejects_large_packet_limit()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -244,4 +347,73 @@ public sealed partial class ApiMemorySearchTests
             await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
         }
     }
+
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload, string Body)> SendContextFeedbackAsync(
+        HttpClient client,
+        string body)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/memory/context/feedback")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Add("X-Api-Key", TestApiKey);
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(responseBody);
+        return (response.StatusCode, document.RootElement.Clone(), responseBody);
+    }
+
+    private static async Task<RetrievalFeedbackState> ReadRetrievalFeedbackAsync(
+        string connectionString,
+        Guid feedbackId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT
+                principal_id,
+                retrieval_mode,
+                query_hash,
+                target_scope_type,
+                target_scope_id,
+                role_id,
+                source_type,
+                source_id,
+                feedback_type
+            FROM memory_retrieval_feedback
+            WHERE id = @feedback_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("feedback_id", feedbackId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        Assert.True(await reader.ReadAsync());
+
+        return new RetrievalFeedbackState(
+            reader.GetGuid(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetGuid(7),
+            reader.GetString(8));
+    }
+
+    private sealed record RetrievalFeedbackState(
+        Guid PrincipalId,
+        string RetrievalMode,
+        string QueryHash,
+        string? TargetScopeType,
+        string? TargetScopeId,
+        string? RoleId,
+        string? SourceType,
+        Guid? SourceId,
+        string FeedbackType);
 }

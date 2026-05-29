@@ -61,6 +61,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0036: Retention and Erasure Policy](decisions/0036-retention-and-erasure-policy.md) | Records the M8 raw event payload retention windows, legal hold behavior, erasure expectations, and audit-preservation policy. |
 | [Decision 0037: Backup and Restore Runbook](decisions/0037-backup-and-restore-runbook.md) | Records the M8 PostgreSQL custom-format backup, restore validation, migration, and retention-aware recovery process. |
 | [Decision 0038: Production Secret Handling](decisions/0038-production-secret-handling.md) | Records the M8 production secret configuration, runtime guardrails, and rotation expectations. |
+| [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
 

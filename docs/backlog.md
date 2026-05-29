@@ -110,4 +110,11 @@ Status values:
 
 ## Immediate Next Items
 
-M8 operational readiness backlog is complete.
+M8 operational readiness backlog is complete. Short Run is complete.
+
+## Middle Run Production Pilot
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| MR-01 | P0 | Done | Add context-packet feedback log. | Authenticated callers can record useful, stale, missing, or noisy retrieval feedback for context packets; raw query text is not stored; database-backed API tests cover storage and validation. |
+| MR-02 | P0 | Next | Turn retrieval feedback into operator metrics. | Operators can see retrieval feedback counts and rates by feedback type over a recent window. |

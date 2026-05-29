@@ -88,6 +88,7 @@ tables=(
   role_memory_lenses
   memory_chunks
   memory_embeddings
+  memory_retrieval_feedback
   memory_redactions
   api_idempotency_keys
   outbox_jobs

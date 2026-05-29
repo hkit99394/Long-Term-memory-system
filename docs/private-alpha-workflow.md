@@ -107,6 +107,14 @@ Expected result:
 - Project B memory does not appear.
 - The packet stays compact enough for an agent prompt.
 
+Record retrieval feedback after a reviewer inspects the packet:
+
+```text
+POST /api/memory/context/feedback
+```
+
+Use `feedbackType` values `useful`, `stale`, `missing`, or `noisy`. The API stores a hash of the query, not the raw query text.
+
 ### 5. Export Human-Readable Memory
 
 Call the Obsidian export endpoint for approved decision or summary memory.

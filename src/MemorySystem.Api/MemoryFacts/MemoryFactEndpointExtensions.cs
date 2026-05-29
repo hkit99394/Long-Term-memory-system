@@ -1,7 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Text;
 using MemorySystem.Api.Http;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryContext;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
@@ -57,6 +60,16 @@ public static class MemoryFactEndpointExtensions
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await BuildContextPacketAsync(context, contextPacketBuilder, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/memory/context/feedback",
+            async (
+                HttpContext context,
+                IMemoryRetrievalFeedbackStore feedbackStore,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await RecordContextFeedbackAsync(context, feedbackStore, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapGet(
@@ -284,6 +297,101 @@ public static class MemoryFactEndpointExtensions
         return Results.Ok(ToContextPacketResponse(packet));
     }
 
+    private static async Task<IResult> RecordContextFeedbackAsync(
+        HttpContext context,
+        IMemoryRetrievalFeedbackStore feedbackStore,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<MemoryContextFeedbackRequest>(
+            context.Request,
+            "Memory context feedback is invalid.",
+            cancellationToken);
+
+        if (!requestResult.Succeeded)
+        {
+            return Results.Json(
+                requestResult.Problem!.Body,
+                statusCode: requestResult.Problem.StatusCode);
+        }
+
+        var request = requestResult.Value!;
+
+        if (!TryCreateFeedbackCommand(principalId, request, out var command, out var error))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory context feedback is invalid.",
+                detail: error);
+        }
+
+        var record = await feedbackStore.StoreAsync(command, cancellationToken);
+
+        logger.LogInformation(
+            "Memory retrieval feedback recorded. PrincipalId={PrincipalId} RetrievalMode={RetrievalMode} QueryHash={QueryHash} FeedbackType={FeedbackType} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} SourceType={SourceType} SourceId={SourceId}",
+            record.PrincipalId,
+            record.RetrievalMode,
+            record.QueryHash,
+            record.FeedbackType,
+            record.TargetScopeType,
+            record.TargetScopeId,
+            record.RoleId,
+            record.SourceType,
+            record.SourceId);
+
+        return Results.Created(
+            $"/api/memory/context/feedback/{record.Id}",
+            new MemoryContextFeedbackResponse(
+                record.Id,
+                record.RetrievalMode,
+                record.QueryHash,
+                record.FeedbackType,
+                record.CreatedAt));
+    }
+
+    private static bool TryCreateFeedbackCommand(
+        Guid principalId,
+        MemoryContextFeedbackRequest request,
+        out MemoryRetrievalFeedbackCommand command,
+        out string? error)
+    {
+        command = null!;
+        error = null;
+
+        var query = request.Query?.Trim();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            error = "query is required.";
+            return false;
+        }
+
+        if (!MemoryRetrievalFeedbackTypes.TryNormalize(request.FeedbackType, out var feedbackType, out error)
+            || !TryNormalizeOptionalTargetScope(request.TargetScopeType, request.TargetScopeId, out var targetScopeType, out var targetScopeId, out error)
+            || !TryNormalizeOptionalRoleId(request.RoleId, out var roleId, out error)
+            || !TryNormalizeOptionalFeedbackSource(request.SourceType, request.SourceId, feedbackType, out var sourceType, out error))
+        {
+            return false;
+        }
+
+        command = new MemoryRetrievalFeedbackCommand(
+            principalId,
+            "context_packet",
+            ComputeSha256(query),
+            targetScopeType,
+            targetScopeId,
+            roleId,
+            sourceType,
+            request.SourceId,
+            feedbackType);
+        return true;
+    }
+
     private static void LogRetrievalCompleted(
         ILogger logger,
         string retrievalMode,
@@ -414,6 +522,38 @@ public static class MemoryFactEndpointExtensions
         return ApiRequestHelpers.TryReadOptionalTargetScopeQuery(context, out scopeType, out scopeId, out error);
     }
 
+    private static bool TryNormalizeOptionalTargetScope(
+        string? scopeType,
+        string? scopeId,
+        out string? normalizedScopeType,
+        out string? normalizedScopeId,
+        out string? error)
+    {
+        normalizedScopeType = scopeType;
+        normalizedScopeId = scopeId;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(scopeType) && string.IsNullOrWhiteSpace(scopeId))
+        {
+            normalizedScopeType = null;
+            normalizedScopeId = null;
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(scopeType) || string.IsNullOrWhiteSpace(scopeId))
+        {
+            error = "targetScopeType and targetScopeId must be provided together.";
+            return false;
+        }
+
+        return MemoryScopePolicy.TryNormalizeTargetScope(
+            scopeType,
+            scopeId,
+            out normalizedScopeType,
+            out normalizedScopeId,
+            out error);
+    }
+
     private static bool TryReadRoleId(
         HttpContext context,
         out string? roleId,
@@ -423,6 +563,57 @@ public static class MemoryFactEndpointExtensions
             context.Request.Query["roleId"].ToString(),
             out roleId,
             out error);
+    }
+
+    private static bool TryNormalizeOptionalRoleId(
+        string? requestedRoleId,
+        out string? roleId,
+        out string? error)
+    {
+        return MemoryScopePolicy.TryNormalizeRoleId(
+            requestedRoleId,
+            out roleId,
+            out error);
+    }
+
+    private static bool TryNormalizeOptionalFeedbackSource(
+        string? requestedSourceType,
+        Guid? sourceId,
+        string feedbackType,
+        out string? sourceType,
+        out string? error)
+    {
+        sourceType = string.IsNullOrWhiteSpace(requestedSourceType)
+            ? null
+            : requestedSourceType.Trim().ToLowerInvariant();
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(sourceType) != !sourceId.HasValue)
+        {
+            error = "sourceType and sourceId must be provided together.";
+            return false;
+        }
+
+        if (sourceType is not null && sourceType is not "memory_fact" and not "role_memory_lens")
+        {
+            error = "sourceType must be memory_fact or role_memory_lens.";
+            return false;
+        }
+
+        if (MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && !sourceId.HasValue)
+        {
+            error = "useful, stale, and noisy feedback must identify a retrieved source.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string ComputeSha256(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+
+        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static MemorySearchResultResponse ToSearchResultResponse(MemoryChunkSearchResult result)

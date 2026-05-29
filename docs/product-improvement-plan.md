@@ -44,6 +44,8 @@ The next product challenge is to turn "memory system that works" into "memory pr
 
 Goal: make the current MVP shippable as a private alpha.
 
+Status: Complete as of May 29, 2026. The private-alpha baseline now has a top-level quickstart, repeatable Scenario 0001 seed command, operator summary endpoint, release verification path, backup/restore smoke, first retention automation, and split high-churn integration tests.
+
 1. Create a clear product entrypoint.
    - Add a top-level quickstart that explains what the system does, how to run it, and what a successful demo looks like.
    - Link the product goal, architecture, roadmap, testing commands, and this improvement plan from one obvious place.
@@ -74,6 +76,8 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
+Status: Started as of May 29, 2026. The first Middle Run slice is a persisted context-packet feedback log so private-alpha users can label retrieved memory as useful, stale, missing, or noisy without storing raw query text.
+
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
    - Separate migrator, API, and worker processes.
@@ -96,6 +100,7 @@ Goal: make the product production-pilot credible.
    - Track precision, false positives, stale-memory rate, context compactness, source-link coverage, and review acceptance rate.
    - Add a small golden evaluation set beyond deterministic tests.
    - Record before/after results for ranking or broker changes.
+   - Done: store context-packet usefulness feedback as hashed retrieval observations.
 
 5. Automate governance workflows.
    - Legal hold create/release/reporting.
