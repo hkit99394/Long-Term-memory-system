@@ -29,7 +29,7 @@
             "method": "POST",
             "path": "/api/memory/query-facts",
             "body": {
-              "query": "What migration strategy is accepted for Project A?",
+              "query": "SQL-first migrations plus raw Npgsql",
               "targetScope": {
                 "scopeType": "project",
                 "scopeId": "33333333-3333-4333-8333-333333333333"
@@ -87,7 +87,7 @@
             "method": "POST",
             "path": "/api/memory/query-facts",
             "body": {
-              "query": "Why did Project A choose SQL-first migrations plus raw Npgsql?",
+              "query": "SQL-first migrations plus raw Npgsql",
               "targetScope": {
                 "scopeType": "project",
                 "scopeId": "33333333-3333-4333-8333-333333333333"
@@ -208,7 +208,7 @@
             "method": "POST",
             "path": "/api/memory/query-facts",
             "body": {
-              "query": "Project A confidential runway model private finance tool funding strategy",
+              "query": "confidential runway model funding strategy",
               "targetScope": {
                 "scopeType": "project",
                 "scopeId": "33333333-3333-4333-8333-333333333333"
@@ -220,7 +220,7 @@
             }
           },
           "expectedResponseSignals": [
-            "Project B content is absent",
+            "Project B content is absent from facts, contradictions, exclusions, and source links; the response may echo caller-supplied query text",
             "not_authorized exclusion count is null or withheld if present",
             "no Project B source event link is returned"
           ]
@@ -233,7 +233,7 @@
         "does not infer how many unauthorized facts exist"
       ],
       "forbiddenSignals": [
-        "confidential runway model",
+        "treats confidential runway model as an authorized Project A memory",
         "private finance tool",
         "Project B funding strategy",
         "there is exactly one unauthorized result"
@@ -280,7 +280,7 @@
             "method": "POST",
             "path": "/api/memory/query-facts",
             "body": {
-              "query": "Project A current database migration decision CTO guidance",
+              "query": "SQL-first migrations plus raw Npgsql",
               "targetScope": {
                 "scopeType": "project",
                 "scopeId": "33333333-3333-4333-8333-333333333333"
