@@ -25,9 +25,9 @@ The base data is Scenario 0001:
 - shared CTO principle and Project A CTO lens
 - Project B private decision that must not leak into Project A answers
 
-Some tasks name an optional `fact_finding_contradiction_overlay` requirement.
-Those tasks should be marked fixture-incomplete until a runner or seed overlay
-loads an active decision plus related superseded or contradicted facts.
+Task ACU-003 requires the `fact_finding_contradiction_overlay` fixture. Load the
+full benchmark seed when running the complete smoke so the active Project A
+decision has a related superseded fact and a redacted excluded fact.
 
 ## Modes
 
@@ -64,12 +64,42 @@ The generated prompt pack is written to:
 
 Generated outputs are ignored by git.
 
+## Tool-Response Smoke
+
+Seed Scenario 0001 with the benchmark overlay:
+
+```bash
+../../scripts/seed-agent-contract-benchmark-demo.sh
+```
+
+Run the API with the seeded local principal and API key:
+
+```bash
+env \
+  'Authentication__ApiKey__Keys__local-jack__Key=private-alpha-local-key' \
+  'Authentication__ApiKey__Keys__local-jack__PrincipalId=11111111-1111-4111-8111-111111111111' \
+  'Authentication__ApiKey__Keys__local-jack__DisplayName=Jack Tam' \
+  ASPNETCORE_URLS=http://127.0.0.1:5099 \
+  dotnet run --project ../../src/MemorySystem.Api --no-launch-profile
+```
+
+Run all eight benchmark task tool calls, including ACU-003:
+
+```bash
+MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 \
+MEMORYSYSTEM_BENCHMARK_API_KEY=private-alpha-local-key \
+python3 run_smoke.py
+```
+
+The smoke checks governed tool responses only. It does not replace the manual
+LLM answer scoring in the prompt pack and scorecard.
+
 ## Manual Run Steps
 
-1. Seed Scenario 0001:
+1. Seed Scenario 0001 with the benchmark overlay:
 
    ```bash
-   ../../scripts/seed-private-alpha-demo.sh
+   ../../scripts/seed-agent-contract-benchmark-demo.sh
    ```
 
 2. Run the API with the seeded local principal and API key.

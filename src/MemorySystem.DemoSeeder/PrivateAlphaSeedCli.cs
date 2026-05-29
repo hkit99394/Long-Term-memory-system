@@ -21,6 +21,7 @@ public static class PrivateAlphaSeedCli
                       --migrations-directory <path>    Directory containing ordered .sql migration files.
                       --skip-migrations                Do not apply migrations before seeding.
                       --skip-embeddings                Do not precompute deterministic embeddings for seeded chunks.
+                      --include-benchmark-overlays     Add repeatable benchmark-only fixtures on top of Scenario 0001.
                       -h, --help                       Show help.
 
                     Defaults:
@@ -43,9 +44,14 @@ public static class PrivateAlphaSeedCli
 
             var result = await Scenario0001Seeder.SeedAsync(
                 options.ConnectionString,
-                options.SeedEmbeddings);
+                options.SeedEmbeddings,
+                options.IncludeBenchmarkOverlays);
 
             output.WriteLine("Scenario 0001 private-alpha demo data is ready.");
+            if (options.IncludeBenchmarkOverlays)
+            {
+                output.WriteLine("benchmark_overlays: fact_finding_contradiction_overlay");
+            }
             output.WriteLine($"principal: {Scenario0001.PrincipalId}");
             output.WriteLine($"project: {Scenario0001.ProjectAId}");
             output.WriteLine($"events: {result.EventCount}");

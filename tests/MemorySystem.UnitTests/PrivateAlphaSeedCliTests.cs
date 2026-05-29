@@ -41,6 +41,7 @@ public sealed class PrivateAlphaSeedCliTests
         Assert.Equal(0, exitCode);
         Assert.Contains("Seeds the private-alpha Scenario 0001 demo data", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("--skip-migrations", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("--include-benchmark-overlays", output.ToString(), StringComparison.Ordinal);
         Assert.Empty(error.ToString());
     }
 }

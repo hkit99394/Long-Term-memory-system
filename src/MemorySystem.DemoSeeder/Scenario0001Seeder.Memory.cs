@@ -110,7 +110,8 @@ internal static partial class Scenario0001Seeder
         decimal confidence,
         string trustLevel,
         Guid sourceEventId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string status = "active")
     {
         await using var command = new NpgsqlCommand(
             """
@@ -150,7 +151,7 @@ internal static partial class Scenario0001Seeder
                 @object,
                 @confidence,
                 @trust_level,
-                'active',
+                @status,
                 @source_event_id,
                 @proposed_by_principal_id
             )
@@ -195,6 +196,7 @@ internal static partial class Scenario0001Seeder
         command.Parameters.AddWithValue("object", objectValue);
         command.Parameters.AddWithValue("confidence", confidence);
         command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("status", status);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
         command.Parameters.AddWithValue("proposed_by_principal_id", Scenario0001.PrincipalId);
 

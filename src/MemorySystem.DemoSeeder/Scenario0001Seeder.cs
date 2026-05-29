@@ -7,6 +7,7 @@ internal static partial class Scenario0001Seeder
     public static async Task<Scenario0001SeedResult> SeedAsync(
         string connectionString,
         bool seedEmbeddings,
+        bool includeBenchmarkOverlays = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -22,6 +23,10 @@ internal static partial class Scenario0001Seeder
         await UpsertAccessGrantsAsync(connection, transaction, cancellationToken);
         await UpsertEventsAsync(connection, transaction, cancellationToken);
         await UpsertMemoryFactsAsync(connection, transaction, cancellationToken);
+        if (includeBenchmarkOverlays)
+        {
+            await UpsertBenchmarkOverlaysAsync(connection, transaction, cancellationToken);
+        }
         await UpsertRoleMemoryLensesAsync(connection, transaction, cancellationToken);
         await UpsertMemoryChunksAsync(connection, transaction, cancellationToken);
         await UpsertOutboxJobsAsync(connection, transaction, cancellationToken);
@@ -33,8 +38,10 @@ internal static partial class Scenario0001Seeder
             : 0;
 
         return new Scenario0001SeedResult(
-            Scenario0001.EventIds.Length,
-            Scenario0001.MemoryFactIds.Length,
+            Scenario0001.EventIds.Length
+                + (includeBenchmarkOverlays ? Scenario0001.BenchmarkOverlayEventIds.Length : 0),
+            Scenario0001.MemoryFactIds.Length
+                + (includeBenchmarkOverlays ? Scenario0001.BenchmarkOverlayMemoryFactIds.Length : 0),
             Scenario0001.RoleMemoryLensIds.Length,
             Scenario0001.ChunkIds.Length,
             embeddingCount);

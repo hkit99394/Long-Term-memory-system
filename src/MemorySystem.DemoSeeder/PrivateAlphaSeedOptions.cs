@@ -5,6 +5,7 @@ internal sealed record PrivateAlphaSeedOptions(
     string MigrationsDirectory,
     bool ApplyMigrations,
     bool SeedEmbeddings,
+    bool IncludeBenchmarkOverlays,
     bool ShowHelp)
 {
     public static PrivateAlphaSeedOptions Parse(string[] args)
@@ -13,6 +14,7 @@ internal sealed record PrivateAlphaSeedOptions(
         string? migrationsDirectory = null;
         var applyMigrations = true;
         var seedEmbeddings = true;
+        var includeBenchmarkOverlays = false;
 
         for (var index = 0; index < args.Length; index++)
         {
@@ -25,6 +27,7 @@ internal sealed record PrivateAlphaSeedOptions(
                         string.Empty,
                         ApplyMigrations: false,
                         SeedEmbeddings: false,
+                        IncludeBenchmarkOverlays: false,
                         ShowHelp: true);
 
                 case "--connection-string":
@@ -43,6 +46,10 @@ internal sealed record PrivateAlphaSeedOptions(
                     seedEmbeddings = false;
                     break;
 
+                case "--include-benchmark-overlays":
+                    includeBenchmarkOverlays = true;
+                    break;
+
                 default:
                     throw new ArgumentException($"Unknown option '{args[index]}'. Use --help for usage.");
             }
@@ -53,6 +60,7 @@ internal sealed record PrivateAlphaSeedOptions(
             Path.GetFullPath(migrationsDirectory ?? Path.Combine(Directory.GetCurrentDirectory(), "migrations")),
             applyMigrations,
             seedEmbeddings,
+            includeBenchmarkOverlays,
             ShowHelp: false);
     }
 

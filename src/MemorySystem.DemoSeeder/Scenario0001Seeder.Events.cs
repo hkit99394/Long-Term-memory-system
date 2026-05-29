@@ -87,7 +87,8 @@ internal static partial class Scenario0001Seeder
         string? scopeRoleId,
         string trustLevel,
         string contentJson,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string redactionStatus = "none")
     {
         await using var command = new NpgsqlCommand(
             """
@@ -116,7 +117,7 @@ internal static partial class Scenario0001Seeder
                 @content_hash,
                 'standard',
                 'none',
-                'none',
+                @redaction_status,
                 @trust_level,
                 @scope_type,
                 @scope_id,
@@ -148,6 +149,7 @@ internal static partial class Scenario0001Seeder
         command.Parameters.AddWithValue("principal_id", Scenario0001.PrincipalId);
         command.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = contentJson;
         command.Parameters.AddWithValue("content_hash", ComputeSha256(contentJson));
+        command.Parameters.AddWithValue("redaction_status", redactionStatus);
         command.Parameters.AddWithValue("trust_level", trustLevel);
         command.Parameters.AddWithValue("scope_type", scopeType);
         command.Parameters.AddWithValue("scope_id", scopeId);

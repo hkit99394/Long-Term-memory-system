@@ -10,11 +10,15 @@ internal static class Scenario0001
     public static readonly Guid SharedCtoPrincipleEventId = Guid.Parse("88888888-8888-4888-8888-888888888888");
     public static readonly Guid ProjectCtoLensEventId = Guid.Parse("99999999-9999-4999-8999-999999999999");
     public static readonly Guid ProjectBDecisionEventId = Guid.Parse("12121212-1212-4121-8121-121212121212");
+    public static readonly Guid FactFindingContradictionOverlayEventId = Guid.Parse("13131313-1313-4131-8131-131313131313");
+    public static readonly Guid FactFindingRedactedOverlayEventId = Guid.Parse("14141414-1414-4141-8141-141414141414");
 
     public static readonly Guid UserPreferenceMemoryFactId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     public static readonly Guid ProjectDecisionMemoryFactId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     public static readonly Guid SharedCtoPrincipleMemoryFactId = Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
     public static readonly Guid ProjectBDecisionMemoryFactId = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+    public static readonly Guid FactFindingSupersededOverlayMemoryFactId = Guid.Parse("f1f1f1f1-f1f1-4f1f-8f1f-f1f1f1f1f1f1");
+    public static readonly Guid FactFindingRedactedOverlayMemoryFactId = Guid.Parse("f2f2f2f2-f2f2-4f2f-8f2f-f2f2f2f2f2f2");
 
     public static readonly Guid SharedCtoPrincipleRoleMemoryLensId = Guid.Parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
     public static readonly Guid ProjectCtoLensRoleMemoryLensId = Guid.Parse("efefefef-efef-4efe-8efe-efefefefefef");
@@ -61,6 +65,18 @@ internal static class Scenario0001
         ProjectBDecisionMemoryFactId
     ];
 
+    public static readonly Guid[] BenchmarkOverlayEventIds =
+    [
+        FactFindingContradictionOverlayEventId,
+        FactFindingRedactedOverlayEventId
+    ];
+
+    public static readonly Guid[] BenchmarkOverlayMemoryFactIds =
+    [
+        FactFindingSupersededOverlayMemoryFactId,
+        FactFindingRedactedOverlayMemoryFactId
+    ];
+
     public static readonly Guid[] RoleMemoryLensIds =
     [
         SharedCtoPrincipleRoleMemoryLensId,
@@ -91,4 +107,10 @@ internal static class Scenario0001
 
     public const string ProjectBDecisionEventContent =
         """{"decision":"Use a confidential runway model for funding strategy.","sensitivity":"private project b data used only for the non-leakage check."}""";
+
+    public const string FactFindingContradictionOverlayEventContent =
+        """{"decision":"Earlier Project A planning considered ORM-first migrations for M1-M3 data access, but that record is superseded by the current SQL-first Npgsql decision.","fixture":"fact_finding_contradiction_overlay"}""";
+
+    public const string FactFindingRedactedOverlayEventContent =
+        """{"message":"Redacted benchmark overlay source marker.","fixture":"fact_finding_contradiction_overlay"}""";
 }

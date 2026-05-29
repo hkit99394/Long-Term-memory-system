@@ -154,7 +154,7 @@
             "method": "POST",
             "path": "/api/memory/query-facts",
             "body": {
-              "query": "Did ORM-first migrations replace SQL-first Npgsql for Project A?",
+              "query": "M1-M3 data access",
               "targetScope": {
                 "scopeType": "project",
                 "scopeId": "33333333-3333-4333-8333-333333333333"
