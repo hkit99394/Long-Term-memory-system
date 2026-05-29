@@ -2,7 +2,9 @@
 
 These examples show the LMSS v1 workflow from a client or agent-tool point of
 view. They use the curated [OpenAPI contract](agent-memory-v1.openapi.json) and
-the private-alpha Scenario 0001 local API setup.
+the private-alpha Scenario 0001 local API setup. For field-level scope,
+namespace, role, trust, retention, sensitivity, and evidence rules, see
+[Policy Targeting For Agent Callers](policy-targeting-for-agent-callers.md).
 
 ## Prerequisites
 

@@ -9,6 +9,7 @@ use of the memory system.
 | --- | --- |
 | [agent-memory-v1.openapi.json](agent-memory-v1.openapi.json) | LMSS v1 OpenAPI contract for the existing agent-facing memory workflow. |
 | [agent-memory-v1-examples.md](agent-memory-v1-examples.md) | Client examples for the v1 memory workflow. |
+| [policy-targeting-for-agent-callers.md](policy-targeting-for-agent-callers.md) | Caller-facing policy guide for principal, scope, namespace, role, trust, retention, sensitivity, and source evidence fields. |
 | [memory-query-facts-implementation-plan.md](memory-query-facts-implementation-plan.md) | LMSS-04 implementation plan for the implemented `memory.queryFacts` endpoint. |
 
 ## Examples

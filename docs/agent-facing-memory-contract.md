@@ -71,6 +71,9 @@ schemas.
 | `sourceEventId` | Evidence event that justifies a durable memory write or review action. | Durable writes |
 | `idempotencyKey` | Stable client key for retrying durable mutating calls that support idempotent replay. | Retry-safe mutating tools |
 
+The caller-facing policy guide is
+[Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md).
+
 `principalId` should normally come from the API key, OIDC token, service
 account, or future agent identity. The public contract should avoid asking an
 LLM to invent a principal.
@@ -94,7 +97,7 @@ capabilities.
 | `memory.recordContextFeedback` | `POST /api/memory/context/feedback` | Record useful, stale, missing, or noisy retrieval feedback without raw query storage. | Existing |
 | `memory.readFact` | `GET /api/memory/{id}` | Read one authorized memory fact. | Existing |
 | `memory.readEvidence` | `GET /api/events/{id}` | Read one authorized source event. | Existing |
-| `memory.queryFacts` | New or facade endpoint | Return fact-finding results with evidence, confidence, contradictions, and policy metadata. | Planned |
+| `memory.queryFacts` | `POST /api/memory/query-facts` | Return fact-finding results with evidence, confidence, contradictions, and policy metadata. | Existing |
 
 The v1 OpenAPI/tool schema should publish these names even if the first
 implementation uses the current HTTP endpoints internally.
@@ -411,7 +414,7 @@ LMSS-01 is complete when:
 - the v1 tool surface is named
 - shared targeting fields are defined
 - existing endpoint mappings are identified
-- the planned `memory.queryFacts` contract is specified at a product/API level
+- the `memory.queryFacts` contract is specified at a product/API level
 - safety and error semantics are documented
 - backlog and product plan point to this contract
 
