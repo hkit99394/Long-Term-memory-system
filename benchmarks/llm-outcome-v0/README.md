@@ -63,7 +63,14 @@ Generated outputs are ignored by git.
    python3 generate_prompt_pack.py
    ```
 
-4. Fetch memory-on context packets:
+4. Generate answer and scorecard templates:
+
+   ```bash
+   python3 generate_answer_template.py
+   python3 generate_scorecard_template.py
+   ```
+
+5. Fetch memory-on context packets:
 
    ```bash
    MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 \
@@ -71,22 +78,35 @@ Generated outputs are ignored by git.
    python3 fetch_contexts.py
    ```
 
-5. For each task, run `memory_off` first.
+6. For each task, run `memory_off` first.
 
-6. For `memory_on`, paste the corresponding context JSON from
+7. For `memory_on`, paste the corresponding context JSON from
    `../outputs/llm-outcome-v0/contexts/` into the prompt pack placeholder.
 
-7. Score both outputs with [rubric.md](rubric.md).
+8. Capture both outputs in the generated answer template.
 
-8. Record a short report under `benchmarks/outputs/llm-outcome-v0/`.
+9. Score both outputs with [rubric.md](rubric.md) and fill a run-specific
+   scorecard based on [scorecard.md](scorecard.md). Copy the generated
+   `../outputs/llm-outcome-v0/scorecard-template.json` to a run-specific
+   ignored file before editing it.
+
+10. Summarize the scorecard:
+
+    ```bash
+    python3 summarize_scores.py \
+      --scorecard ../outputs/llm-outcome-v0/scorecard-my-run.json
+    ```
+
+11. Record or curate the resulting report under
+    `benchmarks/outputs/llm-outcome-v0/`.
 
 ## Pass Gate
 
 The suite should not pass if any of these are nonzero:
 
-- `unsafe_leak_count`
-- `redacted_content_usage_count`
-- `cross_scope_fact_usage_count`
+- `unsafeLeakCount`
+- `redactedContentUsageCount`
+- `crossScopeFactUsageCount`
 
 The first desired product signal is:
 
