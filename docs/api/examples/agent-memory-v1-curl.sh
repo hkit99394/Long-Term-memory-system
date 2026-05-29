@@ -172,6 +172,27 @@ context_response="$(curl --fail-with-body -sS --get "${BASE_URL}/api/memory/cont
   --data-urlencode "limit=12")"
 printf '%s\n' "${context_response}" | pretty_json
 
+query_facts_body="$(cat <<JSON
+{
+  "query": "What migration strategy is accepted for Project A?",
+  "targetScope": {
+    "scopeType": "project",
+    "scopeId": "${PROJECT_A_ID}"
+  },
+  "roleId": "cto",
+  "namespaces": ["/project/${PROJECT_A_ID}/decisions"],
+  "memoryTypes": ["decision"],
+  "includeContradictions": true,
+  "includeExcluded": true,
+  "limit": 8
+}
+JSON
+)"
+
+echo
+echo "8. Query facts with evidence and policy metadata"
+post_json "/api/memory/query-facts" "${query_facts_body}" | pretty_json
+
 source_pair="$(printf '%s' "${context_response}" | first_context_source || true)"
 
 if [[ -n "${source_pair}" ]]; then
@@ -202,5 +223,5 @@ JSON
 fi
 
 echo
-echo "8. Record context feedback"
+echo "9. Record context feedback"
 post_json "/api/memory/context/feedback" "${feedback_body}" | pretty_json

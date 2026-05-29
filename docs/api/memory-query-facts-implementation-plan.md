@@ -11,7 +11,8 @@ without receiving a prose answer. It should return authorized facts, source
 evidence, confidence, lifecycle status, contradiction summaries, and safe policy
 metadata.
 
-This is a design artifact only. LMSS-05 will implement the endpoint.
+This started as a design artifact for LMSS-04. LMSS-05 implements the endpoint
+from this plan.
 
 ## Product Contract
 

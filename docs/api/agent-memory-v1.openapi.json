@@ -245,6 +245,45 @@
         }
       }
     },
+    "/api/memory/query-facts": {
+      "post": {
+        "operationId": "memory_queryFacts",
+        "x-agent-tool-name": "memory.queryFacts",
+        "summary": "Query authorized memory facts",
+        "description": "Returns active authorized memory facts with deterministic claims, source links, confidence, lifecycle state, contradiction summaries, safe exclusion summaries, and policy metadata. This is a read operation and does not use Idempotency-Key.",
+        "tags": [
+          "Memory Facts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryQueryFactsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized fact-finding result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryQueryFactsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/api/memory/{id}": {
       "get": {
         "operationId": "memory_readFact",
@@ -1204,6 +1243,324 @@
         },
         "additionalProperties": false
       },
+      "MemoryQueryFactsRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetScope": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemoryQueryFactsTargetScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roleId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoleId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "namespaces": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^/"
+            }
+          },
+          "memoryTypes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MemoryType"
+            }
+          },
+          "includeContradictions": {
+            "type": "boolean",
+            "default": false
+          },
+          "includeExcluded": {
+            "type": "boolean",
+            "default": false
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 20,
+            "default": 8
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFactsTargetScope": {
+        "type": "object",
+        "required": [
+          "scopeType",
+          "scopeId"
+        ],
+        "properties": {
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFactsResponse": {
+        "type": "object",
+        "required": [
+          "query",
+          "facts",
+          "contradictions",
+          "excluded",
+          "warnings",
+          "overallConfidence"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "targetScope": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemoryQueryFactsTargetScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryQueryFact"
+            }
+          },
+          "contradictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryQueryFactContradiction"
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryQueryFactExclusion"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "overallConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFact": {
+        "type": "object",
+        "required": [
+          "id",
+          "claim",
+          "memoryType",
+          "status",
+          "confidence",
+          "scopeType",
+          "scopeId",
+          "namespace",
+          "sourceEventIds",
+          "sourceLinks",
+          "policy"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim": {
+            "type": "string"
+          },
+          "memoryType": {
+            "$ref": "#/components/schemas/MemoryType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MemoryStatus"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "sourceEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "sourceLinks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "policy": {
+            "$ref": "#/components/schemas/MemoryQueryFactPolicy"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFactPolicy": {
+        "type": "object",
+        "required": [
+          "authorized",
+          "trustLevel",
+          "sensitivity",
+          "lifecycleStatus",
+          "evidenceCurrent"
+        ],
+        "properties": {
+          "authorized": {
+            "type": "boolean",
+            "const": true
+          },
+          "trustLevel": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "sensitivity": {
+            "$ref": "#/components/schemas/Sensitivity"
+          },
+          "lifecycleStatus": {
+            "$ref": "#/components/schemas/MemoryStatus"
+          },
+          "evidenceCurrent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFactContradiction": {
+        "type": "object",
+        "required": [
+          "subject",
+          "predicate",
+          "currentFactId",
+          "relatedFactId",
+          "relatedStatus",
+          "summary",
+          "sourceEventIds",
+          "sourceLinks"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "currentFactId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relatedFactId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relatedStatus": {
+            "$ref": "#/components/schemas/MemoryStatus"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "sourceEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "sourceLinks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryQueryFactExclusion": {
+        "type": "object",
+        "required": [
+          "reason",
+          "count"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "countDisclosure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "withheld",
+              null
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "MemoryFactResponse": {
         "type": "object",
         "required": [
@@ -1384,6 +1741,8 @@
           "preference",
           "decision",
           "fact",
+          "principle",
+          "summary",
           "role_principle",
           "project_role_lens",
           "agent_private",

@@ -273,11 +273,17 @@ Contract rules:
 - `useful`, `stale`, and `noisy` feedback should identify the retrieved source.
 - `missing` feedback may omit source id because it points to absent memory.
 
-## Planned Fact-Finding Contract
+## Fact-Finding Contract
 
-`memory.queryFacts` is the main new v1 contract. It should answer "what does the
+`memory.queryFacts` is the main new v1 contract. It answers "what does the
 system know, with evidence and policy context?" rather than building an LLM
 prompt packet.
+
+Current endpoint:
+
+```text
+POST /api/memory/query-facts
+```
 
 Input shape:
 
@@ -322,7 +328,9 @@ Expected output shape:
       "policy": {
         "authorized": true,
         "trustLevel": "human_approved",
-        "sensitivity": "internal"
+        "sensitivity": "none",
+        "lifecycleStatus": "active",
+        "evidenceCurrent": true
       }
     }
   ],

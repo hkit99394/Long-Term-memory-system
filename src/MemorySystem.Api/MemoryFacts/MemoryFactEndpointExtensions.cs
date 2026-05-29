@@ -72,6 +72,16 @@ public static class MemoryFactEndpointExtensions
                 await RecordContextFeedbackAsync(context, feedbackStore, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
+        endpoints.MapPost(
+            "/api/memory/query-facts",
+            async (
+                HttpContext context,
+                IMemoryFactFindingService factFindingService,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await QueryFactsAsync(context, factFindingService, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
+            .RequireAuthorization();
+
         endpoints.MapGet(
             "/api/memory/{id:guid}",
             async (
@@ -352,6 +362,71 @@ public static class MemoryFactEndpointExtensions
                 record.QueryHash,
                 record.FeedbackType,
                 record.CreatedAt));
+    }
+
+    private static async Task<IResult> QueryFactsAsync(
+        HttpContext context,
+        IMemoryFactFindingService factFindingService,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<MemoryQueryFactsRequest>(
+            context.Request,
+            "Memory fact query is invalid.",
+            cancellationToken);
+
+        if (!requestResult.Succeeded)
+        {
+            return Results.Json(
+                requestResult.Problem!.Body,
+                statusCode: requestResult.Problem.StatusCode);
+        }
+
+        var request = requestResult.Value!;
+        var query = new MemoryFactFindingQuery(
+            principalId,
+            request.Query ?? string.Empty,
+            request.TargetScope?.ScopeType,
+            request.TargetScope?.ScopeId,
+            request.RoleId,
+            request.Namespaces,
+            request.MemoryTypes,
+            request.IncludeContradictions,
+            request.IncludeExcluded,
+            request.Limit ?? 0);
+
+        MemoryFactFindingResult result;
+
+        try
+        {
+            result = await factFindingService.QueryFactsAsync(query, cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory fact query is invalid.",
+                detail: exception.Message);
+        }
+
+        logger.LogInformation(
+            "Memory fact query completed. PrincipalId={PrincipalId} QueryLength={QueryLength} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} Limit={Limit} FactCount={FactCount} ContradictionCount={ContradictionCount} WarningCount={WarningCount}",
+            principalId,
+            result.Query.Length,
+            result.TargetScope?.ScopeType,
+            result.TargetScope?.ScopeId,
+            result.RoleId,
+            query.Limit == 0 ? 8 : query.Limit,
+            result.Facts.Count,
+            result.Contradictions.Count,
+            result.Warnings.Count);
+
+        return Results.Ok(ToQueryFactsResponse(result));
     }
 
     private static bool TryCreateFeedbackCommand(
@@ -717,6 +792,67 @@ public static class MemoryFactEndpointExtensions
     private static MemoryContextSourceEventResponse ToSourceEventResponse(MemoryContextSourceEvent sourceEvent)
     {
         return new MemoryContextSourceEventResponse(sourceEvent.Id, sourceEvent.Link);
+    }
+
+    private static MemoryQueryFactsResponse ToQueryFactsResponse(MemoryFactFindingResult result)
+    {
+        return new MemoryQueryFactsResponse(
+            result.Query,
+            result.TargetScope is null
+                ? null
+                : new MemoryQueryFactsTargetScopeResponse(
+                    result.TargetScope.ScopeType,
+                    result.TargetScope.ScopeId),
+            result.RoleId,
+            result.Facts.Select(ToQueryFactResponse).ToArray(),
+            result.Contradictions.Select(ToQueryFactContradictionResponse).ToArray(),
+            result.Excluded.Select(ToQueryFactExclusionResponse).ToArray(),
+            result.Warnings,
+            result.OverallConfidence);
+    }
+
+    private static MemoryQueryFactResponse ToQueryFactResponse(MemoryFactFindingFact fact)
+    {
+        return new MemoryQueryFactResponse(
+            fact.Id,
+            fact.Claim,
+            fact.MemoryType,
+            fact.Status,
+            fact.Confidence,
+            fact.ScopeType,
+            fact.ScopeId,
+            fact.Namespace,
+            fact.SourceEventIds,
+            fact.SourceLinks,
+            new MemoryQueryFactPolicyResponse(
+                fact.Policy.Authorized,
+                fact.Policy.TrustLevel,
+                fact.Policy.Sensitivity,
+                fact.Policy.LifecycleStatus,
+                fact.Policy.EvidenceCurrent));
+    }
+
+    private static MemoryQueryFactContradictionResponse ToQueryFactContradictionResponse(
+        MemoryFactFindingContradiction contradiction)
+    {
+        return new MemoryQueryFactContradictionResponse(
+            contradiction.Subject,
+            contradiction.Predicate,
+            contradiction.CurrentFactId,
+            contradiction.RelatedFactId,
+            contradiction.RelatedStatus,
+            contradiction.Summary,
+            contradiction.SourceEventIds,
+            contradiction.SourceLinks);
+    }
+
+    private static MemoryQueryFactExclusionResponse ToQueryFactExclusionResponse(
+        MemoryFactExclusionSummary exclusion)
+    {
+        return new MemoryQueryFactExclusionResponse(
+            exclusion.Reason,
+            exclusion.Count,
+            exclusion.CountDisclosure);
     }
 
     private static MemoryFactResponse ToResponse(MemoryFactRecord memoryFact)

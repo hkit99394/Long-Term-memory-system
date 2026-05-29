@@ -39,7 +39,8 @@ workflow:
 5. Read the source evidence with `memory.readEvidence`.
 6. Read the stored memory fact with `memory.readFact` when the broker stores it.
 7. Retrieve Project A CTO context with `memory.getContext`.
-8. Record context feedback with `memory.recordContextFeedback`.
+8. Query Project A facts with `memory.queryFacts`.
+9. Record context feedback with `memory.recordContextFeedback`.
 
 The feedback request includes the raw query because the API needs it to compute
 the hash, but the server stores only `queryHash`.
@@ -116,6 +117,27 @@ curl -sS --get "$MEMORYSYSTEM_API_BASE_URL/api/memory/context" \
   --data-urlencode "limit=12"
 ```
 
+Query facts with source links and policy metadata:
+
+```bash
+curl -sS -X POST "$MEMORYSYSTEM_API_BASE_URL/api/memory/query-facts" \
+  -H "X-Api-Key: $MEMORYSYSTEM_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "query": "What migration strategy is accepted for Project A?",
+    "targetScope": {
+      "scopeType": "project",
+      "scopeId": "33333333-3333-4333-8333-333333333333"
+    },
+    "roleId": "cto",
+    "namespaces": ["/project/33333333-3333-4333-8333-333333333333/decisions"],
+    "memoryTypes": ["decision"],
+    "includeContradictions": true,
+    "includeExcluded": true,
+    "limit": 8
+  }'
+```
+
 Record useful feedback for one returned item:
 
 ```bash
@@ -145,3 +167,6 @@ Reusing the same key with a different body returns an idempotency conflict.
 `POST /api/memory/context/feedback` is append-only today. It intentionally has
 no `Idempotency-Key` in the v1 contract, so clients should avoid blind retries
 unless duplicate observations are acceptable.
+
+`POST /api/memory/query-facts` is a read operation. It also has no
+`Idempotency-Key`; callers can retry it like any other read.

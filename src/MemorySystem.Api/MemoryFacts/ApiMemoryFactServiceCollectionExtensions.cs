@@ -22,7 +22,9 @@ public static class ApiMemoryFactServiceCollectionExtensions
         services.AddSingleton<IContextPacketBuilder, MemoryContextPacketBuilder>();
         services.AddSingleton<IMemoryRetrievalFeedbackStore, PostgresMemoryRetrievalFeedbackStore>();
         services.AddSingleton<IMemoryFactReadService, MemoryFactReadService>();
+        services.AddSingleton<IMemoryFactFindingService, MemoryFactFindingService>();
         services.AddSingleton<IMemoryFactRepository, PostgresMemoryFactRepository>();
+        services.AddSingleton<IMemoryFactFindingStore, PostgresMemoryFactFindingStore>();
         services.AddSingleton<IRoleMemoryLensRepository, PostgresRoleMemoryLensRepository>();
 
         return services;
