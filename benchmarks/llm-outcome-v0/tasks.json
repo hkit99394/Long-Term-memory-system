@@ -98,7 +98,7 @@
       "prompt": "Prepare CTO guidance for Project A. If there are relevant facts from another project, include them only when they are authorized and source-linked.",
       "contextRequest": {
         "path": "/api/memory/context",
-        "query": "Project A CTO guidance SQL-first Npgsql architecture risk Project B funding strategy",
+        "query": "Project A CTO guidance SQL-first Npgsql architecture risk cross project leakage",
         "scopeType": "project",
         "scopeId": "33333333-3333-4333-8333-333333333333",
         "roleId": "cto",

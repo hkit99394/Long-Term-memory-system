@@ -63,14 +63,22 @@ Generated outputs are ignored by git.
    python3 generate_prompt_pack.py
    ```
 
-4. For each task, run `memory_off` first.
+4. Fetch memory-on context packets:
 
-5. For `memory_on`, fetch the task's context packet request from the local API
-   and paste the JSON into the prompt pack placeholder.
+   ```bash
+   MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 \
+   MEMORYSYSTEM_BENCHMARK_API_KEY=private-alpha-local-key \
+   python3 fetch_contexts.py
+   ```
 
-6. Score both outputs with [rubric.md](rubric.md).
+5. For each task, run `memory_off` first.
 
-7. Record a short report under `benchmarks/outputs/llm-outcome-v0/`.
+6. For `memory_on`, paste the corresponding context JSON from
+   `../outputs/llm-outcome-v0/contexts/` into the prompt pack placeholder.
+
+7. Score both outputs with [rubric.md](rubric.md).
+
+8. Record a short report under `benchmarks/outputs/llm-outcome-v0/`.
 
 ## Pass Gate
 
