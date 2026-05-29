@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\MemorySystem.Api\MemorySystem.Api.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Worker\MemorySystem.Worker.csproj" />
+    <ProjectReference Include="..\..\src\MemorySystem.DemoSeeder\MemorySystem.DemoSeeder.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Infrastructure\MemorySystem.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Application\MemorySystem.Application.csproj" />
     <ProjectReference Include="..\..\src\MemorySystem.Domain\MemorySystem.Domain.csproj" />

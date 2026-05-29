@@ -18,19 +18,13 @@ At the end of the workflow, a reviewer should be able to say:
 
 ## Setup
 
-Start the database:
+Create the repeatable private-alpha demo database state:
 
 ```bash
-docker compose up -d --wait postgres
+./scripts/seed-private-alpha-demo.sh
 ```
 
-Apply migrations:
-
-```bash
-dotnet run --project src/MemorySystem.Migrator -- \
-  --connection-string "Host=127.0.0.1;Port=55432;Database=memory_system;Username=memory_system;Password=memory_system_dev_password" \
-  --migrations-directory migrations
-```
+The command starts local PostgreSQL if needed, applies migrations, and upserts the Scenario 0001 actors, memberships, role assignments, grants, source events, memory facts, role lenses, chunks, outbox jobs, and deterministic embeddings.
 
 Run the API:
 
@@ -46,10 +40,19 @@ dotnet run --project src/MemorySystem.Worker
 
 The worker processes outbox jobs and runs the first retention automation. By default it minimizes unreferenced `ephemeral` source-event payloads after seven days, once on startup and then hourly.
 
-For authenticated API calls, configure an API key and make sure the mapped principal exists in PostgreSQL. Local integration tests show the canonical test principal:
+For authenticated API calls, configure an API key mapped to the seeded principal:
 
 ```text
 11111111-1111-4111-8111-111111111111
+```
+
+Example local API configuration:
+
+```bash
+Authentication__ApiKey__Keys__local-jack__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local-jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local-jack__DisplayName="Jack Tam" \
+dotnet run --project src/MemorySystem.Api
 ```
 
 ## Workflow
@@ -57,6 +60,8 @@ For authenticated API calls, configure an API key and make sure the mapped princ
 ### 1. Append Source Evidence
 
 Append source events for the user preference, project decision, shared CTO principle, and project CTO lens. The payloads are defined in [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md#source-events).
+
+The seed runner has already inserted those events so reviewers can start from the full scenario immediately. Re-appending through the API is still useful when testing idempotency and write authorization.
 
 Expected result:
 

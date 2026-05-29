@@ -20,6 +20,14 @@ Start PostgreSQL with pgvector:
 docker compose up -d --wait postgres
 ```
 
+Seed the private-alpha Scenario 0001 demo data:
+
+```bash
+./scripts/seed-private-alpha-demo.sh
+```
+
+The seed command starts PostgreSQL if needed, applies migrations, and upserts the Scenario 0001 actors, access rules, source events, durable memory, role lenses, chunks, outbox jobs, and deterministic embeddings.
+
 Build and test the service:
 
 ```bash
@@ -64,6 +72,12 @@ The first product workflow is documented in [Private Alpha Workflow](docs/privat
 6. Check the operational summary.
 
 Use [Scenario 0001](docs/scenarios/0001-user-preference-project-decision-cto-context.md) as the demo story.
+
+Create the demo data with:
+
+```bash
+./scripts/seed-private-alpha-demo.sh
+```
 
 ## Documentation
 

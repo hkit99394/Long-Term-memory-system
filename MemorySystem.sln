@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemorySystem.IntegrationTes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemorySystem.Migrator", "src\MemorySystem.Migrator\MemorySystem.Migrator.csproj", "{CF003B30-2127-44B6-9B3D-47835B75B2F1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemorySystem.DemoSeeder", "src\MemorySystem.DemoSeeder\MemorySystem.DemoSeeder.csproj", "{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{CF003B30-2127-44B6-9B3D-47835B75B2F1}.Release|x64.Build.0 = Release|Any CPU
 		{CF003B30-2127-44B6-9B3D-47835B75B2F1}.Release|x86.ActiveCfg = Release|Any CPU
 		{CF003B30-2127-44B6-9B3D-47835B75B2F1}.Release|x86.Build.0 = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|x64.Build.0 = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Debug|x86.Build.0 = Debug|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|x64.ActiveCfg = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|x64.Build.0 = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|x86.ActiveCfg = Release|Any CPU
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{76622D9A-2B12-46DF-BF79-DEE482A8B69F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{D3104BF9-EBD1-4DE7-9786-D9BAB1644D1B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CF003B30-2127-44B6-9B3D-47835B75B2F1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{93DC6623-0DFF-4AC5-89BF-E37A4D698D66} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

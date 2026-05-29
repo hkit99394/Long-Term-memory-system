@@ -94,6 +94,12 @@ role_assignment:
   scope_type: "project"
   scope_id: "33333333-3333-4333-8333-333333333333"
 
+role_assignment:
+  principal_id: "11111111-1111-4111-8111-111111111111"
+  role_id: "cto"
+  scope_type: "org"
+  scope_id: "22222222-2222-4222-8222-222222222222"
+
 memory_grants:
   - principal_id: "11111111-1111-4111-8111-111111111111"
     permission: "read"
@@ -110,6 +116,9 @@ memory_grants:
   - role_id: "cto"
     permission: "read"
     namespace_prefix: "/role/cto/shared"
+  - role_id: "cto"
+    permission: "read"
+    namespace_prefix: "/org/22222222-2222-4222-8222-222222222222/role/cto/lens"
   - role_id: "cto"
     permission: "read"
     namespace_prefix: "/project/33333333-3333-4333-8333-333333333333/role/cto/lens"
@@ -248,6 +257,9 @@ Shared CTO principle:
 role_memory_lens:
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
   role_id: "cto"
+  scope_type: "org"
+  scope_id: "22222222-2222-4222-8222-222222222222"
+  org_id: "22222222-2222-4222-8222-222222222222"
   project_id: null
   base_memory_fact_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
   interpretation: "A CTO context packet should foreground architecture risk, operational reversibility, delivery sequencing, and security boundaries."
@@ -261,6 +273,9 @@ Project CTO lens:
 role_memory_lens:
   id: "efefefef-efef-4efe-8efe-efefefefefef"
   role_id: "cto"
+  scope_type: "project"
+  scope_id: "33333333-3333-4333-8333-333333333333"
+  org_id: "22222222-2222-4222-8222-222222222222"
   project_id: "33333333-3333-4333-8333-333333333333"
   base_memory_fact_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
   interpretation: "For the CTO view, the SQL-first Npgsql decision should be treated as a risk-reduction move: it keeps authorization predicates visible while the schema and event provenance model are still stabilizing."
