@@ -6,11 +6,11 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 
 ## Current Track
 
-Current milestone: M8 Operational Readiness is complete through the current backlog.
+Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: post-MVP production deployment hardening.
+Next milestone: production observability and alerting.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -102,6 +102,10 @@ Before M8 implementation:
 - Retention and erasure behavior is decided in [Decision 0036](decisions/0036-retention-and-erasure-policy.md): raw event payload retention classes, legal hold precedence, erasure workflow expectations, audit-safe metadata, and current automation gaps are documented in [Retention Policy](retention-policy.md).
 - Backup and restore behavior is decided in [Decision 0037](decisions/0037-backup-and-restore-runbook.md): PostgreSQL custom-format backups, restore validation databases, migration checks, readiness checks, and retention-aware restore caveats are documented in [Backup and Restore Runbook](backup-restore.md).
 - Production secret handling is decided in [Decision 0038](decisions/0038-production-secret-handling.md): API keys, PostgreSQL credentials, and embedding provider credentials are supplied from runtime configuration or a secret store, with startup guardrails documented in [Production Secret Handling](production-secrets.md).
+
+After M8:
+
+- Production-pilot deployment shape is decided in [Decision 0039](decisions/0039-production-deployment-shape.md): the production pilot uses separate migrator, API, and worker roles, managed PostgreSQL with pgvector, secret-store injection, application rollback, and restore-to-new-database validation documented in [Production Deployment Shape](production-deployment-shape.md).
 
 ## First Build Sequence
 

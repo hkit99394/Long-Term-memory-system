@@ -76,13 +76,14 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 29, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text and expose recent retrieval feedback metrics in the operator summary. The next planned slices are the full LMSS benchmark smoke contradiction overlay and the production-pilot deployment shape. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, and define the production-pilot deployment shape. The next planned slice is production observability. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
    - Separate migrator, API, and worker processes.
    - Secret store integration.
    - Rollback procedure and restore validation.
+   - Done: define the [Production Deployment Shape](production-deployment-shape.md) for the production-pilot migrator/API/worker split, managed PostgreSQL expectations, secret-store assumptions, rollback procedure, and restore validation path.
 
 2. Add production observability.
    - OpenTelemetry traces for proposal, review, retrieval, embedding, outbox, and vault export flows.
