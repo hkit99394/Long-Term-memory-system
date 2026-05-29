@@ -112,7 +112,9 @@ Status values:
 
 M8 operational readiness backlog is complete. Short Run is complete. Middle Run
 now has two connected tracks: production-pilot operations and the
-agent-facing LLM Memory Support Service v1 contract.
+agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
+slice is documented, implemented, and benchmarkable; the next open production
+pilot item is MR-02.
 
 ## Middle Run Production Pilot
 
@@ -131,4 +133,4 @@ agent-facing LLM Memory Support Service v1 contract.
 | LMSS-04 | P0 | Done | Design `memory.queryFacts` implementation plan. | [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) maps the planned fact-finding contract to repositories, authorization predicates, contradiction handling, response DTOs, and database-backed tests before implementation. |
 | LMSS-05 | P0 | Done | Implement fact-finding endpoint with evidence and policy metadata. | `POST /api/memory/query-facts` lets agents query authorized facts and receive claims, source ids, confidence, lifecycle status, contradiction summaries, exclusion summaries, and policy metadata. |
 | LMSS-06 | P1 | Done | Document policy targeting for agent callers. | [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) documents principal resolution, target scope, namespace, role id, trust level, retention class, sensitivity, and source event rules with examples. |
-| LMSS-07 | P1 | Next | Add benchmark tasks for agent contract usefulness. | Benchmark tasks measure whether the agent-facing contract improves fact finding, evidence use, contradiction handling, and safe scoped answers. |
+| LMSS-07 | P1 | Done | Add benchmark tasks for agent contract usefulness. | [Agent Contract Usefulness v1](../benchmarks/agent-contract-usefulness-v1/README.md) benchmark tasks measure whether the agent-facing contract improves fact finding, evidence use, contradiction handling, role targeting, feedback hygiene, and safe scoped answers. |

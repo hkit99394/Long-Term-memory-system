@@ -14,8 +14,10 @@ memory than without it.
 
 The working benchmark fixtures and runners live under
 [`benchmarks/`](../benchmarks/README.md). Start with
-[`benchmarks/llm-outcome-v0`](../benchmarks/llm-outcome-v0/README.md) before
-adding broader benchmark suites.
+[`benchmarks/llm-outcome-v0`](../benchmarks/llm-outcome-v0/README.md) for
+general product outcome lift and
+[`benchmarks/agent-contract-usefulness-v1`](../benchmarks/agent-contract-usefulness-v1/README.md)
+for LMSS v1 agent-contract usefulness.
 
 ## Benchmark Layers
 
@@ -24,6 +26,7 @@ adding broader benchmark suites.
 | Retrieval quality | Did the system retrieve the right memory? | Precision, recall, stale/noisy rate, source-link coverage |
 | Broker write quality | Did the system remember the right things? | Durable write precision, duplicate handling, contradiction routing |
 | LLM outcome quality | Did the LLM do better work with memory? | Memory Lift over no-memory and naive-notes baselines |
+| Agent contract usefulness | Did the v1 tool contract help the LLM find, verify, and safely use memory? | Contract Lift over a memory-off baseline |
 | Safety and governance | Did memory stay scoped, current, and auditable? | Leak count, stale fact usage, redaction failures |
 | Performance | Did the system stay responsive as memory grows? | p50/p95 latency and worker throughput |
 | Operations | Can operators trust the system under load and recovery? | Outbox age, dead-letter rate, backup/restore success |
@@ -36,6 +39,7 @@ Every LLM outcome benchmark should compare at least two modes:
 | --- | --- | --- |
 | Memory off | The LLM receives only the task prompt and normal system instructions. | Establishes the baseline model capability. |
 | Memory on | The LLM receives a scoped context packet from this memory system. | Measures the value of governed memory. |
+| Agent contract | The LLM receives LMSS v1 tool responses such as `memory.queryFacts`, `memory.readEvidence`, and `memory.getContext`. | Measures whether the explicit contract improves factuality, evidence use, lifecycle handling, and scoped safety. |
 | Naive notes | Optional mode where the LLM receives a raw or lightly curated note dump. | Tests whether governance and ranking beat simple context stuffing. |
 
 Use the same model, temperature, task prompt, and grading rubric across modes.
@@ -206,6 +210,39 @@ Metrics:
 
 The benchmark should distinguish general reasoning from project-specific claims.
 Project-specific claims should be grounded in memory or docs.
+
+## Agent Contract Usefulness Benchmarks
+
+The LMSS v1 contract should improve the final answer because it gives agents
+structured fact, source, lifecycle, contradiction, and policy information. This
+is different from generic context-packet lift: a contract-aware agent should be
+able to say what is known, why it is known, what is stale, and what must stay
+unknown.
+
+The current task fixture lives in
+[`benchmarks/agent-contract-usefulness-v1`](../benchmarks/agent-contract-usefulness-v1/README.md).
+It covers:
+
+- direct fact finding through `memory.queryFacts`
+- evidence-backed rationale through `memory.readEvidence`
+- contradiction and lifecycle handling when an overlay fixture provides stale
+  or superseded facts
+- Project A answers that do not leak Project B private memory
+- role-targeted CTO guidance through `memory.getContext`
+- policy-aware abstention when no authorized fact is returned
+- source-backed preference use
+- safe retrieval feedback call generation
+
+Use Contract Lift as the top-level metric:
+
+```text
+Contract Lift = score(agent_contract) - score(memory_off)
+```
+
+Safety is a gate. A run fails if it leaks unauthorized memory, reveals withheld
+counts, invents source ids, uses redacted content, or treats inactive memory as
+current. Memory-derived claims should preserve source ids or source links when
+the contract returns them.
 
 ## Technical Benchmarks
 

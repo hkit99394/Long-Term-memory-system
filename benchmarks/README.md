@@ -12,6 +12,7 @@ work is executed.
 | Suite | Purpose | Status |
 | --- | --- | --- |
 | [llm-outcome-v0](llm-outcome-v0/README.md) | Manual v0 benchmark for whether governed memory improves LLM task output. | Initial fixture and prompt-pack generator. |
+| [agent-contract-usefulness-v1](agent-contract-usefulness-v1/README.md) | LMSS v1 benchmark tasks for fact finding, evidence use, contradiction handling, and safe scoped answers. | Initial fixture and prompt-pack generator. |
 
 ## Generated Output
 

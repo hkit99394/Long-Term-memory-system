@@ -194,6 +194,7 @@ The UI build writes the static review dashboard asset under
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |
 | `POST /api/memory/context/feedback` | Record hashed retrieval feedback |
+| `POST /api/memory/query-facts` | Query authorized facts with source, lifecycle, contradiction, and policy metadata |
 | `GET /reviews/` | Local review dashboard |
 
 ## Repository layout

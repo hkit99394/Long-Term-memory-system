@@ -117,6 +117,7 @@ Status: Started as of May 29, 2026. The first Middle Run slice is a persisted co
    - Done: design the [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) before adding the endpoint.
    - Done: implement `POST /api/memory/query-facts` with authorized claims, source links, lifecycle status, contradiction summaries, safe exclusion summaries, and policy metadata.
    - Done: document [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md), covering principal resolution, scope, namespace, role, trust, retention, sensitivity, and source evidence fields.
+   - Done: add the [Agent Contract Usefulness v1](../benchmarks/agent-contract-usefulness-v1/README.md) benchmark suite for LMSS fact finding, evidence use, contradiction handling, scoped safety, role targeting, and feedback hygiene.
 
 7. Move core concepts into the domain model.
    - Promote stable concepts such as scope, namespace, trust level, memory lifecycle, retention class, and source evidence into the Domain layer where useful.

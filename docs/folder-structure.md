@@ -274,6 +274,9 @@ Current suite:
 
 - `benchmarks/llm-outcome-v0`: manual benchmark for whether governed memory
   improves LLM task output over a memory-off baseline.
+- `benchmarks/agent-contract-usefulness-v1`: LMSS v1 benchmark tasks for
+  contract-aware fact finding, evidence use, contradiction handling, role
+  targeting, feedback hygiene, and scoped safety.
 
 Rules:
 
