@@ -6,6 +6,7 @@ using MemorySystem.Api.Idempotency;
 using MemorySystem.Api.MemoryFacts;
 using MemorySystem.Api.MemoryProposals;
 using MemorySystem.Api.MemoryReviews;
+using MemorySystem.Api.Operations;
 using MemorySystem.Api.Scopes;
 using MemorySystem.Api.VaultExports;
 using MemorySystem.Infrastructure.Configuration;
@@ -28,6 +29,7 @@ builder.Services.AddMemorySystemEvents(builder.Configuration, builder.Environmen
 builder.Services.AddMemorySystemMemoryFacts();
 builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemMemoryReviews();
+builder.Services.AddMemorySystemOperations(builder.Configuration);
 builder.Services.AddMemorySystemVaultExports();
 builder.Services.ConfigureOptions<MemorySystemForwardedHeadersOptionsSetup>();
 
@@ -97,6 +99,7 @@ app.MapMemorySystemEventEndpoints();
 app.MapMemorySystemMemoryFactEndpoints();
 app.MapMemorySystemMemoryProposalEndpoints();
 app.MapMemorySystemMemoryReviewEndpoints();
+app.MapMemorySystemOperationsEndpoints();
 app.MapMemorySystemVaultExportEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))
