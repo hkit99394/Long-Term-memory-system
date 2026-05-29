@@ -330,7 +330,8 @@ Expected output shape:
   "excluded": [
     {
       "reason": "not_authorized",
-      "count": 1
+      "count": null,
+      "countDisclosure": "withheld"
     }
   ],
   "warnings": [],
@@ -344,7 +345,9 @@ Fact-finding rules:
 - Include source ids for all returned facts.
 - Include contradiction summaries when active, superseded, contradicted, or
   tentative records materially affect the answer.
-- Include exclusion summaries without leaking unauthorized content.
+- Include exclusion summaries without leaking unauthorized content. Exact
+  unauthorized counts are withheld because they can reveal inaccessible memory
+  existence.
 - Include policy metadata: authorization status for returned items, trust level,
   sensitivity, lifecycle status, and whether evidence is current.
 - Prefer active facts by default. Inactive memory should appear only when needed
@@ -403,3 +406,6 @@ LMSS-01 is complete when:
 - the planned `memory.queryFacts` contract is specified at a product/API level
 - safety and error semantics are documented
 - backlog and product plan point to this contract
+
+The implementation plan for `memory.queryFacts` is tracked in
+[API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md).

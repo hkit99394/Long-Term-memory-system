@@ -114,6 +114,7 @@ Status: Started as of May 29, 2026. The first Middle Run slice is a persisted co
    - Done: define the [Agent-Facing Memory Contract](agent-facing-memory-contract.md) for the v1 tool surface, targeting fields, fact-finding shape, and safety semantics.
    - Done: publish the curated [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) contract for the existing agent-facing memory workflow.
    - Done: add [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) for evidence append, proposal, context retrieval, feedback, source reads, and idempotent retries.
+   - Done: design the [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) before adding the endpoint.
 
 7. Move core concepts into the domain model.
    - Promote stable concepts such as scope, namespace, trust level, memory lifecycle, retention class, and source evidence into the Domain layer where useful.

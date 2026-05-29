@@ -23,6 +23,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
 | [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Shows curl-based client examples for the v1 memory workflow, including idempotent writes and retrieval feedback. |
+| [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) | Maps the planned fact-finding endpoint to Application, Infrastructure, API, authorization, contradiction handling, and tests. |
 | [Private Alpha Workflow](private-alpha-workflow.md) | Defines the first end-to-end private-alpha workflow from source event through reviewed memory, context retrieval, vault export, and operational summary. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
