@@ -21,6 +21,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
+| [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
 | [Private Alpha Workflow](private-alpha-workflow.md) | Defines the first end-to-end private-alpha workflow from source event through reviewed memory, context retrieval, vault export, and operational summary. |
 | [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
 | [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |

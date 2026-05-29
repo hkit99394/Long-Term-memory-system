@@ -69,15 +69,17 @@ schemas.
 | `sensitivity` | Sensitivity label used by retention, logging, and redaction policy. | Write tools |
 | `retentionClass` | Raw event payload retention class. | Evidence writes |
 | `sourceEventId` | Evidence event that justifies a durable memory write or review action. | Durable writes |
-| `idempotencyKey` | Stable client key for retrying mutating calls. | Mutating tools |
+| `idempotencyKey` | Stable client key for retrying durable mutating calls that support idempotent replay. | Retry-safe mutating tools |
 
 `principalId` should normally come from the API key, OIDC token, service
 account, or future agent identity. The public contract should avoid asking an
 LLM to invent a principal.
 
 For current HTTP endpoints, `idempotencyKey` maps to the `Idempotency-Key`
-request header. Agent tools and SDKs may expose it as a normal input field, but
-the transport mapping must stay explicit in generated examples.
+request header for `POST /api/events` and `POST /api/memory/proposals`. Agent
+tools and SDKs may expose it as a normal input field, but the transport mapping
+must stay explicit in generated examples. Context feedback is append-only today
+and does not yet support idempotent replay.
 
 ## V1 Tool Surface
 
@@ -100,6 +102,9 @@ implementation uses the current HTTP endpoints internally.
 The input examples below use canonical agent-tool shapes. The current HTTP
 surface may map some fields to headers or query parameters rather than JSON
 body fields.
+
+The curated LMSS v1 OpenAPI contract is published at
+[api/agent-memory-v1.openapi.json](api/agent-memory-v1.openapi.json).
 
 ## Existing Capability Contracts
 

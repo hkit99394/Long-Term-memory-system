@@ -1,0 +1,1454 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Long-Term Memory System Agent API",
+    "version": "v1",
+    "description": "Curated LMSS v1 contract for agent-facing memory operations backed by the existing private-alpha API."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5099",
+      "description": "Local private-alpha API"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/api/events": {
+      "post": {
+        "operationId": "memory_appendEvent",
+        "x-agent-tool-name": "memory.appendEvent",
+        "summary": "Append source evidence",
+        "description": "Stores source evidence for later durable memory proposals. This endpoint is retry-safe when callers reuse the same Idempotency-Key with the exact same request body.",
+        "tags": [
+          "Memory Evidence"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Event stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppendEventResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyConflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "operationId": "memory_readEvidence",
+        "x-agent-tool-name": "memory.readEvidence",
+        "summary": "Read source evidence",
+        "description": "Reads one authorized source event. Missing or unauthorized evidence is returned as not found.",
+        "tags": [
+          "Memory Evidence"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized source event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/memory/proposals": {
+      "post": {
+        "operationId": "memory_propose",
+        "x-agent-tool-name": "memory.propose",
+        "summary": "Propose durable memory",
+        "description": "Asks the Memory Broker whether a candidate should be stored, rejected, routed to review, or treated as session-only. This endpoint is retry-safe when callers reuse the same Idempotency-Key with the exact same request body.",
+        "tags": [
+          "Memory Writes"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryProposalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Broker decision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryProposalDecision"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyConflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          }
+        }
+      }
+    },
+    "/api/memory/context": {
+      "get": {
+        "operationId": "memory_getContext",
+        "x-agent-tool-name": "memory.getContext",
+        "summary": "Build a scoped context packet",
+        "description": "Returns compact, source-linked context for an agent task. Authorization is applied before ranking and packet construction.",
+        "tags": [
+          "Memory Retrieval"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Query"
+          },
+          {
+            "$ref": "#/components/parameters/ContextLimit"
+          },
+          {
+            "$ref": "#/components/parameters/ScopeType"
+          },
+          {
+            "$ref": "#/components/parameters/ScopeId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped context packet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryContextPacketResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/SemanticRetrievalUnavailable"
+          }
+        }
+      }
+    },
+    "/api/memory/context/feedback": {
+      "post": {
+        "operationId": "memory_recordContextFeedback",
+        "x-agent-tool-name": "memory.recordContextFeedback",
+        "summary": "Record retrieval feedback",
+        "description": "Records useful, stale, missing, or noisy context-packet feedback. The API stores a query hash instead of raw query text. This endpoint is append-only and is not currently idempotent.",
+        "tags": [
+          "Memory Evaluation"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryContextFeedbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Feedback recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryContextFeedbackResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/memory/{id}": {
+      "get": {
+        "operationId": "memory_readFact",
+        "x-agent-tool-name": "memory.readFact",
+        "summary": "Read one memory fact",
+        "description": "Reads one authorized memory fact. Missing or unauthorized memory is returned as not found.",
+        "tags": [
+          "Memory Facts"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MemoryFactId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized memory fact.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryFactResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key",
+        "description": "API key mapped to a configured principal."
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Stable client-generated key for retry-safe durable write operations. Reuse the same key only with the exact same request body.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "EventId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "MemoryFactId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "Query": {
+        "name": "q",
+        "in": "query",
+        "required": true,
+        "description": "Task or search query.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "ContextLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Maximum context items. Defaults to 12.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "default": 12
+        }
+      },
+      "ScopeType": {
+        "name": "scopeType",
+        "in": "query",
+        "required": false,
+        "description": "Optional target scope type. Must be provided with scopeId.",
+        "schema": {
+          "$ref": "#/components/schemas/ScopeType"
+        }
+      },
+      "ScopeId": {
+        "name": "scopeId",
+        "in": "query",
+        "required": false,
+        "description": "Optional target scope id. Must be provided with scopeType.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RoleId": {
+        "name": "roleId",
+        "in": "query",
+        "required": false,
+        "description": "Optional role perspective for retrieval.",
+        "schema": {
+          "$ref": "#/components/schemas/RoleId"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing API key or invalid authenticated principal.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated principal lacks required access.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource was not found or is not accessible.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "IdempotencyConflict": {
+        "description": "Idempotency key is still processing, previously failed, or was reused with a different request body.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "Request body exceeded the configured idempotency hashing limit.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "SemanticRetrievalUnavailable": {
+        "description": "Semantic, hybrid, or context-packet retrieval is not configured.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AppendEventRequest": {
+        "type": "object",
+        "required": [
+          "eventType",
+          "payload"
+        ],
+        "properties": {
+          "principalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Optional principal override. When provided, it must match the authenticated principal."
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agentPrincipalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "roleId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoleId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventType": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "scopeType": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScopeType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scopeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopeOrgId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "trustLevel": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrustLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "user_scoped"
+          },
+          "retentionClass": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RetentionClass"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "standard"
+          },
+          "sensitivity": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sensitivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "none"
+          },
+          "externalPayloadUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AppendEventResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EventResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventType",
+          "content",
+          "retentionClass",
+          "sensitivity",
+          "trustLevel",
+          "createdAt",
+          "scope"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "principalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agentPrincipalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "roleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventType": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "contentHash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "externalPayloadUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retentionClass": {
+            "$ref": "#/components/schemas/RetentionClass"
+          },
+          "sensitivity": {
+            "$ref": "#/components/schemas/Sensitivity"
+          },
+          "trustLevel": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EventScopeResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EventScopeResponse": {
+        "type": "object",
+        "required": [
+          "scopeType",
+          "scopeId"
+        ],
+        "properties": {
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "principalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "roleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agentPrincipalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryProposalRequest": {
+        "type": "object",
+        "required": [
+          "memoryType",
+          "scopeType",
+          "scopeId",
+          "namespace",
+          "subject",
+          "predicate",
+          "object"
+        ],
+        "properties": {
+          "sourceEventId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Evidence event id. Durable stored proposals require accessible source evidence."
+          },
+          "memoryType": {
+            "$ref": "#/components/schemas/MemoryType"
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "visibility": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "private"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "trustLevel": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrustLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "user_scoped"
+          },
+          "sensitivity": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sensitivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "none"
+          },
+          "roleId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoleId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseMemoryFactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryProposalDecision": {
+        "type": "object",
+        "required": [
+          "decision",
+          "reason",
+          "candidateKind"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/MemoryProposalDecisionValue"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "memoryId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sourceEventId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "candidateKind": {
+            "$ref": "#/components/schemas/CandidateKind"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextPacketResponse": {
+        "type": "object",
+        "required": [
+          "principalId",
+          "query",
+          "currentTask",
+          "userPreferences",
+          "projectMemory",
+          "roleMemory",
+          "relevantDecisions",
+          "sourceEvents"
+        ],
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string"
+          },
+          "targetScope": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemoryContextTargetScopeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentTask": {
+            "$ref": "#/components/schemas/MemoryContextCurrentTaskResponse"
+          },
+          "userPreferences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextPacketItemResponse"
+            }
+          },
+          "projectMemory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextPacketItemResponse"
+            }
+          },
+          "roleMemory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextPacketItemResponse"
+            }
+          },
+          "relevantDecisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextPacketItemResponse"
+            }
+          },
+          "sourceEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextSourceEventResponse"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextCurrentTaskResponse": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "targetScope": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemoryContextTargetScopeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextTargetScopeResponse": {
+        "type": "object",
+        "required": [
+          "scopeType",
+          "scopeId"
+        ],
+        "properties": {
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextPacketItemResponse": {
+        "type": "object",
+        "required": [
+          "kind",
+          "chunkId",
+          "sourceType",
+          "sourceId",
+          "namespace",
+          "scopeType",
+          "scopeId",
+          "content",
+          "rank",
+          "trustLevel",
+          "sourceEventId",
+          "explanation"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "chunkId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceType": {
+            "$ref": "#/components/schemas/MemorySourceType"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baseMemoryFactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "number"
+          },
+          "trustLevel": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "explanation": {
+            "$ref": "#/components/schemas/MemoryContextExplanationResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextExplanationResponse": {
+        "type": "object",
+        "required": [
+          "rank",
+          "components",
+          "summary"
+        ],
+        "properties": {
+          "rank": {
+            "type": "number"
+          },
+          "components": {
+            "$ref": "#/components/schemas/MemoryHybridRankComponentsResponse"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryHybridRankComponentsResponse": {
+        "type": "object",
+        "required": [
+          "relevance",
+          "confidence",
+          "recency",
+          "authority",
+          "scopeMatch"
+        ],
+        "properties": {
+          "relevance": {
+            "type": "number"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "recency": {
+            "type": "number"
+          },
+          "authority": {
+            "type": "number"
+          },
+          "scopeMatch": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextSourceEventResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextFeedbackRequest": {
+        "type": "object",
+        "required": [
+          "query",
+          "feedbackType"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Original retrieval query. The server stores only a SHA-256 hash."
+          },
+          "targetScopeType": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScopeType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetScopeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roleId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoleId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceType": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemorySourceType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "feedbackType": {
+            "$ref": "#/components/schemas/RetrievalFeedbackType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextFeedbackResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "retrievalMode",
+          "queryHash",
+          "feedbackType",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "retrievalMode": {
+            "type": "string",
+            "const": "context_packet"
+          },
+          "queryHash": {
+            "type": "string",
+            "pattern": "^sha256:"
+          },
+          "feedbackType": {
+            "$ref": "#/components/schemas/RetrievalFeedbackType"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryFactResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "scopeType",
+          "scopeId",
+          "namespace",
+          "memoryType",
+          "visibility",
+          "subject",
+          "predicate",
+          "object",
+          "confidence",
+          "trustLevel",
+          "status",
+          "sourceEventId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "memoryType": {
+            "$ref": "#/components/schemas/MemoryType"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "trustLevel": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MemoryStatus"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "proposedByPrincipalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "user_message",
+          "assistant_message",
+          "tool_call",
+          "memory_proposed",
+          "memory_written",
+          "memory_deleted",
+          "memory_redacted",
+          "memory_reviewed"
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "enum": [
+          "global",
+          "org",
+          "user",
+          "project",
+          "role",
+          "agent",
+          "session"
+        ]
+      },
+      "RoleId": {
+        "type": "string",
+        "enum": [
+          "designer",
+          "developer",
+          "cto",
+          "cfo",
+          "coo",
+          "ceo"
+        ]
+      },
+      "TrustLevel": {
+        "type": "string",
+        "enum": [
+          "system_trusted",
+          "human_approved",
+          "user_scoped",
+          "agent_private",
+          "tool_output",
+          "retrieved_untrusted",
+          "web_content"
+        ]
+      },
+      "Sensitivity": {
+        "type": "string",
+        "enum": [
+          "none",
+          "personal",
+          "secret",
+          "regulated"
+        ]
+      },
+      "RetentionClass": {
+        "type": "string",
+        "enum": [
+          "ephemeral",
+          "standard",
+          "audit",
+          "legal_hold",
+          "erasure_requested"
+        ]
+      },
+      "MemoryType": {
+        "type": "string",
+        "enum": [
+          "preference",
+          "decision",
+          "fact",
+          "role_principle",
+          "project_role_lens",
+          "agent_private",
+          "session_instruction"
+        ]
+      },
+      "Visibility": {
+        "type": "string",
+        "enum": [
+          "private",
+          "role_shared",
+          "project_shared",
+          "org_shared",
+          "system"
+        ]
+      },
+      "MemoryProposalDecisionValue": {
+        "type": "string",
+        "enum": [
+          "stored",
+          "rejected",
+          "review_required",
+          "session_only"
+        ]
+      },
+      "CandidateKind": {
+        "type": "string",
+        "enum": [
+          "preference",
+          "project_fact",
+          "decision",
+          "role_lens",
+          "agent_private",
+          "session_only_instruction",
+          "unsupported"
+        ]
+      },
+      "MemoryStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "tentative",
+          "superseded",
+          "contradicted",
+          "expired",
+          "deleted",
+          "redacted"
+        ]
+      },
+      "MemorySourceType": {
+        "type": "string",
+        "enum": [
+          "memory_fact",
+          "role_memory_lens"
+        ]
+      },
+      "RetrievalFeedbackType": {
+        "type": "string",
+        "enum": [
+          "useful",
+          "stale",
+          "missing",
+          "noisy"
+        ]
+      }
+    }
+  }
+}

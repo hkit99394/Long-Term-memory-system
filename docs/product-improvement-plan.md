@@ -112,6 +112,7 @@ Status: Started as of May 29, 2026. The first Middle Run slice is a persisted co
    - Add client examples for event append, memory proposal, review action, and context retrieval.
    - Document idempotency behavior for client implementers.
    - Done: define the [Agent-Facing Memory Contract](agent-facing-memory-contract.md) for the v1 tool surface, targeting fields, fact-finding shape, and safety semantics.
+   - Done: publish the curated [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) contract for the existing agent-facing memory workflow.
 
 7. Move core concepts into the domain model.
    - Promote stable concepts such as scope, namespace, trust level, memory lifecycle, retention class, and source evidence into the Domain layer where useful.

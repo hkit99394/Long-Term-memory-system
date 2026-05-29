@@ -227,6 +227,7 @@ Start with these documents:
 - [Private alpha workflow](docs/private-alpha-workflow.md)
 - [Product improvement plan](docs/product-improvement-plan.md)
 - [Agent-facing memory contract](docs/agent-facing-memory-contract.md)
+- [Agent Memory OpenAPI v1](docs/api/agent-memory-v1.openapi.json)
 - [Roadmap](docs/roadmap.md)
 - [Testing commands](docs/testing.md)
 - [Benchmarking plan](docs/benchmarking.md)
