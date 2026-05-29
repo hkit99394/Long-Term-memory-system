@@ -10,10 +10,12 @@ public sealed class PostgresOperationalSummaryStore(
     WorkerHeartbeatHealthOptions workerOptions) : IOperationalSummaryStore
 {
     private const int CommandTimeoutSeconds = 3;
+    private static readonly TimeSpan RetrievalFeedbackWindow = TimeSpan.FromHours(24);
 
     public async Task<OperationalSummary> ReadAsync(CancellationToken cancellationToken = default)
     {
         var generatedAt = DateTimeOffset.UtcNow;
+        var retrievalFeedbackWindowStartedAt = generatedAt - RetrievalFeedbackWindow;
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(
             """
@@ -66,10 +68,29 @@ public sealed class PostgresOperationalSummaryStore(
             FROM vault_exports
             WHERE export_type = 'obsidian_markdown'
                 AND status = 'stale';
+
+            SELECT
+                feedback_types.feedback_type,
+                count(feedback.id)::bigint
+            FROM (
+                VALUES
+                    ('useful', 1),
+                    ('stale', 2),
+                    ('missing', 3),
+                    ('noisy', 4)
+            ) AS feedback_types(feedback_type, sort_order)
+            LEFT JOIN memory_retrieval_feedback feedback
+                ON feedback.feedback_type = feedback_types.feedback_type
+                AND feedback.created_at >= @retrieval_feedback_window_started_at
+                AND feedback.created_at < @retrieval_feedback_window_ended_at
+            GROUP BY feedback_types.feedback_type, feedback_types.sort_order
+            ORDER BY feedback_types.sort_order;
             """,
             connection);
         command.CommandTimeout = CommandTimeoutSeconds;
         command.Parameters.AddWithValue("worker_type", workerOptions.WorkerType);
+        command.Parameters.AddWithValue("retrieval_feedback_window_started_at", retrievalFeedbackWindowStartedAt);
+        command.Parameters.AddWithValue("retrieval_feedback_window_ended_at", generatedAt);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
@@ -83,6 +104,13 @@ public sealed class PostgresOperationalSummaryStore(
         await reader.NextResultAsync(cancellationToken);
 
         var vaultExports = new OperationalVaultExportSummary(await ReadSingleCountAsync(reader, cancellationToken));
+        await reader.NextResultAsync(cancellationToken);
+
+        var retrievalFeedback = await ReadRetrievalFeedbackSummaryAsync(
+            reader,
+            retrievalFeedbackWindowStartedAt,
+            generatedAt,
+            cancellationToken);
         var status = DetermineStatus(worker, outbox, reviews, vaultExports);
 
         return new OperationalSummary(
@@ -92,7 +120,8 @@ public sealed class PostgresOperationalSummaryStore(
             worker,
             outbox,
             reviews,
-            vaultExports);
+            vaultExports,
+            retrievalFeedback);
     }
 
     private static async Task<OperationalOutboxSummary> ReadOutboxSummaryAsync(
@@ -160,6 +189,37 @@ public sealed class PostgresOperationalSummaryStore(
         }
 
         return reader.GetInt64(0);
+    }
+
+    private static async Task<OperationalRetrievalFeedbackSummary> ReadRetrievalFeedbackSummaryAsync(
+        NpgsqlDataReader reader,
+        DateTimeOffset windowStartedAt,
+        DateTimeOffset windowEndedAt,
+        CancellationToken cancellationToken)
+    {
+        var rows = new List<(string FeedbackType, long Count)>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add((reader.GetString(0), reader.GetInt64(1)));
+        }
+
+        var total = rows.Sum(row => row.Count);
+        var windowHours = Math.Max((windowEndedAt - windowStartedAt).TotalHours, 1.0 / 60.0);
+        var byType = rows
+            .Select(row => new OperationalRetrievalFeedbackTypeSummary(
+                row.FeedbackType,
+                row.Count,
+                total == 0 ? 0m : Math.Round((decimal)row.Count / total, 6, MidpointRounding.AwayFromZero),
+                row.Count / windowHours))
+            .ToArray();
+
+        return new OperationalRetrievalFeedbackSummary(
+            windowStartedAt,
+            windowEndedAt,
+            windowHours,
+            total,
+            byType);
     }
 
     private static string DetermineStatus(

@@ -12,7 +12,8 @@ public sealed record OperationalSummary(
     OperationalWorkerSummary Worker,
     OperationalOutboxSummary Outbox,
     OperationalReviewSummary Reviews,
-    OperationalVaultExportSummary VaultExports);
+    OperationalVaultExportSummary VaultExports,
+    OperationalRetrievalFeedbackSummary RetrievalFeedback);
 
 public sealed record OperationalApiSummary(string Status);
 
@@ -40,3 +41,16 @@ public sealed record OperationalOutboxSummary(
 public sealed record OperationalReviewSummary(long Pending);
 
 public sealed record OperationalVaultExportSummary(long Stale);
+
+public sealed record OperationalRetrievalFeedbackSummary(
+    DateTimeOffset WindowStartedAt,
+    DateTimeOffset WindowEndedAt,
+    double WindowHours,
+    long Total,
+    IReadOnlyList<OperationalRetrievalFeedbackTypeSummary> ByType);
+
+public sealed record OperationalRetrievalFeedbackTypeSummary(
+    string FeedbackType,
+    long Count,
+    decimal Share,
+    double PerHour);

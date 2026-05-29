@@ -59,6 +59,11 @@ public sealed class OperationalSummaryEndpointTests
             var memoryFactId = await InsertReviewedMemoryFixtureAsync(databaseConnectionString);
             await InsertPendingReviewAsync(databaseConnectionString, memoryFactId);
             await InsertStaleVaultExportAsync(databaseConnectionString, memoryFactId);
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-30));
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-20));
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "stale", DateTimeOffset.UtcNow.AddMinutes(-10));
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "missing", DateTimeOffset.UtcNow.AddMinutes(-5));
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddDays(-2));
 
             using var factory = CreateFactory(databaseConnectionString);
             using var client = factory.CreateClient();
@@ -86,6 +91,21 @@ public sealed class OperationalSummaryEndpointTests
 
             Assert.Equal(1, root.GetProperty("reviews").GetProperty("pending").GetInt64());
             Assert.Equal(1, root.GetProperty("vaultExports").GetProperty("stale").GetInt64());
+
+            var retrievalFeedback = root.GetProperty("retrievalFeedback");
+            Assert.Equal(4, retrievalFeedback.GetProperty("total").GetInt64());
+            Assert.Equal(24.0d, retrievalFeedback.GetProperty("windowHours").GetDouble(), precision: 3);
+
+            var feedbackByType = retrievalFeedback.GetProperty("byType")
+                .EnumerateArray()
+                .ToDictionary(item => item.GetProperty("feedbackType").GetString()!);
+
+            Assert.Equal(2, feedbackByType["useful"].GetProperty("count").GetInt64());
+            Assert.Equal(0.5m, feedbackByType["useful"].GetProperty("share").GetDecimal());
+            Assert.True(feedbackByType["useful"].GetProperty("perHour").GetDouble() > 0);
+            Assert.Equal(1, feedbackByType["stale"].GetProperty("count").GetInt64());
+            Assert.Equal(1, feedbackByType["missing"].GetProperty("count").GetInt64());
+            Assert.Equal(0, feedbackByType["noisy"].GetProperty("count").GetInt64());
         }
         finally
         {
@@ -162,6 +182,57 @@ public sealed class OperationalSummaryEndpointTests
         command.Parameters.AddWithValue("id", Guid.NewGuid());
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
         command.Parameters.AddWithValue("source_event_id", reviewEventId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task InsertRetrievalFeedbackAsync(
+        string connectionString,
+        string feedbackType,
+        DateTimeOffset createdAt)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        var requiresSource = feedbackType is "useful" or "stale" or "noisy";
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_retrieval_feedback (
+                id,
+                principal_id,
+                retrieval_mode,
+                query_hash,
+                target_scope_type,
+                target_scope_id,
+                source_type,
+                source_id,
+                feedback_type,
+                created_at
+            )
+            VALUES (
+                @id,
+                @principal_id,
+                'context_packet',
+                @query_hash,
+                'project',
+                '33333333-3333-4333-8333-333333333333',
+                @source_type,
+                @source_id,
+                @feedback_type,
+                @created_at
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("query_hash", $"sha256:{Guid.NewGuid():N}");
+        command.Parameters.Add("source_type", NpgsqlDbType.Text).Value =
+            requiresSource ? "memory_fact" : DBNull.Value;
+        command.Parameters.Add("source_id", NpgsqlDbType.Uuid).Value =
+            requiresSource ? Guid.NewGuid() : DBNull.Value;
+        command.Parameters.AddWithValue("feedback_type", feedbackType);
+        command.Parameters.AddWithValue("created_at", createdAt);
 
         await command.ExecuteNonQueryAsync();
     }

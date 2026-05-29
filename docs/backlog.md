@@ -113,15 +113,15 @@ Status values:
 M8 operational readiness backlog is complete. Short Run is complete. Middle Run
 now has two connected tracks: production-pilot operations and the
 agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
-slice is documented, implemented, and benchmarkable; the next open production
-pilot item is MR-02.
+slice is documented, implemented, and benchmarkable; retrieval feedback is now
+visible in the operator summary.
 
 ## Middle Run Production Pilot
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
 | MR-01 | P0 | Done | Add context-packet feedback log. | Authenticated callers can record useful, stale, missing, or noisy retrieval feedback for context packets; raw query text is not stored; database-backed API tests cover storage and validation. |
-| MR-02 | P0 | Next | Turn retrieval feedback into operator metrics. | Operators can see retrieval feedback counts and rates by feedback type over a recent window. |
+| MR-02 | P0 | Done | Turn retrieval feedback into operator metrics. | `/api/operations/summary` shows retrieval feedback counts, shares, and per-hour rates by feedback type over the recent 24-hour operator window. |
 
 ## LLM Memory Support Service v1
 

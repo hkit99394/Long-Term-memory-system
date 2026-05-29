@@ -140,6 +140,8 @@ Expected result:
 - Outbox backlog and dead-letter counts are visible.
 - Pending review count is visible.
 - Stale vault export count is visible.
+- Retrieval feedback totals, shares, and per-hour rates are visible for the
+  recent operator window.
 
 Also check:
 
