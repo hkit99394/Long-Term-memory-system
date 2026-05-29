@@ -71,3 +71,7 @@ The database-backed command currently covers the migration runner, migration che
 ## Backup and Restore Verification
 
 Use [Backup and Restore Runbook](backup-restore.md) when PostgreSQL recovery behavior changes. The local verification path creates a custom-format `pg_dump`, restores it into a temporary validation database, checks migration history and table counts, then drops the validation database.
+
+```bash
+./scripts/backup-restore-smoke.sh
+```

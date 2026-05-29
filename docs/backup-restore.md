@@ -34,6 +34,14 @@ Start the local database:
 docker compose up -d --wait postgres
 ```
 
+For the normal local smoke check, use the repo script:
+
+```bash
+./scripts/backup-restore-smoke.sh
+```
+
+The script creates a custom-format backup under `/tmp/memorysystem-backups`, inspects it, restores it into a fresh validation database, runs migrations against the restored database, verifies key table counts and `pgvector`, and drops the validation database when it exits. By default it removes the temporary backup file. Set `MEMORYSYSTEM_BACKUP_SMOKE_KEEP_BACKUP=true` to keep the dump for manual inspection.
+
 Create a timestamped backup outside the repository:
 
 ```bash

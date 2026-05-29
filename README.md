@@ -43,6 +43,12 @@ Run the API locally:
 dotnet run --project src/MemorySystem.Api
 ```
 
+Run the local backup/restore smoke before a private-alpha release checkpoint:
+
+```bash
+./scripts/backup-restore-smoke.sh
+```
+
 Run the outbox worker in another terminal:
 
 ```bash
