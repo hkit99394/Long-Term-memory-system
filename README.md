@@ -228,6 +228,7 @@ Start with these documents:
 - [Product improvement plan](docs/product-improvement-plan.md)
 - [Agent-facing memory contract](docs/agent-facing-memory-contract.md)
 - [Agent Memory OpenAPI v1](docs/api/agent-memory-v1.openapi.json)
+- [Agent Memory v1 client examples](docs/api/agent-memory-v1-examples.md)
 - [Roadmap](docs/roadmap.md)
 - [Testing commands](docs/testing.md)
 - [Benchmarking plan](docs/benchmarking.md)

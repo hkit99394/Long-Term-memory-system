@@ -8,6 +8,21 @@ use of the memory system.
 | Contract | Purpose |
 | --- | --- |
 | [agent-memory-v1.openapi.json](agent-memory-v1.openapi.json) | LMSS v1 OpenAPI contract for the existing agent-facing memory workflow. |
+| [agent-memory-v1-examples.md](agent-memory-v1-examples.md) | Client examples for the v1 memory workflow. |
+
+## Examples
+
+The curl workflow lives at:
+
+```text
+docs/api/examples/agent-memory-v1-curl.sh
+```
+
+Run it from the repository root after starting the API:
+
+```bash
+bash docs/api/examples/agent-memory-v1-curl.sh
+```
 
 ## Authentication
 

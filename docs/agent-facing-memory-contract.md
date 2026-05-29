@@ -121,7 +121,7 @@ Input shape:
   "scopeType": "project",
   "scopeId": "project-a",
   "roleId": "cto",
-  "trustLevel": "user",
+  "trustLevel": "user_scoped",
   "retentionClass": "standard",
   "sensitivity": "internal",
   "payload": {}
@@ -161,7 +161,7 @@ Input shape:
   "predicate": "use",
   "object": "SQL-first migrations plus raw Npgsql",
   "confidence": 0.92,
-  "trustLevel": "human_approved",
+  "trustLevel": "user_scoped",
   "sensitivity": "internal",
   "roleId": "cto"
 }
@@ -188,6 +188,8 @@ Contract rules:
 - Rejections and review decisions should include a usable reason.
 - Policy-level writes from untrusted evidence should be rejected or routed to
   review instead of silently stored.
+- External clients should not send internal-only trust levels such as
+  `system_trusted` or `human_approved` on write endpoints.
 
 ### `memory.getContext`
 
