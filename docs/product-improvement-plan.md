@@ -76,7 +76,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 29, 2026. The first Middle Run slice is a persisted context-packet feedback log so private-alpha users can label retrieved memory as useful, stale, missing, or noisy without storing raw query text.
+Status: Started as of May 29, 2026. The first Middle Run slice is a persisted context-packet feedback log so private-alpha users can label retrieved memory as useful, stale, missing, or noisy without storing raw query text. The next product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
@@ -111,6 +111,7 @@ Status: Started as of May 29, 2026. The first Middle Run slice is a persisted co
    - Publish OpenAPI output or generated API docs.
    - Add client examples for event append, memory proposal, review action, and context retrieval.
    - Document idempotency behavior for client implementers.
+   - Done: define the [Agent-Facing Memory Contract](agent-facing-memory-contract.md) for the v1 tool surface, targeting fields, fact-finding shape, and safety semantics.
 
 7. Move core concepts into the domain model.
    - Promote stable concepts such as scope, namespace, trust level, memory lifecycle, retention class, and source evidence into the Domain layer where useful.

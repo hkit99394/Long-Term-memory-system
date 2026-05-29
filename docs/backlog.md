@@ -110,7 +110,9 @@ Status values:
 
 ## Immediate Next Items
 
-M8 operational readiness backlog is complete. Short Run is complete.
+M8 operational readiness backlog is complete. Short Run is complete. Middle Run
+now has two connected tracks: production-pilot operations and the
+agent-facing LLM Memory Support Service v1 contract.
 
 ## Middle Run Production Pilot
 
@@ -118,3 +120,15 @@ M8 operational readiness backlog is complete. Short Run is complete.
 | --- | --- | --- | --- | --- |
 | MR-01 | P0 | Done | Add context-packet feedback log. | Authenticated callers can record useful, stale, missing, or noisy retrieval feedback for context packets; raw query text is not stored; database-backed API tests cover storage and validation. |
 | MR-02 | P0 | Next | Turn retrieval feedback into operator metrics. | Operators can see retrieval feedback counts and rates by feedback type over a recent window. |
+
+## LLM Memory Support Service v1
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| LMSS-01 | P0 | Done | Define agent-facing memory contract. | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) names the v1 tool surface, shared targeting fields, existing endpoint mappings, planned `memory.queryFacts` shape, safety semantics, and follow-on contract work. |
+| LMSS-02 | P0 | Todo | Publish OpenAPI or tool schema for existing endpoints. | A generated or curated schema documents event append, memory proposal, context retrieval, context feedback, direct memory read, and source evidence read with authentication and idempotency expectations. |
+| LMSS-03 | P0 | Todo | Add client examples for the v1 memory workflow. | Examples show append evidence, propose memory, retrieve context, record feedback, read evidence, and handle idempotent retries without storing raw query text. |
+| LMSS-04 | P0 | Todo | Design `memory.queryFacts` implementation plan. | The planned fact-finding contract is mapped to repositories, authorization predicates, contradiction handling, response DTOs, and database-backed tests before implementation. |
+| LMSS-05 | P0 | Todo | Implement fact-finding endpoint with evidence and policy metadata. | Agents can query facts and receive authorized claims, source ids, confidence, lifecycle status, contradiction summaries, exclusion summaries, and policy metadata. |
+| LMSS-06 | P1 | Todo | Document policy targeting for agent callers. | Principal resolution, target scope, namespace, role id, trust level, retention class, sensitivity, and source event rules are documented with examples. |
+| LMSS-07 | P1 | Todo | Add benchmark tasks for agent contract usefulness. | Benchmark tasks measure whether the agent-facing contract improves fact finding, evidence use, contradiction handling, and safe scoped answers. |
