@@ -72,7 +72,7 @@ Postgres owns:
 - principals, memberships, role assignments, and grants
 - events and source evidence
 - memory facts and role lenses
-- chunks, embeddings, reviews, redactions, idempotency keys, and outbox jobs
+- chunks, embeddings, reviews, redactions, idempotency keys, retrieval feedback, and outbox jobs
 - lifecycle status and audit metadata
 
 pgvector owns semantic recall rows, not truth. Embeddings must be rebuildable from source chunks or approved memory records.
@@ -99,9 +99,9 @@ Roles are lenses over shared truth, not separate realities.
 
 Shared role principles may be reused across projects only when backed by global or organization truth. Project-role lenses interpret one project's facts for one role and must not leak project-specific facts into other projects.
 
-## MVP Architecture Boundary
+## Current Architecture Boundary
 
-The MVP ends when the system can complete this loop:
+The core MVP loop is complete when the system can:
 
 ```text
 Observe event
@@ -113,5 +113,17 @@ Build scoped context
 Return compact context packet
 ```
 
-The review UI, vault sync, and production operations follow after the core loop works.
+The private-alpha baseline now extends that loop with:
 
+- human review through the `/reviews/` dashboard
+- source-linked Obsidian export and archive export
+- stale export markers for inactive memory
+- operational liveness, readiness, and summary endpoints
+- worker heartbeat and outbox backlog visibility
+- expired unreferenced `ephemeral` event payload minimization
+- local backup/restore smoke verification
+- context-packet retrieval feedback stored as hashed observations
+
+The next architecture concern is production-pilot maturity: deployment shape,
+observability, admin workflows, automated governance, and retrieval-quality
+metrics.

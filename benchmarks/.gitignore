@@ -1,0 +1,6 @@
+outputs/
+__pycache__/
+*.pyc
+*.answers.md
+*.local.json
+*.run.json

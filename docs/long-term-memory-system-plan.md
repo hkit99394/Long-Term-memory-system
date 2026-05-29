@@ -15,6 +15,12 @@ Build the long-term memory system with this stack:
 
 The core memory system should be a durable backend service, not a collection of scripts. TypeScript and Python can support the system, but they should not own the source of truth.
 
+Status note: this document is the original long-form architecture plan. The
+private-alpha baseline has since implemented the M0-M8 path, so use
+[Roadmap](roadmap.md), [Backlog](backlog.md), and
+[Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) for current
+delivery status.
+
 ## Guiding Principles
 
 - Postgres is truth.
@@ -892,19 +898,21 @@ Context packet shape:
 
 The context packet should be small, explainable, and source-linked.
 
-## Initial API Surface
+## Current Private-Alpha API Surface
 
 API contracts should define request and response DTOs before implementation.
+The current private-alpha implementation exposes these endpoint families.
 
 Contract rules:
 
-- mutating endpoints require an idempotency key
+- durable mutating endpoints require an idempotency key
 - idempotency is scoped by principal, endpoint, key, and request hash
 - list endpoints support pagination
-- search endpoints require explicit scope
+- search endpoints apply authorization before ranking and accept explicit scope filters when supplied
 - write endpoints return a broker decision object
 - review, supersede, delete, and redact endpoints create source events
 - conflict-prone mutations should use an expected version or `updated_at` check
+- telemetry-style endpoints, such as retrieval feedback, must avoid raw memory or query text
 - all errors use ProblemDetails-compatible responses
 
 ### Events
@@ -949,13 +957,25 @@ Contract rules:
 
 - retrieve one memory fact
 
-`POST /api/memory/search`
+`GET /api/memory/search`
 
-- structured, keyword, and semantic search
+- authorized full-text memory search
 
-`POST /api/context/build`
+`GET /api/memory/search/semantic`
+
+- authorized pgvector semantic search
+
+`GET /api/memory/search/hybrid`
+
+- authorized hybrid search with explainable score components
+
+`GET /api/memory/context`
 
 - build a scoped context packet for a request
+
+`POST /api/memory/context/feedback`
+
+- record useful, stale, missing, or noisy context-packet feedback without storing raw query text
 
 ### Review
 
@@ -970,6 +990,46 @@ Contract rules:
 `POST /api/reviews/{id}/reject`
 
 - reject a memory
+
+`POST /api/reviews/{id}/edit`
+
+- edit a reviewed memory with provenance
+
+`POST /api/reviews/{id}/expire`
+
+- expire a reviewed memory with provenance
+
+`POST /api/reviews/{id}/delete`
+
+- delete a reviewed memory with provenance
+
+`POST /api/reviews/{id}/supersede`
+
+- supersede a reviewed memory with provenance
+
+### Vault Exports
+
+`GET /api/vault/exports/obsidian`
+
+- export approved decisions and summaries to source-linked Markdown documents
+
+`GET /api/vault/exports/obsidian/archive`
+
+- export readable inactive memory that is safe to inspect
+
+### Operations
+
+`GET /health/live`
+
+- report process liveness
+
+`GET /health/ready`
+
+- report database, worker, outbox, and embedding-provider readiness
+
+`GET /api/operations/summary`
+
+- summarize API, worker, outbox, review, and vault-export state
 
 ## Access Control
 
@@ -1212,9 +1272,10 @@ Evaluation tests:
 - false-positive durable memory rate
 - contradiction detection quality
 
-## First Concrete Build Step
+## Original First Concrete Build Step
 
-Create the .NET solution and the first migration:
+Completed in the M1-M2 implementation path: create the .NET solution and the
+first migration.
 
 ```text
 MemorySystem.sln
@@ -1231,7 +1292,7 @@ migrations/001_initial_memory_schema.sql
 
 Then implement:
 
-- `GET /health`
+- `GET /health/live`, `GET /health/ready`, and `GET /health`
 - `POST /api/events`
 - `POST /api/memory/proposals`
 - local API-key to principal resolution
@@ -1249,15 +1310,16 @@ Then implement:
 }
 ```
 
-## Open Decisions
+## Implementation Decision Status
 
-Decide before or during Phase 1 implementation:
+The original Phase 1 open decisions have been resolved or carried forward into
+explicit post-alpha work:
 
-- Which embedding provider and vector dimension should be the default?
-- Which retention automation jobs should implement [Retention Policy](retention-policy.md) first?
-- Which legal-hold and erasure operator endpoints are required for the first production release?
+- Embedding provider defaults are recorded in [Decision 0024](decisions/0024-embedding-provider-adapter.md): deterministic embeddings for Development and Testing; OpenAI `text-embedding-3-small` at 1536 dimensions for production-shaped semantic retrieval and indexing.
+- The first automated retention task is implemented for expired, unreferenced `ephemeral` event payload minimization. The wider retention policy remains in [Retention Policy](retention-policy.md).
+- Legal-hold and full erasure operator endpoints remain Middle Run governance work.
 
-## Current Recommendation On Open Decisions
+## Current Implementation Choices
 
 - Use SQL-first migrations and raw Npgsql for core memory queries through the M1-M3 initial backend path. Dapper may be used only as a small mapping convenience if needed; defer EF Core unless CRUD convenience later outweighs direct SQL clarity.
 - Add Docker Compose in Phase 1 because pgvector setup should be repeatable; use `pgvector/pgvector:0.8.2-pg17-bookworm` for the M1-M3 local database runtime.

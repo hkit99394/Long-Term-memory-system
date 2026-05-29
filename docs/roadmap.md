@@ -19,7 +19,7 @@ The first production-shaped win is in place: a local API and database can accept
 | Milestone | Theme | Outcome | Exit Criteria |
 | --- | --- | --- | --- |
 | M0 | Planning Baseline | Architecture, roadmap, and backlog are clear enough to build from. | Project goal, system plan, roadmap, backlog, and first M1-M6 scenario exist; Phase 1 decisions are named. |
-| M1 | Foundation Slice | The backend skeleton and database can run locally. | .NET solution starts; Postgres with pgvector runs; first migration applies; `GET /health` passes. |
+| M1 | Foundation Slice | The backend skeleton and database can run locally. | .NET solution starts; Postgres with pgvector runs; first migration applies; health endpoints pass. |
 | M2 | Provenance Write Path | Durable memory writes are brokered, auditable, and idempotent. | `POST /api/events` and `POST /api/memory/proposals` work; source events are required; request idempotency returns stable retries. |
 | M3 | Access and Scope Enforcement | Memory cannot cross user, project, role, or agent boundaries accidentally. | Resolved principals from M2 are enforced through memberships and grants; cross-project reads are blocked in tests. |
 | M4 | Structured and Role Memory | User, project, agent-private, shared-role, and project-role memory are distinct. | Repositories and lifecycle rules exist; shared role principles cannot use project-specific facts; expired/deleted/superseded facts are excluded. |
@@ -109,7 +109,7 @@ Before M8 implementation:
 2. Add Docker Compose for Postgres plus pgvector.
 3. Add `migrations/001_initial_memory_schema.sql`.
 4. Add a migration runner path for local development and tests.
-5. Implement `GET /health`.
+5. Implement `GET /health/live`, `GET /health/ready`, and `GET /health`.
 6. Implement API-key principal resolution.
 7. Implement `POST /api/events` with request idempotency.
 8. Implement `POST /api/memory/proposals` with a minimal broker decision.

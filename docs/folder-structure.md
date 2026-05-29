@@ -22,6 +22,8 @@ repo-root/
   tests/
     MemorySystem.UnitTests/
     MemorySystem.IntegrationTests/
+  benchmarks/
+    llm-outcome-v0/
   migrations/
     001_initial_memory_schema.sql
   tools/
@@ -42,6 +44,7 @@ repo-root/
 | --- | --- |
 | `MemorySystem.sln` | .NET solution containing API, Application, Domain, Infrastructure, Migrator, Worker, and test projects. |
 | `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests, using the pinned image from [Decision 0003](decisions/0003-local-database-runtime.md). |
+| `benchmarks/` | Benchmark fixtures, prompt-pack generators, rubrics, and generated report workspace. |
 | `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, and decisions. |
 | `migrations/` | SQL-first database migrations. These are the source of truth for schema changes. |
 | `src/` | Production .NET source code. |
@@ -235,16 +238,50 @@ Rules:
 
 ### `tools/ui`
 
-TypeScript review and administration dashboard.
+TypeScript review and administration dashboard. The source lives under
+`tools/ui/src/`; the build writes generated JavaScript into the API static asset
+tree at `src/MemorySystem.Api/wwwroot/reviews/`.
+
+```bash
+cd tools/ui
+npm run build
+npm run check
+```
 
 ### `tools/vault-sync`
 
-TypeScript tooling for Obsidian export and later import workflows.
+TypeScript tooling for Obsidian export and later import workflows. The source
+lives under `tools/vault-sync/src/`; the build writes generated JavaScript into
+`tools/vault-sync/dist/`.
+
+```bash
+cd tools/vault-sync
+npm run build
+npm run check
+```
 
 Rules:
 
 - Tools can support review and export.
 - Tools must not become the source of truth for memory state.
+
+## Benchmarks
+
+`benchmarks/` contains benchmark fixtures, runners, rubrics, and generated
+report templates.
+
+Current suite:
+
+- `benchmarks/llm-outcome-v0`: manual benchmark for whether governed memory
+  improves LLM task output over a memory-off baseline.
+
+Rules:
+
+- Commit benchmark fixtures, rubrics, and runners.
+- Keep generated prompt packs, answer captures, local run metadata, and reports
+  under `benchmarks/outputs/` unless an intentionally curated summary should be
+  committed.
+- Use [Benchmarking Plan](benchmarking.md) as the product-level benchmark guide.
 
 ## Documentation
 

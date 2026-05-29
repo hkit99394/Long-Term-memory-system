@@ -15,6 +15,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
+| [Benchmarking Plan](benchmarking.md) | Defines technical and LLM outcome benchmarks, including Memory Lift, safety gates, scenario suites, and report shape. |
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
@@ -82,7 +83,9 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
 | Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
+| LLM outcome evaluation | A benchmark that scores the final LLM output, not only retrieved memory, to prove whether governed memory improves task success, decision consistency, preference adherence, correction handling, and safety. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
+| Memory Lift | The difference between the LLM outcome score with governed memory enabled and the score with memory disabled. |
 | Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
 | Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |
 | Memory grant | A permission record that allows a principal or assigned role to read, write, review, or administer a namespace prefix. |

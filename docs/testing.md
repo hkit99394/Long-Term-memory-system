@@ -68,6 +68,27 @@ The fast test command covers deterministic application policy, including namespa
 
 The database-backed command currently covers the migration runner, migration checksum mismatch and history-gap rejection, PostgreSQL, outbox, worker heartbeat, and embedding provider health endpoint signals, structured API decision logging without payload leakage, scoped event constraints, project/organization scope consistency, memory fact scope/owner/namespace consistency, memory fact status filtering, structured memory fact search, authorized full-text memory search, authorized pgvector semantic search, hybrid memory ranking, context packet construction, retrieval evaluation against a real context packet, pending review listing with review-permission filtering, review action workflows, Obsidian export of approved decisions and summaries with source IDs, stale vault marker generation for deleted and redacted exports, readable archive export for superseded and expired memory, role memory lens repository round-trips and indexing outbox writes, role-lens base fact scope validation, API-key principal resolution, request idempotency, event append including global/session grant checks, minimal broker proposal decisions, candidate kind and confidence propagation, session-only proposal handling, exact duplicate proposal reuse, role-lens duplicate reuse, similar and conflicting active-memory review routing, transactional memory proposal writes, role-lens proposal writes, API-to-worker indexing completion with embedding row creation, provenance enforcement, request scope resolution, membership/grant access-control checks, the blocked cross-project direct read case, and memory fact repository round-trips with indexing outbox writes.
 
+## TypeScript Tooling Verification
+
+Run these checks after changing the review dashboard or vault-sync TypeScript
+sources:
+
+```bash
+cd tools/ui
+npm run build
+npm run check
+```
+
+```bash
+cd tools/vault-sync
+npm run build
+npm run check
+```
+
+`tools/ui` builds the generated dashboard JavaScript under
+`src/MemorySystem.Api/wwwroot/reviews/`. `tools/vault-sync` builds the
+generated CLI output under `tools/vault-sync/dist/`.
+
 ## Backup and Restore Verification
 
 Use [Backup and Restore Runbook](backup-restore.md) when PostgreSQL recovery behavior changes. The local verification path creates a custom-format `pg_dump`, restores it into a temporary validation database, checks migration history and table counts, then drops the validation database.
