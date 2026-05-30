@@ -10,17 +10,18 @@ Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: MR-10, production-pilot deployment smoke.
+Next milestone: MR-11, executable observability artifacts.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
 The current production-pilot docs define the target deployment and
-observability shape, but they are not production proof until executable smoke,
-dashboard, alert, trace, deployment, and benchmark gates pass. MR-08 operator
-evidence browsing is implemented, and MR-09 adds authenticated governance
-automation for legal holds, erasure execution, and retention reporting. The
-remaining Middle Run sequence is MR-10 deployment smoke, MR-11 executable
-observability, and MR-12 benchmark release gates.
+observability shape. MR-10 adds executable deployment proof for the local
+migrator/API/worker split, rollback, and restore-validation path. Remaining
+production-pilot proof now centers on dashboard, alert, trace, and benchmark
+gates. MR-08 operator evidence browsing is implemented, MR-09 adds
+authenticated governance automation for legal holds, erasure execution, and
+retention reporting, and the remaining Middle Run sequence is MR-11 executable
+observability and MR-12 benchmark release gates.
 
 ## Milestones
 
@@ -132,6 +133,10 @@ After M8:
   create/release/reporting, erasure execution over source events and derived
   copies, and retention reports by namespace, retention class, sensitivity, and
   age.
+- MR-10 adds `scripts/production-pilot-deployment-smoke.sh`, which publishes
+  the migrator, API, and worker roles, runs them against an isolated PostgreSQL
+  target, validates health/read/write/operator paths, restores into a fresh
+  database, and re-points API and worker at the restored database.
 
 ## First Build Sequence
 

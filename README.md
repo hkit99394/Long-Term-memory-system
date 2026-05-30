@@ -170,6 +170,12 @@ Operations metrics smoke verification against a running local API:
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
 ```
 
+Production-pilot deployment smoke verification:
+
+```bash
+./scripts/production-pilot-deployment-smoke.sh
+```
+
 More testing notes, including alternate PostgreSQL ports and CI behavior, are in
 [docs/testing.md](docs/testing.md).
 

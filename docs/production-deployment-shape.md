@@ -107,6 +107,31 @@ Schema changes should use expand-and-contract releases whenever old and new
 code need to overlap. Destructive schema changes require a separate release
 gate and a restore rehearsal.
 
+## Executable Local Smoke
+
+MR-10 adds a repeatable local smoke command for the deployment shape:
+
+```bash
+./scripts/production-pilot-deployment-smoke.sh
+```
+
+The smoke uses the local Docker Compose PostgreSQL service as a production-like
+database target. It publishes the migrator, API, worker, and demo seeder; runs
+the migrator as a one-shot role against an isolated database; seeds Scenario
+0001 without precomputed embeddings; starts the API and worker as separate
+processes; waits for the worker to complete indexing; verifies `/health/live`,
+`/health/ready`, `/api/operations/summary`, an authenticated memory read, and
+an authenticated write/read path; creates a custom-format backup; restores it
+into a fresh database; runs the migrator against the restored database; compares
+core table counts and `pgvector`; then restarts API and worker against the
+restored database.
+
+The smoke runs in the `Testing` environment with deterministic embeddings so it
+can execute locally without external provider credentials or HTTPS ingress. It
+does not replace a real pilot deployment rehearsal with managed PostgreSQL,
+secret-store injection, TLS, and production embedding credentials. It does
+prove the repo's operator steps and runtime role boundaries are executable.
+
 ## Rollback Procedure
 
 Prefer rolling back application code, not the database.

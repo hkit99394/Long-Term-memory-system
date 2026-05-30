@@ -123,8 +123,10 @@ observability gates pass. MR-06 adds the first authenticated metrics export and
 local alert-input smoke. MR-07 adds the first admin console memory/source
 inspection slice. MR-08 expands that console into source event and audit
 browsing. MR-09 automates the first governance workflows for legal holds,
-erasure execution, and retention reporting. Next up is MR-10: prove the
-production-pilot deployment shape.
+erasure execution, and retention reporting. MR-10 proves the local
+production-pilot deployment shape across separate migrator, API, and worker
+roles with rollback and restore validation. Next up is MR-11: make
+observability executable.
 
 ## Middle Run Production Pilot
 
@@ -139,7 +141,7 @@ production-pilot deployment shape.
 | MR-07 | P0 | Done | Build the first admin console memory/source inspection slice. | `/admin/` lets an authenticated operator browse authorized memory facts with scope, lifecycle status, confidence, source links, and safe policy metadata, then open source evidence through the existing authorized event-read path without including raw source payloads in the memory list. |
 | MR-08 | P0 | Done | Expand admin inspection into a source event and audit browser. | An authenticated operator can search source events by scope, sensitivity, retention class, trust level, and time window, inspect linked memory/review/export references, and see redaction or erasure state without exposing hidden payloads. |
 | MR-09 | P0 | Done | Automate governance workflows. | Legal hold create/release/reporting, erasure execution, and retention reports by namespace, retention class, sensitivity, and age are executable through authenticated operator paths and covered by database-backed tests. |
-| MR-10 | P0 | Todo | Prove the production-pilot deployment shape. | A smoke run verifies the documented separate migrator, API, and worker roles against a production-like database target, including rollback and restore-validation steps that can be repeated by an operator. |
+| MR-10 | P0 | Done | Prove the production-pilot deployment shape. | `scripts/production-pilot-deployment-smoke.sh` verifies the documented separate migrator, API, and worker roles against an isolated PostgreSQL target, including rollback and restore-validation steps that can be repeated by an operator. |
 | MR-11 | P0 | Todo | Make observability executable. | Dashboard definitions, alert rules, and trace coverage exist as versioned artifacts for API, worker, PostgreSQL, retrieval, review, vault export, backup, and governance signals; local or pilot smoke checks verify alert inputs. |
 | MR-12 | P0 | Todo | Add benchmark release gates. | Release verification records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage for the benchmark suites; a release cannot pass with unauthorized leaks or failed agent-contract smoke. |
 
