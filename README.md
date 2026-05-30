@@ -46,7 +46,10 @@ Core capabilities:
   pending reviews, and stale vault exports.
 - Export authenticated pilot metrics for request health, readiness, outbox,
   worker heartbeat, retrieval feedback, and embedding-index failures.
-- Run repeatable private-alpha seed and backup/restore smoke checks.
+- Ship executable pilot observability artifacts for alerts, dashboards, and
+  trace coverage.
+- Run repeatable private-alpha seed, backup/restore, deployment, and
+  observability smoke checks.
 
 ## Architecture
 
@@ -170,6 +173,12 @@ Operations metrics smoke verification against a running local API:
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
 ```
 
+Observability artifact verification:
+
+```bash
+./scripts/observability-artifacts-smoke.sh
+```
+
 Production-pilot deployment smoke verification:
 
 ```bash
@@ -240,6 +249,7 @@ tests/
   MemorySystem.IntegrationTests/
 benchmarks/                     Benchmark fixtures, prompt packs, rubrics, and reports
 migrations/                     SQL schema migrations
+observability/                  Pilot alerts, dashboard, trace coverage, and metric inputs
 scripts/                        Local seed and release hygiene scripts
 docs/                           Architecture, decisions, runbooks, and roadmap
 vault/                          Human-readable memory export workspace

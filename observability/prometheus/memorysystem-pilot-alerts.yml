@@ -1,0 +1,374 @@
+groups:
+  - name: memorysystem-api
+    rules:
+      - alert: MemorySystemReadinessFailed
+        expr: max(memorysystem_health_ready) == 0
+        for: 5m
+        labels:
+          severity: page
+          area: api
+          signal: readiness
+        annotations:
+          summary: Memory System readiness is failing.
+          description: At least one readiness check has been unhealthy or degraded for five minutes.
+          runbook_url: docs/production-observability.md#readiness-failure
+
+      - alert: MemorySystemReadinessCheckNotHealthy
+        expr: max by (check, status) (memorysystem_health_check_status{status!="healthy"}) == 1
+        for: 5m
+        labels:
+          severity: ticket
+          area: api
+          signal: readiness_check
+        annotations:
+          summary: Memory System readiness check is not healthy.
+          description: Readiness check {{ $labels.check }} reports {{ $labels.status }}.
+          runbook_url: docs/production-observability.md#readiness-failure
+
+      - alert: MemorySystemApiErrorRateHigh
+        expr: sum(increase(memorysystem_api_request_failures_total[10m])) / clamp_min(sum(increase(memorysystem_api_requests_total[10m])), 1) > 0.01
+        for: 10m
+        labels:
+          severity: page
+          area: api
+          signal: request_errors
+        annotations:
+          summary: Memory System API 5xx rate is high.
+          description: API 5xx responses are above one percent for ten minutes.
+          runbook_url: docs/production-observability.md#readiness-failure
+
+      - alert: MemorySystemApiAverageLatencyHigh
+        expr: sum(rate(memorysystem_api_request_duration_seconds_sum[15m])) / clamp_min(sum(rate(memorysystem_api_request_duration_seconds_count[15m])), 0.001) > 2
+        for: 15m
+        labels:
+          severity: ticket
+          area: api
+          signal: latency
+        annotations:
+          summary: Memory System API average latency is high.
+          description: Average API latency is above the pilot threshold. Replace with p95 histogram once histogram metrics are available.
+          runbook_url: docs/production-observability.md#readiness-failure
+
+  - name: memorysystem-worker
+    rules:
+      - alert: MemorySystemWorkerHeartbeatMissing
+        expr: max(memorysystem_worker_heartbeat_observed{worker_type="outbox"}) == 0
+        for: 2m
+        labels:
+          severity: page
+          area: worker
+          signal: heartbeat
+        annotations:
+          summary: Memory System worker heartbeat has not been observed.
+          description: No outbox worker heartbeat exists for the active database.
+          runbook_url: docs/production-observability.md#worker-heartbeat-stale
+
+      - alert: MemorySystemWorkerHeartbeatStale
+        expr: max(memorysystem_worker_heartbeat_stale{worker_type="outbox"}) == 1 or max(memorysystem_worker_last_seen_age_seconds{worker_type="outbox"}) > 120
+        for: 2m
+        labels:
+          severity: page
+          area: worker
+          signal: heartbeat
+        annotations:
+          summary: Memory System worker heartbeat is stale.
+          description: The latest outbox worker heartbeat is older than the pilot freshness threshold.
+          runbook_url: docs/production-observability.md#worker-heartbeat-stale
+
+      - alert: MemorySystemWorkerStatusNotRunning
+        expr: max(memorysystem_worker_status{worker_type="outbox",status!="running"}) == 1
+        for: 2m
+        labels:
+          severity: ticket
+          area: worker
+          signal: status
+        annotations:
+          summary: Memory System worker is not running.
+          description: The latest outbox worker status is {{ $labels.status }}.
+          runbook_url: docs/production-observability.md#worker-heartbeat-stale
+
+  - name: memorysystem-outbox
+    rules:
+      - alert: MemorySystemOutboxOldestReadyJobAgeHigh
+        expr: max(memorysystem_outbox_oldest_ready_pending_age_seconds) > 300
+        for: 5m
+        labels:
+          severity: page
+          area: worker
+          signal: outbox_age
+        annotations:
+          summary: Memory System outbox oldest ready job is too old.
+          description: A ready outbox job has been waiting longer than five minutes.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+      - alert: MemorySystemOutboxReadyBacklogHigh
+        expr: max(memorysystem_outbox_ready_pending) > 100
+        for: 5m
+        labels:
+          severity: ticket
+          area: worker
+          signal: outbox_backlog
+        annotations:
+          summary: Memory System outbox ready backlog is high.
+          description: Ready pending jobs exceed the pilot backlog threshold.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+      - alert: MemorySystemOutboxDeadLetters
+        expr: max(memorysystem_outbox_dead_letter) > 0
+        for: 1m
+        labels:
+          severity: page
+          area: worker
+          signal: outbox_dead_letter
+        annotations:
+          summary: Memory System outbox has dead-letter jobs.
+          description: Dead-letter jobs require operator inspection before release continues.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+      - alert: MemorySystemOutboxFailedOrExpiredLeases
+        expr: max(memorysystem_outbox_failed) > 0 or max(memorysystem_outbox_expired_processing) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          area: worker
+          signal: outbox_leases
+        annotations:
+          summary: Memory System outbox has failed jobs or expired leases.
+          description: Failed jobs or expired processing leases indicate worker or handler instability.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+      - alert: MemorySystemOutboxRetryingFailures
+        expr: max(memorysystem_outbox_retrying_failed) > 0 or max(memorysystem_outbox_delayed_pending) > 100 or max(memorysystem_outbox_processing) > 100
+        for: 10m
+        labels:
+          severity: ticket
+          area: worker
+          signal: outbox_retries
+        annotations:
+          summary: Memory System outbox retry or processing pressure is elevated.
+          description: Retry, delayed, or processing counts are above the pilot threshold.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+  - name: memorysystem-retrieval
+    rules:
+      - alert: MemorySystemRetrievalErrorRateHigh
+        expr: sum(increase(memorysystem_api_request_failures_total{route=~"/api/memory/context|/api/memory/query-facts|/api/memory/search.*"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: retrieval
+          signal: request_errors
+        annotations:
+          summary: Memory System retrieval endpoints are failing.
+          description: Retrieval or fact-finding routes returned 5xx responses.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression
+
+      - alert: MemorySystemSourceEvidenceReadFailures
+        expr: sum(increase(memorysystem_api_request_failures_total{route="/api/events/{id:guid}"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: retrieval
+          signal: source_evidence
+        annotations:
+          summary: Memory System source evidence reads are failing.
+          description: Source-link reads returned 5xx responses.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression
+
+      - alert: MemorySystemRetrievalNegativeFeedbackHigh
+        expr: max(memorysystem_retrieval_feedback_type_share{feedback_type=~"missing|stale|noisy",window="24h"}) > 0.35 and max(memorysystem_retrieval_feedback_total{window="24h"}) >= 5
+        for: 30m
+        labels:
+          severity: ticket
+          area: retrieval
+          signal: feedback_quality
+        annotations:
+          summary: Memory System retrieval negative feedback share is high.
+          description: Missing, stale, or noisy feedback exceeds the pilot threshold.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression
+
+      - alert: MemorySystemRetrievalFeedbackAbsentDuringActiveWindow
+        expr: max(memorysystem_retrieval_feedback_type_total{window="24h"}) == 0 and max(memorysystem_retrieval_feedback_type_per_hour{window="24h"}) == 0
+        for: 24h
+        labels:
+          severity: ticket
+          area: retrieval
+          signal: feedback_hygiene
+        annotations:
+          summary: Memory System retrieval feedback is absent.
+          description: No retrieval feedback was recorded during the recent operator window.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression
+
+  - name: memorysystem-embedding
+    rules:
+      - alert: MemorySystemEmbeddingProviderNotReady
+        expr: max(memorysystem_embedding_provider_ready) == 0
+        for: 5m
+        labels:
+          severity: page
+          area: worker
+          signal: embedding_provider
+        annotations:
+          summary: Memory System embedding provider is not ready.
+          description: Embedding provider readiness is failing.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+      - alert: MemorySystemEmbeddingIndexFailures
+        expr: max(memorysystem_embedding_outbox_retrying_failed) > 0 or max(memorysystem_embedding_outbox_dead_letter) > 0 or max(memorysystem_embedding_outbox_failed) > 0 or max(memorysystem_embedding_outbox_expired_processing) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: worker
+          signal: embedding_index
+        annotations:
+          summary: Memory System embedding index jobs are failing.
+          description: Memory-index outbox failures indicate embedding or indexing instability.
+          runbook_url: docs/production-observability.md#outbox-backlog-or-dead-letter
+
+  - name: memorysystem-human-workflow
+    rules:
+      - alert: MemorySystemPendingReviewsHigh
+        expr: max(memorysystem_reviews_pending) > 25
+        for: 1h
+        labels:
+          severity: ticket
+          area: review
+          signal: pending_reviews
+        annotations:
+          summary: Memory System pending review count is high.
+          description: Pending review backlog is above the pilot threshold.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemReviewActionFailures
+        expr: sum(increase(memorysystem_api_request_failures_total{route=~"/api/reviews/.*"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: review
+          signal: action_failures
+        annotations:
+          summary: Memory System review actions are failing.
+          description: Review action endpoints returned 5xx responses.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemVaultExportsStale
+        expr: max(memorysystem_vault_exports_stale) > 0
+        for: 30m
+        labels:
+          severity: ticket
+          area: vault_export
+          signal: stale_exports
+        annotations:
+          summary: Memory System vault exports are stale.
+          description: Stale Obsidian export records remain after the repair window.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemVaultExportFailures
+        expr: sum(increase(memorysystem_api_request_failures_total{route=~"/api/vault/exports/.*"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: vault_export
+          signal: export_failures
+        annotations:
+          summary: Memory System vault export endpoints are failing.
+          description: Vault export routes returned 5xx responses.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemGovernanceWorkflowFailures
+        expr: sum(increase(memorysystem_api_request_failures_total{route=~"/api/admin/governance/.*"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+          area: governance
+          signal: workflow_failures
+        annotations:
+          summary: Memory System governance workflows are failing.
+          description: Legal hold, erasure, or retention report endpoints returned 5xx responses.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+  - name: memorysystem-postgresql-and-recovery
+    rules:
+      - alert: MemorySystemPostgresHealthCheckFailed
+        expr: max(memorysystem_health_check_status{check="postgres",status!="healthy"}) == 1 or max(memorysystem_postgres_up) == 0
+        for: 5m
+        labels:
+          severity: page
+          area: postgresql
+          signal: availability
+        annotations:
+          summary: Memory System PostgreSQL is unhealthy.
+          description: PostgreSQL health check or managed database availability metric is failing.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemPostgresStorageHigh
+        expr: max(memorysystem_postgres_storage_used_ratio) > 0.80
+        for: 10m
+        labels:
+          severity: ticket
+          area: postgresql
+          signal: storage
+        annotations:
+          summary: Memory System PostgreSQL storage usage is high.
+          description: Managed PostgreSQL storage usage is above 80 percent.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemPostgresConnectionSaturation
+        expr: max(memorysystem_postgres_connections_used_ratio) > 0.80
+        for: 10m
+        labels:
+          severity: ticket
+          area: postgresql
+          signal: connections
+        annotations:
+          summary: Memory System PostgreSQL connection saturation is high.
+          description: Managed PostgreSQL connection usage is above 80 percent.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemPostgresLongRunningQueries
+        expr: max(memorysystem_postgres_long_running_queries) > 0
+        for: 10m
+        labels:
+          severity: ticket
+          area: postgresql
+          signal: query_runtime
+        annotations:
+          summary: Memory System PostgreSQL has long-running queries.
+          description: Long-running queries may affect API readiness or worker leases.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemBackupTooOld
+        expr: max(memorysystem_backup_age_seconds) > 86400
+        for: 15m
+        labels:
+          severity: page
+          area: backup
+          signal: backup_age
+        annotations:
+          summary: Memory System latest backup is too old.
+          description: Backup age is outside the pilot recovery policy.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemRestoreValidationFailed
+        expr: max(memorysystem_restore_validation_success) == 0
+        for: 15m
+        labels:
+          severity: page
+          area: backup
+          signal: restore_validation
+        annotations:
+          summary: Memory System restore validation failed.
+          description: Latest restore-validation job did not complete successfully.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemAgentContractBenchmarkFailed
+        expr: max(memorysystem_benchmark_agent_contract_success) == 0
+        for: 1m
+        labels:
+          severity: page
+          area: retrieval
+          signal: benchmark_gate
+        annotations:
+          summary: Memory System agent-contract benchmark failed.
+          description: The latest agent-contract release-gate smoke reported failure.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression

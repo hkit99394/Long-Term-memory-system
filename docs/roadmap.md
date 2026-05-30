@@ -10,18 +10,19 @@ Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: MR-11, executable observability artifacts.
+Next milestone: MR-12, benchmark release gates.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
 The current production-pilot docs define the target deployment and
 observability shape. MR-10 adds executable deployment proof for the local
-migrator/API/worker split, rollback, and restore-validation path. Remaining
-production-pilot proof now centers on dashboard, alert, trace, and benchmark
+migrator/API/worker split, rollback, and restore-validation path. MR-11 adds
+versioned alert rules, dashboard definitions, trace coverage, and observability
+smoke checks. Remaining production-pilot proof now centers on benchmark release
 gates. MR-08 operator evidence browsing is implemented, MR-09 adds
 authenticated governance automation for legal holds, erasure execution, and
-retention reporting, and the remaining Middle Run sequence is MR-11 executable
-observability and MR-12 benchmark release gates.
+retention reporting, and the remaining Middle Run sequence is MR-12 benchmark
+release gates.
 
 ## Milestones
 
@@ -137,6 +138,10 @@ After M8:
   the migrator, API, and worker roles, runs them against an isolated PostgreSQL
   target, validates health/read/write/operator paths, restores into a fresh
   database, and re-points API and worker at the restored database.
+- MR-11 adds versioned observability artifacts under `observability/`:
+  Prometheus-compatible alert rules, a Grafana-compatible pilot dashboard, a
+  trace coverage manifest, API and external metric input manifests, and local
+  artifact/live-metric smoke checks.
 
 ## First Build Sequence
 

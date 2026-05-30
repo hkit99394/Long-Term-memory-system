@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_BASE_URL="${MEMORYSYSTEM_API_BASE_URL:-http://127.0.0.1:5099}"
 API_KEY="${MEMORYSYSTEM_API_KEY:-private-alpha-local-key}"
 OUTPUT_FILE="${MEMORYSYSTEM_OPERATIONS_METRICS_SMOKE_FILE:-}"
+ALERT_INPUTS_FILE="${MEMORYSYSTEM_OBSERVABILITY_ALERT_INPUTS_FILE:-$ROOT_DIR/observability/alert-inputs/api-metrics.txt}"
 
 tmp_file="$(mktemp)"
 
@@ -12,6 +14,18 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+required_metrics=()
+while IFS= read -r metric_name; do
+  metric_name="${metric_name#"${metric_name%%[![:space:]]*}"}"
+  metric_name="${metric_name%"${metric_name##*[![:space:]]}"}"
+
+  if [[ -z "$metric_name" || "${metric_name:0:1}" == "#" ]]; then
+    continue
+  fi
+
+  required_metrics+=("$metric_name")
+done < "$ALERT_INPUTS_FILE"
 
 echo "Priming API request metrics..."
 curl -fsS \
@@ -25,24 +39,8 @@ curl -fsS \
   "$API_BASE_URL/api/operations/metrics" \
   -o "$tmp_file"
 
-required_metrics=(
-  memorysystem_api_requests_total
-  memorysystem_health_ready
-  memorysystem_health_check_status
-  memorysystem_outbox_ready_pending
-  memorysystem_outbox_dead_letter
-  memorysystem_outbox_oldest_ready_pending_age_seconds
-  memorysystem_worker_heartbeat_observed
-  memorysystem_worker_heartbeat_stale
-  memorysystem_retrieval_feedback_total
-  memorysystem_retrieval_feedback_type_total
-  memorysystem_embedding_provider_ready
-  memorysystem_embedding_outbox_retrying_failed
-  memorysystem_embedding_outbox_dead_letter
-)
-
 for metric_name in "${required_metrics[@]}"; do
-  if ! grep -q "^$metric_name" "$tmp_file"; then
+  if ! grep -Eq "^$metric_name(\\{| |$)" "$tmp_file"; then
     echo "Missing expected metric: $metric_name" >&2
     echo "First 120 metric lines:" >&2
     sed -n '1,120p' "$tmp_file" >&2

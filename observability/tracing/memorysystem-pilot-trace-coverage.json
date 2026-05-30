@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-05-30",
+  "serviceName": "MemorySystem",
+  "purpose": "Production-pilot trace coverage manifest for the spans that must exist before the pilot is considered observable.",
+  "requiredAreas": [
+    "api",
+    "worker",
+    "postgresql",
+    "retrieval",
+    "review",
+    "vault_export",
+    "backup",
+    "governance"
+  ],
+  "forbiddenAttributes": [
+    "memory.raw_content",
+    "memory.raw_query",
+    "memory.proposal_text",
+    "memory.review_notes",
+    "event.raw_payload",
+    "embedding.input",
+    "api_key",
+    "authorization"
+  ],
+  "safeAttributeExamples": [
+    "http.route",
+    "http.request.method",
+    "http.response.status_code",
+    "memorysystem.scope_type",
+    "memorysystem.role_id",
+    "memorysystem.memory_type",
+    "memorysystem.lifecycle_status",
+    "memorysystem.result_count",
+    "memorysystem.decision",
+    "memorysystem.failure_status",
+    "memorysystem.worker_type",
+    "memorysystem.job_type",
+    "memorysystem.query_hash"
+  ],
+  "spans": [
+    {
+      "area": "api",
+      "spanName": "MemorySystem.Api.Request",
+      "kind": "server",
+      "coverageLevel": "platform",
+      "requiredAttributes": [
+        "http.route",
+        "http.request.method",
+        "http.response.status_code"
+      ],
+      "notes": "ASP.NET Core request instrumentation should provide the route-level entry span."
+    },
+    {
+      "area": "api",
+      "spanName": "MemorySystem.Api.Idempotency",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.idempotency.status",
+        "memorysystem.resource_type",
+        "memorysystem.failure_status"
+      ],
+      "notes": "Covers idempotency begin, replay, conflict, completion, and failure paths."
+    },
+    {
+      "area": "retrieval",
+      "spanName": "MemorySystem.Retrieval.ContextPacket",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.scope_type",
+        "memorysystem.role_id",
+        "memorysystem.query_hash",
+        "memorysystem.result_count"
+      ],
+      "notes": "Do not attach raw query text or returned memory content."
+    },
+    {
+      "area": "retrieval",
+      "spanName": "MemorySystem.Retrieval.QueryFacts",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.scope_type",
+        "memorysystem.role_id",
+        "memorysystem.fact_count",
+        "memorysystem.contradiction_count",
+        "memorysystem.exclusion_count"
+      ],
+      "notes": "Fact-finding traces should make evidence and contradiction counts visible without copying claims."
+    },
+    {
+      "area": "review",
+      "spanName": "MemorySystem.Review.Action",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.review_action",
+        "memorysystem.scope_type",
+        "memorysystem.lifecycle_status",
+        "memorysystem.failure_status"
+      ],
+      "notes": "Review notes are forbidden; trace status and ids are enough for operator correlation."
+    },
+    {
+      "area": "vault_export",
+      "spanName": "MemorySystem.VaultExport.Render",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.export_type",
+        "memorysystem.export_status",
+        "memorysystem.result_count"
+      ],
+      "notes": "Vault export traces must not include rendered markdown content."
+    },
+    {
+      "area": "worker",
+      "spanName": "MemorySystem.Worker.OutboxLease",
+      "kind": "consumer",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.worker_type",
+        "memorysystem.worker_id",
+        "memorysystem.batch_size",
+        "memorysystem.job_count"
+      ],
+      "notes": "Covers lease attempts and batch size before handler-specific spans."
+    },
+    {
+      "area": "worker",
+      "spanName": "MemorySystem.Worker.OutboxJob",
+      "kind": "consumer",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.worker_type",
+        "memorysystem.job_type",
+        "memorysystem.aggregate_type",
+        "memorysystem.attempts",
+        "memorysystem.outcome"
+      ],
+      "notes": "Covers handler success, retry, dead-letter, and unsupported job paths."
+    },
+    {
+      "area": "postgresql",
+      "spanName": "db.query",
+      "kind": "client",
+      "coverageLevel": "platform",
+      "requiredAttributes": [
+        "db.system.name",
+        "db.namespace",
+        "server.address"
+      ],
+      "notes": "Npgsql instrumentation should capture database dependency timing. SQL text should be disabled or sanitized if it risks payload leakage."
+    },
+    {
+      "area": "backup",
+      "spanName": "MemorySystem.BackupRestore.Validation",
+      "kind": "internal",
+      "coverageLevel": "job",
+      "requiredAttributes": [
+        "memorysystem.backup_id",
+        "memorysystem.restore_database",
+        "memorysystem.schema_migration_count",
+        "memorysystem.restore_validation_status"
+      ],
+      "notes": "Covers backup inspection, restore, migration replay, table-count checks, and pgvector verification."
+    },
+    {
+      "area": "governance",
+      "spanName": "MemorySystem.Governance.LegalHold",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.scope_type",
+        "memorysystem.namespace",
+        "memorysystem.action",
+        "memorysystem.result_count"
+      ],
+      "notes": "Legal-hold traces should expose counts and policy labels, not source payloads."
+    },
+    {
+      "area": "governance",
+      "spanName": "MemorySystem.Governance.Erasure",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.scope_type",
+        "memorysystem.namespace",
+        "memorysystem.events_redacted",
+        "memorysystem.derived_records_cleared"
+      ],
+      "notes": "Erasure traces must not include erased payloads or replacement markers."
+    },
+    {
+      "area": "governance",
+      "spanName": "MemorySystem.Governance.RetentionReport",
+      "kind": "internal",
+      "coverageLevel": "application",
+      "requiredAttributes": [
+        "memorysystem.scope_type",
+        "memorysystem.retention_class",
+        "memorysystem.sensitivity",
+        "memorysystem.result_count"
+      ],
+      "notes": "Retention report traces should make grouping and counts observable."
+    }
+  ]
+}

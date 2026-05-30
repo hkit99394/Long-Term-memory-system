@@ -78,7 +78,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, and prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation. Production observability expectations are designed and documented, but dashboards, alerts, traces, and benchmark gates still need executable artifacts. The next planned slice is MR-11: making observability executable. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, and make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes. Benchmark gates still need executable release artifacts. The next planned slice is MR-12: benchmark release gates. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 Middle Run status language:
 
@@ -91,7 +91,7 @@ Middle Run execution gates:
 1. Done: MR-08 completes the operator evidence trail with source event and audit browsing.
 2. Done: MR-09 automates governance workflows for legal hold, erasure execution, and retention reporting.
 3. Done: MR-10 proves the production-pilot deployment shape with a smoke run across separate migrator, API, and worker roles plus rollback/restore validation.
-4. MR-11: turn observability design into executable dashboards, alert rules, and trace coverage.
+4. Done: MR-11 turns observability design into executable dashboards, alert rules, trace coverage, and metric-input smokes.
 5. MR-12: make benchmark results a release gate using Memory Lift, Contract Lift, and zero unauthorized leak checks.
 
 Middle Run capability areas:
@@ -110,6 +110,7 @@ Middle Run capability areas:
    - Alerts for readiness failure, worker heartbeat staleness, outbox backlog age, and repeated embedding/provider failures.
    - Done: define [Production Observability and Alerting](production-observability.md), including required pilot metrics, payload-safe trace/log fields, alert thresholds, dashboard minimums, and operator first-response runbook actions.
    - Done: expose the first authenticated `/api/operations/metrics` Prometheus-compatible export and `scripts/operations-metrics-smoke.sh` alert-input smoke for request health, readiness, outbox, worker heartbeat, retrieval feedback, review/vault workflow, and embedding-index failures.
+   - Done: add versioned Prometheus-compatible alert rules, a Grafana-compatible pilot dashboard, a trace coverage manifest, metric input manifests, and artifact/live-metric smoke validation under `observability/`.
 
 3. Build the first real admin console.
    - Memory list and detail view.

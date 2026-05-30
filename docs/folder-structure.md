@@ -234,6 +234,13 @@ Rules:
 - Add schema changes through new migration files instead of editing applied migrations after they are shared.
 - Keep model-specific vector indexes out of the first migration until embedding model, dimension, distance operator, and index type are selected.
 
+## Observability
+
+`observability/` contains versioned production-pilot observability artifacts:
+Prometheus-compatible alert rules, a Grafana-compatible dashboard, trace
+coverage, and metric input manifests. Use `scripts/observability-artifacts-smoke.sh`
+after changing these files.
+
 ## Tools
 
 ### `tools/ui`

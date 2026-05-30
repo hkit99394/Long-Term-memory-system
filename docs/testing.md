@@ -112,6 +112,20 @@ MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smo
 Set `MEMORYSYSTEM_API_KEY` when the running API uses a key other than
 `private-alpha-local-key`.
 
+## Observability Artifact Smoke
+
+Use this after changing pilot alerts, dashboard panels, trace coverage, or
+metric input manifests. The smoke validates the Prometheus alert rules,
+Grafana-compatible dashboard JSON, trace coverage manifest, and metric input
+lists.
+
+```bash
+./scripts/observability-artifacts-smoke.sh
+```
+
+Set `MEMORYSYSTEM_OBSERVABILITY_VALIDATE_LIVE_METRICS=true` to also run the
+live operations metrics smoke against `MEMORYSYSTEM_API_BASE_URL`.
+
 ## Production Pilot Deployment Smoke
 
 Use this when changing deployment shape, runtime configuration, migrations,
@@ -119,8 +133,8 @@ worker indexing, backup/restore behavior, or release runbooks. The smoke
 publishes the migrator, API, worker, and demo seeder; creates an isolated
 PostgreSQL database; runs the migrator as a one-shot role; seeds Scenario 0001;
 starts API and worker as separate processes; verifies health, operations,
-read, and write paths; restores a backup into a fresh database; then re-points
-API and worker at the restored database.
+alert inputs, read, and write paths; restores a backup into a fresh database;
+then re-points API and worker at the restored database.
 
 ```bash
 ./scripts/production-pilot-deployment-smoke.sh

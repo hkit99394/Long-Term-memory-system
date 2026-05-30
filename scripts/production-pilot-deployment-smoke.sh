@@ -218,6 +218,11 @@ verify_api_paths() {
   grep -q '"stale":false' "$summary_file"
   printf '  %-32s operations summary\n' "$label"
 
+  MEMORYSYSTEM_API_BASE_URL="$base_url" \
+    MEMORYSYSTEM_API_KEY="$API_KEY" \
+    "$ROOT_DIR/scripts/operations-metrics-smoke.sh"
+  printf '  %-32s alert inputs\n' "$label"
+
   curl -fsS -G -H "X-Api-Key: $API_KEY" \
     --data-urlencode "q=SQL-first" \
     --data-urlencode "limit=5" \

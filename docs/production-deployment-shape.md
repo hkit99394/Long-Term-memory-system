@@ -195,8 +195,10 @@ Minimum production-pilot gates:
 - Backup or point-in-time recovery status is known before migration.
 
 The current implementation has health checks, structured operational logs, and
-operator summary and metrics data. It does not yet ship production dashboards,
-distributed tracing, alert rules, or infrastructure-as-code.
+operator summary and metrics data. It also ships versioned pilot alert rules,
+dashboard definitions, and trace coverage under `observability/`. It does not
+yet ship runtime distributed tracing, platform exporters, or
+infrastructure-as-code.
 
 ## Pilot Readiness Checklist
 

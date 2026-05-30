@@ -1,0 +1,190 @@
+{
+  "uid": "memorysystem-pilot",
+  "title": "Memory System Production Pilot",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "tags": [
+    "memorysystem",
+    "production-pilot"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API Readiness",
+      "description": "area:api signal:readiness",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_health_ready" },
+        { "refId": "B", "expr": "memorysystem_health_check_status" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "API Requests and Failures",
+      "description": "area:api signal:traffic",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route, status_code) (rate(memorysystem_api_requests_total[5m]))" },
+        { "refId": "B", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total[5m]))" },
+        { "refId": "C", "expr": "sum by (route) (rate(memorysystem_api_request_duration_seconds_sum[5m])) / clamp_min(sum by (route) (rate(memorysystem_api_request_duration_seconds_count[5m])), 0.001)" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Worker Heartbeat",
+      "description": "area:worker signal:heartbeat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_worker_heartbeat_observed" },
+        { "refId": "B", "expr": "memorysystem_worker_heartbeat_stale" },
+        { "refId": "C", "expr": "memorysystem_worker_last_seen_age_seconds" },
+        { "refId": "D", "expr": "memorysystem_worker_status" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Outbox Backlog and Leases",
+      "description": "area:worker signal:outbox",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_outbox_ready_pending" },
+        { "refId": "B", "expr": "memorysystem_outbox_delayed_pending" },
+        { "refId": "C", "expr": "memorysystem_outbox_processing" },
+        { "refId": "D", "expr": "memorysystem_outbox_retrying_failed" },
+        { "refId": "E", "expr": "memorysystem_outbox_expired_processing" },
+        { "refId": "F", "expr": "memorysystem_outbox_dead_letter" },
+        { "refId": "G", "expr": "memorysystem_outbox_failed" },
+        { "refId": "H", "expr": "memorysystem_outbox_oldest_ready_pending_age_seconds" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Retrieval Feedback",
+      "description": "area:retrieval signal:feedback",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_retrieval_feedback_total" },
+        { "refId": "B", "expr": "memorysystem_retrieval_feedback_type_total" },
+        { "refId": "C", "expr": "memorysystem_retrieval_feedback_type_share" },
+        { "refId": "D", "expr": "memorysystem_retrieval_feedback_type_per_hour" },
+        { "refId": "E", "expr": "memorysystem_benchmark_agent_contract_success" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Embedding Indexing",
+      "description": "area:worker signal:embedding",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_embedding_provider_ready" },
+        { "refId": "B", "expr": "memorysystem_embedding_outbox_retrying_failed" },
+        { "refId": "C", "expr": "memorysystem_embedding_outbox_dead_letter" },
+        { "refId": "D", "expr": "memorysystem_embedding_outbox_failed" },
+        { "refId": "E", "expr": "memorysystem_embedding_outbox_expired_processing" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Review Backlog",
+      "description": "area:review signal:pending",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_reviews_pending" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Vault Exports",
+      "description": "area:vault_export signal:stale",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_vault_exports_stale" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "PostgreSQL Platform",
+      "description": "area:postgresql signal:managed-database",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_postgres_up" },
+        { "refId": "B", "expr": "memorysystem_postgres_storage_used_ratio" },
+        { "refId": "C", "expr": "memorysystem_postgres_connections_used_ratio" },
+        { "refId": "D", "expr": "memorysystem_postgres_long_running_queries" }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Backup and Restore",
+      "description": "area:backup signal:recovery",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_backup_age_seconds" },
+        { "refId": "B", "expr": "memorysystem_restore_validation_success" }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Governance Workflows",
+      "description": "area:governance signal:workflow",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route, status_code) (rate(memorysystem_api_requests_total{route=~\"/api/admin/governance/.*\"}[5m]))" },
+        { "refId": "B", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total{route=~\"/api/admin/governance/.*\"}[5m]))" }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Vault and Review Endpoint Failures",
+      "description": "area:vault_export area:review signal:endpoint-failures",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total{route=~\"/api/reviews/.*\"}[5m]))" },
+        { "refId": "B", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total{route=~\"/api/vault/exports/.*\"}[5m]))" }
+      ]
+    }
+  ]
+}

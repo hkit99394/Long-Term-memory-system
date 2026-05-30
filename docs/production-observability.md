@@ -32,10 +32,19 @@ The current service already exposes:
   decision points without logging raw proposal text, query text, review notes,
   memory body text, or raw event payloads.
 - `scripts/operations-metrics-smoke.sh` for a local smoke check that verifies
-  the first alert inputs are observable from a running API.
+  the first alert inputs are observable from a running API. The checked inputs
+  now come from `observability/alert-inputs/api-metrics.txt`.
+- `observability/prometheus/memorysystem-pilot-alerts.yml` for
+  Prometheus-compatible pilot alert rules.
+- `observability/grafana/memorysystem-pilot-dashboard.json` for a
+  Grafana-compatible pilot dashboard definition.
+- `observability/tracing/memorysystem-pilot-trace-coverage.json` for the
+  versioned trace coverage manifest and payload-safe attribute policy.
+- `scripts/observability-artifacts-smoke.sh` for local validation of alert,
+  dashboard, trace coverage, and metric input artifacts.
 
-The current service does not yet ship distributed tracing, production
-dashboards, alert rules as code, or a platform-specific metrics exporter.
+The current service does not yet ship runtime OpenTelemetry wiring,
+platform-specific exporters, or managed PostgreSQL and backup exporters.
 
 ## Signal Ownership
 
@@ -304,6 +313,42 @@ The first production-pilot dashboard should show:
 - latest benchmark smoke status
 - latest backup age and restore validation status
 
+MR-11 implements this dashboard minimum as
+`observability/grafana/memorysystem-pilot-dashboard.json`. The dashboard is
+Grafana-compatible and uses the same API metrics as `/api/operations/metrics`
+plus external pilot metrics supplied by the deployment platform, PostgreSQL
+provider, backup/restore jobs, and benchmark release gate.
+
+## Versioned Artifact Set
+
+MR-11 makes the observability design executable through checked-in artifacts:
+
+- `observability/alert-inputs/api-metrics.txt` defines local API metrics that
+  must be emitted by `/api/operations/metrics`.
+- `observability/alert-inputs/external-pilot-metrics.txt` defines platform,
+  PostgreSQL, backup, restore-validation, and benchmark-gate metrics expected
+  in a pilot deployment.
+- `observability/prometheus/memorysystem-pilot-alerts.yml` defines alert rules
+  for API, worker, PostgreSQL, retrieval, review, vault export, backup, and
+  governance signals.
+- `observability/grafana/memorysystem-pilot-dashboard.json` defines the first
+  production-pilot dashboard.
+- `observability/tracing/memorysystem-pilot-trace-coverage.json` defines
+  required trace areas, target span names, required safe attributes, and
+  forbidden payload-bearing attributes.
+
+Use this artifact-only validation path when changing observability assets:
+
+```bash
+./scripts/observability-artifacts-smoke.sh
+```
+
+Use this live alert-input validation path against a running API:
+
+```bash
+MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
+```
+
 ## Implementation Notes
 
 MR-06 adds the first in-process metrics export path:
@@ -321,6 +366,18 @@ MR-06 adds the first in-process metrics export path:
   window as `/api/operations/summary`.
 - Embedding failure metrics are memory-index outbox failure signals until a
   provider-specific error taxonomy exists.
+
+MR-11 adds the first executable observability artifact path:
+
+- Prometheus-compatible alert rules cover API, worker/outbox, retrieval,
+  embedding, review, vault export, governance, PostgreSQL, backup/restore, and
+  benchmark-gate signals.
+- The dashboard references every API metric input and every external pilot
+  metric input so missing platform integrations are visible during pilot setup.
+- Trace coverage is represented as a versioned manifest until runtime
+  OpenTelemetry wiring is added.
+- `scripts/production-pilot-deployment-smoke.sh` now runs the live operations
+  metrics smoke while API and worker roles are active.
 
 Recommended follow-on order:
 
@@ -351,3 +408,14 @@ MR-06 is complete when:
 - request health, readiness, outbox, worker heartbeat, retrieval feedback, and
   embedding-index failure signals are exported
 - `scripts/operations-metrics-smoke.sh` verifies the key alert inputs locally
+
+MR-11 is complete when:
+
+- dashboard definitions, alert rules, trace coverage, and metric input
+  manifests are versioned under `observability/`
+- `scripts/observability-artifacts-smoke.sh` validates the observability
+  artifact set locally
+- `scripts/operations-metrics-smoke.sh` validates live API alert inputs from
+  the checked-in metric input manifest
+- the production-pilot deployment smoke verifies live alert inputs while API
+  and worker roles are running
