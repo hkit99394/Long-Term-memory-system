@@ -137,15 +137,19 @@ Rules:
 
 Owns:
 
-- entities and value objects
-- memory status lifecycle concepts
-- scope, namespace, role, visibility, trust level, and confidence concepts
-- domain rules that do not require IO
+- target home for stable entities and value objects
+- target home for memory status lifecycle concepts
+- target home for scope, namespace, role, visibility, trust level, and confidence concepts
+- domain rules that do not require IO, once extracted from Application
 
 Rules:
 
 - No database, HTTP, filesystem, or provider dependencies.
 - Keep domain rules deterministic and easy to unit test.
+
+Current status: the project is intentionally thin today. Most durable concepts
+still live in Application and Infrastructure while the production-pilot surface
+stabilizes. Long Run item `LR-04` tracks staged extraction into this project.
 
 ### `src/MemorySystem.Infrastructure`
 

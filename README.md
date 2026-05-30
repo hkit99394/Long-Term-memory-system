@@ -239,7 +239,7 @@ The UI build writes the static review dashboard asset under
 src/
   MemorySystem.Api/             ASP.NET Core API and review dashboard assets
   MemorySystem.Application/     Application contracts and use-case services
-  MemorySystem.Domain/          Domain models and policies
+  MemorySystem.Domain/          Thin domain boundary; model extraction is tracked by LR-04
   MemorySystem.Infrastructure/  PostgreSQL, providers, repositories, and stores
   MemorySystem.Migrator/        SQL migration runner
   MemorySystem.Worker/          Outbox and retention worker

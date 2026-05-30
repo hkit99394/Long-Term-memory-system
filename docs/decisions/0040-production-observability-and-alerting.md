@@ -12,10 +12,12 @@ path. The next risk is operational visibility: an operator needs to know
 whether the service is reachable, ready, processing outbox work, preserving
 source-linked retrieval quality, and recoverable from backup.
 
-The current implementation already exposes health checks, structured logs,
-worker heartbeat checks, outbox backlog checks, and an authenticated operations
-summary. It does not yet include a metrics exporter, distributed tracing,
-dashboards, or alert rules as code.
+At the time this decision was accepted, the implementation exposed health
+checks, structured logs, worker heartbeat checks, outbox backlog checks, and an
+authenticated operations summary. Subsequent Middle Run work added the
+authenticated `/api/operations/metrics` exporter, alert-input smoke checks,
+versioned dashboard artifacts, and alert rules as code. Runtime distributed
+tracing and platform-specific exporters remain future production-platform work.
 
 ## Decision
 
@@ -48,13 +50,12 @@ raw event payloads, or embedding input text.
 
 ## Consequences
 
-- The next implementation slice can add OpenTelemetry and application metrics
-  against a named signal contract.
+- Later implementation slices can add runtime OpenTelemetry and platform
+  exporters against the named signal contract.
 - Alerting is intentionally narrow for the production pilot, which should reduce
   noise while catching the highest-risk failure modes.
 - Retrieval quality becomes part of operational health through retrieval
   feedback and benchmark smoke status, not only through unit or integration
   tests.
-- Dashboards and alert rules can be built later without changing the signal
-  ownership model.
-
+- The checked-in dashboard and alert rules can evolve without changing the
+  signal ownership model.
