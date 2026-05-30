@@ -157,3 +157,13 @@ productization.
 | LMSS-05 | P0 | Done | Implement fact-finding endpoint with evidence and policy metadata. | `POST /api/memory/query-facts` lets agents query authorized facts and receive claims, source ids, confidence, lifecycle status, contradiction summaries, exclusion summaries, and policy metadata. |
 | LMSS-06 | P1 | Done | Document policy targeting for agent callers. | [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) documents principal resolution, target scope, namespace, role id, trust level, retention class, sensitivity, and source event rules with examples. |
 | LMSS-07 | P1 | Done | Add benchmark tasks for agent contract usefulness. | [Agent Contract Usefulness v1](../benchmarks/agent-contract-usefulness-v1/README.md) benchmark tasks measure whether the agent-facing contract improves fact finding, evidence use, contradiction handling, role targeting, feedback hygiene, and safe scoped answers. |
+
+## Long Run Gate Scoping
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| LR-01 | P0 | Todo | Scope enterprise access gate. | A decision record and implementation backlog define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
+| LR-02 | P0 | Todo | Scope context productization gate. | A decision record and implementation backlog define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad memory, and how those signals feed benchmark-visible ranking improvements. |
+| LR-03 | P0 | Todo | Capture first real benchmark release-gate report. | Filled LLM outcome and agent-contract scorecards plus live agent-contract smoke output produce `benchmarks/outputs/release-gates/latest.json` and `.md`; the report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage before any external pilot release. |
+| LR-04 | P1 | Todo | Define Domain model extraction slice. | Stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, and source evidence have a staged extraction plan from Application/Infrastructure into `MemorySystem.Domain` with compatibility tests. |
+| LR-05 | P1 | Todo | Scope production platform integration. | A deployment decision record defines infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |

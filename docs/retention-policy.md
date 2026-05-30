@@ -49,7 +49,10 @@ Rules:
 - Erasure requests received during legal hold remain recorded but stay pending until release.
 - Releasing a hold must be a separate auditable action; after release, the target returns to its prior retention or erasure path.
 
-The current schema can represent held event payloads through `events.retention_class = 'legal_hold'`. A fuller hold-management endpoint and operator workflow remain future implementation work.
+The current schema can represent held event payloads through `events.retention_class = 'legal_hold'`.
+Authenticated operator endpoints can create, list, and release legal holds. A
+fuller operator workflow still needs environment-specific policy, reporting,
+and external payload-store coordination.
 
 ## Erasure Workflow
 

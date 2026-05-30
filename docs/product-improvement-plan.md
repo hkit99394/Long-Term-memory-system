@@ -248,4 +248,8 @@ The final product vision is simple: AI agents get durable continuity without tur
 
 ## Near-Term Product Decision
 
-The next move should be a private alpha around one excellent workflow, followed by measurement of whether retrieved context actually improves the agent's decisions.
+The next move should be Long Run gate scoping around enterprise access and
+context productization. Short Run private alpha and Middle Run production-pilot
+hardening are complete as baselines; the next release decision should use a
+real MR-12 benchmark release-gate report, not only fixture validation, before
+inviting an external pilot user.
