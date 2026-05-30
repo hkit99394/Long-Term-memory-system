@@ -113,7 +113,7 @@ Build scoped context
 Return compact context packet
 ```
 
-The private-alpha baseline now extends that loop with:
+The current production-pilot baseline now extends that loop with:
 
 - human review through the `/reviews/` dashboard
 - memory/source-event inspection through the `/admin/` console

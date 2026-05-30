@@ -37,8 +37,15 @@ Results:
 - Scenario 0001 seed runner completed against the local PostgreSQL database.
 - Backup/restore smoke passed with 20 restored migrations and `pgvector` verified.
 
-## Known Caveats
+## Known Caveats At Release Time
 
 - API key configuration is still environment-driven.
-- The review dashboard is functional but not yet a full admin console.
-- Retrieval feedback is captured as raw observations; aggregate operator metrics are the next Middle Run step.
+- The review dashboard was functional, but the fuller admin memory/source
+  inspection workflow was deferred to Middle Run.
+- Retrieval feedback was captured as raw observations; aggregate operator
+  metrics were deferred to Middle Run.
+
+Middle Run has since added the admin inspection slices, retrieval feedback
+metrics, governance endpoints, deployment smoke, observability artifacts, and
+benchmark release gates. This release note remains the historical Short Run
+baseline.

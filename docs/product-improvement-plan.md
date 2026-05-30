@@ -4,7 +4,12 @@ Last reviewed: 2026-05-30
 
 ## Purpose
 
-This document captures a product-owner view of the long-term memory system after the M0-M8 technical milestones. It is not a replacement for the delivery [Roadmap](roadmap.md) or [Backlog](backlog.md). It reframes the next work around product maturity: trust, usability, production readiness, measurable memory quality, and operator confidence.
+This document captures a product-owner view of the long-term memory system after
+the Short Run private-alpha baseline and Middle Run production-pilot hardening
+baseline. It is not a replacement for the delivery [Roadmap](roadmap.md) or
+[Backlog](backlog.md). It reframes the next work around product maturity: trust,
+usability, production readiness, measurable memory quality, and operator
+confidence.
 
 ## Product-Owner Read
 
