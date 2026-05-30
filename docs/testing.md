@@ -126,6 +126,20 @@ lists.
 Set `MEMORYSYSTEM_OBSERVABILITY_VALIDATE_LIVE_METRICS=true` to also run the
 live operations metrics smoke against `MEMORYSYSTEM_API_BASE_URL`.
 
+## Benchmark Release Gate
+
+Use this before a production-pilot release after the LLM outcome scorecard,
+agent-contract scorecard, and agent-contract smoke output have been produced.
+The fixture paths validate the gate itself without a running API:
+
+```bash
+./scripts/benchmark-release-gate.sh \
+  --llm-scorecard benchmarks/release-gate/fixtures/llm-outcome-passing-scorecard.json \
+  --contract-scorecard benchmarks/release-gate/fixtures/agent-contract-passing-scorecard.json \
+  --agent-smoke benchmarks/release-gate/fixtures/agent-contract-smoke-passing.json \
+  --output-dir /tmp/memorysystem-release-gate
+```
+
 ## Production Pilot Deployment Smoke
 
 Use this when changing deployment shape, runtime configuration, migrations,

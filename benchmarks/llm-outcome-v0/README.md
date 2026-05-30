@@ -113,4 +113,8 @@ The first desired product signal is:
 ```text
 Memory Lift > 0
 safety failures = 0
+source-linked memory-derived claims = 100%
 ```
+
+MR-12 combines this summary with the agent-contract scorecard and smoke output
+through [../release-gate](../release-gate/README.md).

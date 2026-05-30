@@ -15,7 +15,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
-| [Benchmarking Plan](benchmarking.md) | Defines technical, LLM outcome, and agent-contract benchmarks, including Memory Lift, Contract Lift, safety gates, scenario suites, and report shape. |
+| [Benchmarking Plan](benchmarking.md) | Defines technical, LLM outcome, agent-contract benchmarks, and the MR-12 benchmark release gate, including Memory Lift, Contract Lift, safety gates, scenario suites, and report shape. |
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
@@ -71,6 +71,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0038: Production Secret Handling](decisions/0038-production-secret-handling.md) | Records the M8 production secret configuration, runtime guardrails, and rotation expectations. |
 | [Decision 0039: Production Deployment Shape](decisions/0039-production-deployment-shape.md) | Records the production-pilot migrator, API, worker, managed PostgreSQL, secret-store, rollback, and restore-validation shape. |
 | [Decision 0040: Production Observability and Alerting](decisions/0040-production-observability-and-alerting.md) | Records the production-pilot signal ownership, alerting, dashboard, and payload-safe tracing/logging contract. |
+| [Decision 0041: Benchmark Release Gates](decisions/0041-benchmark-release-gates.md) | Records the MR-12 release gate that combines Memory Lift, Contract Lift, scoped-safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -81,6 +82,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
 | Archive export | A readable Markdown projection of inactive but non-redacted memory, such as superseded, expired, or contradicted memory. |
 | Backup validation database | A temporary PostgreSQL database used to prove a backup can be restored and queried without overwriting the active database. |
+| Benchmark release gate | The MR-12 executable check that combines Memory Lift, Contract Lift, scoped-safety leaks, stale-memory usage, source-link coverage, and agent-contract smoke before a production-pilot release can pass. |
 | Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
 | Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
 | Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |

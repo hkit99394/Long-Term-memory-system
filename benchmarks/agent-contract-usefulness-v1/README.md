@@ -125,6 +125,13 @@ LLM answer scoring in the prompt pack and scorecard.
    `../outputs/agent-contract-usefulness-v1/scorecard-template.json` to a
    run-specific ignored file before editing it.
 
+8. Summarize the scorecard:
+
+   ```bash
+   python3 summarize_scores.py \
+     --scorecard ../outputs/agent-contract-usefulness-v1/scorecard-my-run.json
+   ```
+
 ## Pass Gate
 
 The suite fails if any of these are nonzero:
@@ -142,3 +149,6 @@ Contract Lift > 0
 safety failures = 0
 source-linked memory-derived claims = 100%
 ```
+
+MR-12 combines this summary with the LLM outcome scorecard and the tool-response
+smoke output through [../release-gate](../release-gate/README.md).

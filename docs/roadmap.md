@@ -6,23 +6,23 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 
 ## Current Track
 
-Current milestone: Middle Run production-pilot hardening is underway.
+Current milestone: Middle Run production-pilot hardening baseline is complete;
+Long Run gate scoping is next.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: MR-12, benchmark release gates.
+Next milestone: Enterprise access and context productization gates.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
-The current production-pilot docs define the target deployment and
-observability shape. MR-10 adds executable deployment proof for the local
-migrator/API/worker split, rollback, and restore-validation path. MR-11 adds
-versioned alert rules, dashboard definitions, trace coverage, and observability
-smoke checks. Remaining production-pilot proof now centers on benchmark release
-gates. MR-08 operator evidence browsing is implemented, MR-09 adds
-authenticated governance automation for legal holds, erasure execution, and
-retention reporting, and the remaining Middle Run sequence is MR-12 benchmark
-release gates.
+The production-pilot docs define the target deployment and observability shape.
+MR-10 adds executable deployment proof for the local migrator/API/worker split,
+rollback, and restore-validation path. MR-11 adds versioned alert rules,
+dashboard definitions, trace coverage, and observability smoke checks. MR-12
+adds benchmark release gates for Memory Lift, Contract Lift, scoped-safety
+leaks, stale-memory usage, source-link coverage, and agent-contract smoke.
+MR-08 operator evidence browsing and MR-09 governance automation are also
+implemented, so the next roadmap movement should be Long Run gate scoping.
 
 ## Milestones
 
@@ -117,6 +117,7 @@ After M8:
 
 - Production-pilot deployment shape is decided in [Decision 0039](decisions/0039-production-deployment-shape.md): the production pilot uses separate migrator, API, and worker roles, managed PostgreSQL with pgvector, secret-store injection, application rollback, and restore-to-new-database validation documented in [Production Deployment Shape](production-deployment-shape.md).
 - Production observability and alerting is decided in [Decision 0040](decisions/0040-production-observability-and-alerting.md): the production pilot tracks API, write-path, retrieval, worker, PostgreSQL, governance, backup, and benchmark-smoke signals with payload-safe traces/logs, high-signal alerts, and operator runbook actions documented in [Production Observability and Alerting](production-observability.md).
+- Benchmark release gates are decided in [Decision 0041](decisions/0041-benchmark-release-gates.md): production-pilot release verification combines LLM outcome scoring, agent-contract scoring, source-link coverage, stale-memory usage, scoped-safety counters, and agent-contract smoke.
 - The first metrics export is implemented in MR-06: `/api/operations/metrics`
   exposes authenticated Prometheus-compatible request, readiness, outbox,
   worker-heartbeat, retrieval-feedback, governance, and embedding-index failure
@@ -142,6 +143,11 @@ After M8:
   Prometheus-compatible alert rules, a Grafana-compatible pilot dashboard, a
   trace coverage manifest, API and external metric input manifests, and local
   artifact/live-metric smoke checks.
+- MR-12 adds `benchmarks/release-gate/run_release_gate.py` and
+  `scripts/benchmark-release-gate.sh`, which combine filled LLM outcome
+  scorecards, filled agent-contract scorecards, source-link coverage counters,
+  stale-memory usage counters, scoped-safety counters, and agent-contract smoke
+  output into a pass/fail production-pilot release report.
 
 ## First Build Sequence
 

@@ -129,7 +129,9 @@ The private-alpha baseline now extends that loop with:
 - expired unreferenced `ephemeral` event payload minimization
 - local backup/restore smoke verification
 - context-packet retrieval feedback stored as hashed observations
+- benchmark release gates for Memory Lift, Contract Lift, safety counters, stale
+  memory usage, source-link coverage, and agent-contract smoke
 
-The next architecture concern is production-pilot release discipline:
-benchmark release gates, runtime tracing/exporter wiring, and production
-deployment automation.
+The next architecture concern is production-pilot platform integration: runtime
+tracing/exporter wiring, production deployment automation, and identity-aware
+enterprise access.

@@ -1,0 +1,19 @@
+{
+  "suiteId": "agent-contract-usefulness-v1",
+  "contractVersion": "lmss-v1",
+  "apiBaseUrl": "http://127.0.0.1:5099",
+  "results": [
+    {
+      "id": "lmss-v1-acu-001",
+      "title": "Find accepted Project A migration fact",
+      "toolCallCount": 1,
+      "status": "passed"
+    },
+    {
+      "id": "lmss-v1-acu-002",
+      "title": "Use evidence for rationale and tradeoffs",
+      "toolCallCount": 2,
+      "status": "passed"
+    }
+  ]
+}

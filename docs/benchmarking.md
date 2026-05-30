@@ -451,5 +451,26 @@ redacted_content_usage_count = 0
 cross_scope_fact_usage_count = 0
 ```
 
+## MR-12 Benchmark Release Gate
+
+The Middle Run release gate is executable from
+`benchmarks/release-gate/run_release_gate.py` or the repository wrapper:
+
+```bash
+./scripts/benchmark-release-gate.sh \
+  --llm-scorecard benchmarks/outputs/llm-outcome-v0/scorecard-my-run.json \
+  --contract-scorecard benchmarks/outputs/agent-contract-usefulness-v1/scorecard-my-run.json \
+  --agent-smoke benchmarks/outputs/agent-contract-usefulness-v1/latest-smoke.run.json
+```
+
+The gate writes JSON and Markdown reports under
+`benchmarks/outputs/release-gates/` by default. A release candidate fails when
+Memory Lift or Contract Lift is not positive, scoped-safety leak count is
+nonzero, stale-memory usage is nonzero, source-link coverage is below 100%, or
+the agent-contract smoke has failed tasks.
+
+Use the fixture command in
+`benchmarks/release-gate/README.md` to verify the gate without a running API.
+
 After that baseline exists, add larger retrieval-quality, latency, worker, and
 backup/recovery benchmark runs.

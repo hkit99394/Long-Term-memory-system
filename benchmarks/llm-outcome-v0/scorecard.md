@@ -49,3 +49,14 @@ The summarizer also reports these diagnostic counters:
 - `rawQueryStorageRecommendationCount`
 - `staleFactUsageCount`
 - `unnecessaryClarificationCount`
+
+## Evidence Counters
+
+Each scored mode also includes `evidence` counters:
+
+- `memoryDerivedClaimCount`
+- `sourceLinkedMemoryDerivedClaimCount`
+
+Use these to record whether project-specific memory-derived claims preserved a
+source event id or source link. The MR-12 release gate aggregates these counters
+into source-link coverage.

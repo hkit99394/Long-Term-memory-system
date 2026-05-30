@@ -115,19 +115,19 @@ only receive regression-maintenance fixes. Middle Run now has two connected
 tracks: production-pilot operations and the
 agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
 slice is documented, implemented, benchmarkable, and smoke-tested with the
-contradiction overlay. Retrieval feedback is visible in the operator summary,
-the production-pilot deployment shape is documented, and production
-observability expectations are defined. These documented plans are design
-foundations, not production proof, until the deployment smoke and executable
-observability gates pass. MR-06 adds the first authenticated metrics export and
-local alert-input smoke. MR-07 adds the first admin console memory/source
-inspection slice. MR-08 expands that console into source event and audit
-browsing. MR-09 automates the first governance workflows for legal holds,
-erasure execution, and retention reporting. MR-10 proves the local
-production-pilot deployment shape across separate migrator, API, and worker
-roles with rollback and restore validation. MR-11 makes observability
-executable through versioned alert rules, dashboard definitions, trace coverage,
-and metric-input smokes. Next up is MR-12: add benchmark release gates.
+contradiction overlay. Retrieval feedback is visible in the operator summary.
+MR-06 adds the first authenticated metrics export and local alert-input smoke.
+MR-07 adds the first admin console memory/source inspection slice. MR-08 expands
+that console into source event and audit browsing. MR-09 automates the first
+governance workflows for legal holds, erasure execution, and retention
+reporting. MR-10 proves the local production-pilot deployment shape across
+separate migrator, API, and worker roles with rollback and restore validation.
+MR-11 makes observability executable through versioned alert rules, dashboard
+definitions, trace coverage, and metric-input smokes. MR-12 adds the benchmark
+release gate for Memory Lift, Contract Lift, scoped-safety leaks, stale-memory
+usage, source-link coverage, and agent-contract smoke. The next planning focus
+is Long Run gate scoping, starting with enterprise access and context
+productization.
 
 ## Middle Run Production Pilot
 
@@ -144,7 +144,7 @@ and metric-input smokes. Next up is MR-12: add benchmark release gates.
 | MR-09 | P0 | Done | Automate governance workflows. | Legal hold create/release/reporting, erasure execution, and retention reports by namespace, retention class, sensitivity, and age are executable through authenticated operator paths and covered by database-backed tests. |
 | MR-10 | P0 | Done | Prove the production-pilot deployment shape. | `scripts/production-pilot-deployment-smoke.sh` verifies the documented separate migrator, API, and worker roles against an isolated PostgreSQL target, including rollback and restore-validation steps that can be repeated by an operator. |
 | MR-11 | P0 | Done | Make observability executable. | Dashboard definitions, alert rules, and trace coverage exist as versioned artifacts for API, worker, PostgreSQL, retrieval, review, vault export, backup, and governance signals; local and pilot smoke checks verify alert inputs from the checked-in metric manifest. |
-| MR-12 | P0 | Todo | Add benchmark release gates. | Release verification records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage for the benchmark suites; a release cannot pass with unauthorized leaks or failed agent-contract smoke. |
+| MR-12 | P0 | Done | Add benchmark release gates. | Release verification records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage for the benchmark suites; a release cannot pass with unauthorized leaks, stale-memory usage, missing source-link coverage, or failed agent-contract smoke. |
 
 ## LLM Memory Support Service v1
 

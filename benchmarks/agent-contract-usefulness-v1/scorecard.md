@@ -40,3 +40,14 @@ Every mode should include these integer counters:
 - `unnecessaryClarificationCount`
 
 Use zero when a counter does not apply.
+
+## Evidence Counters
+
+Every mode should also include these integer evidence counters:
+
+- `memoryDerivedClaimCount`
+- `sourceLinkedMemoryDerivedClaimCount`
+
+Use them to record whether memory-derived claims preserve source event ids or
+source links. The Contract Lift summarizer and MR-12 release gate use these
+counters to calculate source-link coverage.

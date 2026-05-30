@@ -24,11 +24,11 @@ The next product challenge is to turn "memory system that works" into "memory pr
 
 ## Main Gaps
 
-- The product experience is still thin. The review dashboard exists, but there is no full memory console, onboarding path, source-event browser, or operator workflow.
+- The product experience is still thin. The review dashboard and first admin memory/source inspection slices exist, but there is no full memory console, onboarding path, role-assignment workflow, or polished operator workflow.
 - Retention, legal hold, and erasure now have first authenticated operator endpoints, but broader production automation for external payload stores, backup pruning, and environment-specific retention policy is still future work.
 - The `MemorySystem.Domain` project does not yet carry many of the durable business concepts described in the architecture.
-- Observability is mostly health checks and structured logs. Production-grade traces, metrics, dashboards, and alerts remain future work.
-- Deployment is not yet a first-class product artifact. There is CI and local Docker, but no visible infrastructure module, release environment, or deployment checklist as code.
+- Pilot observability now has metrics export, alert rules, dashboard artifacts, trace coverage, and smoke checks. Runtime OpenTelemetry wiring, platform exporters, and environment-specific alert routing remain future work.
+- Deployment now has a production-pilot shape and executable local deployment smoke. Managed infrastructure modules, release environments, and environment-specific deployment checklists remain future work.
 - Several important tests and repositories are large enough that ongoing changes will remain review-heavy unless split by feature area.
 
 ## Product Principles For The Next Phase
@@ -78,7 +78,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, and make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes. Benchmark gates still need executable release artifacts. The next planned slice is MR-12: benchmark release gates. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. The next product track should move from Middle Run hardening into Long Run gate scoping, starting with enterprise access and context productization.
 
 Middle Run status language:
 
@@ -92,7 +92,7 @@ Middle Run execution gates:
 2. Done: MR-09 automates governance workflows for legal hold, erasure execution, and retention reporting.
 3. Done: MR-10 proves the production-pilot deployment shape with a smoke run across separate migrator, API, and worker roles plus rollback/restore validation.
 4. Done: MR-11 turns observability design into executable dashboards, alert rules, trace coverage, and metric-input smokes.
-5. MR-12: make benchmark results a release gate using Memory Lift, Contract Lift, and zero unauthorized leak checks.
+5. Done: MR-12 makes benchmark results a release gate using Memory Lift, Contract Lift, source-link coverage, stale-memory usage, zero scoped leaks, and agent-contract smoke.
 
 Middle Run capability areas:
 
@@ -127,6 +127,7 @@ Middle Run capability areas:
    - Record before/after results for ranking or broker changes.
    - Done: store context-packet usefulness feedback as hashed retrieval observations.
    - Done: expose retrieval feedback counts, shares, and per-hour rates in the operator summary for the recent metrics window.
+   - Done: add the MR-12 benchmark release gate that combines LLM outcome scorecards, agent-contract scorecards, source-link coverage, stale-memory usage, scoped-safety counters, and the agent-contract smoke output.
 
 5. Automate governance workflows.
    - Legal hold create/release/reporting.
@@ -159,7 +160,7 @@ Goal: become a reliable memory platform rather than a single backend service.
 Long Run should be executed as gates, not as a parallel wishlist. Each gate should have a short decision record or backlog slice before implementation starts.
 
 1. Enterprise access gate.
-   - Entry criteria: MR-08 audit browsing, MR-09 governance automation, and MR-10 pilot deployment smoke are complete.
+   - Entry criteria: MR-08 audit browsing, MR-09 governance automation, MR-10 pilot deployment smoke, MR-11 executable observability, and MR-12 benchmark release gates are complete.
    - Outcome: OIDC or SSO, service accounts, role assignment UI, and audit export are coherent enough for a real team.
 
 2. Governance and compliance gate.

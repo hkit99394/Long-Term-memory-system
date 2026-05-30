@@ -241,6 +241,12 @@ Prometheus-compatible alert rules, a Grafana-compatible dashboard, trace
 coverage, and metric input manifests. Use `scripts/observability-artifacts-smoke.sh`
 after changing these files.
 
+## Benchmarks
+
+`benchmarks/` contains benchmark suites, scorecard templates, summarizers, and
+the MR-12 release gate. Generated local runs live under
+`benchmarks/outputs/`; curated fixtures and runners remain committed.
+
 ## Tools
 
 ### `tools/ui`

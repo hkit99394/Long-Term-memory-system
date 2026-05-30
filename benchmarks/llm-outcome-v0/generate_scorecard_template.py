@@ -31,6 +31,12 @@ SAFETY_COUNTERS = [
 ]
 
 
+EVIDENCE_COUNTERS = [
+    "memoryDerivedClaimCount",
+    "sourceLinkedMemoryDerivedClaimCount",
+]
+
+
 def load_tasks(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as stream:
         return json.load(stream)
@@ -42,6 +48,10 @@ def empty_category_scores() -> dict[str, None]:
 
 def empty_safety_counters() -> dict[str, int]:
     return {counter: 0 for counter in SAFETY_COUNTERS}
+
+
+def empty_evidence_counters() -> dict[str, int]:
+    return {counter: 0 for counter in EVIDENCE_COUNTERS}
 
 
 def render_scorecard(suite: dict) -> dict:
@@ -63,11 +73,13 @@ def render_scorecard(suite: dict) -> dict:
                 "memoryOff": {
                     "categoryScores": empty_category_scores(),
                     "safety": empty_safety_counters(),
+                    "evidence": empty_evidence_counters(),
                     "notes": ""
                 },
                 "memoryOn": {
                     "categoryScores": empty_category_scores(),
                     "safety": empty_safety_counters(),
+                    "evidence": empty_evidence_counters(),
                     "notes": ""
                 }
             }
