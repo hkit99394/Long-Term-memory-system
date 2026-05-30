@@ -39,6 +39,8 @@ Core capabilities:
   hybrid search.
 - Record context-packet feedback without storing raw query text.
 - Browse authorized memory facts, source events, and audit references in the admin console.
+- Execute authenticated governance workflows for legal holds, erasure, and
+  retention reporting.
 - Export approved memory to a human-readable vault.
 - Expose operational health for API readiness, worker heartbeat, outbox backlog,
   pending reviews, and stale vault exports.
@@ -203,6 +205,11 @@ The UI build writes the static review dashboard asset under
 | `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
 | `GET /api/admin/memory/facts` | Authenticated memory fact inspection for the admin console |
 | `GET /api/admin/source-events` | Authenticated source event and audit reference inspection for the admin console |
+| `GET /api/admin/governance/legal-holds` | Authenticated legal hold reporting |
+| `POST /api/admin/governance/legal-holds` | Create a legal hold over authorized source events |
+| `POST /api/admin/governance/legal-holds/{id}/release` | Release a legal hold and restore event retention where no other hold is active |
+| `POST /api/admin/governance/erasures` | Execute erasure over authorized source events and derived copies |
+| `GET /api/admin/governance/retention-report` | Retention report by namespace, retention class, sensitivity, and age |
 | `POST /api/events` | Append source evidence |
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |

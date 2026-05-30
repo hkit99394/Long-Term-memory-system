@@ -118,6 +118,8 @@ The private-alpha baseline now extends that loop with:
 - human review through the `/reviews/` dashboard
 - memory/source-event inspection through the `/admin/` console
 - audit reference browsing for source-linked memory, review, export, and redaction records
+- authenticated governance workflow endpoints for legal hold
+  create/release/reporting, erasure execution, and retention reports
 - source-linked Obsidian export and archive export
 - stale export markers for inactive memory
 - operational liveness, readiness, and summary endpoints

@@ -1317,7 +1317,7 @@ explicit post-alpha work:
 
 - Embedding provider defaults are recorded in [Decision 0024](decisions/0024-embedding-provider-adapter.md): deterministic embeddings for Development and Testing; OpenAI `text-embedding-3-small` at 1536 dimensions for production-shaped semantic retrieval and indexing.
 - The first automated retention task is implemented for expired, unreferenced `ephemeral` event payload minimization. The wider retention policy remains in [Retention Policy](retention-policy.md).
-- Legal-hold and full erasure operator endpoints remain Middle Run governance work.
+- MR-09 implements the first legal-hold and erasure operator endpoints for the production-pilot path.
 
 ## Current Implementation Choices
 

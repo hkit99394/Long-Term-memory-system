@@ -112,26 +112,33 @@ Implemented:
 - Vault export marks deleted, redacted, expired, superseded, and contradicted exported memory stale; archive export does not return deleted or redacted bodies.
 - Structured operational logs avoid proposal content, search text, review notes, memory body text, and raw event payloads.
 - The worker minimizes expired, unreferenced `ephemeral` event payloads by replacing raw `events.content` with an audit-safe marker, clearing any external payload URI, setting `redaction_status = 'redacted'`, and recording `redacted_at`.
+- Authenticated operator endpoints create, release, and list legal holds through
+  `/api/admin/governance/legal-holds`.
+- Authenticated operator erasure execution through
+  `/api/admin/governance/erasures` rewrites source event payloads to an
+  audit-safe marker, marks events as `erasure_requested` and `erased`, clears
+  derived fact/chunk/review payload copies, deletes embeddings for redacted
+  chunks, marks affected vault exports stale, and records redaction audit rows.
+- Authenticated retention reports through
+  `/api/admin/governance/retention-report` group authorized events by
+  namespace, retention class, sensitivity, and age bucket.
 
 Not yet automated:
 
 - payload minimization for events that are still referenced by durable memory, review, redaction, or export records
 - payload minimization for `standard` and `audit` retention windows
-- legal-hold create, release, and reporting endpoints
-- erasure execution that rewrites event payload markers and clears derived chunk bodies in one transaction
 - external payload store retention checks for `external_payload_uri`
 - backup pruning or selective restore procedures for erased payloads
 
-Until those workers and operator endpoints exist, retention and erasure actions are policy-defined and schema-supported but require controlled operational execution.
+Until the remaining workers and storage checks exist, advanced retention actions beyond the authenticated governance endpoints still require controlled operational execution.
 
 ## Operator Checklist
 
 For retention review:
 
 1. Identify the event ids, memory ids, chunks, embeddings, and vault exports that may contain the payload.
-2. Check for `legal_hold`; stop if one is active.
-3. Confirm the source event authorizing expiry, deletion, redaction, or hold release.
-4. Record the action in `memory_redactions` when a target is expired, deleted, or redacted.
-5. Update lifecycle and redaction fields before modifying derived projections.
-6. Verify normal API reads, retrieval, context packets, and vault exports no longer expose redacted payload.
-7. Preserve audit-safe ids, hashes, scope metadata, timestamps, and source links.
+2. Check `/api/admin/governance/legal-holds`; stop if an active hold covers the target.
+3. Use `/api/admin/governance/erasures` for approved erasure so source events and derived copies update together.
+4. Use `/api/admin/governance/retention-report` to confirm the resulting namespace, retention class, sensitivity, and age distribution.
+5. Verify normal API reads, retrieval, context packets, and vault exports no longer expose redacted payload.
+6. Preserve audit-safe ids, hashes, scope metadata, timestamps, and source links.

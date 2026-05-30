@@ -25,7 +25,7 @@ The next product challenge is to turn "memory system that works" into "memory pr
 ## Main Gaps
 
 - The product experience is still thin. The review dashboard exists, but there is no full memory console, onboarding path, source-event browser, or operator workflow.
-- Retention, legal hold, and erasure are policy-defined and schema-supported, but not yet fully automated.
+- Retention, legal hold, and erasure now have first authenticated operator endpoints, but broader production automation for external payload stores, backup pruning, and environment-specific retention policy is still future work.
 - The `MemorySystem.Domain` project does not yet carry many of the durable business concepts described in the architecture.
 - Observability is mostly health checks and structured logs. Production-grade traces, metrics, dashboards, and alerts remain future work.
 - Deployment is not yet a first-class product artifact. There is CI and local Docker, but no visible infrastructure module, release environment, or deployment checklist as code.
@@ -78,7 +78,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, and add the admin console memory/source-event inspection workflow. The production-pilot deployment shape and production observability expectations are designed and documented, but they are not yet runtime production proof. The next planned slice is MR-09: automating legal hold, erasure execution, and retention reporting. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, and automate the first governance workflows for legal holds, erasure execution, and retention reporting. The production-pilot deployment shape and production observability expectations are designed and documented, but they are not yet runtime production proof. The next planned slice is MR-10: proving the production-pilot deployment shape. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 Middle Run status language:
 
@@ -89,7 +89,7 @@ Middle Run status language:
 Middle Run execution gates:
 
 1. Done: MR-08 completes the operator evidence trail with source event and audit browsing.
-2. MR-09: automate governance workflows for legal hold, erasure execution, and retention reporting.
+2. Done: MR-09 automates governance workflows for legal hold, erasure execution, and retention reporting.
 3. MR-10: prove the production-pilot deployment shape with a smoke run across separate migrator, API, and worker roles.
 4. MR-11: turn observability design into executable dashboards, alert rules, and trace coverage.
 5. MR-12: make benchmark results a release gate using Memory Lift, Contract Lift, and zero unauthorized leak checks.
@@ -130,6 +130,7 @@ Middle Run capability areas:
    - Legal hold create/release/reporting.
    - Erasure execution that rewrites event payload markers and clears derived copies.
    - Retention reports by namespace, retention class, sensitivity, and age.
+   - Done: add authenticated operator endpoints for legal hold create/release/list, erasure execution over authorized source events and derived facts/chunks/reviews/exports, and retention reports grouped by namespace, retention class, sensitivity, and age.
 
 6. Stabilize external contracts.
    - Publish OpenAPI output or generated API docs.

@@ -10,16 +10,17 @@ Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: MR-09, governance workflow automation.
+Next milestone: MR-10, production-pilot deployment smoke.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
 The current production-pilot docs define the target deployment and
 observability shape, but they are not production proof until executable smoke,
-dashboard, alert, trace, governance, and benchmark gates pass. MR-08 operator
-evidence browsing is implemented; the remaining Middle Run sequence is MR-09
-governance automation, MR-10 deployment smoke, MR-11 executable observability,
-and MR-12 benchmark release gates.
+dashboard, alert, trace, deployment, and benchmark gates pass. MR-08 operator
+evidence browsing is implemented, and MR-09 adds authenticated governance
+automation for legal holds, erasure execution, and retention reporting. The
+remaining Middle Run sequence is MR-10 deployment smoke, MR-11 executable
+observability, and MR-12 benchmark release gates.
 
 ## Milestones
 
@@ -127,6 +128,10 @@ After M8:
   time-window filters, linked memory/review/export/redaction references, and
   audit-safe redaction or erasure state without including source payloads in
   the list.
+- MR-09 adds authenticated governance workflow endpoints for legal-hold
+  create/release/reporting, erasure execution over source events and derived
+  copies, and retention reports by namespace, retention class, sensitivity, and
+  age.
 
 ## First Build Sequence
 

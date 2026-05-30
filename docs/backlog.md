@@ -122,7 +122,9 @@ foundations, not production proof, until the deployment smoke and executable
 observability gates pass. MR-06 adds the first authenticated metrics export and
 local alert-input smoke. MR-07 adds the first admin console memory/source
 inspection slice. MR-08 expands that console into source event and audit
-browsing. Next up is MR-09: automate governance workflows.
+browsing. MR-09 automates the first governance workflows for legal holds,
+erasure execution, and retention reporting. Next up is MR-10: prove the
+production-pilot deployment shape.
 
 ## Middle Run Production Pilot
 
@@ -136,7 +138,7 @@ browsing. Next up is MR-09: automate governance workflows.
 | MR-06 | P0 | Done | Implement metrics export and alert smoke checks. | API exports first production-pilot metrics for request health, readiness, outbox age, dead letters, worker heartbeat, retrieval feedback, review/vault workflow, and embedding-index failures; `scripts/operations-metrics-smoke.sh` verifies the key alert inputs are observable against a running local API. |
 | MR-07 | P0 | Done | Build the first admin console memory/source inspection slice. | `/admin/` lets an authenticated operator browse authorized memory facts with scope, lifecycle status, confidence, source links, and safe policy metadata, then open source evidence through the existing authorized event-read path without including raw source payloads in the memory list. |
 | MR-08 | P0 | Done | Expand admin inspection into a source event and audit browser. | An authenticated operator can search source events by scope, sensitivity, retention class, trust level, and time window, inspect linked memory/review/export references, and see redaction or erasure state without exposing hidden payloads. |
-| MR-09 | P0 | Todo | Automate governance workflows. | Legal hold create/release/reporting, erasure execution, and retention reports by namespace, retention class, sensitivity, and age are executable through authenticated operator paths and covered by database-backed tests. |
+| MR-09 | P0 | Done | Automate governance workflows. | Legal hold create/release/reporting, erasure execution, and retention reports by namespace, retention class, sensitivity, and age are executable through authenticated operator paths and covered by database-backed tests. |
 | MR-10 | P0 | Todo | Prove the production-pilot deployment shape. | A smoke run verifies the documented separate migrator, API, and worker roles against a production-like database target, including rollback and restore-validation steps that can be repeated by an operator. |
 | MR-11 | P0 | Todo | Make observability executable. | Dashboard definitions, alert rules, and trace coverage exist as versioned artifacts for API, worker, PostgreSQL, retrieval, review, vault export, backup, and governance signals; local or pilot smoke checks verify alert inputs. |
 | MR-12 | P0 | Todo | Add benchmark release gates. | Release verification records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage for the benchmark suites; a release cannot pass with unauthorized leaks or failed agent-contract smoke. |

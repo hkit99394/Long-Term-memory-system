@@ -112,6 +112,9 @@ Expected result:
   events.
 - Source payloads are not included in memory or source event lists.
 - Opening evidence uses the authorized event-read path.
+- Governance operator endpoints can create/release legal holds, execute erasure
+  for authorized source events and derived copies, and report retention by
+  namespace, class, sensitivity, and age.
 
 ### 4. Retrieve Context
 

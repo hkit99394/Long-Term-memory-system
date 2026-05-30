@@ -10,6 +10,7 @@ public static class ApiAdminServiceCollectionExtensions
     {
         services.AddMemorySystemSourceEventLinks();
         services.AddSingleton<IAdminMemoryInspectionStore, PostgresAdminMemoryInspectionStore>();
+        services.AddSingleton<IAdminGovernanceStore, PostgresAdminGovernanceStore>();
 
         return services;
     }

@@ -91,6 +91,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
+| Governance workflow | Authenticated operator action for legal holds, erasure execution, or retention reporting. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
 | Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
 | LLM outcome evaluation | A benchmark that scores the final LLM output, not only retrieved memory, to prove whether governed memory improves task success, decision consistency, preference adherence, correction handling, and safety. |
