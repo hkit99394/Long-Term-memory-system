@@ -114,6 +114,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
 | Production deployment shape | The production-pilot runtime split between the migrator, API, worker, managed PostgreSQL, secret store, rollback procedure, and restore validation path. |
 | Production observability | The production-pilot signal contract and first metrics export for metrics, traces, logs, alerts, dashboards, and operator first-response checks. |
+| Admin console | The authenticated `/admin/` surface for inspecting authorized memory facts, lifecycle state, source links, and safe policy metadata. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |

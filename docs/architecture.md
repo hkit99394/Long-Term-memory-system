@@ -116,6 +116,7 @@ Return compact context packet
 The private-alpha baseline now extends that loop with:
 
 - human review through the `/reviews/` dashboard
+- memory/source inspection through the `/admin/` console
 - source-linked Obsidian export and archive export
 - stale export markers for inactive memory
 - operational liveness, readiness, and summary endpoints

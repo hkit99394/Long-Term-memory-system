@@ -70,8 +70,8 @@ The database-backed command currently covers the migration runner, migration che
 
 ## TypeScript Tooling Verification
 
-Run these checks after changing the review dashboard or vault-sync TypeScript
-sources:
+Run these checks after changing the review dashboard, admin console, or
+vault-sync TypeScript sources:
 
 ```bash
 cd tools/ui
@@ -86,8 +86,9 @@ npm run check
 ```
 
 `tools/ui` builds the generated dashboard JavaScript under
-`src/MemorySystem.Api/wwwroot/reviews/`. `tools/vault-sync` builds the
-generated CLI output under `tools/vault-sync/dist/`.
+`src/MemorySystem.Api/wwwroot/reviews/` and the admin console JavaScript under
+`src/MemorySystem.Api/wwwroot/admin/`. `tools/vault-sync` builds the generated
+CLI output under `tools/vault-sync/dist/`.
 
 ## Backup and Restore Verification
 

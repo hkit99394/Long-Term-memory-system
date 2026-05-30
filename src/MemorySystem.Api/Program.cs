@@ -1,3 +1,4 @@
+using MemorySystem.Api.Admin;
 using MemorySystem.Api.Access;
 using MemorySystem.Api.Authentication;
 using MemorySystem.Api.Events;
@@ -31,6 +32,7 @@ builder.Services.AddMemorySystemMemoryProposals(builder.Configuration, builder.E
 builder.Services.AddMemorySystemMemoryReviews();
 builder.Services.AddMemorySystemOperations(builder.Configuration);
 builder.Services.AddMemorySystemVaultExports();
+builder.Services.AddMemorySystemAdminConsole();
 builder.Services.ConfigureOptions<MemorySystemForwardedHeadersOptionsSetup>();
 
 builder.Services
@@ -102,6 +104,7 @@ app.MapMemorySystemMemoryProposalEndpoints();
 app.MapMemorySystemMemoryReviewEndpoints();
 app.MapMemorySystemOperationsEndpoints();
 app.MapMemorySystemVaultExportEndpoints();
+app.MapMemorySystemAdminConsoleEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))
 {

@@ -10,7 +10,7 @@ Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: first admin console memory/source inspection slice.
+Next milestone: source event and audit browser for the admin console.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -112,6 +112,10 @@ After M8:
   worker-heartbeat, retrieval-feedback, governance, and embedding-index failure
   metrics, with `scripts/operations-metrics-smoke.sh` as the local alert-input
   smoke check.
+- The first admin console slice is implemented in MR-07: `/admin/` browses
+  authorized memory facts, lifecycle state, confidence, safe source policy
+  metadata, and explicit source evidence opens through the existing event-read
+  endpoint.
 
 ## First Build Sequence
 

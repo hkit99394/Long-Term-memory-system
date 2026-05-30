@@ -76,7 +76,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, define the production-pilot deployment shape, define production observability and alerting expectations, and add the first authenticated metrics export plus alert-input smoke. The next planned slice is the first admin console memory/source inspection workflow. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, define the production-pilot deployment shape, define production observability and alerting expectations, add the first authenticated metrics export plus alert-input smoke, and add the first admin console memory/source inspection workflow. The next planned slice is expanding admin inspection into a source event and audit browser. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
@@ -98,6 +98,7 @@ Status: Started as of May 30, 2026. The first Middle Run production-pilot slices
    - Pending review queue.
    - Redaction and delete workflows.
    - Audit trail by memory, event, principal, and namespace.
+   - Done: add the first `/admin/` memory/source inspection slice for browsing authorized memory facts, safe policy metadata, lifecycle state, confidence, and explicit source evidence opens.
 
 4. Treat retrieval quality as a product capability.
    - Track precision, false positives, stale-memory rate, context compactness, source-link coverage, and review acceptance rate.

@@ -38,6 +38,7 @@ Core capabilities:
 - Retrieve scoped context packets through authorized full-text, semantic, and
   hybrid search.
 - Record context-packet feedback without storing raw query text.
+- Browse authorized memory facts and open source evidence in the admin console.
 - Export approved memory to a human-readable vault.
 - Expose operational health for API readiness, worker heartbeat, outbox backlog,
   pending reviews, and stale vault exports.
@@ -199,12 +200,14 @@ The UI build writes the static review dashboard asset under
 | `GET /health/ready` | Readiness check, including database and provider health |
 | `GET /api/operations/summary` | API, worker, outbox, review, and vault-export summary |
 | `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
+| `GET /api/admin/memory/facts` | Authenticated memory fact inspection for the admin console |
 | `POST /api/events` | Append source evidence |
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |
 | `POST /api/memory/context/feedback` | Record hashed retrieval feedback |
 | `POST /api/memory/query-facts` | Query authorized facts with source, lifecycle, contradiction, and policy metadata |
 | `GET /reviews/` | Local review dashboard |
+| `GET /admin/` | Local memory admin console |
 
 ## Repository layout
 

@@ -117,8 +117,9 @@ slice is documented, implemented, benchmarkable, and smoke-tested with the
 contradiction overlay. Retrieval feedback is visible in the operator summary,
 the production-pilot deployment shape is documented, and production
 observability expectations are defined. MR-06 adds the first authenticated
-metrics export and local alert-input smoke. Next up: start the first admin
-console slice around memory/source inspection.
+metrics export and local alert-input smoke. MR-07 adds the first admin console
+memory/source inspection slice. Next up: expand admin inspection into a source
+event and audit browser.
 
 ## Middle Run Production Pilot
 
@@ -130,7 +131,8 @@ console slice around memory/source inspection.
 | MR-04 | P0 | Done | Define production deployment shape. | A production-pilot deployment plan defines separate migrator, API, and worker processes, managed PostgreSQL or equivalent, secret-store expectations, rollback procedure, and restore validation path. |
 | MR-05 | P0 | Done | Define production observability and alerting. | A production-pilot observability plan defines required metrics, payload-safe traces and logs, alert thresholds, dashboard minimums, and first-response runbook actions for API, worker, PostgreSQL, retrieval, review, vault export, and backup health. |
 | MR-06 | P0 | Done | Implement metrics export and alert smoke checks. | API exports first production-pilot metrics for request health, readiness, outbox age, dead letters, worker heartbeat, retrieval feedback, review/vault workflow, and embedding-index failures; `scripts/operations-metrics-smoke.sh` verifies the key alert inputs are observable against a running local API. |
-| MR-07 | P0 | Todo | Build the first admin console memory/source inspection slice. | An authenticated operator can browse memory facts with scope, lifecycle status, confidence, source links, and safe policy metadata, then open source evidence without exposing raw payloads beyond authorized operator views. |
+| MR-07 | P0 | Done | Build the first admin console memory/source inspection slice. | `/admin/` lets an authenticated operator browse authorized memory facts with scope, lifecycle status, confidence, source links, and safe policy metadata, then open source evidence through the existing authorized event-read path without including raw source payloads in the memory list. |
+| MR-08 | P0 | Todo | Expand admin inspection into a source event and audit browser. | An authenticated operator can search source events by scope, sensitivity, retention class, trust level, and time window, inspect linked memory/review/export references, and see redaction or erasure state without exposing hidden payloads. |
 
 ## LLM Memory Support Service v1
 

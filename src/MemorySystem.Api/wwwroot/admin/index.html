@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory Admin Console</title>
+  <link rel="stylesheet" href="/admin/admin-console.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>Memory Admin</h1>
+        <div id="status" class="status">Idle</div>
+      </div>
+      <nav class="nav" aria-label="Admin navigation">
+        <a href="/admin/" aria-current="page">Memory</a>
+        <a href="/reviews/">Reviews</a>
+      </nav>
+      <form class="connection" autocomplete="off">
+        <label>
+          <span>API</span>
+          <input id="api-base" name="api-base" type="url" placeholder="http://127.0.0.1:5099">
+        </label>
+        <label>
+          <span>Key</span>
+          <input id="api-key" name="api-key" type="password">
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status-filter" name="status">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="tentative">Tentative</option>
+            <option value="superseded">Superseded</option>
+            <option value="contradicted">Contradicted</option>
+            <option value="expired">Expired</option>
+            <option value="deleted">Deleted</option>
+            <option value="redacted">Redacted</option>
+          </select>
+        </label>
+        <label>
+          <span>Search</span>
+          <input id="query" name="q" type="search">
+        </label>
+        <button id="refresh" type="button">Refresh</button>
+      </form>
+    </header>
+
+    <section class="workspace" aria-label="Memory admin workspace">
+      <aside class="list-panel" aria-label="Memory facts">
+        <div class="panel-title">Memory Facts</div>
+        <div id="memory-list" class="memory-list"></div>
+      </aside>
+
+      <section class="detail-panel" aria-label="Memory detail">
+        <div id="memory-detail" class="memory-detail"></div>
+      </section>
+
+      <aside class="source-panel" aria-label="Source evidence">
+        <div class="panel-title">Source Evidence</div>
+        <div id="source-detail" class="source-detail"></div>
+      </aside>
+    </section>
+  </main>
+  <script type="module" src="/admin/admin-console.js"></script>
+</body>
+</html>

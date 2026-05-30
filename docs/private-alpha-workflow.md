@@ -96,6 +96,19 @@ Expected result:
 - Edits and supersessions update memory while preserving audit history.
 - Deletes and redactions invalidate derived chunks, embeddings, and exports.
 
+Open the admin console:
+
+```text
+/admin/
+```
+
+Expected result:
+
+- Authorized memory facts are visible with lifecycle state, confidence, scope,
+  source links, and safe source policy metadata.
+- Source payloads are not included in the memory list.
+- Opening evidence uses the authorized event-read path.
+
 ### 4. Retrieve Context
 
 Request a context packet for the Project A CTO scenario.
