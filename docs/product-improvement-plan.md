@@ -253,8 +253,9 @@ The final product vision is simple: AI agents get durable continuity without tur
 
 ## Near-Term Product Decision
 
-The next move should be Long Run gate scoping around enterprise access and
-context productization. Short Run private alpha and Middle Run production-pilot
-hardening are complete as baselines; the next release decision should use a
-real MR-12 benchmark release-gate report, not only fixture validation, before
-inviting an external pilot user.
+LR-03 has captured the first local benchmark release-gate baseline. The next
+move should be Long Run gate scoping around enterprise access and context
+productization. Short Run private alpha and Middle Run production-pilot
+hardening are complete as baselines; before inviting an external pilot user,
+rerun the benchmark release gate with the intended pilot model, fresh scorecards,
+and a fresh live smoke artifact from the target environment.

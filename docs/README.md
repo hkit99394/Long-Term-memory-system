@@ -16,6 +16,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
 | [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
 | [Benchmarking Plan](benchmarking.md) | Defines technical, LLM outcome, agent-contract benchmarks, and the MR-12 benchmark release gate, including Memory Lift, Contract Lift, safety gates, scenario suites, and report shape. |
+| [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) | Records the first local benchmark release-gate baseline with Memory Lift, Contract Lift, safety counters, source-link coverage, and agent-contract smoke status. |
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |

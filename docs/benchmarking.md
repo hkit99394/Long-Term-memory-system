@@ -472,5 +472,10 @@ the agent-contract smoke has failed tasks.
 Use the fixture command in
 `benchmarks/release-gate/README.md` to verify the gate without a running API.
 
+The first local baseline is recorded in
+[`docs/benchmark-release-gate-lr03.md`](benchmark-release-gate-lr03.md).
+Generated raw reports remain under `benchmarks/outputs/`, which is ignored by
+git unless a specific artifact is intentionally promoted.
+
 After that baseline exists, add larger retrieval-quality, latency, worker, and
 backup/recovery benchmark runs.
