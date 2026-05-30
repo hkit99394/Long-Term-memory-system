@@ -1,6 +1,6 @@
 # Product Improvement Plan
 
-Last reviewed: 2026-05-29
+Last reviewed: 2026-05-30
 
 ## Purpose
 
@@ -46,6 +46,8 @@ Goal: make the current MVP shippable as a private alpha.
 
 Status: Complete as of May 29, 2026. The private-alpha baseline now has a top-level quickstart, repeatable Scenario 0001 seed command, operator summary endpoint, release verification path, backup/restore smoke, first retention automation, and split high-churn integration tests.
 
+Scope note: Short Run is closed. Future fixes to the quickstart, demo seed, release hygiene, retention smoke, or split tests should be treated as regression maintenance for the private-alpha baseline, not as new Short Run scope.
+
 1. Create a clear product entrypoint.
    - Add a top-level quickstart that explains what the system does, how to run it, and what a successful demo looks like.
    - Link the product goal, architecture, roadmap, testing commands, and this improvement plan from one obvious place.
@@ -76,7 +78,23 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, define the production-pilot deployment shape, define production observability and alerting expectations, add the first authenticated metrics export plus alert-input smoke, and add the first admin console memory/source inspection workflow. The next planned slice is expanding admin inspection into a source event and audit browser. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, and add the first admin console memory/source inspection workflow. The production-pilot deployment shape and production observability expectations are designed and documented, but they are not yet runtime production proof. The next planned slice is MR-08: expanding admin inspection into a source event and audit browser. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+
+Middle Run status language:
+
+- Runtime-shipped means the service has code, tests, and a local smoke or benchmark path.
+- Designed means the contract, runbook, or deployment/observability expectation is documented but still needs executable pilot proof.
+- Production-pilot credible does not mean production-ready. It means one real project can safely trial the system with clear rollback, observability, governance, and benchmark gates.
+
+Middle Run execution gates:
+
+1. MR-08: complete the operator evidence trail with source event and audit browsing.
+2. MR-09: automate governance workflows for legal hold, erasure execution, and retention reporting.
+3. MR-10: prove the production-pilot deployment shape with a smoke run across separate migrator, API, and worker roles.
+4. MR-11: turn observability design into executable dashboards, alert rules, and trace coverage.
+5. MR-12: make benchmark results a release gate using Memory Lift, Contract Lift, and zero unauthorized leak checks.
+
+Middle Run capability areas:
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
@@ -133,6 +151,34 @@ Success metric: one real project or team can use the system continuously, and an
 ## Long Run: 3-12 Months
 
 Goal: become a reliable memory platform rather than a single backend service.
+
+Long Run should be executed as gates, not as a parallel wishlist. Each gate should have a short decision record or backlog slice before implementation starts.
+
+1. Enterprise access gate.
+   - Entry criteria: MR-08 audit browsing, MR-09 governance automation, and MR-10 pilot deployment smoke are complete.
+   - Outcome: OIDC or SSO, service accounts, role assignment UI, and audit export are coherent enough for a real team.
+
+2. Governance and compliance gate.
+   - Entry criteria: erasure, legal hold, retention reporting, and audit browsing are working in the pilot path.
+   - Outcome: data residency, backup erasure replay, permission-drift reporting, and environment-specific retention policy can be implemented without weakening deletion or access guarantees.
+
+3. Context productization gate.
+   - Entry criteria: benchmark release gate exists and context feedback is visible to operators.
+   - Outcome: context packets explain why memory was included, what was excluded, and how reviewers can mark memory useful, stale, wrong, sensitive, or over-broad.
+
+4. Memory intelligence gate.
+   - Entry criteria: human review outcomes and benchmark results are available as calibration signals.
+   - Outcome: classification, deduplication, contradiction detection, confidence calibration, summarization, and time decay improve measured Memory Lift without increasing leaks or stale-memory usage.
+
+5. Retrieval scale gate.
+   - Entry criteria: production model and embedding dimensions are stable enough to justify specialized indexes.
+   - Outcome: model-specific vector indexes, rebuild pipelines, queue separation, and provider cost controls can scale without changing the trust model.
+
+6. Integration gate.
+   - Entry criteria: identity, governance, and context packet semantics are stable.
+   - Outcome: SDKs, conversation import, Git/Markdown ingestion, issue tracker connectors, and Obsidian import paths can be added without turning external content into ungoverned memory.
+
+Long Run capability areas:
 
 1. Add first-class identity and enterprise access.
    - OIDC or SSO.
