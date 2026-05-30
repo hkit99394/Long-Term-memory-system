@@ -10,7 +10,7 @@ Current milestone: Middle Run production-pilot hardening is underway.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: production observability and alerting.
+Next milestone: production metrics export and alert smoke checks.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -106,6 +106,7 @@ Before M8 implementation:
 After M8:
 
 - Production-pilot deployment shape is decided in [Decision 0039](decisions/0039-production-deployment-shape.md): the production pilot uses separate migrator, API, and worker roles, managed PostgreSQL with pgvector, secret-store injection, application rollback, and restore-to-new-database validation documented in [Production Deployment Shape](production-deployment-shape.md).
+- Production observability and alerting is decided in [Decision 0040](decisions/0040-production-observability-and-alerting.md): the production pilot tracks API, write-path, retrieval, worker, PostgreSQL, governance, backup, and benchmark-smoke signals with payload-safe traces/logs, high-signal alerts, and operator runbook actions documented in [Production Observability and Alerting](production-observability.md).
 
 ## First Build Sequence
 

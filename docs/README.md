@@ -20,6 +20,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
 | [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
+| [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, and operator response paths. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
@@ -69,6 +70,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0037: Backup and Restore Runbook](decisions/0037-backup-and-restore-runbook.md) | Records the M8 PostgreSQL custom-format backup, restore validation, migration, and retention-aware recovery process. |
 | [Decision 0038: Production Secret Handling](decisions/0038-production-secret-handling.md) | Records the M8 production secret configuration, runtime guardrails, and rotation expectations. |
 | [Decision 0039: Production Deployment Shape](decisions/0039-production-deployment-shape.md) | Records the production-pilot migrator, API, worker, managed PostgreSQL, secret-store, rollback, and restore-validation shape. |
+| [Decision 0040: Production Observability and Alerting](decisions/0040-production-observability-and-alerting.md) | Records the production-pilot signal ownership, alerting, dashboard, and payload-safe tracing/logging contract. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -111,6 +113,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Principal | A human, agent, or service account making a request to the memory system. |
 | Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
 | Production deployment shape | The production-pilot runtime split between the migrator, API, worker, managed PostgreSQL, secret store, rollback procedure, and restore validation path. |
+| Production observability | The production-pilot signal contract for metrics, traces, logs, alerts, dashboards, and operator first-response checks. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |

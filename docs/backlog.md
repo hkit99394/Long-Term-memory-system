@@ -115,8 +115,9 @@ now has two connected tracks: production-pilot operations and the
 agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
 slice is documented, implemented, benchmarkable, and smoke-tested with the
 contradiction overlay. Retrieval feedback is visible in the operator summary,
-and the production-pilot deployment shape is documented. Next up: choose the
-next production-pilot slice, likely observability and alerting.
+the production-pilot deployment shape is documented, and production
+observability expectations are defined. Next up: implement the metrics export
+path and first alert smoke checks.
 
 ## Middle Run Production Pilot
 
@@ -126,6 +127,8 @@ next production-pilot slice, likely observability and alerting.
 | MR-02 | P0 | Done | Turn retrieval feedback into operator metrics. | `/api/operations/summary` shows retrieval feedback counts, shares, and per-hour rates by feedback type over the recent 24-hour operator window. |
 | MR-03 | P0 | Done | Add contradiction overlay for full LMSS benchmark smoke. | The `fact_finding_contradiction_overlay` fixture exists, can be loaded repeatably, and the agent-contract usefulness smoke can run all 8 tasks with ACU-003 enabled. |
 | MR-04 | P0 | Done | Define production deployment shape. | A production-pilot deployment plan defines separate migrator, API, and worker processes, managed PostgreSQL or equivalent, secret-store expectations, rollback procedure, and restore validation path. |
+| MR-05 | P0 | Done | Define production observability and alerting. | A production-pilot observability plan defines required metrics, payload-safe traces and logs, alert thresholds, dashboard minimums, and first-response runbook actions for API, worker, PostgreSQL, retrieval, review, vault export, and backup health. |
+| MR-06 | P0 | Todo | Implement metrics export and alert smoke checks. | API and worker expose the first production-pilot metrics for request health, readiness, outbox age, dead letters, worker heartbeat, retrieval feedback, and embedding failures; a local smoke verifies the key alert inputs are observable. |
 
 ## LLM Memory Support Service v1
 
