@@ -1,5 +1,6 @@
 using MemorySystem.Application.Operations;
 using MemorySystem.Infrastructure.Health;
+using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Infrastructure.Workers;
 using Npgsql;
 
@@ -70,6 +71,31 @@ public sealed class PostgresOperationalSummaryStore(
                 AND status = 'stale';
 
             SELECT
+                count(*) FILTER (
+                    WHERE job_type = @memory_index_job_type
+                        AND status = 'pending'
+                        AND (
+                            attempts > 0
+                            OR last_error IS NOT NULL
+                        )
+                )::bigint,
+                count(*) FILTER (
+                    WHERE job_type = @memory_index_job_type
+                        AND status = 'dead_letter'
+                )::bigint,
+                count(*) FILTER (
+                    WHERE job_type = @memory_index_job_type
+                        AND status = 'failed'
+                )::bigint,
+                count(*) FILTER (
+                    WHERE job_type = @memory_index_job_type
+                        AND status = 'processing'
+                        AND locked_until IS NOT NULL
+                        AND locked_until <= now()
+                )::bigint
+            FROM outbox_jobs;
+
+            SELECT
                 feedback_types.feedback_type,
                 count(feedback.id)::bigint
             FROM (
@@ -89,6 +115,7 @@ public sealed class PostgresOperationalSummaryStore(
             connection);
         command.CommandTimeout = CommandTimeoutSeconds;
         command.Parameters.AddWithValue("worker_type", workerOptions.WorkerType);
+        command.Parameters.AddWithValue("memory_index_job_type", MemoryIndexOutboxJobContract.JobType);
         command.Parameters.AddWithValue("retrieval_feedback_window_started_at", retrievalFeedbackWindowStartedAt);
         command.Parameters.AddWithValue("retrieval_feedback_window_ended_at", generatedAt);
 
@@ -106,6 +133,9 @@ public sealed class PostgresOperationalSummaryStore(
         var vaultExports = new OperationalVaultExportSummary(await ReadSingleCountAsync(reader, cancellationToken));
         await reader.NextResultAsync(cancellationToken);
 
+        var embeddingFailures = await ReadEmbeddingFailureSummaryAsync(reader, cancellationToken);
+        await reader.NextResultAsync(cancellationToken);
+
         var retrievalFeedback = await ReadRetrievalFeedbackSummaryAsync(
             reader,
             retrievalFeedbackWindowStartedAt,
@@ -121,7 +151,8 @@ public sealed class PostgresOperationalSummaryStore(
             outbox,
             reviews,
             vaultExports,
-            retrievalFeedback);
+            retrievalFeedback,
+            embeddingFailures);
     }
 
     private static async Task<OperationalOutboxSummary> ReadOutboxSummaryAsync(
@@ -189,6 +220,22 @@ public sealed class PostgresOperationalSummaryStore(
         }
 
         return reader.GetInt64(0);
+    }
+
+    private static async Task<OperationalEmbeddingFailureSummary> ReadEmbeddingFailureSummaryAsync(
+        NpgsqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("Operational embedding failure query returned no result.");
+        }
+
+        return new OperationalEmbeddingFailureSummary(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            reader.GetInt64(2),
+            reader.GetInt64(3));
     }
 
     private static async Task<OperationalRetrievalFeedbackSummary> ReadRetrievalFeedbackSummaryAsync(

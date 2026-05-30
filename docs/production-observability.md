@@ -24,12 +24,18 @@ The current service already exposes:
 - `/api/operations/summary` for authenticated operator status, including API
   reachability, worker heartbeat, outbox state, pending reviews, stale vault
   exports, and recent retrieval feedback counts.
+- `/api/operations/metrics` for authenticated Prometheus-compatible pilot
+  metrics covering API request health, readiness, outbox backlog, worker
+  heartbeat, retrieval feedback, review/vault counts, and embedding-index
+  failures.
 - Structured operational logs for proposal, retrieval, review, and redaction
   decision points without logging raw proposal text, query text, review notes,
   memory body text, or raw event payloads.
+- `scripts/operations-metrics-smoke.sh` for a local smoke check that verifies
+  the first alert inputs are observable from a running API.
 
-The current service does not yet ship a metrics exporter, distributed tracing,
-production dashboards, or alert rules as code.
+The current service does not yet ship distributed tracing, production
+dashboards, alert rules as code, or a platform-specific metrics exporter.
 
 ## Signal Ownership
 
@@ -300,8 +306,23 @@ The first production-pilot dashboard should show:
 
 ## Implementation Notes
 
-The first implementation slice should add a metrics export path before building
-a large dashboard. Recommended order:
+MR-06 adds the first in-process metrics export path:
+
+- `GET /api/operations/metrics` requires API-key authentication and returns
+  Prometheus text format.
+- Request counters and duration sums are recorded by method, route, and status
+  code for API routes.
+- Readiness status is exported from the same health checks used by
+  `/health/ready`.
+- Worker and outbox metrics are read from PostgreSQL, including heartbeat age,
+  stale state, ready backlog, oldest ready job age, dead letters, retrying
+  failures, and expired processing leases.
+- Retrieval feedback counts, shares, and rates use the same recent operator
+  window as `/api/operations/summary`.
+- Embedding failure metrics are memory-index outbox failure signals until a
+  provider-specific error taxonomy exists.
+
+Recommended follow-on order:
 
 1. Add OpenTelemetry package wiring for ASP.NET Core, Npgsql, and runtime
    metrics.
@@ -324,3 +345,9 @@ MR-05 is complete when:
 - the next implementation slice can add metrics/exporter code without debating
   what to measure first
 
+MR-06 is complete when:
+
+- `/api/operations/metrics` returns authenticated Prometheus-compatible metrics
+- request health, readiness, outbox, worker heartbeat, retrieval feedback, and
+  embedding-index failure signals are exported
+- `scripts/operations-metrics-smoke.sh` verifies the key alert inputs locally

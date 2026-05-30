@@ -76,7 +76,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, define the production-pilot deployment shape, and define production observability and alerting expectations. The next planned slice is implementing metrics export and first alert smoke checks. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, define the production-pilot deployment shape, define production observability and alerting expectations, and add the first authenticated metrics export plus alert-input smoke. The next planned slice is the first admin console memory/source inspection workflow. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 1. Add a real deployment shape.
    - Managed PostgreSQL or equivalent production database.
@@ -90,6 +90,7 @@ Status: Started as of May 30, 2026. The first Middle Run production-pilot slices
    - Metrics for request rate, latency, review backlog, outbox age, dead-letter count, retrieval quality, embedding failures, and stale exports.
    - Alerts for readiness failure, worker heartbeat staleness, outbox backlog age, and repeated embedding/provider failures.
    - Done: define [Production Observability and Alerting](production-observability.md), including required pilot metrics, payload-safe trace/log fields, alert thresholds, dashboard minimums, and operator first-response runbook actions.
+   - Done: expose the first authenticated `/api/operations/metrics` Prometheus-compatible export and `scripts/operations-metrics-smoke.sh` alert-input smoke for request health, readiness, outbox, worker heartbeat, retrieval feedback, review/vault workflow, and embedding-index failures.
 
 3. Build the first real admin console.
    - Memory list and detail view.

@@ -120,6 +120,7 @@ The private-alpha baseline now extends that loop with:
 - stale export markers for inactive memory
 - operational liveness, readiness, and summary endpoints
 - worker heartbeat and outbox backlog visibility
+- authenticated operations metrics export and alert-input smoke verification
 - expired unreferenced `ephemeral` event payload minimization
 - local backup/restore smoke verification
 - context-packet retrieval feedback stored as hashed observations

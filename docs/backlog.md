@@ -116,8 +116,9 @@ agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
 slice is documented, implemented, benchmarkable, and smoke-tested with the
 contradiction overlay. Retrieval feedback is visible in the operator summary,
 the production-pilot deployment shape is documented, and production
-observability expectations are defined. Next up: implement the metrics export
-path and first alert smoke checks.
+observability expectations are defined. MR-06 adds the first authenticated
+metrics export and local alert-input smoke. Next up: start the first admin
+console slice around memory/source inspection.
 
 ## Middle Run Production Pilot
 
@@ -128,7 +129,8 @@ path and first alert smoke checks.
 | MR-03 | P0 | Done | Add contradiction overlay for full LMSS benchmark smoke. | The `fact_finding_contradiction_overlay` fixture exists, can be loaded repeatably, and the agent-contract usefulness smoke can run all 8 tasks with ACU-003 enabled. |
 | MR-04 | P0 | Done | Define production deployment shape. | A production-pilot deployment plan defines separate migrator, API, and worker processes, managed PostgreSQL or equivalent, secret-store expectations, rollback procedure, and restore validation path. |
 | MR-05 | P0 | Done | Define production observability and alerting. | A production-pilot observability plan defines required metrics, payload-safe traces and logs, alert thresholds, dashboard minimums, and first-response runbook actions for API, worker, PostgreSQL, retrieval, review, vault export, and backup health. |
-| MR-06 | P0 | Todo | Implement metrics export and alert smoke checks. | API and worker expose the first production-pilot metrics for request health, readiness, outbox age, dead letters, worker heartbeat, retrieval feedback, and embedding failures; a local smoke verifies the key alert inputs are observable. |
+| MR-06 | P0 | Done | Implement metrics export and alert smoke checks. | API exports first production-pilot metrics for request health, readiness, outbox age, dead letters, worker heartbeat, retrieval feedback, review/vault workflow, and embedding-index failures; `scripts/operations-metrics-smoke.sh` verifies the key alert inputs are observable against a running local API. |
+| MR-07 | P0 | Todo | Build the first admin console memory/source inspection slice. | An authenticated operator can browse memory facts with scope, lifecycle status, confidence, source links, and safe policy metadata, then open source evidence without exposing raw payloads beyond authorized operator views. |
 
 ## LLM Memory Support Service v1
 

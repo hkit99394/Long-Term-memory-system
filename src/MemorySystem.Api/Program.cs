@@ -69,6 +69,7 @@ if (RequiresTransportSecurity(app.Environment))
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseMiddleware<ApiRequestMetricsMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions

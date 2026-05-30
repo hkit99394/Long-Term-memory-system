@@ -106,6 +106,93 @@ public sealed class OperationalSummaryEndpointTests
             Assert.Equal(1, feedbackByType["stale"].GetProperty("count").GetInt64());
             Assert.Equal(1, feedbackByType["missing"].GetProperty("count").GetInt64());
             Assert.Equal(0, feedbackByType["noisy"].GetProperty("count").GetInt64());
+
+            var embeddingFailures = root.GetProperty("embeddingFailures");
+            Assert.Equal(1, embeddingFailures.GetProperty("retryingFailed").GetInt64());
+            Assert.Equal(1, embeddingFailures.GetProperty("deadLetter").GetInt64());
+            Assert.Equal(0, embeddingFailures.GetProperty("failed").GetInt64());
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_operations_metrics_requires_authentication()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_operations_metrics_auth_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var response = await client.GetAsync("/api/operations/metrics");
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_operations_metrics_exports_alert_inputs()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_operations_metrics_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await InsertWorkerHeartbeatAsync(databaseConnectionString, WorkerHeartbeatStatuses.Running);
+            await InsertOutboxJobAsync(databaseConnectionString, "pending");
+            await InsertOutboxJobAsync(databaseConnectionString, "pending", attempts: 1, lastError: "embedding provider throttled");
+            await InsertOutboxJobAsync(databaseConnectionString, "dead_letter");
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-10));
+            await InsertRetrievalFeedbackAsync(databaseConnectionString, "stale", DateTimeOffset.UtcNow.AddMinutes(-5));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var summaryRequest = CreateAuthenticatedRequest("/api/operations/summary");
+            using var summaryResponse = await client.SendAsync(summaryRequest);
+
+            Assert.Equal(HttpStatusCode.OK, summaryResponse.StatusCode);
+
+            using var metricsRequest = CreateAuthenticatedRequest("/api/operations/metrics");
+            using var response = await client.SendAsync(metricsRequest);
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
+            Assert.Contains("version=0.0.4", response.Content.Headers.ContentType?.ToString(), StringComparison.Ordinal);
+            Assert.Contains("# TYPE memorysystem_api_requests_total counter", body, StringComparison.Ordinal);
+            Assert.Contains(
+                "memorysystem_api_requests_total{method=\"GET\",route=\"/api/operations/summary\",status_code=\"200\"} 1",
+                body,
+                StringComparison.Ordinal);
+            Assert.Contains("memorysystem_health_ready 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_health_check_status{check=\"outbox\",status=\"degraded\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_health_check_status{check=\"postgres\",status=\"healthy\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_outbox_ready_pending 2", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_outbox_dead_letter 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_worker_heartbeat_observed{worker_type=\"outbox\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_worker_heartbeat_stale{worker_type=\"outbox\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_retrieval_feedback_total{window=\"24h\"} 2", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_retrieval_feedback_type_total{feedback_type=\"useful\",window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_embedding_provider_ready 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_embedding_outbox_retrying_failed 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_embedding_outbox_dead_letter 1", body, StringComparison.Ordinal);
         }
         finally
         {
@@ -116,6 +203,14 @@ public sealed class OperationalSummaryEndpointTests
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
     {
         return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, PrincipalId.ToString());
+    }
+
+    private static HttpRequestMessage CreateAuthenticatedRequest(string path)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("X-Api-Key", TestApiKey);
+
+        return request;
     }
 
     private static async Task<Guid> InsertReviewedMemoryFixtureAsync(string connectionString)

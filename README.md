@@ -41,6 +41,8 @@ Core capabilities:
 - Export approved memory to a human-readable vault.
 - Expose operational health for API readiness, worker heartbeat, outbox backlog,
   pending reviews, and stale vault exports.
+- Export authenticated pilot metrics for request health, readiness, outbox,
+  worker heartbeat, retrieval feedback, and embedding-index failures.
 - Run repeatable private-alpha seed and backup/restore smoke checks.
 
 ## Architecture
@@ -94,9 +96,9 @@ dotnet test MemorySystem.sln --configuration Release --no-build --filter "Catego
 Run the API with the seeded local principal:
 
 ```bash
-Authentication__ApiKey__Keys__local-jack__Key=private-alpha-local-key \
-Authentication__ApiKey__Keys__local-jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
-Authentication__ApiKey__Keys__local-jack__DisplayName="Jack Tam" \
+Authentication__ApiKey__Keys__local_jack__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local_jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local_jack__DisplayName="Jack Tam" \
 dotnet run --project src/MemorySystem.Api
 ```
 
@@ -159,6 +161,12 @@ Backup/restore smoke verification:
 ./scripts/backup-restore-smoke.sh
 ```
 
+Operations metrics smoke verification against a running local API:
+
+```bash
+MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
+```
+
 More testing notes, including alternate PostgreSQL ports and CI behavior, are in
 [docs/testing.md](docs/testing.md).
 
@@ -190,6 +198,7 @@ The UI build writes the static review dashboard asset under
 | `GET /health/live` | Liveness check |
 | `GET /health/ready` | Readiness check, including database and provider health |
 | `GET /api/operations/summary` | API, worker, outbox, review, and vault-export summary |
+| `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
 | `POST /api/events` | Append source evidence |
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |

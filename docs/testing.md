@@ -96,3 +96,17 @@ Use [Backup and Restore Runbook](backup-restore.md) when PostgreSQL recovery beh
 ```bash
 ./scripts/backup-restore-smoke.sh
 ```
+
+## Operations Metrics Smoke
+
+Use this after starting the API with a configured local API key. The smoke
+primes request metrics through `/api/operations/summary`, fetches
+`/api/operations/metrics`, and verifies the first alert-input metrics are
+present.
+
+```bash
+MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
+```
+
+Set `MEMORYSYSTEM_API_KEY` when the running API uses a key other than
+`private-alpha-local-key`.

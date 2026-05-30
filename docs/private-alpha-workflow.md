@@ -49,9 +49,9 @@ For authenticated API calls, configure an API key mapped to the seeded principal
 Example local API configuration:
 
 ```bash
-Authentication__ApiKey__Keys__local-jack__Key=private-alpha-local-key \
-Authentication__ApiKey__Keys__local-jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
-Authentication__ApiKey__Keys__local-jack__DisplayName="Jack Tam" \
+Authentication__ApiKey__Keys__local_jack__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local_jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local_jack__DisplayName="Jack Tam" \
 dotnet run --project src/MemorySystem.Api
 ```
 

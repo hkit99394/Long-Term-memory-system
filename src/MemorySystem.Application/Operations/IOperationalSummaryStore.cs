@@ -13,7 +13,8 @@ public sealed record OperationalSummary(
     OperationalOutboxSummary Outbox,
     OperationalReviewSummary Reviews,
     OperationalVaultExportSummary VaultExports,
-    OperationalRetrievalFeedbackSummary RetrievalFeedback);
+    OperationalRetrievalFeedbackSummary RetrievalFeedback,
+    OperationalEmbeddingFailureSummary EmbeddingFailures);
 
 public sealed record OperationalApiSummary(string Status);
 
@@ -54,3 +55,9 @@ public sealed record OperationalRetrievalFeedbackTypeSummary(
     long Count,
     decimal Share,
     double PerHour);
+
+public sealed record OperationalEmbeddingFailureSummary(
+    long RetryingFailed,
+    long DeadLetter,
+    long Failed,
+    long ExpiredProcessing);

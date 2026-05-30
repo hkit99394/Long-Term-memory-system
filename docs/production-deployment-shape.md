@@ -162,14 +162,16 @@ Minimum production-pilot gates:
 - `/health/ready` is healthy after PostgreSQL, outbox backlog, worker heartbeat,
   and embedding provider checks pass.
 - `/api/operations/summary` is reachable by an authenticated operator.
+- `/api/operations/metrics` is reachable by an authenticated operator or metrics
+  collector.
 - Outbox dead-letter count is zero before and after release.
 - Worker heartbeat is current after the worker rollout.
 - Retrieval feedback metrics are present in the operator summary.
 - Backup or point-in-time recovery status is known before migration.
 
 The current implementation has health checks, structured operational logs, and
-operator summary data. It does not yet ship production dashboards, distributed
-tracing, alert rules, or infrastructure-as-code.
+operator summary and metrics data. It does not yet ship production dashboards,
+distributed tracing, alert rules, or infrastructure-as-code.
 
 ## Pilot Readiness Checklist
 
@@ -181,6 +183,6 @@ tracing, alert rules, or infrastructure-as-code.
 - A pre-release backup or restore point exists.
 - Migration output is captured.
 - Worker heartbeat and outbox backlog are checked after release.
+- Operations metrics smoke passes against the target API.
 - Restore to a new database has been rehearsed for the environment.
 - Rollback ownership and escalation contacts are known before release.
-

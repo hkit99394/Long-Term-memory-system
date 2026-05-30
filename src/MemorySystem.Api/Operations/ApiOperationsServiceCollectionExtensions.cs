@@ -12,6 +12,7 @@ public static class ApiOperationsServiceCollectionExtensions
     {
         services.AddSingleton(WorkerHeartbeatHealthOptions.Read(configuration));
         services.AddSingleton<IOperationalSummaryStore, PostgresOperationalSummaryStore>();
+        services.AddSingleton<ApiRequestMetricsStore>();
 
         return services;
     }
