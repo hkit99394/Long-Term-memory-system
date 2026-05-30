@@ -38,6 +38,56 @@ interface AdminMemoryFactPolicy {
   sourcePayloadIncluded: boolean;
 }
 
+interface AdminSourceEventsResponse {
+  events: AdminSourceEvent[];
+}
+
+interface AdminSourceEvent {
+  id: string;
+  principalId: string | null;
+  conversationId: string | null;
+  agentPrincipalId: string | null;
+  roleId: string | null;
+  eventType: string;
+  sourceLink: string;
+  contentHash: string | null;
+  externalPayloadUri: string | null;
+  retentionClass: string;
+  sensitivity: string;
+  redactionStatus: string;
+  redactedAt: string | null;
+  redactionEventId: string | null;
+  redactionEventLink: string | null;
+  trustLevel: string;
+  createdAt: string;
+  scope: AdminSourceEventScope;
+  policy: AdminSourceEventPolicy;
+  references: AdminSourceEventReference[];
+}
+
+interface AdminSourceEventScope {
+  scopeType: string;
+  scopeId: string;
+  orgId: string | null;
+  projectId: string | null;
+  principalId: string | null;
+  roleId: string | null;
+}
+
+interface AdminSourceEventPolicy {
+  sourcePayloadIncluded: boolean;
+  contentVisibilityReason: string;
+}
+
+interface AdminSourceEventReference {
+  referenceType: string;
+  id: string;
+  status: string;
+  targetType: string | null;
+  targetId: string | null;
+  label: string | null;
+}
+
 interface SourceEventResponse {
   id: string;
   eventType: string;
@@ -55,15 +105,21 @@ interface SourceEventResponse {
 }
 
 interface AdminConsoleState {
+  mode: "memory" | "events";
   facts: AdminMemoryFact[];
+  events: AdminSourceEvent[];
   selectedFactId: string | null;
+  selectedEventId: string | null;
   selectedSource: SourceEventResponse | null;
   busy: boolean;
 }
 
 const state: AdminConsoleState = {
+  mode: "memory",
   facts: [],
+  events: [],
   selectedFactId: null,
+  selectedEventId: null,
   selectedSource: null,
   busy: false
 };
@@ -71,24 +127,65 @@ const state: AdminConsoleState = {
 const elements = {
   apiBase: byId<HTMLInputElement>("api-base"),
   apiKey: byId<HTMLInputElement>("api-key"),
+  modeFilter: byId<HTMLSelectElement>("mode-filter"),
   statusFilter: byId<HTMLSelectElement>("status-filter"),
+  eventTypeFilter: byId<HTMLSelectElement>("event-type-filter"),
+  retentionFilter: byId<HTMLSelectElement>("retention-filter"),
+  sensitivityFilter: byId<HTMLSelectElement>("sensitivity-filter"),
+  trustFilter: byId<HTMLSelectElement>("trust-filter"),
+  redactionFilter: byId<HTMLSelectElement>("redaction-filter"),
+  scopeTypeFilter: byId<HTMLSelectElement>("scope-type-filter"),
+  scopeIdFilter: byId<HTMLInputElement>("scope-id-filter"),
+  createdFromFilter: byId<HTMLInputElement>("created-from-filter"),
+  createdToFilter: byId<HTMLInputElement>("created-to-filter"),
   query: byId<HTMLInputElement>("query"),
   refresh: byId<HTMLButtonElement>("refresh"),
   status: byId<HTMLElement>("status"),
-  memoryList: byId<HTMLElement>("memory-list"),
-  memoryDetail: byId<HTMLElement>("memory-detail"),
+  listTitle: byId<HTMLElement>("list-title"),
+  resultList: byId<HTMLElement>("result-list"),
+  detail: byId<HTMLElement>("detail"),
+  sourceTitle: byId<HTMLElement>("source-title"),
   sourceDetail: byId<HTMLElement>("source-detail")
 };
 
-elements.refresh.addEventListener("click", () => void loadFacts());
+elements.apiBase.value = window.location.origin;
+elements.refresh.addEventListener("click", () => void loadCurrentMode());
 elements.query.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
-    void loadFacts();
+    void loadCurrentMode();
   }
 });
 elements.statusFilter.addEventListener("change", () => void loadFacts());
+elements.modeFilter.addEventListener("change", () => {
+  state.mode = elements.modeFilter.value === "events" ? "events" : "memory";
+  state.selectedSource = null;
+  updateFilterVisibility();
+  render();
+  void loadCurrentMode();
+});
 
+for (const element of [
+  elements.eventTypeFilter,
+  elements.retentionFilter,
+  elements.sensitivityFilter,
+  elements.trustFilter,
+  elements.redactionFilter,
+  elements.scopeTypeFilter,
+  elements.createdFromFilter,
+  elements.createdToFilter
+]) {
+  element.addEventListener("change", () => void loadCurrentMode());
+}
+
+elements.scopeIdFilter.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void loadCurrentMode();
+  }
+});
+
+updateFilterVisibility();
 render();
 
 function byId<T extends HTMLElement>(id: string): T {
@@ -101,22 +198,26 @@ function byId<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+async function loadCurrentMode(): Promise<void> {
+  if (state.mode === "events") {
+    await loadEvents();
+    return;
+  }
+
+  await loadFacts();
+}
+
 async function loadFacts(): Promise<void> {
   setBusy(true);
   setStatus("Loading");
   state.selectedSource = null;
 
   try {
-    const params = new URLSearchParams();
+    const params = commonParams();
     params.set("limit", "50");
 
     if (elements.statusFilter.value !== "all") {
       params.set("status", elements.statusFilter.value);
-    }
-
-    const query = elements.query.value.trim();
-    if (query) {
-      params.set("q", query);
     }
 
     const response = await apiFetch<AdminMemoryFactsResponse>(`/api/admin/memory/facts?${params}`);
@@ -135,12 +236,76 @@ async function loadFacts(): Promise<void> {
   }
 }
 
-async function openSource(fact: AdminMemoryFact): Promise<void> {
+async function loadEvents(): Promise<void> {
+  setBusy(true);
+  setStatus("Loading");
+  state.selectedSource = null;
+
+  try {
+    const params = commonParams();
+    params.set("limit", "50");
+    addSelectParam(params, "eventType", elements.eventTypeFilter);
+    addSelectParam(params, "retentionClass", elements.retentionFilter);
+    addSelectParam(params, "sensitivity", elements.sensitivityFilter);
+    addSelectParam(params, "trustLevel", elements.trustFilter);
+    addSelectParam(params, "redactionStatus", elements.redactionFilter);
+    addDateParam(params, "createdFrom", elements.createdFromFilter.value);
+    addDateParam(params, "createdTo", elements.createdToFilter.value);
+
+    const response = await apiFetch<AdminSourceEventsResponse>(`/api/admin/source-events?${params}`);
+    state.events = response.events;
+    state.selectedEventId = response.events[0]?.id ?? null;
+    setStatus(`${response.events.length} sources`);
+  } catch (error) {
+    setStatus("Error");
+    state.events = [];
+    state.selectedEventId = null;
+    state.selectedSource = null;
+    elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+function commonParams(): URLSearchParams {
+  const params = new URLSearchParams();
+
+  const scopeType = elements.scopeTypeFilter.value.trim();
+  const scopeId = elements.scopeIdFilter.value.trim();
+  if (scopeType && scopeId) {
+    params.set("scopeType", scopeType);
+    params.set("scopeId", scopeId);
+  }
+
+  const query = elements.query.value.trim();
+  if (query) {
+    params.set("q", query);
+  }
+
+  return params;
+}
+
+function addSelectParam(params: URLSearchParams, key: string, element: HTMLSelectElement): void {
+  if (element.value !== "all") {
+    params.set(key, element.value);
+  }
+}
+
+function addDateParam(params: URLSearchParams, key: string, value: string): void {
+  if (!value) {
+    return;
+  }
+
+  params.set(key, new Date(value).toISOString());
+}
+
+async function openSource(path: string): Promise<void> {
   setBusy(true);
   setStatus("Opening source");
 
   try {
-    state.selectedSource = await apiFetch<SourceEventResponse>(fact.sourceLink);
+    state.selectedSource = await apiFetch<SourceEventResponse>(path);
     setStatus("Source opened");
   } catch (error) {
     state.selectedSource = null;
@@ -176,16 +341,27 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 function render(): void {
-  renderMemoryList();
-  renderMemoryDetail();
+  elements.listTitle.textContent = state.mode === "events" ? "Source Events" : "Memory Facts";
+  elements.sourceTitle.textContent = state.mode === "events" ? "Payload" : "Source Evidence";
+  renderResultList();
+  renderDetail();
   renderSourceDetail();
 }
 
-function renderMemoryList(): void {
-  elements.memoryList.replaceChildren();
+function renderResultList(): void {
+  elements.resultList.replaceChildren();
 
+  if (state.mode === "events") {
+    renderEventList();
+    return;
+  }
+
+  renderMemoryList();
+}
+
+function renderMemoryList(): void {
   if (state.facts.length === 0) {
-    elements.memoryList.append(emptyPanel("No memory facts"));
+    elements.resultList.append(emptyPanel("No memory facts"));
     return;
   }
 
@@ -204,16 +380,51 @@ function renderMemoryList(): void {
       pillRow([fact.status, fact.memoryType]),
       line(`${fact.scopeType}:${fact.scopeId}`, "memory-meta"),
       line(shortDate(fact.updatedAt), "memory-date"));
-    elements.memoryList.append(button);
+    elements.resultList.append(button);
   }
+}
+
+function renderEventList(): void {
+  if (state.events.length === 0) {
+    elements.resultList.append(emptyPanel("No source events"));
+    return;
+  }
+
+  for (const sourceEvent of state.events) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = sourceEvent.id === state.selectedEventId ? "memory-row selected" : "memory-row";
+    button.addEventListener("click", () => {
+      state.selectedEventId = sourceEvent.id;
+      state.selectedSource = null;
+      render();
+    });
+
+    button.append(
+      line(sourceEvent.eventType, "memory-title"),
+      pillRow([sourceEvent.retentionClass, sourceEvent.sensitivity, sourceEvent.redactionStatus]),
+      line(`${sourceEvent.scope.scopeType}:${sourceEvent.scope.scopeId}`, "memory-meta"),
+      line(`${sourceEvent.references.length} refs · ${shortDate(sourceEvent.createdAt)}`, "memory-date"));
+    elements.resultList.append(button);
+  }
+}
+
+function renderDetail(): void {
+  elements.detail.replaceChildren();
+
+  if (state.mode === "events") {
+    renderEventDetail();
+    return;
+  }
+
+  renderMemoryDetail();
 }
 
 function renderMemoryDetail(): void {
   const fact = selectedFact();
-  elements.memoryDetail.replaceChildren();
 
   if (!fact) {
-    elements.memoryDetail.append(emptyPanel("Select a memory fact"));
+    elements.detail.append(emptyPanel("Select a memory fact"));
     return;
   }
 
@@ -245,14 +456,57 @@ function renderMemoryDetail(): void {
   openButton.className = "primary-action";
   openButton.textContent = "Open source";
   openButton.disabled = state.busy;
-  openButton.addEventListener("click", () => void openSource(fact));
+  openButton.addEventListener("click", () => void openSource(fact.sourceLink));
 
   const objectClass = fact.policy.contentVisible ? "memory-object" : "memory-object hidden-content";
-  elements.memoryDetail.append(
+  elements.detail.append(
     heading(displaySubject(fact)),
     paragraph(object, objectClass),
     detailGrid(rows),
     openButton);
+}
+
+function renderEventDetail(): void {
+  const sourceEvent = selectedEvent();
+
+  if (!sourceEvent) {
+    elements.detail.append(emptyPanel("Select a source event"));
+    return;
+  }
+
+  const rows: [string, string][] = [
+    ["Event", sourceEvent.id],
+    ["Type", sourceEvent.eventType],
+    ["Scope", `${sourceEvent.scope.scopeType}:${sourceEvent.scope.scopeId}`],
+    ["Retention", sourceEvent.retentionClass],
+    ["Sensitivity", sourceEvent.sensitivity],
+    ["Trust", sourceEvent.trustLevel],
+    ["Redaction", sourceEvent.redactionStatus],
+    ["Redacted", sourceEvent.redactedAt ? shortDate(sourceEvent.redactedAt) : ""],
+    ["Redaction event", sourceEvent.redactionEventLink ?? ""],
+    ["Hash", sourceEvent.contentHash ?? ""],
+    ["External payload", sourceEvent.externalPayloadUri ?? ""],
+    ["Principal", sourceEvent.principalId ?? ""],
+    ["Agent", sourceEvent.agentPrincipalId ?? ""],
+    ["Role", sourceEvent.roleId ?? sourceEvent.scope.roleId ?? ""],
+    ["Created", shortDate(sourceEvent.createdAt)]
+  ];
+
+  elements.detail.append(
+    heading(sourceEvent.eventType),
+    paragraph(sourceEvent.policy.contentVisibilityReason, "memory-object hidden-content"),
+    detailGrid(rows),
+    referenceList(sourceEvent.references));
+
+  if (canOpenSourceEvent(sourceEvent)) {
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "primary-action";
+    openButton.textContent = "Open payload";
+    openButton.disabled = state.busy;
+    openButton.addEventListener("click", () => void openSource(sourceEvent.sourceLink));
+    elements.detail.append(openButton);
+  }
 }
 
 function renderSourceDetail(): void {
@@ -285,8 +539,40 @@ function renderSourceDetail(): void {
     json);
 }
 
+function referenceList(references: AdminSourceEventReference[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("References"));
+
+  if (references.length === 0) {
+    section.append(emptyPanel("No linked records"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const reference of references) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(reference.referenceType, "memory-title"),
+      pillRow([reference.status]),
+      line(reference.id, "memory-meta"),
+      line(reference.label ?? reference.targetType ?? "", "memory-date"));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
 function selectedFact(): AdminMemoryFact | null {
   return state.facts.find(fact => fact.id === state.selectedFactId) ?? null;
+}
+
+function selectedEvent(): AdminSourceEvent | null {
+  return state.events.find(sourceEvent => sourceEvent.id === state.selectedEventId) ?? null;
 }
 
 function setBusy(busy: boolean): void {
@@ -308,6 +594,11 @@ function contentHiddenText(reason: string | null): string {
   return reason === "memory_content_hidden_by_source_policy"
     ? "[content hidden by source policy]"
     : "[content hidden by lifecycle]";
+}
+
+function canOpenSourceEvent(sourceEvent: AdminSourceEvent): boolean {
+  return sourceEvent.retentionClass !== "erasure_requested"
+    && sourceEvent.redactionStatus === "none";
 }
 
 function errorMessage(error: unknown): string {
@@ -346,6 +637,10 @@ function pillRow(values: string[]): HTMLElement {
   row.className = "memory-status";
 
   for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
     const pill = document.createElement("span");
     pill.className = `pill ${value}`;
     pill.textContent = value;
@@ -375,4 +670,12 @@ function emptyPanel(value: string): HTMLElement {
   panel.className = "empty";
   panel.textContent = value;
   return panel;
+}
+
+function updateFilterVisibility(): void {
+  for (const element of document.querySelectorAll<HTMLElement>("[data-event-filter]")) {
+    element.hidden = state.mode !== "events";
+  }
+
+  elements.statusFilter.closest("label")!.hidden = state.mode !== "memory";
 }

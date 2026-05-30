@@ -2,6 +2,7 @@ using MemorySystem.Application.Admin;
 using MemorySystem.Infrastructure.Access;
 using Npgsql;
 using NpgsqlTypes;
+using System.Text.Json;
 
 namespace MemorySystem.Infrastructure.Admin;
 
@@ -38,6 +39,37 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
         return records;
     }
 
+    public async Task<IReadOnlyList<AdminSourceEventRecord>> ListSourceEventsAsync(
+        AdminSourceEventListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (query.PrincipalId == Guid.Empty)
+        {
+            throw new ArgumentException("Principal id is required.", nameof(query));
+        }
+
+        if (query.Limit is < 1 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.Limit, "Admin source event limit must be between 1 and 100.");
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(ListSourceEventsSql, connection);
+        AddSourceEventQueryParameters(command, query);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var records = new List<AdminSourceEventRecord>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadSourceEventRecord(reader));
+        }
+
+        return records;
+    }
+
     private static void AddQueryParameters(NpgsqlCommand command, AdminMemoryFactListQuery query)
     {
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
@@ -53,6 +85,34 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
             string.IsNullOrWhiteSpace(query.MemoryType) ? DBNull.Value : query.MemoryType;
         command.Parameters.Add("namespace_prefix", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.NamespacePrefix) ? DBNull.Value : query.NamespacePrefix;
+        command.Parameters.Add("query", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.Query) ? DBNull.Value : query.Query;
+        PostgresMemoryAccessSql.AddReadParameters(command);
+    }
+
+    private static void AddSourceEventQueryParameters(NpgsqlCommand command, AdminSourceEventListQuery query)
+    {
+        command.Parameters.AddWithValue("principal_id", query.PrincipalId);
+        command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+        command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+        command.Parameters.Add("event_type", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.EventType) ? DBNull.Value : query.EventType;
+        command.Parameters.Add("retention_class", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RetentionClass) ? DBNull.Value : query.RetentionClass;
+        command.Parameters.Add("sensitivity", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.Sensitivity) ? DBNull.Value : query.Sensitivity;
+        command.Parameters.Add("trust_level", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.TrustLevel) ? DBNull.Value : query.TrustLevel;
+        command.Parameters.Add("redaction_status", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RedactionStatus) ? DBNull.Value : query.RedactionStatus;
+        command.Parameters.Add("created_from", NpgsqlDbType.TimestampTz).Value =
+            query.CreatedFrom.HasValue ? query.CreatedFrom.Value : DBNull.Value;
+        command.Parameters.Add("created_to", NpgsqlDbType.TimestampTz).Value =
+            query.CreatedTo.HasValue ? query.CreatedTo.Value : DBNull.Value;
         command.Parameters.Add("query", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.Query) ? DBNull.Value : query.Query;
         PostgresMemoryAccessSql.AddReadParameters(command);
@@ -90,6 +150,80 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
                 reader.GetString(25),
                 reader.GetString(26),
                 SourcePayloadIncluded: false));
+    }
+
+    private static AdminSourceEventRecord ReadSourceEventRecord(NpgsqlDataReader reader)
+    {
+        return new AdminSourceEventRecord(
+            reader.GetGuid(0),
+            reader.IsDBNull(1) ? null : reader.GetGuid(1),
+            reader.IsDBNull(2) ? null : reader.GetGuid(2),
+            reader.IsDBNull(3) ? null : reader.GetGuid(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.GetString(8),
+            reader.GetString(9),
+            reader.GetString(10),
+            reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
+            reader.IsDBNull(12) ? null : reader.GetGuid(12),
+            reader.GetString(13),
+            reader.GetFieldValue<DateTimeOffset>(14),
+            reader.GetString(15),
+            reader.GetString(16),
+            reader.IsDBNull(17) ? null : reader.GetGuid(17),
+            reader.IsDBNull(18) ? null : reader.GetGuid(18),
+            reader.IsDBNull(19) ? null : reader.GetGuid(19),
+            reader.IsDBNull(20) ? null : reader.GetString(20),
+            false,
+            SourceEventContentVisibilityReason(reader.GetString(8), reader.GetString(10)),
+            ReadSourceEventReferences(reader.GetString(21)));
+    }
+
+    private static IReadOnlyList<AdminSourceEventReferenceRecord> ReadSourceEventReferences(string referencesJson)
+    {
+        using var document = JsonDocument.Parse(referencesJson);
+        var references = new List<AdminSourceEventReferenceRecord>();
+
+        foreach (var reference in document.RootElement.EnumerateArray())
+        {
+            references.Add(new AdminSourceEventReferenceRecord(
+                reference.GetProperty("referenceType").GetString() ?? string.Empty,
+                reference.GetProperty("id").GetGuid(),
+                reference.GetProperty("status").GetString() ?? string.Empty,
+                ReadOptionalString(reference, "targetType"),
+                ReadOptionalGuid(reference, "targetId"),
+                ReadOptionalString(reference, "label")));
+        }
+
+        return references;
+    }
+
+    private static string? ReadOptionalString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
+            ? property.GetString()
+            : null;
+    }
+
+    private static Guid? ReadOptionalGuid(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
+            ? property.GetGuid()
+            : null;
+    }
+
+    private static string SourceEventContentVisibilityReason(string retentionClass, string redactionStatus)
+    {
+        if (string.Equals(retentionClass, "erasure_requested", StringComparison.Ordinal))
+        {
+            return "source_payload_hidden_by_retention";
+        }
+
+        return string.Equals(redactionStatus, "none", StringComparison.Ordinal)
+            ? "admin_list_payload_not_included"
+            : "source_payload_hidden_by_redaction";
     }
 
     private static readonly string ListMemoryFactsSql = ListMemoryFactsSqlTemplate.Replace(
@@ -217,6 +351,260 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
                     lower(@query)) > 0
             )
         ORDER BY candidate.updated_at DESC, candidate.created_at DESC, candidate.id
+        LIMIT @limit;
+        """;
+
+    private const string ListSourceEventsSql = """
+        WITH candidate_events AS MATERIALIZED (
+            SELECT
+                event.id,
+                event.principal_id,
+                event.conversation_id,
+                event.agent_principal_id,
+                event.role_id,
+                event.event_type,
+                event.content_hash,
+                event.external_payload_uri,
+                event.retention_class,
+                event.sensitivity,
+                event.redaction_status,
+                event.redacted_at,
+                event.redaction_event_id,
+                event.trust_level,
+                event.created_at,
+                event.scope_type,
+                event.scope_id,
+                event.scope_org_id,
+                event.scope_project_id,
+                event.scope_principal_id,
+                event.scope_role_id,
+                CASE
+                    WHEN event.scope_type IN ('global', 'session') THEN '/' || event.scope_type || '/' || event.scope_id || '/events'
+                    ELSE NULL
+                END AS authorization_namespace,
+                CASE
+                    WHEN event.scope_type = 'role' THEN COALESCE(event.scope_role_id, event.scope_id)
+                    ELSE NULL
+                END AS required_role_id
+            FROM events AS event
+            WHERE (@scope_type IS NULL OR event.scope_type = @scope_type)
+                AND (@scope_id IS NULL OR event.scope_id = @scope_id)
+                AND (@event_type IS NULL OR event.event_type = @event_type)
+                AND (@retention_class IS NULL OR event.retention_class = @retention_class)
+                AND (@sensitivity IS NULL OR event.sensitivity = @sensitivity)
+                AND (@trust_level IS NULL OR event.trust_level = @trust_level)
+                AND (@redaction_status IS NULL OR event.redaction_status = @redaction_status)
+                AND (@created_from IS NULL OR event.created_at >= @created_from)
+                AND (@created_to IS NULL OR event.created_at <= @created_to)
+                AND (
+                    @query IS NULL
+                    OR strpos(
+                        lower(concat_ws(
+                            ' ',
+                            event.id::text,
+                            event.event_type,
+                            event.content_hash,
+                            event.external_payload_uri,
+                            event.retention_class,
+                            event.sensitivity,
+                            event.redaction_status,
+                            event.trust_level,
+                            event.scope_type,
+                            event.scope_id,
+                            event.scope_role_id)),
+                        lower(@query)) > 0
+                )
+        )
+        SELECT
+            candidate.id,
+            candidate.principal_id,
+            candidate.conversation_id,
+            candidate.agent_principal_id,
+            candidate.role_id,
+            candidate.event_type,
+            candidate.content_hash,
+            candidate.external_payload_uri,
+            candidate.retention_class,
+            candidate.sensitivity,
+            candidate.redaction_status,
+            candidate.redacted_at,
+            candidate.redaction_event_id,
+            candidate.trust_level,
+            candidate.created_at,
+            candidate.scope_type,
+            candidate.scope_id,
+            candidate.scope_org_id,
+            candidate.scope_project_id,
+            candidate.scope_principal_id,
+            candidate.scope_role_id,
+            COALESCE(reference_records.references, '[]'::jsonb)::text AS references
+        FROM candidate_events AS candidate
+        LEFT JOIN LATERAL (
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'referenceType', reference_record.reference_type,
+                    'id', reference_record.id,
+                    'status', reference_record.status,
+                    'targetType', reference_record.target_type,
+                    'targetId', reference_record.target_id,
+                    'label', reference_record.label)
+                ORDER BY reference_record.reference_type, reference_record.id) AS references
+            FROM (
+                SELECT
+                    'memory_fact' AS reference_type,
+                    fact.id,
+                    fact.status,
+                    'memory_fact' AS target_type,
+                    fact.id AS target_id,
+                    fact.memory_type || ' ' || fact.namespace AS label
+                FROM memory_facts AS fact
+                WHERE fact.source_event_id = candidate.id
+
+                UNION ALL
+
+                SELECT
+                    'role_memory_lens' AS reference_type,
+                    lens.id,
+                    lens.status,
+                    'role_memory_lens' AS target_type,
+                    lens.id AS target_id,
+                    lens.role_id || ' ' || lens.scope_type || ':' || lens.scope_id AS label
+                FROM role_memory_lenses AS lens
+                WHERE lens.source_event_id = candidate.id
+
+                UNION ALL
+
+                SELECT
+                    'memory_review' AS reference_type,
+                    review.id,
+                    review.review_status AS status,
+                    'memory_fact' AS target_type,
+                    review.memory_fact_id AS target_id,
+                    review.review_status AS label
+                FROM memory_reviews AS review
+                WHERE review.source_event_id = candidate.id
+
+                UNION ALL
+
+                SELECT
+                    'vault_export' AS reference_type,
+                    export.id,
+                    export.status,
+                    'memory_fact' AS target_type,
+                    export.memory_fact_id AS target_id,
+                    export.export_path AS label
+                FROM vault_exports AS export
+                WHERE export.source_event_id = candidate.id
+
+                UNION ALL
+
+                SELECT
+                    'redaction' AS reference_type,
+                    redaction.id,
+                    redaction.redaction_type AS status,
+                    redaction.target_type,
+                    redaction.target_id,
+                    redaction.target_type || ':' || redaction.redaction_type AS label
+                FROM memory_redactions AS redaction
+                WHERE redaction.source_event_id = candidate.id
+            ) AS reference_record
+        ) AS reference_records ON TRUE
+        WHERE (
+                candidate.scope_type = 'global'
+                OR (
+                    candidate.scope_type = 'user'
+                    AND (
+                        candidate.scope_principal_id = @principal_id
+                        OR candidate.scope_id = @principal_id_text
+                    )
+                )
+                OR (
+                    candidate.scope_type = 'agent'
+                    AND (
+                        candidate.agent_principal_id = @principal_id
+                        OR candidate.scope_id = @principal_id_text
+                    )
+                )
+                OR (
+                    candidate.scope_type = 'role'
+                    AND candidate.required_role_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM role_assignments AS assignment
+                        WHERE assignment.principal_id = @principal_id
+                            AND assignment.role_id = candidate.required_role_id
+                            AND assignment.scope_type = 'global'
+                    )
+                )
+                OR (
+                    candidate.scope_type = 'org'
+                    AND candidate.scope_org_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM organization_memberships AS membership
+                        WHERE membership.principal_id = @principal_id
+                            AND membership.org_id = candidate.scope_org_id
+                            AND membership.access_level = ANY(@read_org_access_levels)
+                    )
+                )
+                OR (
+                    candidate.scope_type = 'project'
+                    AND candidate.scope_project_id IS NOT NULL
+                    AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM project_memberships AS membership
+                            INNER JOIN projects AS project_membership
+                                ON project_membership.id = membership.project_id
+                                AND project_membership.status = 'active'
+                            WHERE membership.principal_id = @principal_id
+                                AND membership.project_id = candidate.scope_project_id
+                                AND membership.access_level = ANY(@read_project_access_levels)
+                        )
+                        OR (
+                            candidate.scope_org_id IS NOT NULL
+                            AND EXISTS (
+                                SELECT 1
+                                FROM organization_memberships AS membership
+                                WHERE membership.principal_id = @principal_id
+                                    AND membership.org_id = candidate.scope_org_id
+                                    AND membership.access_level = ANY(@admin_org_access_levels)
+                            )
+                        )
+                    )
+                )
+            )
+            AND (
+                candidate.authorization_namespace IS NULL
+                OR EXISTS (
+                    SELECT 1
+                    FROM memory_access_grants AS grant_record
+                    WHERE grant_record.principal_id = @principal_id
+                        AND grant_record.permission = ANY(@read_permissions)
+                        AND (
+                            candidate.authorization_namespace = grant_record.namespace_prefix
+                            OR left(candidate.authorization_namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
+                        )
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM memory_access_grants AS grant_record
+                    WHERE grant_record.role_id IS NOT NULL
+                        AND grant_record.permission = ANY(@read_permissions)
+                        AND (
+                            candidate.authorization_namespace = grant_record.namespace_prefix
+                            OR left(candidate.authorization_namespace, length(grant_record.namespace_prefix || '/')) = grant_record.namespace_prefix || '/'
+                        )
+                        AND EXISTS (
+                            SELECT 1
+                            FROM role_assignments AS assignment
+                            WHERE assignment.principal_id = @principal_id
+                                AND assignment.role_id = grant_record.role_id
+                                AND assignment.scope_type = 'global'
+                        )
+                )
+            )
+        ORDER BY candidate.created_at DESC, candidate.id
         LIMIT @limit;
         """;
 }

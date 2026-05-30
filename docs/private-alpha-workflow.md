@@ -106,7 +106,11 @@ Expected result:
 
 - Authorized memory facts are visible with lifecycle state, confidence, scope,
   source links, and safe source policy metadata.
-- Source payloads are not included in the memory list.
+- Source events can be searched by scope, retention class, sensitivity, trust
+  level, redaction state, and time window.
+- Linked memory, review, export, and redaction references are visible for source
+  events.
+- Source payloads are not included in memory or source event lists.
 - Opening evidence uses the authorized event-read path.
 
 ### 4. Retrieve Context

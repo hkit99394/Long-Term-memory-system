@@ -62,7 +62,7 @@ button:disabled {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) auto minmax(600px, 1fr);
+  grid-template-columns: minmax(160px, 220px) auto minmax(720px, 1fr);
   align-items: end;
   gap: 18px;
   padding: 16px 22px;
@@ -128,7 +128,7 @@ h3 {
 
 .connection {
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(140px, 0.9fr) minmax(120px, 0.55fr) minmax(150px, 1fr) 92px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
   align-items: end;
 }
@@ -254,9 +254,30 @@ textarea {
 }
 
 .pill.deleted,
-.pill.redacted {
+.pill.redacted,
+.pill.erased,
+.pill.secret,
+.pill.regulated,
+.pill.erasure_requested {
   background: var(--danger-quiet);
   color: var(--danger);
+}
+
+.pill.personal,
+.pill.legal_hold,
+.pill.audit,
+.pill.pending {
+  background: #fff6db;
+  color: var(--warn);
+}
+
+.pill.standard,
+.pill.none,
+.pill.human_approved,
+.pill.system_trusted,
+.pill.user_scoped {
+  background: #e8f7ef;
+  color: var(--good);
 }
 
 .memory-detail {
@@ -313,6 +334,25 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.audit-section {
+  display: grid;
+  gap: 10px;
+}
+
+.audit-list {
+  display: grid;
+  gap: 8px;
+}
+
+.audit-row {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
 .empty {
   margin-top: 12px;
   padding: 12px;
@@ -328,9 +368,5 @@ textarea {
 
   .connection {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .connection button {
-    grid-column: span 2;
   }
 }

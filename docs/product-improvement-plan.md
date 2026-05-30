@@ -78,7 +78,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, and add the first admin console memory/source inspection workflow. The production-pilot deployment shape and production observability expectations are designed and documented, but they are not yet runtime production proof. The next planned slice is MR-08: expanding admin inspection into a source event and audit browser. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
+Status: Started as of May 30, 2026. The first Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, and add the admin console memory/source-event inspection workflow. The production-pilot deployment shape and production observability expectations are designed and documented, but they are not yet runtime production proof. The next planned slice is MR-09: automating legal hold, erasure execution, and retention reporting. The parallel product track is LLM Memory Support Service v1, which turns the private-alpha backend into a stable agent-facing contract.
 
 Middle Run status language:
 
@@ -88,7 +88,7 @@ Middle Run status language:
 
 Middle Run execution gates:
 
-1. MR-08: complete the operator evidence trail with source event and audit browsing.
+1. Done: MR-08 completes the operator evidence trail with source event and audit browsing.
 2. MR-09: automate governance workflows for legal hold, erasure execution, and retention reporting.
 3. MR-10: prove the production-pilot deployment shape with a smoke run across separate migrator, API, and worker roles.
 4. MR-11: turn observability design into executable dashboards, alert rules, and trace coverage.
@@ -117,6 +117,7 @@ Middle Run capability areas:
    - Redaction and delete workflows.
    - Audit trail by memory, event, principal, and namespace.
    - Done: add the first `/admin/` memory/source inspection slice for browsing authorized memory facts, safe policy metadata, lifecycle state, confidence, and explicit source evidence opens.
+   - Done: expand `/admin/` with source event search, policy filters, time-window filters, linked memory/review/export/redaction references, and redaction or erasure state without source payloads in the list.
 
 4. Treat retrieval quality as a product capability.
    - Track precision, false positives, stale-memory rate, context compactness, source-link coverage, and review acceptance rate.

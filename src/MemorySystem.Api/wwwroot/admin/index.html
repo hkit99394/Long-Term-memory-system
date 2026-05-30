@@ -19,6 +19,13 @@
       </nav>
       <form class="connection" autocomplete="off">
         <label>
+          <span>View</span>
+          <select id="mode-filter" name="mode">
+            <option value="memory">Memory</option>
+            <option value="events">Sources</option>
+          </select>
+        </label>
+        <label>
           <span>API</span>
           <input id="api-base" name="api-base" type="url" placeholder="http://127.0.0.1:5099">
         </label>
@@ -39,6 +46,89 @@
             <option value="redacted">Redacted</option>
           </select>
         </label>
+        <label data-event-filter>
+          <span>Event</span>
+          <select id="event-type-filter" name="eventType">
+            <option value="all">All</option>
+            <option value="user_message">User message</option>
+            <option value="assistant_message">Assistant message</option>
+            <option value="tool_call">Tool call</option>
+            <option value="memory_proposed">Memory proposed</option>
+            <option value="memory_written">Memory written</option>
+            <option value="memory_deleted">Memory deleted</option>
+            <option value="memory_redacted">Memory redacted</option>
+            <option value="memory_reviewed">Memory reviewed</option>
+          </select>
+        </label>
+        <label data-event-filter>
+          <span>Retention</span>
+          <select id="retention-filter" name="retentionClass">
+            <option value="all">All</option>
+            <option value="ephemeral">Ephemeral</option>
+            <option value="standard">Standard</option>
+            <option value="audit">Audit</option>
+            <option value="legal_hold">Legal hold</option>
+            <option value="erasure_requested">Erasure requested</option>
+          </select>
+        </label>
+        <label data-event-filter>
+          <span>Sensitivity</span>
+          <select id="sensitivity-filter" name="sensitivity">
+            <option value="all">All</option>
+            <option value="none">None</option>
+            <option value="personal">Personal</option>
+            <option value="secret">Secret</option>
+            <option value="regulated">Regulated</option>
+          </select>
+        </label>
+        <label data-event-filter>
+          <span>Trust</span>
+          <select id="trust-filter" name="trustLevel">
+            <option value="all">All</option>
+            <option value="system_trusted">System trusted</option>
+            <option value="human_approved">Human approved</option>
+            <option value="user_scoped">User scoped</option>
+            <option value="agent_private">Agent private</option>
+            <option value="tool_output">Tool output</option>
+            <option value="retrieved_untrusted">Retrieved untrusted</option>
+            <option value="web_content">Web content</option>
+          </select>
+        </label>
+        <label data-event-filter>
+          <span>Redaction</span>
+          <select id="redaction-filter" name="redactionStatus">
+            <option value="all">All</option>
+            <option value="none">None</option>
+            <option value="pending">Pending</option>
+            <option value="redacted">Redacted</option>
+            <option value="erased">Erased</option>
+          </select>
+        </label>
+        <label>
+          <span>Scope</span>
+          <select id="scope-type-filter" name="scopeType">
+            <option value="">Any</option>
+            <option value="global">Global</option>
+            <option value="org">Org</option>
+            <option value="user">User</option>
+            <option value="project">Project</option>
+            <option value="role">Role</option>
+            <option value="agent">Agent</option>
+            <option value="session">Session</option>
+          </select>
+        </label>
+        <label>
+          <span>Scope ID</span>
+          <input id="scope-id-filter" name="scopeId">
+        </label>
+        <label data-event-filter>
+          <span>From</span>
+          <input id="created-from-filter" name="createdFrom" type="datetime-local">
+        </label>
+        <label data-event-filter>
+          <span>To</span>
+          <input id="created-to-filter" name="createdTo" type="datetime-local">
+        </label>
         <label>
           <span>Search</span>
           <input id="query" name="q" type="search">
@@ -48,17 +138,17 @@
     </header>
 
     <section class="workspace" aria-label="Memory admin workspace">
-      <aside class="list-panel" aria-label="Memory facts">
-        <div class="panel-title">Memory Facts</div>
-        <div id="memory-list" class="memory-list"></div>
+      <aside class="list-panel" aria-label="Admin results">
+        <div id="list-title" class="panel-title">Memory Facts</div>
+        <div id="result-list" class="memory-list"></div>
       </aside>
 
-      <section class="detail-panel" aria-label="Memory detail">
-        <div id="memory-detail" class="memory-detail"></div>
+      <section class="detail-panel" aria-label="Admin detail">
+        <div id="detail" class="memory-detail"></div>
       </section>
 
       <aside class="source-panel" aria-label="Source evidence">
-        <div class="panel-title">Source Evidence</div>
+        <div id="source-title" class="panel-title">Source Evidence</div>
         <div id="source-detail" class="source-detail"></div>
       </aside>
     </section>

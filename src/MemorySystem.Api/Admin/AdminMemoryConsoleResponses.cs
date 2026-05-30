@@ -36,3 +36,48 @@ public sealed record AdminMemoryFactPolicyResponse(
     string SourceTrustLevel,
     string SourceRedactionStatus,
     bool SourcePayloadIncluded);
+
+public sealed record AdminSourceEventsResponse(
+    IReadOnlyList<AdminSourceEventResponse> Events);
+
+public sealed record AdminSourceEventResponse(
+    Guid Id,
+    Guid? PrincipalId,
+    Guid? ConversationId,
+    Guid? AgentPrincipalId,
+    string? RoleId,
+    string EventType,
+    string SourceLink,
+    string? ContentHash,
+    string? ExternalPayloadUri,
+    string RetentionClass,
+    string Sensitivity,
+    string RedactionStatus,
+    DateTimeOffset? RedactedAt,
+    Guid? RedactionEventId,
+    string? RedactionEventLink,
+    string TrustLevel,
+    DateTimeOffset CreatedAt,
+    AdminSourceEventScopeResponse Scope,
+    AdminSourceEventPolicyResponse Policy,
+    IReadOnlyList<AdminSourceEventReferenceResponse> References);
+
+public sealed record AdminSourceEventScopeResponse(
+    string ScopeType,
+    string ScopeId,
+    Guid? OrgId,
+    Guid? ProjectId,
+    Guid? PrincipalId,
+    string? RoleId);
+
+public sealed record AdminSourceEventPolicyResponse(
+    bool SourcePayloadIncluded,
+    string ContentVisibilityReason);
+
+public sealed record AdminSourceEventReferenceResponse(
+    string ReferenceType,
+    Guid Id,
+    string Status,
+    string? TargetType,
+    Guid? TargetId,
+    string? Label);

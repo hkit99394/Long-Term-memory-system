@@ -38,7 +38,7 @@ Core capabilities:
 - Retrieve scoped context packets through authorized full-text, semantic, and
   hybrid search.
 - Record context-packet feedback without storing raw query text.
-- Browse authorized memory facts and open source evidence in the admin console.
+- Browse authorized memory facts, source events, and audit references in the admin console.
 - Export approved memory to a human-readable vault.
 - Expose operational health for API readiness, worker heartbeat, outbox backlog,
   pending reviews, and stale vault exports.
@@ -189,7 +189,8 @@ npm run check
 ```
 
 The UI build writes the static review dashboard asset under
-`src/MemorySystem.Api/wwwroot/reviews/`. The vault-sync build writes
+`src/MemorySystem.Api/wwwroot/reviews/` and the admin console asset under
+`src/MemorySystem.Api/wwwroot/admin/`. The vault-sync build writes
 `tools/vault-sync/dist/vault-sync.js`.
 
 ## Useful endpoints
@@ -201,6 +202,7 @@ The UI build writes the static review dashboard asset under
 | `GET /api/operations/summary` | API, worker, outbox, review, and vault-export summary |
 | `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
 | `GET /api/admin/memory/facts` | Authenticated memory fact inspection for the admin console |
+| `GET /api/admin/source-events` | Authenticated source event and audit reference inspection for the admin console |
 | `POST /api/events` | Append source evidence |
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |

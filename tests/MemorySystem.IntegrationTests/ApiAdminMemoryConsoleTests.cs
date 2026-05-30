@@ -41,8 +41,11 @@ public sealed class ApiAdminMemoryConsoleTests
             Assert.Contains("Memory Admin", html, StringComparison.Ordinal);
             Assert.Contains("/admin/admin-console.js", html, StringComparison.Ordinal);
             Assert.Contains("/api/admin/memory/facts", script, StringComparison.Ordinal);
+            Assert.Contains("/api/admin/source-events", script, StringComparison.Ordinal);
             Assert.Contains("sourceLink", script, StringComparison.Ordinal);
             Assert.Contains("sourceRetentionClass", script, StringComparison.Ordinal);
+            Assert.Contains("contentVisibilityReason", script, StringComparison.Ordinal);
+            Assert.Contains("referenceType", script, StringComparison.Ordinal);
         }
         finally
         {
@@ -68,6 +71,148 @@ public sealed class ApiAdminMemoryConsoleTests
             using var response = await client.GetAsync("/api/admin/memory/facts");
 
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_admin_source_events_requires_authentication()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_source_auth_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var response = await client.GetAsync("/api/admin/source-events");
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_admin_source_events_lists_authorized_audit_references_without_payloads()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_source_list_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareAdminMemoryFixtureAsync(databaseConnectionString);
+            var createdFrom = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(-1).ToString("O"));
+            var createdTo = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(1).ToString("O"));
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var request = CreateAuthenticatedRequest(
+                HttpMethod.Get,
+                $"/api/admin/source-events?scopeType=project&scopeId={ProjectAId}&createdFrom={createdFrom}&createdTo={createdTo}&limit=20");
+
+            using var response = await client.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            using var payload = JsonDocument.Parse(body);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.DoesNotContain(fixture.UnauthorizedSourceEventId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Project B admin console fact", body, StringComparison.Ordinal);
+            Assert.DoesNotContain(AuthorizedSourcePayload, body, StringComparison.Ordinal);
+            Assert.DoesNotContain(RedactedMemoryPayload, body, StringComparison.Ordinal);
+
+            var events = payload.RootElement.GetProperty("events")
+                .EnumerateArray()
+                .ToDictionary(sourceEvent => sourceEvent.GetProperty("id").GetGuid());
+
+            Assert.True(events.ContainsKey(fixture.ActiveSourceEventId));
+            Assert.True(events.ContainsKey(fixture.ReviewSourceEventId));
+            Assert.True(events.ContainsKey(fixture.ErasureSourceEventId));
+
+            var active = events[fixture.ActiveSourceEventId];
+            Assert.Equal("user_message", active.GetProperty("eventType").GetString());
+            Assert.Equal($"/api/events/{fixture.ActiveSourceEventId}", active.GetProperty("sourceLink").GetString());
+            Assert.Equal("project", active.GetProperty("scope").GetProperty("scopeType").GetString());
+            Assert.Equal(ProjectAId.ToString(), active.GetProperty("scope").GetProperty("scopeId").GetString());
+            Assert.Equal("standard", active.GetProperty("retentionClass").GetString());
+            Assert.Equal("personal", active.GetProperty("sensitivity").GetString());
+            Assert.Equal("human_approved", active.GetProperty("trustLevel").GetString());
+            Assert.Equal("none", active.GetProperty("redactionStatus").GetString());
+
+            var activePolicy = active.GetProperty("policy");
+            Assert.False(activePolicy.GetProperty("sourcePayloadIncluded").GetBoolean());
+            Assert.Equal("admin_list_payload_not_included", activePolicy.GetProperty("contentVisibilityReason").GetString());
+
+            var activeReferences = active.GetProperty("references").EnumerateArray().ToArray();
+            Assert.Contains(activeReferences, reference =>
+                reference.GetProperty("referenceType").GetString() == "memory_fact"
+                && reference.GetProperty("id").GetGuid() == fixture.ActiveFactId
+                && reference.GetProperty("status").GetString() == "active");
+            Assert.Contains(activeReferences, reference =>
+                reference.GetProperty("referenceType").GetString() == "vault_export"
+                && reference.GetProperty("id").GetGuid() == fixture.VaultExportId
+                && reference.GetProperty("status").GetString() == "current");
+
+            var reviewReferences = events[fixture.ReviewSourceEventId].GetProperty("references").EnumerateArray().ToArray();
+            Assert.Contains(reviewReferences, reference =>
+                reference.GetProperty("referenceType").GetString() == "memory_review"
+                && reference.GetProperty("id").GetGuid() == fixture.ReviewId
+                && reference.GetProperty("targetId").GetGuid() == fixture.ActiveFactId);
+
+            var erasureReferences = events[fixture.ErasureSourceEventId].GetProperty("references").EnumerateArray().ToArray();
+            Assert.Contains(erasureReferences, reference =>
+                reference.GetProperty("referenceType").GetString() == "redaction"
+                && reference.GetProperty("id").GetGuid() == fixture.RedactionId
+                && reference.GetProperty("targetId").GetGuid() == fixture.ActiveFactId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_admin_source_events_filters_redaction_and_retention_state()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_source_filter_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareAdminMemoryFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var request = CreateAuthenticatedRequest(
+                HttpMethod.Get,
+                "/api/admin/source-events?retentionClass=erasure_requested&redactionStatus=erased&trustLevel=human_approved&limit=20");
+
+            using var response = await client.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            using var payload = JsonDocument.Parse(body);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var sourceEvent = Assert.Single(payload.RootElement.GetProperty("events").EnumerateArray());
+            Assert.Equal(fixture.ErasureSourceEventId, sourceEvent.GetProperty("id").GetGuid());
+            Assert.Equal("erasure_requested", sourceEvent.GetProperty("retentionClass").GetString());
+            Assert.Equal("erased", sourceEvent.GetProperty("redactionStatus").GetString());
+            Assert.Equal("source_payload_hidden_by_retention", sourceEvent.GetProperty("policy").GetProperty("contentVisibilityReason").GetString());
+            Assert.False(sourceEvent.GetProperty("policy").GetProperty("sourcePayloadIncluded").GetBoolean());
+            Assert.DoesNotContain(AuthorizedSourcePayload, body, StringComparison.Ordinal);
         }
         finally
         {
@@ -247,9 +392,20 @@ public sealed class ApiAdminMemoryConsoleTests
         var activeSourceEventId = Guid.NewGuid();
         var redactedSourceEventId = Guid.NewGuid();
         var unauthorizedSourceEventId = Guid.NewGuid();
+        var reviewSourceEventId = Guid.NewGuid();
+        var erasureSourceEventId = Guid.NewGuid();
         await InsertProjectSourceEventAsync(connectionString, activeSourceEventId, ProjectAId, OrgAId, "personal");
         await InsertProjectSourceEventAsync(connectionString, redactedSourceEventId, ProjectAId, OrgAId, "none");
         await InsertProjectSourceEventAsync(connectionString, unauthorizedSourceEventId, ProjectBId, OrgBId, "none");
+        await InsertProjectSourceEventAsync(connectionString, reviewSourceEventId, ProjectAId, OrgAId, "none", retentionClass: "audit");
+        await InsertProjectSourceEventAsync(
+            connectionString,
+            erasureSourceEventId,
+            ProjectAId,
+            OrgAId,
+            "secret",
+            retentionClass: "erasure_requested",
+            redactionStatus: "erased");
         await UpdateEventContentAsync(connectionString, activeSourceEventId, AuthorizedSourcePayload);
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
@@ -293,12 +449,21 @@ public sealed class ApiAdminMemoryConsoleTests
             unauthorizedSourceEventId,
             PrincipalId,
             MemoryFactStatuses.Active));
+        var reviewId = await InsertMemoryReviewAsync(connectionString, activeFact.Id, reviewSourceEventId);
+        var vaultExportId = await InsertVaultExportAsync(connectionString, activeFact.Id, activeSourceEventId);
+        var redactionId = await InsertRedactionAsync(connectionString, activeFact.Id, erasureSourceEventId);
 
         return new AdminMemoryFixture(
             activeFact.Id,
             redactedFact.Id,
             unauthorizedFact.Id,
-            activeSourceEventId);
+            activeSourceEventId,
+            unauthorizedSourceEventId,
+            reviewSourceEventId,
+            erasureSourceEventId,
+            reviewId,
+            vaultExportId,
+            redactionId);
     }
 
     private static async Task InsertProjectSourceEventAsync(
@@ -306,7 +471,9 @@ public sealed class ApiAdminMemoryConsoleTests
         Guid eventId,
         Guid projectId,
         Guid orgId,
-        string sensitivity)
+        string sensitivity,
+        string retentionClass = "standard",
+        string redactionStatus = "none")
     {
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
@@ -317,7 +484,124 @@ public sealed class ApiAdminMemoryConsoleTests
             scopeOrgId: orgId,
             scopeProjectId: projectId,
             trustLevel: "human_approved",
-            sensitivity: sensitivity);
+            sensitivity: sensitivity,
+            retentionClass: retentionClass,
+            redactionStatus: redactionStatus);
+    }
+
+    private static async Task<Guid> InsertMemoryReviewAsync(
+        string connectionString,
+        Guid memoryFactId,
+        Guid sourceEventId)
+    {
+        var reviewId = Guid.NewGuid();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_reviews (
+                id,
+                memory_fact_id,
+                review_status,
+                reviewer_id,
+                notes,
+                source_event_id
+            )
+            VALUES (
+                @review_id,
+                @memory_fact_id,
+                'approved',
+                @reviewer_id,
+                'review notes stay out of admin source event lists',
+                @source_event_id
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("review_id", reviewId);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+        command.Parameters.AddWithValue("reviewer_id", PrincipalId);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+
+        await command.ExecuteNonQueryAsync();
+        return reviewId;
+    }
+
+    private static async Task<Guid> InsertVaultExportAsync(
+        string connectionString,
+        Guid memoryFactId,
+        Guid sourceEventId)
+    {
+        var exportId = Guid.NewGuid();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO vault_exports (
+                id,
+                memory_fact_id,
+                export_type,
+                export_path,
+                source_event_id,
+                status
+            )
+            VALUES (
+                @export_id,
+                @memory_fact_id,
+                'obsidian_markdown',
+                '10 Decisions/admin-source-boundary.md',
+                @source_event_id,
+                'current'
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("export_id", exportId);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+
+        await command.ExecuteNonQueryAsync();
+        return exportId;
+    }
+
+    private static async Task<Guid> InsertRedactionAsync(
+        string connectionString,
+        Guid targetId,
+        Guid sourceEventId)
+    {
+        var redactionId = Guid.NewGuid();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_redactions (
+                id,
+                target_type,
+                target_id,
+                redaction_type,
+                reason,
+                requested_by_principal_id,
+                source_event_id
+            )
+            VALUES (
+                @redaction_id,
+                'memory_fact',
+                @target_id,
+                'redact',
+                'admin source event browser test redaction',
+                @requested_by,
+                @source_event_id
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("redaction_id", redactionId);
+        command.Parameters.AddWithValue("target_id", targetId);
+        command.Parameters.AddWithValue("requested_by", PrincipalId);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+
+        await command.ExecuteNonQueryAsync();
+        return redactionId;
     }
 
     private static async Task UpdateEventContentAsync(
@@ -346,5 +630,11 @@ public sealed class ApiAdminMemoryConsoleTests
         Guid ActiveFactId,
         Guid RedactedFactId,
         Guid UnauthorizedFactId,
-        Guid ActiveSourceEventId);
+        Guid ActiveSourceEventId,
+        Guid UnauthorizedSourceEventId,
+        Guid ReviewSourceEventId,
+        Guid ErasureSourceEventId,
+        Guid ReviewId,
+        Guid VaultExportId,
+        Guid RedactionId);
 }
