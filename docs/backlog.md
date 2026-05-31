@@ -126,8 +126,9 @@ MR-11 makes observability executable through versioned alert rules, dashboard
 definitions, trace coverage, and metric-input smokes. MR-12 adds the benchmark
 release gate for Memory Lift, Contract Lift, scoped-safety leaks, stale-memory
 usage, source-link coverage, and agent-contract smoke. LR-01 now scopes
-enterprise access; the next planning focus is LR-02 context productization,
-followed by implementation of the `EA-*` enterprise access backlog.
+enterprise access, and LR-02 now scopes context productization. The next focus
+is implementing `CP-*` context product slices and `EA-*` enterprise access
+slices in small, benchmark-visible steps.
 
 ## Middle Run Production Pilot
 
@@ -163,7 +164,7 @@ followed by implementation of the `EA-*` enterprise access backlog.
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
 | LR-01 | P0 | Done | Scope enterprise access gate. | [Decision 0042](decisions/0042-enterprise-access-gate.md) and [Enterprise Access Gate](enterprise-access-gate.md) define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
-| LR-02 | P0 | Todo | Scope context productization gate. | A decision record and implementation backlog define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad memory, and how those signals feed benchmark-visible ranking improvements. |
+| LR-02 | P0 | Done | Scope context productization gate. | [Decision 0043](decisions/0043-context-productization-gate.md) and [Context Productization Gate](context-productization-gate.md) define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad/missing context, and how those signals feed benchmark-visible ranking improvements. |
 | LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; the generated ignored report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage. A fresh live smoke rerun remains required before external pilot release. |
 | LR-04 | P1 | Todo | Define Domain model extraction slice. | Stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, and source evidence have a staged extraction plan from Application/Infrastructure into `MemorySystem.Domain` with compatibility tests. |
 | LR-05 | P1 | Todo | Scope production platform integration. | A deployment decision record defines infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
@@ -182,3 +183,18 @@ followed by implementation of the `EA-*` enterprise access backlog.
 | EA-08 | P0 | Todo | Add migration and rollback smoke. | A smoke script proves API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes without weakening namespace grants. |
 | EA-09 | P1 | Todo | Document pilot operator runbook. | Runbook covers provider setup, identity binding, service-account creation, role/grant review, audit export, rollback, and break-glass API-key handling. |
 | EA-10 | P1 | Todo | Evaluate directory sync. | Decide whether SCIM or provider group sync is needed after the first pilot; any sync remains provisioning-only and does not bypass local grants. |
+
+## Long Run Context Productization Implementation Backlog
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| CP-01 | P0 | Todo | Define productized context packet schema. | A versioned API response contract adds packet id, generated time, policy summary, included item explanations, exclusion summaries, review actions, feedback policy, and evaluation hints while preserving current grouped items. |
+| CP-02 | P0 | Todo | Add packet and item identifiers for feedback. | Context packet responses include stable packet ids and item ids that can be referenced by feedback and review actions without storing raw query text. |
+| CP-03 | P0 | Todo | Implement structured inclusion explanations. | Each included item explains primary reason, matched signals, rank components, policy fit, lifecycle fit, source evidence, and suggested review actions; tests prove no unauthorized candidate metadata leaks. |
+| CP-04 | P0 | Todo | Add safe exclusion summaries to context packets. | Context packets summarize inactive, not-authorized, scope-mismatch, role-mismatch, rank-cutoff, source-unavailable, and sensitive exclusions using count-disclosure rules aligned with `memory.queryFacts`. |
+| CP-05 | P0 | Todo | Expand context feedback actions. | Feedback supports useful, stale, wrong, sensitive, over-broad, and missing actions while preserving the legacy noisy path; validation requires source ids for item-level actions and stores only payload-safe metadata. |
+| CP-06 | P0 | Todo | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations, open stale/wrong/sensitive reviews, and see source-linked evidence without raw query storage. |
+| CP-07 | P0 | Todo | Feed reviewer actions into ranking signals. | Ranking consumes bounded usefulness, stale, wrong, sensitive, over-broad, and missing signals by scope, namespace, role, and source id; feedback can down-rank or suppress but cannot rewrite facts without review or broker decisions. |
+| CP-08 | P0 | Todo | Add context-product benchmark checks. | Benchmark tasks assert inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after ranking behavior against the LR-03 baseline. |
+| CP-09 | P1 | Todo | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
+| CP-10 | P1 | Todo | Update caller docs and examples. | API docs and client examples show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |

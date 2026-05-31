@@ -133,7 +133,11 @@ The current production-pilot baseline now extends that loop with:
   memory usage, source-link coverage, and agent-contract smoke
 - scoped enterprise access planning for OIDC or SSO, service accounts,
   access-management UI, audit export, and API-key migration
+- scoped context productization planning for inclusion explanations, safe
+  exclusion summaries, reviewer actions, feedback-to-ranking loops, and
+  benchmark-visible ranking improvements
 
-The next architecture concern is context productization and production-pilot
-platform integration: context inclusion and exclusion explanations, runtime
-tracing/exporter wiring, and production deployment automation.
+The next architecture concern is implementing the first productized context and
+enterprise access slices while keeping the production-pilot platform integration
+track ready: runtime tracing/exporter wiring and production deployment
+automation remain upcoming.

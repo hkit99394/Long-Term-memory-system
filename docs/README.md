@@ -24,6 +24,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
+| [Context Productization Gate](context-productization-gate.md) | Scopes the LR-02 explainable context packet, safe exclusion, reviewer action, feedback loop, and benchmark-visible ranking plan. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
 | [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Shows curl-based client examples for the v1 memory workflow, including idempotent writes and retrieval feedback. |
@@ -75,6 +76,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0040: Production Observability and Alerting](decisions/0040-production-observability-and-alerting.md) | Records the production-pilot signal ownership, alerting, dashboard, and payload-safe tracing/logging contract. |
 | [Decision 0041: Benchmark Release Gates](decisions/0041-benchmark-release-gates.md) | Records the MR-12 release gate that combines Memory Lift, Contract Lift, scoped-safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. |
 | [Decision 0042: Enterprise Access Gate](decisions/0042-enterprise-access-gate.md) | Records the LR-01 enterprise access scope and the decision to keep local memberships, role assignments, and namespace grants as the runtime authorization boundary. |
+| [Decision 0043: Context Productization Gate](decisions/0043-context-productization-gate.md) | Records the LR-02 context productization scope for inclusion explanations, safe exclusions, reviewer actions, and benchmark-visible ranking loops. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -89,6 +91,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
 | Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
 | Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |
+| Context productization gate | The LR-02 plan for explainable context packets, safe exclusion summaries, reviewer feedback actions, and ranking improvements that are visible in benchmark results. |
 | Contract Lift | The difference between the LLM outcome score with LMSS v1 agent-contract tool responses and the score with memory disabled. |
 | Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
 | Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
@@ -96,6 +99,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Enterprise access gate | The LR-01 plan for OIDC or SSO, service accounts, access-management UI, audit export, and migration from API-key-only operation without weakening namespace grants. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
+| Exclusion summary | A payload-safe explanation of why candidate memory was omitted, using withheld disclosure where counts or details could leak unauthorized or sensitive content. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Governance workflow | Authenticated operator action for legal holds, erasure execution, or retention reporting. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |

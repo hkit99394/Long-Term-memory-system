@@ -83,7 +83,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. The next product track should move from Middle Run hardening into Long Run gate scoping, starting with enterprise access and context productization.
+Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. Long Run gate scoping has started with enterprise access and context productization now defined as implementable backlogs.
 
 Middle Run status language:
 
@@ -176,6 +176,7 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
 3. Context productization gate.
    - Entry criteria: benchmark release gate exists and context feedback is visible to operators.
    - Outcome: context packets explain why memory was included, what was excluded, and how reviewers can mark memory useful, stale, wrong, sensitive, or over-broad.
+   - Done: [Context Productization Gate](context-productization-gate.md) and [Decision 0043](decisions/0043-context-productization-gate.md) scope productized packet ids, inclusion explanations, safe exclusions, reviewer actions, feedback-to-ranking loops, benchmark checks, and payload-safe context health metrics.
 
 4. Memory intelligence gate.
    - Entry criteria: human review outcomes and benchmark results are available as calibration signals.
@@ -255,8 +256,9 @@ The final product vision is simple: AI agents get durable continuity without tur
 ## Near-Term Product Decision
 
 LR-01 has scoped the enterprise access gate, and LR-03 has captured the first
-local benchmark release-gate baseline. The next move should be LR-02 context
-productization gate scoping, then implementation of the `EA-*` enterprise access
-backlog in small slices. Before inviting an external pilot user, rerun the
-benchmark release gate with the intended pilot model, fresh scorecards, and a
-fresh live smoke artifact from the target environment.
+local benchmark release-gate baseline. LR-02 now scopes context productization.
+The next move should be implementing `CP-*` context product slices and `EA-*`
+enterprise access slices in small, benchmark-visible steps. Before inviting an
+external pilot user, rerun the benchmark release gate with the intended pilot
+model, fresh scorecards, and a fresh live smoke artifact from the target
+environment.
