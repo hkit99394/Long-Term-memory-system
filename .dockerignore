@@ -1,0 +1,13 @@
+.git
+.github
+**/bin/
+**/obj/
+benchmarks/outputs/
+vault/
+memory_system/
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate
+infra/terraform/**/*.tfstate.*
+*.dump
+*.log
+*.tmp

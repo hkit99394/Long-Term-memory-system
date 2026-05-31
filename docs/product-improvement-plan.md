@@ -83,7 +83,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. Long Run gate scoping now defines enterprise access, context productization, Domain extraction, and production platform integration as implementable backlogs; PI-01 selects the first AWS/Terraform/container platform baseline.
+Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. Long Run gate scoping now defines enterprise access, context productization, Domain extraction, and production platform integration as implementable backlogs; PI-01 selects the first AWS/Terraform/container platform baseline, PI-02 adds the first Terraform skeleton plus multi-role OCI artifact contract, PI-03 provisions the managed PostgreSQL/pgvector baseline, and PI-04 adds backup/export plus restore-validation automation.
 
 Middle Run status language:
 
@@ -189,6 +189,7 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
    - Outcome: infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment-specific release checklists are clear enough for vendor-specific implementation.
    - Done: [Production Platform Integration LR-05](production-platform-integration-lr05.md) and [Decision 0045](decisions/0045-production-platform-integration.md) define the platform boundary and `PI-*` implementation backlog.
    - Done: [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) and [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md) select AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, Terraform, and immutable multi-role OCI image digests for the first platform target.
+   - Done: `infra/terraform` defines pilot and production environment overlays plus runtime, PostgreSQL, and observability module contracts; the root `Dockerfile` defines the multi-role OCI artifact.
 
 6. Memory intelligence gate.
    - Entry criteria: human review outcomes and benchmark results are available as calibration signals.
@@ -282,9 +283,12 @@ The final product vision is simple: AI agents get durable continuity without tur
 LR-01 has scoped the enterprise access gate, LR-02 has scoped and implemented
 the context productization gate, LR-03 has captured the first local benchmark
 release-gate baseline, LR-04 scopes Domain model extraction, LR-05 scopes
-production platform integration, and PI-01 selects the AWS/Terraform/container
-baseline. The next move should be `PI-02`: add the Terraform skeleton and
-multi-role OCI artifact contract while continuing small `DM-*` cleanup and
-`EA-*` enterprise access slices. Before inviting an external pilot user, rerun
-the benchmark release gate with the intended pilot model, fresh scorecards, and
-a fresh live smoke artifact from the target environment.
+production platform integration, PI-01 selects the AWS/Terraform/container
+baseline, PI-02 adds the Terraform skeleton, PI-03 provisions managed
+PostgreSQL with pgvector validation, and PI-04 adds backup/export plus
+restore-validation automation. The next move should be `PI-05`: wire runtime
+OpenTelemetry exporters while continuing small `DM-*` cleanup and `EA-*`
+enterprise access slices. Before inviting an
+external pilot user, rerun the benchmark release gate with the intended pilot
+model, fresh scorecards, and a fresh live smoke artifact from the target
+environment.

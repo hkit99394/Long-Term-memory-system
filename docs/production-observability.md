@@ -164,7 +164,8 @@ Minimum database metrics:
 - CPU, memory, storage, and I/O pressure
 - transaction rate
 - lock waits and long-running queries
-- backup success and backup age
+- backup export success, backup age, and backup export size
+- restore-validation success, age, pgvector verification, and table-row checks
 - point-in-time recovery status when supported
 - replication lag when replicas exist
 - extension availability for `vector`

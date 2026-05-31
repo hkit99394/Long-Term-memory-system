@@ -350,7 +350,7 @@ groups:
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
 
       - alert: MemorySystemBackupExporterMetricsMissing
-        expr: absent(memorysystem_backup_age_seconds) or absent(memorysystem_restore_validation_success)
+        expr: absent(memorysystem_backup_export_success) or absent(memorysystem_backup_age_seconds) or absent(memorysystem_backup_export_timestamp_seconds) or absent(memorysystem_backup_export_bytes) or absent(memorysystem_restore_validation_success) or absent(memorysystem_restore_validation_age_seconds) or absent(memorysystem_restore_validation_timestamp_seconds) or absent(memorysystem_restore_validation_vector_extension_count) or absent(memorysystem_restore_validation_table_rows)
         for: 15m
         labels:
           severity: page
@@ -358,7 +358,19 @@ groups:
           signal: exporter_missing
         annotations:
           summary: Memory System backup exporter metrics are missing.
-          description: Backup age or restore-validation metrics are absent, so recovery alerts may not fire.
+          description: Backup export, backup age, or restore-validation metrics are absent, so recovery alerts may not fire.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemBackupExportFailed
+        expr: max(memorysystem_backup_export_success) == 0
+        for: 15m
+        labels:
+          severity: page
+          area: backup
+          signal: backup_export
+        annotations:
+          summary: Memory System backup export failed.
+          description: Latest backup export job did not complete successfully.
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
 
       - alert: MemorySystemBackupTooOld

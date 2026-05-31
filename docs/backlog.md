@@ -127,10 +127,12 @@ and metric-input smokes. MR-12 adds the benchmark release gate for Memory Lift,
 Contract Lift, scoped-safety leaks, stale-memory usage, source-link coverage,
 and agent-contract smoke. LR-01 scopes enterprise access, LR-02 scopes context
 productization, LR-04 scopes Domain model extraction, LR-05 scopes production
-platform integration, and PI-01 selects the first AWS/Terraform/container
-platform baseline. The next focus is implementing `PI-02` platform skeleton
-work alongside remaining `DM-*` and `EA-*` work in small, benchmark-visible
-steps.
+platform integration, PI-01 selects the first AWS/Terraform/container platform
+baseline, PI-02 adds the first Terraform skeleton plus multi-role OCI image
+contract, PI-03 provisions managed PostgreSQL with pgvector validation, and
+PI-04 adds backup/export and restore-validation automation with evidence and
+metrics. The next focus is implementing `PI-05` runtime OpenTelemetry exporters
+alongside remaining `DM-*` and `EA-*` work in small, benchmark-visible steps.
 
 ## Middle Run Production Pilot
 
@@ -176,9 +178,9 @@ steps.
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
 | PI-01 | P0 | Done | Choose production platform and IaC baseline. | [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md) and [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) select AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, Terraform, immutable OCI image digests, environment layout, state/secrets rules, and owner model without changing application contracts. |
-| PI-02 | P0 | Todo | Add Terraform IaC skeleton for runtime roles. | `infra/terraform` defines the initial module and environment layout for separate ECS migrator, API, and worker roles, ingress/TLS assumptions, secret references, resource limits, image digest input, and environment parameters without committing secret values. |
-| PI-03 | P0 | Todo | Provision Amazon RDS PostgreSQL with pgvector. | Terraform defines managed PostgreSQL, pgvector availability checks, network access, dedicated credentials or identity, backup/PITR settings where supported, and a validation database path. |
-| PI-04 | P0 | Todo | Add backup exporter and restore validation automation. | Backup status/export evidence and restore-to-new-database validation can run per environment and emit alertable metrics or logs. |
+| PI-02 | P0 | Done | Add Terraform IaC skeleton for runtime roles. | `infra/terraform` defines the initial module and pilot/production environment layout for separate ECS migrator, API, and worker roles, ingress/TLS assumptions, secret references, resource limits, image digest input, and environment parameters without committing secret values; the root `Dockerfile` defines the multi-role OCI image artifact contract. |
+| PI-03 | P0 | Done | Provision Amazon RDS PostgreSQL with pgvector. | Terraform defines managed PostgreSQL, pgvector availability checks, network access, dedicated credentials or identity, backup/PITR settings where supported, and a validation database path. |
+| PI-04 | P0 | Done | Add backup exporter and restore validation automation. | Backup status/export evidence and restore-to-new-database validation can run per environment and emit alertable metrics or logs. |
 | PI-05 | P0 | Todo | Wire runtime OpenTelemetry exporters. | API and worker emit payload-safe traces and metrics with service name, environment, version, instance id, and correlation ids according to the checked-in trace coverage manifest. |
 | PI-06 | P1 | Todo | Connect alert routing and runbook links. | Platform alert rules route page, ticket, and info alerts to named owners, include runbook links, define silencing policy, and have a test route per environment. |
 | PI-07 | P1 | Todo | Add environment-specific release checklists. | Local, CI, pilot, and production release checklists cover migration, health, metrics, benchmark gate, backup/restore, rollback owner, alert routing, and audit evidence. |

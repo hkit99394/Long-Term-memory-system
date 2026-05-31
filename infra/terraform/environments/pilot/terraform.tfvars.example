@@ -1,0 +1,41 @@
+image_digest = "123456789012.dkr.ecr.eu-west-2.amazonaws.com/memorysystem@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+vpc_id       = "vpc-00000000000000000"
+
+private_subnet_ids = [
+  "subnet-00000000000000001",
+  "subnet-00000000000000002"
+]
+
+public_subnet_ids = [
+  "subnet-00000000000000003",
+  "subnet-00000000000000004"
+]
+
+database_client_security_group_ids = [
+  "sg-00000000000000001"
+]
+
+database_client_cidr_blocks = []
+
+secret_arns = {
+  authentication     = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:memorysystem/pilot/authentication"
+  postgres           = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:memorysystem/pilot/postgres"
+  restore_validation = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:memorysystem/pilot/restore-validation"
+  embeddings         = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:memorysystem/pilot/embeddings"
+}
+
+postgres_allocated_storage_gib     = 20
+postgres_max_allocated_storage_gib = 100
+postgres_multi_az                  = false
+backup_export_schedule_expression  = "rate(6 hours)"
+release_evidence_bucket            = "memorysystem-pilot-release-evidence"
+
+api_ingress_cidr_blocks = [
+  "203.0.113.0/24"
+]
+
+alert_route_destinations = {
+  page   = "memorysystem-pilot-page"
+  ticket = "memorysystem-pilot-ticket"
+  info   = "memorysystem-pilot-info"
+}

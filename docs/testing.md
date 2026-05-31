@@ -98,6 +98,13 @@ Use [Backup and Restore Runbook](backup-restore.md) when PostgreSQL recovery beh
 ./scripts/backup-restore-smoke.sh
 ```
 
+When platform backup or restore job scripts change, run shell syntax checks:
+
+```bash
+bash -n scripts/platform-backup-export.sh
+bash -n scripts/platform-restore-validation.sh
+```
+
 ## Operations Metrics Smoke
 
 Use this after starting the API with a configured local API key. The smoke

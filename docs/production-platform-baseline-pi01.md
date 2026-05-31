@@ -69,7 +69,7 @@ version drift during a release.
 
 ## Terraform Layout
 
-PI-02 should create the initial Terraform layout:
+PI-02 creates the initial Terraform layout:
 
 ```text
 infra/
@@ -147,17 +147,56 @@ PI-02 can start when:
 - no application endpoint, schema, or authorization behavior changed as part of
   PI-01
 
-## PI-02 Target
+## PI-02 Result
 
-The next slice should add a minimal Terraform skeleton and Docker artifact
-contract only. It should not create a full production environment yet.
+PI-02 adds a minimal Terraform skeleton and Docker artifact contract only. It
+does not create a full production environment by itself.
 
-Recommended PI-02 deliverables:
+PI-02 deliverables:
 
 - `infra/terraform/README.md`
-- environment folder skeleton for `pilot`
+- environment folder skeletons for `pilot` and `production`
 - module placeholders for runtime, PostgreSQL, and observability
 - variables for image digest, environment name, secret references, and database
   references
-- a Dockerfile or build plan for the multi-role OCI image
+- a root `Dockerfile` for the multi-role OCI image
 - tests or docs guards that prove Terraform does not expect secret values
+
+## PI-03 Result
+
+PI-03 adds the first live AWS resource shape: managed RDS PostgreSQL with
+pgvector validation metadata.
+
+PI-03 deliverables:
+
+- an `aws_db_instance` PostgreSQL module with private subnet placement
+- database security group ingress from approved client security groups or IPv4
+  CIDR blocks
+- RDS-managed master credential material with no raw secret values in Terraform
+- storage encryption, backup retention, point-in-time recovery settings, final
+  snapshot behavior, maintenance windows, and log exports
+- a `pgvector_validation` output that records the migration SQL and extension
+  check query
+- pilot and production overlay variables for RDS sizing, network access,
+  backup windows, and production Multi-AZ posture
+
+## PI-04 Result
+
+PI-04 adds the first executable recovery job shape for the platform baseline.
+It does not yet provision ECS task definitions, but the multi-role image and
+Terraform runtime contract now name the commands, inputs, evidence files, and
+metrics expected by those tasks.
+
+PI-04 deliverables:
+
+- `platform-backup-export.sh` for custom-format PostgreSQL backup export,
+  archive inspection, evidence JSON, and `memorysystem_backup_*` metrics
+- `platform-restore-validation.sh` for restore-to-new-database validation,
+  migration replay, restore table manifest checks, pgvector verification,
+  evidence JSON, and `memorysystem_restore_validation_*` metrics
+- multi-role container image support for PostgreSQL client tools and backup
+  scripts under `/app/scripts/`
+- runtime role contracts for scheduled backup export and run-task restore
+  validation jobs
+- pilot and production overlay schedule inputs plus updated observability
+  metric manifests, dashboard references, and missing-series alert coverage

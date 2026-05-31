@@ -147,6 +147,54 @@ dotnet run --project src/MemorySystem.Migrator -- \
 
 Then point the API and worker at the restored connection string and verify readiness.
 
+## Platform Automation
+
+PI-04 adds two checked-in platform job scripts for pilot and production
+environments:
+
+```bash
+/app/scripts/platform-backup-export.sh
+/app/scripts/platform-restore-validation.sh
+```
+
+`platform-backup-export.sh` creates a custom-format logical backup, verifies
+that the archive can be listed, writes backup export evidence JSON, and emits
+Prometheus-compatible metrics including:
+
+- `memorysystem_backup_export_success`
+- `memorysystem_backup_age_seconds`
+- `memorysystem_backup_export_timestamp_seconds`
+- `memorysystem_backup_export_bytes`
+
+`platform-restore-validation.sh` restores a selected backup file into a fresh
+validation database, reruns migrations, checks every table in
+`scripts/restore-validation-tables.txt`, verifies `pgvector`, writes restore
+validation evidence JSON, and emits metrics including:
+
+- `memorysystem_restore_validation_success`
+- `memorysystem_restore_validation_age_seconds`
+- `memorysystem_restore_validation_timestamp_seconds`
+- `memorysystem_restore_validation_vector_extension_count`
+- `memorysystem_restore_validation_table_rows`
+
+In the multi-role container image these scripts live under `/app/scripts/` and
+use PostgreSQL client tools from the runtime image. The platform secret layer
+must provide libpq-compatible values such as `PGHOST`, `PGPORT`, `PGUSER`, and
+`PGDATABASE`; the secret value itself should come from the environment secret
+store at task runtime. Restore validation also requires
+`MEMORYSYSTEM_BACKUP_FILE` and `MEMORYSYSTEM_RESTORE_CONNECTION_STRING` so the
+migrator can run against the validation database.
+
+Default evidence and metric files are written under:
+
+```text
+/tmp/memorysystem-backup-evidence/
+```
+
+The ECS task wrapper or platform scheduler should upload evidence JSON to the
+release evidence bucket and expose or push the metric files into the pilot
+observability pipeline.
+
 ## Retention and Erasure Caveats
 
 Backups can preserve content that has since been minimized or erased in the live database. Treat backup files as sensitive data.

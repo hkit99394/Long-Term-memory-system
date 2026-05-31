@@ -24,6 +24,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Scopes infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment release checklists. |
 | [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | Selects the first AWS/Terraform/container platform baseline, artifact contract, environment model, state/secrets rules, and owner model. |
+| [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Defines the Terraform module/environment layout, multi-role OCI image contract, managed RDS PostgreSQL/pgvector baseline, and backup/restore job contracts for the AWS pilot target. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
 | [Context Productization Gate](context-productization-gate.md) | Scopes the LR-02 explainable context packet, safe exclusion, reviewer action, feedback loop, and benchmark-visible ranking plan. |
@@ -137,6 +138,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Production observability | The production-pilot signal contract, metrics export, alert rules, dashboard, trace coverage manifest, and operator first-response checks. |
 | Production platform integration | The LR-05 plan for connecting the service to IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and per-environment release gates. |
 | Production platform baseline | The PI-01 decision selecting AWS ECS Fargate, Amazon RDS PostgreSQL, Amazon ECR, Terraform, and immutable OCI image digests for the first pilot platform target. |
+| Terraform platform | The PI-02/PI-04 `infra/terraform` layout that defines environment overlays, runtime/database/observability module contracts, non-secret Terraform inputs, managed RDS PostgreSQL resources, and backup/restore job commands. |
 | Admin console | The authenticated `/admin/` surface for inspecting authorized memory facts, source events, lifecycle state, source links, audit references, and safe policy metadata. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |

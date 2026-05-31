@@ -24,6 +24,8 @@ repo-root/
     MemorySystem.IntegrationTests/
   benchmarks/
     llm-outcome-v0/
+  infra/
+    terraform/
   migrations/
     001_initial_memory_schema.sql
   tools/
@@ -46,6 +48,7 @@ repo-root/
 | `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests, using the pinned image from [Decision 0003](decisions/0003-local-database-runtime.md). |
 | `benchmarks/` | Benchmark fixtures, prompt-pack generators, rubrics, and generated report workspace. |
 | `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, and decisions. |
+| `infra/` | Production platform infrastructure. PI-02 starts Terraform module and environment contracts under `infra/terraform`; PI-03 adds managed RDS PostgreSQL resources; PI-04 adds backup/export and restore-validation job contracts. |
 | `migrations/` | SQL-first database migrations. These are the source of truth for schema changes. |
 | `src/` | Production .NET source code. |
 | `tests/` | Unit and integration tests. |
@@ -256,10 +259,15 @@ environment-specific release checklists.
 
 [Production Platform Baseline PI-01](production-platform-baseline-pi01.md)
 selects AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, and
-Terraform for the first pilot baseline. When `PI-02` starts, platform-specific
-code should live under `infra/terraform`. That folder should own deployment
-resources and environment overlays, while SQL schema history remains in
-`migrations/` and application behavior remains in `src/`.
+Terraform for the first pilot baseline. PI-02 adds `infra/terraform` with
+pilot and production environment overlays plus runtime, PostgreSQL, and
+observability module contracts. PI-03 turns the PostgreSQL module into managed
+RDS resources with private network access, backup/PITR settings, and pgvector
+validation metadata. PI-04 adds backup/export and restore-validation commands
+to the runtime contract while keeping the central validation table manifest
+under `scripts/`. That folder should own deployment resources and environment
+overlays, while SQL schema history remains in `migrations/` and application
+behavior remains in `src/`.
 
 ## Benchmarks
 

@@ -182,8 +182,15 @@
       "gridPos": { "h": 4, "w": 8, "x": 8, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
-        { "refId": "A", "expr": "memorysystem_backup_age_seconds" },
-        { "refId": "B", "expr": "memorysystem_restore_validation_success" }
+        { "refId": "A", "expr": "memorysystem_backup_export_success" },
+        { "refId": "B", "expr": "memorysystem_backup_age_seconds" },
+        { "refId": "C", "expr": "memorysystem_backup_export_timestamp_seconds" },
+        { "refId": "D", "expr": "memorysystem_backup_export_bytes" },
+        { "refId": "E", "expr": "memorysystem_restore_validation_success" },
+        { "refId": "F", "expr": "memorysystem_restore_validation_age_seconds" },
+        { "refId": "G", "expr": "memorysystem_restore_validation_timestamp_seconds" },
+        { "refId": "H", "expr": "memorysystem_restore_validation_vector_extension_count" },
+        { "refId": "I", "expr": "memorysystem_restore_validation_table_rows" }
       ]
     },
     {

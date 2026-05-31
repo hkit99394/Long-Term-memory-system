@@ -23,9 +23,11 @@ dashboard definitions, trace coverage, and observability smoke checks. MR-12
 adds benchmark release gates for Memory Lift, Contract Lift, scoped-safety
 leaks, stale-memory usage, source-link coverage, and agent-contract smoke.
 MR-08 operator evidence browsing and MR-09 governance automation are also
-implemented. LR-01, LR-02, LR-04, LR-05, and PI-01 now define implementable
-gate backlogs and platform baseline choices for enterprise access, context
-productization, Domain extraction, and production platform integration.
+implemented. LR-01, LR-02, LR-04, LR-05, PI-01, PI-02, PI-03, and PI-04 now
+define implementable gate backlogs, platform baseline choices, the first
+Terraform platform layout, managed PostgreSQL/pgvector resources, and
+backup/restore automation for enterprise access, context productization, Domain
+extraction, and production platform integration.
 
 ## Milestones
 
@@ -163,6 +165,15 @@ After M8:
   the first pilot target is AWS ECS Fargate plus Amazon RDS PostgreSQL with
   pgvector, Amazon ECR, Terraform under `infra/terraform`, Secrets Manager or
   SSM references, and immutable multi-role OCI image digests.
+- PI-02 adds `infra/terraform` with pilot/production overlays, runtime,
+  PostgreSQL, and observability module contracts, plus a root `Dockerfile` for
+  the immutable multi-role OCI image.
+- PI-03 turns the PostgreSQL module into managed RDS PostgreSQL resources with
+  private subnet placement, client ingress controls, RDS-managed master
+  credential material, backup/PITR settings, and pgvector validation metadata.
+- PI-04 adds platform backup/export and restore-validation job commands that
+  emit evidence JSON plus alertable `memorysystem_backup_*` and
+  `memorysystem_restore_validation_*` metrics.
 
 ## First Build Sequence
 

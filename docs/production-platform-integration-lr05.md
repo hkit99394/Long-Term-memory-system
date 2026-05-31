@@ -198,9 +198,12 @@ The LR-05 planning output creates the `PI-*` implementation backlog:
 - `PI-01`: choose production platform and IaC baseline. Done in
   [Production Platform Baseline PI-01](production-platform-baseline-pi01.md)
   and [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md).
-- `PI-02`: add IaC skeleton for runtime roles
-- `PI-03`: provision managed PostgreSQL with pgvector
-- `PI-04`: add backup exporter and restore validation automation
+- `PI-02`: add IaC skeleton for runtime roles. Done in `infra/terraform`.
+- `PI-03`: provision managed PostgreSQL with pgvector. Done in
+  `infra/terraform/modules/memorysystem-postgres`.
+- `PI-04`: add backup exporter and restore validation automation. Done with
+  `scripts/platform-backup-export.sh`,
+  `scripts/platform-restore-validation.sh`, and runtime job contracts.
 - `PI-05`: wire runtime OpenTelemetry exporters
 - `PI-06`: connect alert routing and runbook links
 - `PI-07`: add environment-specific release checklists
