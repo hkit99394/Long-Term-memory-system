@@ -44,8 +44,9 @@ workflow:
 8. Query Project A facts with `memory.queryFacts`.
 9. Record context feedback with `memory.recordContextFeedback`.
 
-The feedback request includes the raw query because the API needs it to compute
-the hash, but the server stores only `queryHash`.
+The feedback request can include the returned `packetId` and `itemId` instead
+of resending the raw query. When clients do send the query for compatibility,
+the server stores only `queryHash`.
 
 ## Environment Variables
 
@@ -147,12 +148,11 @@ curl -sS -X POST "$MEMORYSYSTEM_API_BASE_URL/api/memory/context/feedback" \
   -H "X-Api-Key: $MEMORYSYSTEM_API_KEY" \
   -H "Content-Type: application/json" \
   --data '{
-    "query": "How should I write the next API client example for Project A?",
+    "packetId": "<packet-id>",
+    "itemId": "<item-id>",
     "targetScopeType": "project",
     "targetScopeId": "33333333-3333-4333-8333-333333333333",
     "roleId": "cto",
-    "sourceType": "memory_fact",
-    "sourceId": "<memory-fact-id>",
     "feedbackType": "useful"
   }'
 ```
@@ -166,9 +166,10 @@ Use the same `Idempotency-Key` and exact same request body to safely retry:
 
 Reusing the same key with a different body returns an idempotency conflict.
 
-`POST /api/memory/context/feedback` is append-only today. It intentionally has
-no `Idempotency-Key` in the v1 contract, so clients should avoid blind retries
-unless duplicate observations are acceptable.
+`POST /api/memory/context/feedback` is append-only today. It accepts either the
+original query or a `packetId` from `memory.getContext`, and stores only a hash.
+It intentionally has no `Idempotency-Key` in the v1 contract, so clients should
+avoid blind retries unless duplicate observations are acceptable.
 
 `POST /api/memory/query-facts` is a read operation. It also has no
 `Idempotency-Key`; callers can retry it like any other read.

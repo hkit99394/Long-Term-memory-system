@@ -5,6 +5,8 @@ public sealed record MemoryRetrievalFeedbackRecord(
     Guid PrincipalId,
     string RetrievalMode,
     string QueryHash,
+    Guid? PacketId,
+    Guid? ItemId,
     string? TargetScopeType,
     string? TargetScopeId,
     string? RoleId,

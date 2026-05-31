@@ -46,8 +46,11 @@ public sealed partial class ApiMemorySearchTests
             Assert.Equal("project", payload.GetProperty("targetScope").GetProperty("scopeType").GetString());
             Assert.Equal(ProjectAId.ToString(), payload.GetProperty("targetScope").GetProperty("scopeId").GetString());
             Assert.Equal("cto", payload.GetProperty("currentTask").GetProperty("roleId").GetString());
+            var packetId = payload.GetProperty("packetId").GetGuid();
+            Assert.NotEqual(Guid.Empty, packetId);
 
             var userPreference = Assert.Single(payload.GetProperty("userPreferences").EnumerateArray());
+            Assert.NotEqual(Guid.Empty, userPreference.GetProperty("itemId").GetGuid());
             Assert.Equal("user_preference", userPreference.GetProperty("kind").GetString());
             Assert.True(userPreference.GetProperty("content").GetString()!.Length <= 360);
             Assert.Equal(fixture.UserPreferenceEventId, userPreference.GetProperty("sourceEventId").GetGuid());
@@ -57,15 +60,31 @@ public sealed partial class ApiMemorySearchTests
             Assert.Contains("confidence", userPreference.GetProperty("explanation").GetProperty("summary").GetString(), StringComparison.Ordinal);
 
             var relevantDecision = Assert.Single(payload.GetProperty("relevantDecisions").EnumerateArray());
+            Assert.NotEqual(Guid.Empty, relevantDecision.GetProperty("itemId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, relevantDecision.GetProperty("sourceId").GetGuid());
             Assert.Equal("project_decision", relevantDecision.GetProperty("kind").GetString());
             Assert.Equal($"/api/events/{fixture.ProjectDecisionEventId}", relevantDecision.GetProperty("sourceLink").GetString());
 
             var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
+            Assert.NotEqual(Guid.Empty, roleMemory.GetProperty("itemId").GetGuid());
             Assert.Equal("project_role_lens", roleMemory.GetProperty("kind").GetString());
             Assert.Equal(fixture.RoleMemoryLensId, roleMemory.GetProperty("sourceId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, roleMemory.GetProperty("baseMemoryFactId").GetGuid());
             Assert.Equal($"/api/events/{fixture.RoleLensEventId}", roleMemory.GetProperty("sourceLink").GetString());
+
+            var (repeatStatusCode, repeatPayload, _) = await SendContextPacketAsync(
+                client,
+                "cto context packet concise decision logs authorization predicates operational reversibility",
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 6);
+
+            Assert.Equal(HttpStatusCode.OK, repeatStatusCode);
+            Assert.Equal(packetId, repeatPayload.GetProperty("packetId").GetGuid());
+            Assert.Equal(
+                relevantDecision.GetProperty("itemId").GetGuid(),
+                Assert.Single(repeatPayload.GetProperty("relevantDecisions").EnumerateArray()).GetProperty("itemId").GetGuid());
 
             var sourceEvents = payload
                 .GetProperty("sourceEvents")
@@ -240,20 +259,21 @@ public sealed partial class ApiMemorySearchTests
                 limit: 6);
 
             Assert.Equal(HttpStatusCode.OK, contextStatusCode);
-            Assert.Contains(
+            var packetId = contextPayload.GetProperty("packetId").GetGuid();
+            var feedbackItem = Assert.Single(
                 contextPayload.GetProperty("relevantDecisions").EnumerateArray(),
                 item => item.GetProperty("sourceId").GetGuid() == fixture.ProjectDecisionId);
+            var itemId = feedbackItem.GetProperty("itemId").GetGuid();
 
             var (feedbackStatusCode, feedbackPayload, feedbackBody) = await SendContextFeedbackAsync(
                 client,
                 $$"""
                 {
-                  "query": "{{query}}",
+                  "packetId": "{{packetId}}",
+                  "itemId": "{{itemId}}",
                   "targetScopeType": "project",
                   "targetScopeId": "{{ProjectAId}}",
                   "roleId": "cto",
-                  "sourceType": "memory_fact",
-                  "sourceId": "{{fixture.ProjectDecisionId}}",
                   "feedbackType": "useful"
                 }
                 """);
@@ -269,11 +289,15 @@ public sealed partial class ApiMemorySearchTests
             Assert.StartsWith("sha256:", storedFeedback.QueryHash, StringComparison.Ordinal);
             Assert.Equal(feedbackPayload.GetProperty("queryHash").GetString(), storedFeedback.QueryHash);
             Assert.DoesNotContain("concise decision logs", storedFeedback.QueryHash, StringComparison.Ordinal);
+            Assert.Equal(packetId, feedbackPayload.GetProperty("packetId").GetGuid());
+            Assert.Equal(itemId, feedbackPayload.GetProperty("itemId").GetGuid());
+            Assert.Equal(packetId, storedFeedback.PacketId);
+            Assert.Equal(itemId, storedFeedback.ItemId);
             Assert.Equal("project", storedFeedback.TargetScopeType);
             Assert.Equal(ProjectAId.ToString(), storedFeedback.TargetScopeId);
             Assert.Equal("cto", storedFeedback.RoleId);
-            Assert.Equal("memory_fact", storedFeedback.SourceType);
-            Assert.Equal(fixture.ProjectDecisionId, storedFeedback.SourceId);
+            Assert.Null(storedFeedback.SourceType);
+            Assert.Null(storedFeedback.SourceId);
             Assert.Equal("useful", storedFeedback.FeedbackType);
         }
         finally
@@ -302,14 +326,14 @@ public sealed partial class ApiMemorySearchTests
                 client,
                 """
                 {
-                  "query": "context packet",
+                  "packetId": "11111111-1111-4111-8111-111111111111",
                   "feedbackType": "stale"
                 }
                 """);
 
             Assert.Equal(HttpStatusCode.BadRequest, statusCode);
             Assert.Equal("Memory context feedback is invalid.", payload.GetProperty("title").GetString());
-            Assert.Contains("must identify a retrieved source", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Contains("must identify a retrieved source or item", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -378,6 +402,8 @@ public sealed partial class ApiMemorySearchTests
                 principal_id,
                 retrieval_mode,
                 query_hash,
+                packet_id,
+                item_id,
                 target_scope_type,
                 target_scope_id,
                 role_id,
@@ -398,18 +424,22 @@ public sealed partial class ApiMemorySearchTests
             reader.GetGuid(0),
             reader.GetString(1),
             reader.GetString(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(3) ? null : reader.GetGuid(3),
+            reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetString(5),
             reader.IsDBNull(6) ? null : reader.GetString(6),
-            reader.IsDBNull(7) ? null : reader.GetGuid(7),
-            reader.GetString(8));
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetGuid(9),
+            reader.GetString(10));
     }
 
     private sealed record RetrievalFeedbackState(
         Guid PrincipalId,
         string RetrievalMode,
         string QueryHash,
+        Guid? PacketId,
+        Guid? ItemId,
         string? TargetScopeType,
         string? TargetScopeId,
         string? RoleId,

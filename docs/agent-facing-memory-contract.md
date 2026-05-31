@@ -219,6 +219,7 @@ Input shape:
 
 Expected output groups:
 
+- `packetId`
 - `userPreferences`
 - `projectMemory`
 - `roleMemory`
@@ -227,6 +228,7 @@ Expected output groups:
 
 Each item should include:
 
+- item id
 - memory kind
 - source type and source id
 - namespace and scope
@@ -252,12 +254,11 @@ Input shape:
 
 ```json
 {
-  "query": "Plan the next migration for retrieval feedback metrics.",
+  "packetId": "context-packet-id",
+  "itemId": "context-packet-item-id",
   "targetScopeType": "project",
   "targetScopeId": "project-a",
   "roleId": "cto",
-  "sourceType": "memory_fact",
-  "sourceId": "memory-fact-id",
   "feedbackType": "useful"
 }
 ```
@@ -269,6 +270,8 @@ Expected output:
   "id": "feedback-id",
   "retrievalMode": "context_packet",
   "queryHash": "sha256:...",
+  "packetId": "context-packet-id",
+  "itemId": "context-packet-item-id",
   "feedbackType": "useful",
   "createdAt": "2026-05-29T00:00:00Z"
 }
@@ -278,7 +281,10 @@ Contract rules:
 
 - `feedbackType` must be one of `useful`, `stale`, `missing`, or `noisy`.
 - Raw query text must not be stored.
-- `useful`, `stale`, and `noisy` feedback should identify the retrieved source.
+- Feedback may send the original query or the `packetId` returned by
+  `memory.getContext`; `packetId` lets clients avoid resending raw query text.
+- `useful`, `stale`, and `noisy` feedback should identify the retrieved source
+  or returned `itemId`.
 - `missing` feedback may omit source id because it points to absent memory.
 
 ## Fact-Finding Contract

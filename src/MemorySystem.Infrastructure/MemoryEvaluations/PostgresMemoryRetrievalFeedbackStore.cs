@@ -23,6 +23,8 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
                 principal_id,
                 retrieval_mode,
                 query_hash,
+                packet_id,
+                item_id,
                 target_scope_type,
                 target_scope_id,
                 role_id,
@@ -35,6 +37,8 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
                 @principal_id,
                 @retrieval_mode,
                 @query_hash,
+                @packet_id,
+                @item_id,
                 @target_scope_type,
                 @target_scope_id,
                 @role_id,
@@ -49,6 +53,10 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
         sql.Parameters.AddWithValue("principal_id", command.PrincipalId);
         sql.Parameters.AddWithValue("retrieval_mode", command.RetrievalMode);
         sql.Parameters.AddWithValue("query_hash", command.QueryHash);
+        sql.Parameters.Add("packet_id", NpgsqlDbType.Uuid).Value =
+            command.PacketId.HasValue ? command.PacketId.Value : DBNull.Value;
+        sql.Parameters.Add("item_id", NpgsqlDbType.Uuid).Value =
+            command.ItemId.HasValue ? command.ItemId.Value : DBNull.Value;
         sql.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(command.TargetScopeType) ? DBNull.Value : command.TargetScopeType;
         sql.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
@@ -69,6 +77,8 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
             command.PrincipalId,
             command.RetrievalMode,
             command.QueryHash,
+            command.PacketId,
+            command.ItemId,
             command.TargetScopeType,
             command.TargetScopeId,
             command.RoleId,
@@ -95,6 +105,21 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
             throw new ArgumentException("Query hash is required.", nameof(command));
         }
 
+        if (command.PacketId == Guid.Empty)
+        {
+            throw new ArgumentException("Packet id is invalid.", nameof(command));
+        }
+
+        if (command.ItemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item id is invalid.", nameof(command));
+        }
+
+        if (command.ItemId.HasValue && !command.PacketId.HasValue)
+        {
+            throw new ArgumentException("Item feedback requires packet id.", nameof(command));
+        }
+
         if (string.IsNullOrWhiteSpace(command.TargetScopeType) != string.IsNullOrWhiteSpace(command.TargetScopeId))
         {
             throw new ArgumentException("Target scope type and id must be provided together.", nameof(command));
@@ -117,9 +142,11 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
             throw new ArgumentException("Feedback type is not supported.", nameof(command));
         }
 
-        if (MemoryRetrievalFeedbackTypes.RequiresSource(command.FeedbackType) && !command.SourceId.HasValue)
+        if (MemoryRetrievalFeedbackTypes.RequiresSource(command.FeedbackType)
+            && !command.SourceId.HasValue
+            && !command.ItemId.HasValue)
         {
-            throw new ArgumentException("Useful, stale, and noisy feedback must identify a retrieved source.", nameof(command));
+            throw new ArgumentException("Useful, stale, and noisy feedback must identify a retrieved source or item.", nameof(command));
         }
     }
 

@@ -360,6 +360,8 @@ public static class MemoryFactEndpointExtensions
                 record.Id,
                 record.RetrievalMode,
                 record.QueryHash,
+                record.PacketId,
+                record.ItemId,
                 record.FeedbackType,
                 record.CreatedAt));
     }
@@ -440,24 +442,48 @@ public static class MemoryFactEndpointExtensions
 
         var query = request.Query?.Trim();
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (request.PacketId == Guid.Empty)
         {
-            error = "query is required.";
+            error = "packetId is invalid.";
+            return false;
+        }
+
+        if (request.ItemId == Guid.Empty)
+        {
+            error = "itemId is invalid.";
+            return false;
+        }
+
+        if (request.ItemId.HasValue && !request.PacketId.HasValue)
+        {
+            error = "itemId requires packetId.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(query) && !request.PacketId.HasValue)
+        {
+            error = "query or packetId is required.";
             return false;
         }
 
         if (!MemoryRetrievalFeedbackTypes.TryNormalize(request.FeedbackType, out var feedbackType, out error)
             || !TryNormalizeOptionalTargetScope(request.TargetScopeType, request.TargetScopeId, out var targetScopeType, out var targetScopeId, out error)
             || !TryNormalizeOptionalRoleId(request.RoleId, out var roleId, out error)
-            || !TryNormalizeOptionalFeedbackSource(request.SourceType, request.SourceId, feedbackType, out var sourceType, out error))
+            || !TryNormalizeOptionalFeedbackSource(request.SourceType, request.SourceId, request.ItemId, feedbackType, out var sourceType, out error))
         {
             return false;
         }
 
+        var queryHash = string.IsNullOrWhiteSpace(query)
+            ? ComputeSha256($"packet:{request.PacketId!.Value:D}")
+            : ComputeSha256(query);
+
         command = new MemoryRetrievalFeedbackCommand(
             principalId,
             "context_packet",
-            ComputeSha256(query),
+            queryHash,
+            request.PacketId,
+            request.ItemId,
             targetScopeType,
             targetScopeId,
             roleId,
@@ -654,6 +680,7 @@ public static class MemoryFactEndpointExtensions
     private static bool TryNormalizeOptionalFeedbackSource(
         string? requestedSourceType,
         Guid? sourceId,
+        Guid? itemId,
         string feedbackType,
         out string? sourceType,
         out string? error)
@@ -675,9 +702,9 @@ public static class MemoryFactEndpointExtensions
             return false;
         }
 
-        if (MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && !sourceId.HasValue)
+        if (MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && !sourceId.HasValue && !itemId.HasValue)
         {
-            error = "useful, stale, and noisy feedback must identify a retrieved source.";
+            error = "useful, stale, and noisy feedback must identify a retrieved source or item.";
             return false;
         }
 
@@ -689,6 +716,16 @@ public static class MemoryFactEndpointExtensions
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
 
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static Guid CreateStableGuid(params string?[] parts)
+    {
+        var canonical = string.Join('\u001f', parts.Select(part => part ?? string.Empty));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        Span<byte> bytes = stackalloc byte[16];
+        hash.AsSpan(0, 16).CopyTo(bytes);
+
+        return new Guid(bytes);
     }
 
     private static MemorySearchResultResponse ToSearchResultResponse(MemoryChunkSearchResult result)
@@ -733,17 +770,52 @@ public static class MemoryFactEndpointExtensions
 
     private static MemoryContextPacketResponse ToContextPacketResponse(MemoryContextPacket packet)
     {
+        var packetId = ComputeContextPacketId(packet);
+
         return new MemoryContextPacketResponse(
+            packetId,
             packet.PrincipalId,
             packet.Query,
             ToContextTargetScopeResponse(packet.TargetScope),
             packet.RoleId,
             ToCurrentTaskResponse(packet.CurrentTask),
-            packet.UserPreferences.Select(ToContextPacketItemResponse).ToArray(),
-            packet.ProjectMemory.Select(ToContextPacketItemResponse).ToArray(),
-            packet.RoleMemory.Select(ToContextPacketItemResponse).ToArray(),
-            packet.RelevantDecisions.Select(ToContextPacketItemResponse).ToArray(),
+            packet.UserPreferences.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
+            packet.ProjectMemory.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
+            packet.RoleMemory.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
+            packet.RelevantDecisions.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
             packet.SourceEvents.Select(ToSourceEventResponse).ToArray());
+    }
+
+    private static Guid ComputeContextPacketId(MemoryContextPacket packet)
+    {
+        var itemFingerprints = packet.UserPreferences
+            .Concat(packet.ProjectMemory)
+            .Concat(packet.RoleMemory)
+            .Concat(packet.RelevantDecisions)
+            .Select(item => string.Join(
+                ':',
+                item.Kind,
+                item.SourceType,
+                item.SourceId,
+                item.ChunkId,
+                item.Namespace,
+                item.ScopeType,
+                item.ScopeId))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        var parts = new List<string?>
+        {
+            "context-packet.v1",
+            packet.PrincipalId.ToString("D"),
+            packet.Query,
+            packet.TargetScope?.ScopeType,
+            packet.TargetScope?.ScopeId,
+            packet.RoleId
+        };
+        parts.AddRange(itemFingerprints);
+
+        return CreateStableGuid(parts.ToArray());
     }
 
     private static MemoryContextCurrentTaskResponse ToCurrentTaskResponse(MemoryContextCurrentTask currentTask)
@@ -761,9 +833,12 @@ public static class MemoryFactEndpointExtensions
             : new MemoryContextTargetScopeResponse(targetScope.ScopeType, targetScope.ScopeId);
     }
 
-    private static MemoryContextPacketItemResponse ToContextPacketItemResponse(MemoryContextPacketItem item)
+    private static MemoryContextPacketItemResponse ToContextPacketItemResponse(
+        Guid packetId,
+        MemoryContextPacketItem item)
     {
         return new MemoryContextPacketItemResponse(
+            ComputeContextItemId(packetId, item),
             item.Kind,
             item.ChunkId,
             item.SourceType,
@@ -787,6 +862,20 @@ public static class MemoryFactEndpointExtensions
                     item.Explanation.Components.Authority,
                     item.Explanation.Components.ScopeMatch),
                 item.Explanation.Summary));
+    }
+
+    private static Guid ComputeContextItemId(Guid packetId, MemoryContextPacketItem item)
+    {
+        return CreateStableGuid(
+            "context-packet-item.v1",
+            packetId.ToString("D"),
+            item.Kind,
+            item.SourceType,
+            item.SourceId.ToString("D"),
+            item.ChunkId.ToString("D"),
+            item.Namespace,
+            item.ScopeType,
+            item.ScopeId);
     }
 
     private static MemoryContextSourceEventResponse ToSourceEventResponse(MemoryContextSourceEvent sourceEvent)

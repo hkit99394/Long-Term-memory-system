@@ -140,7 +140,8 @@ not already part of feedback storage, or unauthorized source identifiers.
 CP-01 defines the contract only. Follow-on slices should implement it in this
 order:
 
-1. CP-02 adds packet and item identifiers.
+1. Done: CP-02 adds packet and item identifiers to context responses and
+   feedback.
 2. CP-03 fills structured inclusion explanations.
 3. CP-04 adds safe exclusion summaries.
 4. CP-05 expands feedback actions.

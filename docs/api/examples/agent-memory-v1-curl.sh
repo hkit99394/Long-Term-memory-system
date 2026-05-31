@@ -27,7 +27,7 @@ print(value)
 ' "$field"
 }
 
-first_context_source() {
+first_context_item() {
   python3 -c '
 import json
 import sys
@@ -35,7 +35,7 @@ import sys
 packet = json.load(sys.stdin)
 for group in ["userPreferences", "projectMemory", "roleMemory", "relevantDecisions"]:
     for item in packet.get(group, []):
-        print(item["sourceType"], item["sourceId"])
+        print(packet["packetId"], item["itemId"])
         sys.exit(0)
 
 sys.exit(1)
@@ -193,18 +193,17 @@ echo
 echo "8. Query facts with evidence and policy metadata"
 post_json "/api/memory/query-facts" "${query_facts_body}" | pretty_json
 
-source_pair="$(printf '%s' "${context_response}" | first_context_source || true)"
+item_pair="$(printf '%s' "${context_response}" | first_context_item || true)"
 
-if [[ -n "${source_pair}" ]]; then
-  read -r feedback_source_type feedback_source_id <<< "${source_pair}"
+if [[ -n "${item_pair}" ]]; then
+  read -r feedback_packet_id feedback_item_id <<< "${item_pair}"
   feedback_body="$(cat <<JSON
 {
-  "query": "${context_query}",
+  "packetId": "${feedback_packet_id}",
+  "itemId": "${feedback_item_id}",
   "targetScopeType": "project",
   "targetScopeId": "${PROJECT_A_ID}",
   "roleId": "cto",
-  "sourceType": "${feedback_source_type}",
-  "sourceId": "${feedback_source_id}",
   "feedbackType": "useful"
 }
 JSON

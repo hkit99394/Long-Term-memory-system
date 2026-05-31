@@ -211,7 +211,7 @@
         "operationId": "memory_recordContextFeedback",
         "x-agent-tool-name": "memory.recordContextFeedback",
         "summary": "Record retrieval feedback",
-        "description": "Records useful, stale, missing, or noisy context-packet feedback. The API stores a query hash instead of raw query text. This endpoint is append-only and is not currently idempotent.",
+        "description": "Records useful, stale, missing, or noisy context-packet feedback. Callers may send either the original query or a packetId returned by memory.getContext; the API stores a hash instead of raw query text. This endpoint is append-only and is not currently idempotent.",
         "tags": [
           "Memory Evaluation"
         ],
@@ -892,6 +892,7 @@
       "MemoryContextPacketResponse": {
         "type": "object",
         "required": [
+          "packetId",
           "principalId",
           "query",
           "currentTask",
@@ -902,6 +903,10 @@
           "sourceEvents"
         ],
         "properties": {
+          "packetId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "principalId": {
             "type": "string",
             "format": "uuid"
@@ -1008,6 +1013,7 @@
       "MemoryContextPacketItemResponse": {
         "type": "object",
         "required": [
+          "itemId",
           "kind",
           "chunkId",
           "sourceType",
@@ -1022,6 +1028,10 @@
           "explanation"
         ],
         "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "kind": {
             "type": "string"
           },
@@ -1153,14 +1163,35 @@
       "MemoryContextFeedbackRequest": {
         "type": "object",
         "required": [
-          "query",
           "feedbackType"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "query"
+            ]
+          },
+          {
+            "required": [
+              "packetId"
+            ]
+          }
         ],
         "properties": {
           "query": {
             "type": "string",
             "minLength": 1,
-            "description": "Original retrieval query. The server stores only a SHA-256 hash."
+            "description": "Original retrieval query. The server stores only a SHA-256 hash. Omit when packetId is supplied."
+          },
+          "packetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Context packet id returned by memory.getContext. Allows feedback without resending raw query text."
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Context packet item id returned by memory.getContext. Item-level feedback can identify this instead of sourceType/sourceId."
           },
           "targetScopeType": {
             "oneOf": [
@@ -1217,6 +1248,8 @@
           "id",
           "retrievalMode",
           "queryHash",
+          "packetId",
+          "itemId",
           "feedbackType",
           "createdAt"
         ],
@@ -1232,6 +1265,20 @@
           "queryHash": {
             "type": "string",
             "pattern": "^sha256:"
+          },
+          "packetId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "feedbackType": {
             "$ref": "#/components/schemas/RetrievalFeedbackType"

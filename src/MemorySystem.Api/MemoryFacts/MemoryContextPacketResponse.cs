@@ -1,6 +1,7 @@
 namespace MemorySystem.Api.MemoryFacts;
 
 public sealed record MemoryContextPacketResponse(
+    Guid PacketId,
     Guid PrincipalId,
     string Query,
     MemoryContextTargetScopeResponse? TargetScope,
@@ -22,6 +23,7 @@ public sealed record MemoryContextTargetScopeResponse(
     string ScopeId);
 
 public sealed record MemoryContextPacketItemResponse(
+    Guid ItemId,
     string Kind,
     Guid ChunkId,
     string SourceType,
