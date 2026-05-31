@@ -900,6 +900,7 @@
           "projectMemory",
           "roleMemory",
           "relevantDecisions",
+          "excluded",
           "sourceEvents"
         ],
         "properties": {
@@ -955,6 +956,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MemoryContextPacketItemResponse"
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemoryContextExclusionSummaryResponse"
             }
           },
           "sourceEvents": {
@@ -1304,6 +1311,63 @@
               "string",
               "null"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextExclusionSummaryResponse": {
+        "type": "object",
+        "required": [
+          "reason",
+          "count",
+          "countDisclosure",
+          "safeSummary",
+          "reviewActions"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "inactive",
+              "not_authorized",
+              "scope_mismatch",
+              "role_mismatch",
+              "below_rank_cutoff",
+              "source_unavailable",
+              "sensitive"
+            ]
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "countDisclosure": {
+            "type": "string",
+            "enum": [
+              "disclosed",
+              "withheld"
+            ]
+          },
+          "safeSummary": {
+            "type": "string"
+          },
+          "reviewActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "useful",
+                "stale",
+                "wrong",
+                "sensitive",
+                "over_broad",
+                "missing"
+              ]
+            },
+            "uniqueItems": true
           }
         },
         "additionalProperties": false

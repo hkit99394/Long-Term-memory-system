@@ -336,11 +336,13 @@ public sealed class ApiTransportSecurityTests
 
     private sealed class EmptyHybridSearch : IMemoryChunkHybridSearch
     {
-        public Task<IReadOnlyList<MemoryChunkHybridSearchResult>> SearchAsync(
+        public Task<MemoryChunkHybridSearchResultSet> SearchAsync(
             MemoryChunkHybridSearchQuery query,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<MemoryChunkHybridSearchResult>>(Array.Empty<MemoryChunkHybridSearchResult>());
+            return Task.FromResult(new MemoryChunkHybridSearchResultSet(
+                Array.Empty<MemoryChunkHybridSearchResult>(),
+                Array.Empty<MemoryChunkHybridExclusionSummary>()));
         }
     }
 
@@ -364,6 +366,7 @@ public sealed class ApiTransportSecurityTests
                 Array.Empty<MemoryContextPacketItem>(),
                 Array.Empty<MemoryContextPacketItem>(),
                 Array.Empty<MemoryContextPacketItem>(),
+                Array.Empty<MemoryContextExclusionSummary>(),
                 Array.Empty<MemoryContextSourceEvent>()));
         }
     }

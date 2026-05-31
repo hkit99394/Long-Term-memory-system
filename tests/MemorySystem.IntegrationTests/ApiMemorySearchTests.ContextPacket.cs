@@ -109,6 +109,30 @@ public sealed partial class ApiMemorySearchTests
                 fixture.RoleLensEventId,
                 Assert.Single(roleExplanation.GetProperty("sourceEvidence").GetProperty("sourceEventIds").EnumerateArray()).GetGuid());
 
+            var exclusions = payload.GetProperty("excluded").EnumerateArray().ToArray();
+            Assert.Contains(exclusions, exclusion =>
+                exclusion.GetProperty("reason").GetString() == "inactive"
+                && exclusion.GetProperty("countDisclosure").GetString() == "disclosed"
+                && exclusion.GetProperty("count").GetInt32() >= 1
+                && exclusion.GetProperty("safeSummary").GetString()!.Contains("inactive", StringComparison.Ordinal));
+            Assert.Contains(exclusions, exclusion =>
+                exclusion.GetProperty("reason").GetString() == "not_authorized"
+                && exclusion.GetProperty("count").ValueKind == JsonValueKind.Null
+                && exclusion.GetProperty("countDisclosure").GetString() == "withheld");
+            Assert.Contains(exclusions, exclusion =>
+                exclusion.GetProperty("reason").GetString() == "role_mismatch"
+                && exclusion.GetProperty("count").ValueKind == JsonValueKind.Null
+                && exclusion.GetProperty("countDisclosure").GetString() == "withheld");
+            Assert.Contains(exclusions, exclusion =>
+                exclusion.GetProperty("reason").GetString() == "sensitive"
+                && exclusion.GetProperty("count").ValueKind == JsonValueKind.Null
+                && exclusion.GetProperty("countDisclosure").GetString() == "withheld");
+            Assert.All(exclusions, exclusion =>
+            {
+                Assert.False(exclusion.TryGetProperty("sourceId", out _));
+                Assert.False(exclusion.TryGetProperty("namespace", out _));
+            });
+
             var (repeatStatusCode, repeatPayload, _) = await SendContextPacketAsync(
                 client,
                 "cto context packet concise decision logs authorization predicates operational reversibility",

@@ -11,7 +11,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
     NpgsqlDataSource dataSource,
     IMemoryEmbeddingProvider embeddingProvider) : IMemoryChunkHybridSearch
 {
-    public async Task<IReadOnlyList<MemoryChunkHybridSearchResult>> SearchAsync(
+    public async Task<MemoryChunkHybridSearchResultSet> SearchAsync(
         MemoryChunkHybridSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -32,22 +32,26 @@ public sealed class PostgresMemoryChunkHybridSearch(
             new MemoryEmbeddingRequest(query.Query.Trim()),
             cancellationToken);
 
+        if (query.ContextLimit is < 1 or > 50)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), query.ContextLimit, "Hybrid search context limit must be between 1 and 50.");
+        }
+
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        var results = await ReadResultsAsync(connection, query, queryEmbedding, cancellationToken);
+        var exclusions = await ReadExclusionsAsync(connection, query, queryEmbedding, cancellationToken);
+
+        return new MemoryChunkHybridSearchResultSet(results, exclusions);
+    }
+
+    private static async Task<IReadOnlyList<MemoryChunkHybridSearchResult>> ReadResultsAsync(
+        NpgsqlConnection connection,
+        MemoryChunkHybridSearchQuery query,
+        MemoryEmbeddingVector queryEmbedding,
+        CancellationToken cancellationToken)
+    {
         await using var command = new NpgsqlCommand(SearchSql, connection);
-        command.Parameters.AddWithValue("principal_id", query.PrincipalId);
-        command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
-        command.Parameters.AddWithValue("query", query.Query.Trim());
-        command.Parameters.AddWithValue("embedding_model", queryEmbedding.Model);
-        command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
-        command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
-        command.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeType) ? DBNull.Value : query.TargetScopeType.Trim();
-        command.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeId) ? DBNull.Value : query.TargetScopeId.Trim();
-        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId.Trim();
-        command.Parameters.AddWithValue("limit", query.Limit);
-        PostgresMemoryAccessSql.AddReadParameters(command);
+        AddQueryParameters(command, query, queryEmbedding);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<MemoryChunkHybridSearchResult>();
@@ -79,7 +83,57 @@ public sealed class PostgresMemoryChunkHybridSearch(
         return results;
     }
 
+    private static async Task<IReadOnlyList<MemoryChunkHybridExclusionSummary>> ReadExclusionsAsync(
+        NpgsqlConnection connection,
+        MemoryChunkHybridSearchQuery query,
+        MemoryEmbeddingVector queryEmbedding,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(ExclusionSearchSql, connection);
+        AddQueryParameters(command, query, queryEmbedding);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var exclusions = new List<MemoryChunkHybridExclusionSummary>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            exclusions.Add(new MemoryChunkHybridExclusionSummary(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : Convert.ToInt32(reader.GetInt64(1)),
+                reader.GetString(2)));
+        }
+
+        return exclusions;
+    }
+
+    private static void AddQueryParameters(
+        NpgsqlCommand command,
+        MemoryChunkHybridSearchQuery query,
+        MemoryEmbeddingVector queryEmbedding)
+    {
+        command.Parameters.AddWithValue("principal_id", query.PrincipalId);
+        command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
+        command.Parameters.AddWithValue("query", query.Query.Trim());
+        command.Parameters.AddWithValue("embedding_model", queryEmbedding.Model);
+        command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
+        command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
+        command.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.TargetScopeType) ? DBNull.Value : query.TargetScopeType.Trim();
+        command.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.TargetScopeId) ? DBNull.Value : query.TargetScopeId.Trim();
+        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId.Trim();
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("context_limit", query.ContextLimit ?? query.Limit);
+        PostgresMemoryAccessSql.AddReadParameters(command);
+    }
+
     private static readonly string SearchSql = SearchSqlTemplate.Replace(
+        "/*READ_AUTHORIZATION_PREDICATE*/",
+        PostgresMemoryAccessSql.BuildReadPredicate("candidate"),
+        StringComparison.Ordinal);
+
+    private static readonly string ExclusionSearchSql = ExclusionSearchSqlTemplate.Replace(
         "/*READ_AUTHORIZATION_PREDICATE*/",
         PostgresMemoryAccessSql.BuildReadPredicate("candidate"),
         StringComparison.Ordinal);
@@ -144,6 +198,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
                 END AS scope_project_id,
                 role_requirement.required_role_id
             FROM memory_chunks AS chunk
+            INNER JOIN events AS source_event
+                ON source_event.id = chunk.source_event_id
             LEFT JOIN memory_embeddings AS embedding
                 ON embedding.chunk_id = chunk.id
                 AND embedding.embedding_model = @embedding_model
@@ -169,6 +225,9 @@ public sealed class PostgresMemoryChunkHybridSearch(
             ) AS role_requirement ON TRUE
             CROSS JOIN fts
             WHERE chunk.redacted_at IS NULL
+                AND source_event.retention_class <> 'erasure_requested'
+                AND source_event.redaction_status = 'none'
+                AND source_event.sensitivity NOT IN ('secret', 'regulated')
                 AND (
                     (
                         chunk.source_type = 'memory_fact'
@@ -177,6 +236,28 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     OR (
                         chunk.source_type = 'role_memory_lens'
                         AND lens.status = 'active'
+                    )
+                )
+                AND (
+                    @target_scope_type IS NULL
+                    OR chunk.scope_type = 'global'
+                    OR (
+                        chunk.scope_type IN ('user', 'agent')
+                        AND chunk.scope_id = @principal_id_text
+                    )
+                    OR (
+                        chunk.scope_type = @target_scope_type
+                        AND chunk.scope_id = @target_scope_id
+                    )
+                    OR (
+                        @target_scope_type = 'project'
+                        AND chunk.scope_type = 'org'
+                        AND chunk.scope_id = (SELECT org_id::text FROM target_project)
+                    )
+                    OR (
+                        @role_id IS NOT NULL
+                        AND chunk.scope_type = 'role'
+                        AND chunk.scope_id = @role_id
                     )
                 )
                 AND (
@@ -299,5 +380,213 @@ public sealed class PostgresMemoryChunkHybridSearch(
         FROM final_scores AS final
         ORDER BY final.final_score DESC, final.chunk_updated_at DESC, final.id
         LIMIT @limit;
+        """;
+
+    private const string ExclusionSearchSqlTemplate = """
+        WITH fts AS (
+            SELECT websearch_to_tsquery('english', @query) AS query
+        ),
+        target_project AS (
+            SELECT project.org_id
+            FROM projects AS project
+            WHERE project.id = CASE
+                WHEN @target_scope_type = 'project'
+                    AND @target_scope_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                THEN @target_scope_id::uuid
+                ELSE NULL
+            END
+                AND project.status = 'active'
+        ),
+        candidate_chunks AS MATERIALIZED (
+            SELECT
+                chunk.id,
+                chunk.namespace,
+                chunk.scope_type,
+                chunk.scope_id,
+                chunk.source_event_id,
+                chunk.redacted_at AS chunk_redacted_at,
+                CASE
+                    WHEN chunk.source_type = 'memory_fact' THEN fact.status
+                    WHEN chunk.source_type = 'role_memory_lens' THEN lens.status
+                    ELSE 'active'
+                END AS source_status,
+                source_event.sensitivity AS source_sensitivity,
+                source_event.retention_class AS source_retention_class,
+                source_event.redaction_status AS source_redaction_status,
+                CASE
+                    WHEN chunk.scope_type = 'org' THEN chunk.scope_id::uuid
+                    WHEN chunk.scope_type = 'project' THEN project.org_id
+                    ELSE NULL
+                END AS scope_org_id,
+                CASE
+                    WHEN chunk.scope_type = 'project' THEN project.id
+                    ELSE NULL
+                END AS scope_project_id,
+                role_requirement.required_role_id
+            FROM memory_chunks AS chunk
+            INNER JOIN events AS source_event
+                ON source_event.id = chunk.source_event_id
+            LEFT JOIN memory_embeddings AS embedding
+                ON embedding.chunk_id = chunk.id
+                AND embedding.embedding_model = @embedding_model
+                AND embedding.embedding_dimension = @embedding_dimension
+            LEFT JOIN projects AS project
+                ON project.id = CASE
+                    WHEN chunk.scope_type = 'project' THEN chunk.scope_id::uuid
+                    ELSE NULL
+                END
+                AND project.status = 'active'
+            LEFT JOIN memory_facts AS fact
+                ON chunk.source_type = 'memory_fact'
+                AND fact.id = chunk.source_id
+            LEFT JOIN role_memory_lenses AS lens
+                ON chunk.source_type = 'role_memory_lens'
+                AND lens.id = chunk.source_id
+            LEFT JOIN LATERAL (
+                SELECT memory_required_role_id(
+                    chunk.namespace,
+                    chunk.scope_type,
+                    chunk.scope_id,
+                    lens.role_id) AS required_role_id
+            ) AS role_requirement ON TRUE
+            CROSS JOIN fts
+            WHERE (
+                    chunk.search_vector @@ fts.query
+                    OR embedding.embedding IS NOT NULL
+                )
+        ),
+        authorized_chunks AS MATERIALIZED (
+            SELECT candidate.*
+            FROM candidate_chunks AS candidate
+            WHERE /*READ_AUTHORIZATION_PREDICATE*/
+        ),
+        classified_chunks AS MATERIALIZED (
+            SELECT
+                authorized.*,
+                (
+                    @target_scope_type IS NULL
+                    OR authorized.scope_type = 'global'
+                    OR (
+                        authorized.scope_type IN ('user', 'agent')
+                        AND authorized.scope_id = @principal_id_text
+                    )
+                    OR (
+                        authorized.scope_type = @target_scope_type
+                        AND authorized.scope_id = @target_scope_id
+                    )
+                    OR (
+                        @target_scope_type = 'project'
+                        AND authorized.scope_type = 'org'
+                        AND authorized.scope_org_id = target_project.org_id
+                    )
+                    OR (
+                        @role_id IS NOT NULL
+                        AND authorized.scope_type = 'role'
+                        AND authorized.scope_id = @role_id
+                    )
+                ) AS scope_fits,
+                (
+                    @role_id IS NULL
+                    OR authorized.required_role_id IS NULL
+                    OR authorized.required_role_id = @role_id
+                ) AS requested_role_fits,
+                (
+                    authorized.source_retention_class <> 'erasure_requested'
+                    AND authorized.source_redaction_status = 'none'
+                ) AS source_available,
+                (
+                    authorized.source_sensitivity NOT IN ('secret', 'regulated')
+                ) AS sensitivity_allowed
+            FROM authorized_chunks AS authorized
+            LEFT JOIN target_project AS target_project
+                ON TRUE
+        ),
+        eligible_chunks AS MATERIALIZED (
+            SELECT classified.*
+            FROM classified_chunks AS classified
+            WHERE classified.source_status = 'active'
+                AND classified.chunk_redacted_at IS NULL
+                AND classified.source_available
+                AND classified.sensitivity_allowed
+                AND classified.scope_fits
+                AND classified.requested_role_fits
+        )
+        SELECT summary.reason,
+            summary.exclusion_count,
+            summary.count_disclosure
+        FROM (
+            SELECT 'inactive' AS reason,
+                count(*)::bigint AS exclusion_count,
+                'disclosed' AS count_disclosure
+            FROM classified_chunks AS classified
+            WHERE classified.scope_fits
+                AND classified.requested_role_fits
+                AND (
+                    classified.source_status <> 'active'
+                    OR classified.chunk_redacted_at IS NOT NULL
+                )
+
+            UNION ALL
+
+            SELECT 'scope_mismatch' AS reason,
+                count(*)::bigint AS exclusion_count,
+                'disclosed' AS count_disclosure
+            FROM classified_chunks AS classified
+            WHERE classified.source_status = 'active'
+                AND classified.chunk_redacted_at IS NULL
+                AND classified.source_available
+                AND classified.sensitivity_allowed
+                AND classified.requested_role_fits
+                AND NOT classified.scope_fits
+
+            UNION ALL
+
+            SELECT 'role_mismatch' AS reason,
+                count(*)::bigint AS exclusion_count,
+                'disclosed' AS count_disclosure
+            FROM classified_chunks AS classified
+            WHERE @role_id IS NOT NULL
+                AND classified.source_status = 'active'
+                AND classified.chunk_redacted_at IS NULL
+                AND classified.source_available
+                AND classified.sensitivity_allowed
+                AND classified.scope_fits
+                AND NOT classified.requested_role_fits
+
+            UNION ALL
+
+            SELECT 'below_rank_cutoff' AS reason,
+                GREATEST(count(*) - @context_limit, 0)::bigint AS exclusion_count,
+                'disclosed' AS count_disclosure
+            FROM eligible_chunks
+
+            UNION ALL
+
+            SELECT 'source_unavailable' AS reason,
+                count(*)::bigint AS exclusion_count,
+                'disclosed' AS count_disclosure
+            FROM classified_chunks AS classified
+            WHERE classified.source_status = 'active'
+                AND classified.chunk_redacted_at IS NULL
+                AND classified.sensitivity_allowed
+                AND classified.scope_fits
+                AND classified.requested_role_fits
+                AND NOT classified.source_available
+
+            UNION ALL
+
+            SELECT 'sensitive' AS reason,
+                count(*)::bigint AS exclusion_count,
+                'withheld' AS count_disclosure
+            FROM classified_chunks AS classified
+            WHERE classified.source_status = 'active'
+                AND classified.chunk_redacted_at IS NULL
+                AND classified.source_available
+                AND classified.scope_fits
+                AND classified.requested_role_fits
+                AND NOT classified.sensitivity_allowed
+        ) AS summary
+        WHERE summary.exclusion_count > 0
+        ORDER BY summary.reason;
         """;
 }

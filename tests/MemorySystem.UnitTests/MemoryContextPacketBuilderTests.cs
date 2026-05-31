@@ -76,6 +76,40 @@ public sealed class MemoryContextPacketBuilderTests
         Assert.Equal("project", search.LastQuery?.TargetScopeType);
         Assert.Equal(projectId, search.LastQuery?.TargetScopeId);
         Assert.Equal("cto", search.LastQuery?.RoleId);
+        Assert.Equal(1, search.LastQuery?.ContextLimit);
+    }
+
+    [Fact]
+    public async Task BuildAsync_adds_payload_safe_exclusion_summaries()
+    {
+        var search = new FakeHybridSearch(
+            [],
+            [
+                new MemoryChunkHybridExclusionSummary("inactive", 2),
+                new MemoryChunkHybridExclusionSummary("below_rank_cutoff", 3),
+                new MemoryChunkHybridExclusionSummary("sensitive", 1, "withheld")
+            ]);
+        var builder = new MemoryContextPacketBuilder(search, new TestSourceEventLinkBuilder());
+
+        var packet = await builder.BuildAsync(new MemoryContextPacketQuery(
+            PrincipalId,
+            "decision",
+            Limit: 1,
+            RoleId: "cto"));
+
+        Assert.Contains(packet.Excluded, exclusion =>
+            exclusion is { Reason: "inactive", Count: 2, CountDisclosure: "disclosed" }
+            && exclusion.SafeSummary.Contains("inactive", StringComparison.Ordinal)
+            && exclusion.ReviewActions.Contains("stale"));
+        Assert.Contains(packet.Excluded, exclusion =>
+            exclusion is { Reason: "below_rank_cutoff", Count: 3, CountDisclosure: "disclosed" }
+            && exclusion.ReviewActions.Contains("missing"));
+        Assert.Contains(packet.Excluded, exclusion =>
+            exclusion is { Reason: "not_authorized", Count: null, CountDisclosure: "withheld" });
+        Assert.Contains(packet.Excluded, exclusion =>
+            exclusion is { Reason: "role_mismatch", Count: null, CountDisclosure: "withheld" });
+        Assert.Contains(packet.Excluded, exclusion =>
+            exclusion is { Reason: "sensitive", Count: null, CountDisclosure: "withheld" });
     }
 
     [Fact]
@@ -162,17 +196,19 @@ public sealed class MemoryContextPacketBuilderTests
             new MemoryChunkHybridRankComponents(1, 1, 1, 1, 1));
     }
 
-    private sealed class FakeHybridSearch(IReadOnlyList<MemoryChunkHybridSearchResult> results) : IMemoryChunkHybridSearch
+    private sealed class FakeHybridSearch(
+        IReadOnlyList<MemoryChunkHybridSearchResult> results,
+        IReadOnlyList<MemoryChunkHybridExclusionSummary>? exclusions = null) : IMemoryChunkHybridSearch
     {
         public MemoryChunkHybridSearchQuery? LastQuery { get; private set; }
 
-        public Task<IReadOnlyList<MemoryChunkHybridSearchResult>> SearchAsync(
+        public Task<MemoryChunkHybridSearchResultSet> SearchAsync(
             MemoryChunkHybridSearchQuery query,
             CancellationToken cancellationToken = default)
         {
             LastQuery = query;
 
-            return Task.FromResult(results);
+            return Task.FromResult(new MemoryChunkHybridSearchResultSet(results, exclusions ?? []));
         }
     }
 

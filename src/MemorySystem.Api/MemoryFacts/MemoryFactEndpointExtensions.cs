@@ -220,7 +220,7 @@ public static class MemoryFactEndpointExtensions
                 detail: error);
         }
 
-        var results = await search.SearchAsync(
+        var resultSet = await search.SearchAsync(
             new MemoryChunkHybridSearchQuery(principalId, query, limit, targetScopeType, targetScopeId),
             cancellationToken);
 
@@ -230,12 +230,12 @@ public static class MemoryFactEndpointExtensions
             principalId,
             query,
             limit,
-            results.Count,
+            resultSet.Results.Count,
             targetScopeType,
             targetScopeId,
             roleId: null);
 
-        return Results.Ok(new MemoryHybridSearchResponse(results.Select(ToHybridSearchResultResponse).ToArray()));
+        return Results.Ok(new MemoryHybridSearchResponse(resultSet.Results.Select(ToHybridSearchResultResponse).ToArray()));
     }
 
     private static async Task<IResult> BuildContextPacketAsync(
@@ -783,6 +783,7 @@ public static class MemoryFactEndpointExtensions
             packet.ProjectMemory.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
             packet.RoleMemory.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
             packet.RelevantDecisions.Select(item => ToContextPacketItemResponse(packetId, item)).ToArray(),
+            packet.Excluded.Select(ToContextExclusionSummaryResponse).ToArray(),
             packet.SourceEvents.Select(ToSourceEventResponse).ToArray());
     }
 
@@ -897,6 +898,17 @@ public static class MemoryFactEndpointExtensions
     private static MemoryContextSourceEventResponse ToSourceEventResponse(MemoryContextSourceEvent sourceEvent)
     {
         return new MemoryContextSourceEventResponse(sourceEvent.Id, sourceEvent.Link);
+    }
+
+    private static MemoryContextExclusionSummaryResponse ToContextExclusionSummaryResponse(
+        MemoryContextExclusionSummary exclusion)
+    {
+        return new MemoryContextExclusionSummaryResponse(
+            exclusion.Reason,
+            exclusion.Count,
+            exclusion.CountDisclosure,
+            exclusion.SafeSummary,
+            exclusion.ReviewActions);
     }
 
     private static MemoryQueryFactsResponse ToQueryFactsResponse(MemoryFactFindingResult result)

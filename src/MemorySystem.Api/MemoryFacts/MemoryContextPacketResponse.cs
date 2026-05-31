@@ -11,6 +11,7 @@ public sealed record MemoryContextPacketResponse(
     IReadOnlyList<MemoryContextPacketItemResponse> ProjectMemory,
     IReadOnlyList<MemoryContextPacketItemResponse> RoleMemory,
     IReadOnlyList<MemoryContextPacketItemResponse> RelevantDecisions,
+    IReadOnlyList<MemoryContextExclusionSummaryResponse> Excluded,
     IReadOnlyList<MemoryContextSourceEventResponse> SourceEvents);
 
 public sealed record MemoryContextCurrentTaskResponse(
@@ -70,3 +71,10 @@ public sealed record MemoryContextSourceEvidenceResponse(
 public sealed record MemoryContextSourceEventResponse(
     Guid Id,
     string? Link);
+
+public sealed record MemoryContextExclusionSummaryResponse(
+    string Reason,
+    int? Count,
+    string CountDisclosure,
+    string SafeSummary,
+    IReadOnlyList<string> ReviewActions);

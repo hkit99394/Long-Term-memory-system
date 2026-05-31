@@ -510,13 +510,12 @@ public sealed partial class ApiMemorySearchTests
             $"/project/{ProjectAId}/decisions",
             "decision",
             "project_shared",
-            "Long-Term Memory System retrieval",
+            "Inactive context packet overlay",
             "uses",
             "client-side filtering after ranking",
             0.910m,
             contradictedProjectDecisionEventId,
-            PrincipalId,
-            MemoryFactStatuses.Contradicted));
+            PrincipalId));
         var projectBDecision = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
             new MemoryScopeResolution("project", ProjectBId.ToString(), OrgId: OrgBId, ProjectId: ProjectBId),
             $"/project/{ProjectBId}/decisions",
@@ -546,6 +545,10 @@ public sealed partial class ApiMemorySearchTests
             PrincipalId));
 
         await EmbedMemoryChunksAsync(dataSource);
+        await SetMemoryFactStatusAsync(
+            connectionString,
+            contradictedProjectDecision.Id,
+            MemoryFactStatuses.Contradicted);
 
         return new ContextPacketFixture(
             userPreference.Id,
@@ -656,6 +659,28 @@ public sealed partial class ApiMemorySearchTests
             """,
             connection);
         command.Parameters.AddWithValue("created_at", createdAt);
+        command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task SetMemoryFactStatusAsync(
+        string connectionString,
+        Guid memoryFactId,
+        string status)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE memory_facts
+            SET status = @status,
+                updated_at = now()
+            WHERE id = @memory_fact_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("status", status);
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
 
         await command.ExecuteNonQueryAsync();

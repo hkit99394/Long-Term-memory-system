@@ -126,6 +126,11 @@ Each returned context item includes a structured `explanation` with
 bounded fields over parsing free-form summary text when deciding how to cite,
 review, or ignore memory-derived context.
 
+The packet-level `excluded` array summarizes omitted candidates without
+revealing hidden ids, namespaces, or content. Exact counts are only disclosed for
+safe post-policy filters such as inactive memory or ranking cutoff; unauthorized,
+role-side-channel, and sensitive omissions use `countDisclosure: "withheld"`.
+
 Query facts with source links and policy metadata:
 
 ```bash

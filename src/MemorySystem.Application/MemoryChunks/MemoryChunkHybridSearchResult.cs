@@ -1,5 +1,9 @@
 namespace MemorySystem.Application.MemoryChunks;
 
+public sealed record MemoryChunkHybridSearchResultSet(
+    IReadOnlyList<MemoryChunkHybridSearchResult> Results,
+    IReadOnlyList<MemoryChunkHybridExclusionSummary> Exclusions);
+
 public sealed record MemoryChunkHybridSearchResult(
     Guid ChunkId,
     string SourceType,
@@ -15,3 +19,8 @@ public sealed record MemoryChunkHybridSearchResult(
     string TrustLevel,
     Guid SourceEventId,
     MemoryChunkHybridRankComponents Components);
+
+public sealed record MemoryChunkHybridExclusionSummary(
+    string Reason,
+    int? Count,
+    string CountDisclosure = "disclosed");
