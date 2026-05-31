@@ -188,7 +188,7 @@ slices in small, benchmark-visible steps.
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| CP-01 | P0 | Todo | Define productized context packet schema. | A versioned API response contract adds packet id, generated time, policy summary, included item explanations, exclusion summaries, review actions, feedback policy, and evaluation hints while preserving current grouped items. |
+| CP-01 | P0 | Done | Define productized context packet schema. | [Context Packet Product v1 Contract](api/context-packet-product-v1.md) defines a versioned response contract and JSON Schema with packet id, generated time, policy summary, included item explanations, exclusion summaries, review actions, feedback policy, and evaluation hints while preserving current grouped items. |
 | CP-02 | P0 | Todo | Add packet and item identifiers for feedback. | Context packet responses include stable packet ids and item ids that can be referenced by feedback and review actions without storing raw query text. |
 | CP-03 | P0 | Todo | Implement structured inclusion explanations. | Each included item explains primary reason, matched signals, rank components, policy fit, lifecycle fit, source evidence, and suggested review actions; tests prove no unauthorized candidate metadata leaks. |
 | CP-04 | P0 | Todo | Add safe exclusion summaries to context packets. | Context packets summarize inactive, not-authorized, scope-mismatch, role-mismatch, rank-cutoff, source-unavailable, and sensitive exclusions using count-disclosure rules aligned with `memory.queryFacts`. |

@@ -109,6 +109,11 @@ body fields.
 The curated LMSS v1 OpenAPI contract is published at
 [api/agent-memory-v1.openapi.json](api/agent-memory-v1.openapi.json).
 
+The CP-01 productized context packet response contract is published at
+[api/context-packet-product-v1.md](api/context-packet-product-v1.md). Runtime
+context responses keep the current LMSS v1 shape until CP-02 and later slices
+start adding productized fields.
+
 ## Existing Capability Contracts
 
 ### `memory.appendEvent`

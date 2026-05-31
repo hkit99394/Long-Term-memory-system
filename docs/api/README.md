@@ -9,6 +9,8 @@ use of the memory system.
 | --- | --- |
 | [agent-memory-v1.openapi.json](agent-memory-v1.openapi.json) | LMSS v1 OpenAPI contract for the existing agent-facing memory workflow. |
 | [agent-memory-v1-examples.md](agent-memory-v1-examples.md) | Client examples for the v1 memory workflow. |
+| [context-packet-product-v1.md](context-packet-product-v1.md) | CP-01 productized context packet response contract. |
+| [context-packet-product-v1.schema.json](context-packet-product-v1.schema.json) | JSON Schema for the productized context packet response. |
 | [policy-targeting-for-agent-callers.md](policy-targeting-for-agent-callers.md) | Caller-facing policy guide for principal, scope, namespace, role, trust, retention, sensitivity, and source evidence fields. |
 | [memory-query-facts-implementation-plan.md](memory-query-facts-implementation-plan.md) | LMSS-04 implementation plan for the implemented `memory.queryFacts` endpoint. |
 
@@ -48,4 +50,10 @@ Validate the OpenAPI document as JSON:
 
 ```bash
 python3 -m json.tool docs/api/agent-memory-v1.openapi.json >/dev/null
+```
+
+Validate the productized context packet schema as JSON:
+
+```bash
+python3 -m json.tool docs/api/context-packet-product-v1.schema.json >/dev/null
 ```
