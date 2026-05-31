@@ -40,6 +40,36 @@ public sealed record MemoryReviewActionResponse(
     PendingMemoryReviewResponse Review,
     Guid? ReplacementMemoryFactId);
 
+public sealed record ContextFeedbackObservationsResponse(
+    IReadOnlyList<ContextFeedbackObservationResponse> Observations);
+
+public sealed record ContextFeedbackObservationResponse(
+    Guid Id,
+    Guid PrincipalId,
+    string RetrievalMode,
+    string QueryHash,
+    Guid? PacketId,
+    Guid? ItemId,
+    string? TargetScopeType,
+    string? TargetScopeId,
+    string? RoleId,
+    string SourceType,
+    Guid SourceId,
+    string FeedbackType,
+    DateTimeOffset CreatedAt,
+    Guid ReviewMemoryFactId,
+    Guid ReviewSourceEventId,
+    string ReviewSourceLink,
+    Guid? ExistingPendingReviewId,
+    bool Reviewable,
+    IReadOnlyList<string> SuggestedActions,
+    PendingMemoryReviewFactResponse Memory);
+
+public sealed record ContextFeedbackReviewOpenResponse(
+    Guid FeedbackId,
+    bool Created,
+    PendingMemoryReviewResponse Review);
+
 internal static class MemoryReviewResponseMapper
 {
     public static PendingMemoryReviewsResponse ToPendingReviewsResponse(
@@ -84,8 +114,60 @@ internal static class MemoryReviewResponseMapper
 
         return new MemoryReviewActionResponse(
             action,
-            ToPendingReviewResponse(review, sourceEventLinks),
-            replacementMemoryFactId);
+             ToPendingReviewResponse(review, sourceEventLinks),
+             replacementMemoryFactId);
+    }
+
+    public static ContextFeedbackObservationsResponse ToContextFeedbackObservationsResponse(
+        IReadOnlyList<MemoryContextFeedbackObservationRecord> observations,
+        ISourceEventLinkBuilder sourceEventLinks)
+    {
+        ArgumentNullException.ThrowIfNull(observations);
+        ArgumentNullException.ThrowIfNull(sourceEventLinks);
+
+        return new ContextFeedbackObservationsResponse(
+            observations.Select(observation => ToContextFeedbackObservationResponse(observation, sourceEventLinks)).ToArray());
+    }
+
+    public static ContextFeedbackReviewOpenResponse ToContextFeedbackReviewOpenResponse(
+        Guid feedbackId,
+        MemoryContextFeedbackReviewResult result,
+        ISourceEventLinkBuilder sourceEventLinks)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(sourceEventLinks);
+
+        return new ContextFeedbackReviewOpenResponse(
+            feedbackId,
+            result.Created,
+            ToPendingReviewResponse(result.Review!, sourceEventLinks));
+    }
+
+    private static ContextFeedbackObservationResponse ToContextFeedbackObservationResponse(
+        MemoryContextFeedbackObservationRecord observation,
+        ISourceEventLinkBuilder sourceEventLinks)
+    {
+        return new ContextFeedbackObservationResponse(
+            observation.Id,
+            observation.PrincipalId,
+            observation.RetrievalMode,
+            observation.QueryHash,
+            observation.PacketId,
+            observation.ItemId,
+            observation.TargetScopeType,
+            observation.TargetScopeId,
+            observation.RoleId,
+            observation.SourceType,
+            observation.SourceId,
+            observation.FeedbackType,
+            observation.CreatedAt,
+            observation.ReviewMemoryFactId,
+            observation.ReviewSourceEventId,
+            sourceEventLinks.Build(observation.ReviewSourceEventId),
+            observation.ExistingPendingReviewId,
+            observation.Reviewable,
+            observation.Reviewable ? ["open_review"] : [],
+            ToPendingMemoryResponse(observation.MemoryFact, sourceEventLinks));
     }
 
     private static PendingMemoryReviewFactResponse ToPendingMemoryResponse(

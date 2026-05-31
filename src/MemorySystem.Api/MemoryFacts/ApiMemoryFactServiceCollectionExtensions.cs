@@ -21,6 +21,7 @@ public static class ApiMemoryFactServiceCollectionExtensions
         services.AddSingleton<IMemoryChunkHybridSearch, PostgresMemoryChunkHybridSearch>();
         services.AddSingleton<IContextPacketBuilder, MemoryContextPacketBuilder>();
         services.AddSingleton<IMemoryRetrievalFeedbackStore, PostgresMemoryRetrievalFeedbackStore>();
+        services.AddSingleton<IMemoryRetrievalFeedbackSourceAuthorizer, PostgresMemoryRetrievalFeedbackSourceAuthorizer>();
         services.AddSingleton<IMemoryFactReadService, MemoryFactReadService>();
         services.AddSingleton<IMemoryFactFindingService, MemoryFactFindingService>();
         services.AddSingleton<IMemoryFactRepository, PostgresMemoryFactRepository>();

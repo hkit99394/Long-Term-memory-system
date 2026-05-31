@@ -67,9 +67,15 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryRetrievalFeedbackStore feedbackStore,
+                IMemoryRetrievalFeedbackSourceAuthorizer feedbackSourceAuthorizer,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await RecordContextFeedbackAsync(context, feedbackStore, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
+                await RecordContextFeedbackAsync(
+                    context,
+                    feedbackStore,
+                    feedbackSourceAuthorizer,
+                    loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"),
+                    cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapPost(
@@ -212,7 +218,8 @@ public static class MemoryFactEndpointExtensions
         }
 
         if (!TryReadLimit(context, out var limit, out var error)
-            || !TryReadTargetScope(context, out var targetScopeType, out var targetScopeId, out error))
+            || !TryReadTargetScope(context, out var targetScopeType, out var targetScopeId, out error)
+            || !TryReadRoleId(context, out var roleId, out error))
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
@@ -221,7 +228,7 @@ public static class MemoryFactEndpointExtensions
         }
 
         var resultSet = await search.SearchAsync(
-            new MemoryChunkHybridSearchQuery(principalId, query, limit, targetScopeType, targetScopeId),
+            new MemoryChunkHybridSearchQuery(principalId, query, limit, targetScopeType, targetScopeId, roleId),
             cancellationToken);
 
         LogRetrievalCompleted(
@@ -233,7 +240,7 @@ public static class MemoryFactEndpointExtensions
             resultSet.Results.Count,
             targetScopeType,
             targetScopeId,
-            roleId: null);
+            string.IsNullOrWhiteSpace(roleId) ? null : roleId);
 
         return Results.Ok(new MemoryHybridSearchResponse(resultSet.Results.Select(ToHybridSearchResultResponse).ToArray()));
     }
@@ -310,6 +317,7 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> RecordContextFeedbackAsync(
         HttpContext context,
         IMemoryRetrievalFeedbackStore feedbackStore,
+        IMemoryRetrievalFeedbackSourceAuthorizer feedbackSourceAuthorizer,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -338,6 +346,20 @@ public static class MemoryFactEndpointExtensions
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Memory context feedback is invalid.",
                 detail: error);
+        }
+
+        if (command.SourceType is not null
+            && command.SourceId.HasValue
+            && !await feedbackSourceAuthorizer.CanReadSourceAsync(
+                principalId,
+                command.SourceType,
+                command.SourceId.Value,
+                cancellationToken))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Memory context feedback is invalid.",
+                detail: "sourceId must identify an active source that the caller is authorized to retrieve.");
         }
 
         var record = await feedbackStore.StoreAsync(command, cancellationToken);
@@ -771,7 +793,8 @@ public static class MemoryFactEndpointExtensions
                 result.Components.Confidence,
                 result.Components.Recency,
                 result.Components.Authority,
-                result.Components.ScopeMatch));
+                result.Components.ScopeMatch,
+                result.Components.FeedbackAdjustment));
     }
 
     private static MemoryContextPacketResponse ToContextPacketResponse(MemoryContextPacket packet)
@@ -867,7 +890,8 @@ public static class MemoryFactEndpointExtensions
                     item.Explanation.Components.Confidence,
                     item.Explanation.Components.Recency,
                     item.Explanation.Components.Authority,
-                    item.Explanation.Components.ScopeMatch),
+                    item.Explanation.Components.ScopeMatch,
+                    item.Explanation.Components.FeedbackAdjustment),
                 item.Explanation.Summary,
                 item.Explanation.PrimaryReason,
                 item.Explanation.MatchedSignals,

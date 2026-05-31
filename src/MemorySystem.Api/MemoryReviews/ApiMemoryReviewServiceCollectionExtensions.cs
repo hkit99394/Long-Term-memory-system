@@ -12,6 +12,7 @@ public static class ApiMemoryReviewServiceCollectionExtensions
         services.AddSingleton<IMemoryReviewQueue, MemoryReviewQueue>();
         services.AddSingleton<IMemoryReviewWorkflow, MemoryReviewWorkflow>();
         services.AddSingleton<IMemoryReviewRepository, PostgresMemoryReviewRepository>();
+        services.AddSingleton<IMemoryContextFeedbackObservationStore, PostgresMemoryContextFeedbackObservationStore>();
         services.AddSingleton<IMemoryReviewActionIdempotencyResponseSerializer, ApiMemoryReviewActionIdempotencyResponseSerializer>();
         services.AddSingleton<IMemoryReviewActionStore, PostgresMemoryReviewActionStore>();
 

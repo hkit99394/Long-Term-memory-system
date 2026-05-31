@@ -74,6 +74,190 @@ public sealed partial class ApiMemorySearchTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Get_memory_hybrid_search_applies_context_feedback_ranking_signal_for_matching_scope_and_role()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_hybrid_feedback_rank_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, OrgAId, ProjectAId);
+            await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+                databaseConnectionString,
+                ProjectAId,
+                PrincipalId,
+                "reader");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                $"/project/{ProjectAId}/decisions",
+                "read",
+                principalId: PrincipalId);
+
+            var sourceEventId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                sourceEventId,
+                PrincipalId,
+                "project",
+                ProjectAId.ToString(),
+                scopeOrgId: OrgAId,
+                scopeProjectId: ProjectAId,
+                trustLevel: "human_approved");
+
+            const string query = "feedback ranking calibration path";
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+            var alphaMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+                $"/project/{ProjectAId}/decisions",
+                "decision",
+                "project_shared",
+                "feedback ranking alpha memory",
+                "uses",
+                query,
+                0.950m,
+                sourceEventId,
+                PrincipalId));
+            var betaMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+                $"/project/{ProjectAId}/decisions",
+                "decision",
+                "project_shared",
+                "feedback ranking beta memory",
+                "uses",
+                query,
+                0.900m,
+                sourceEventId,
+                PrincipalId));
+            await EmbedMemoryChunksAsync(dataSource);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (baselineStatusCode, baselinePayload, _) = await SendHybridSearchAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto");
+
+            Assert.Equal(HttpStatusCode.OK, baselineStatusCode);
+            Assert.Equal(
+                alphaMemory.Id,
+                baselinePayload.GetProperty("results").EnumerateArray().First().GetProperty("sourceId").GetGuid());
+
+            await InsertContextFeedbackAsync(
+                databaseConnectionString,
+                query,
+                "wrong",
+                targetScopeType: "project",
+                targetScopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                sourceType: "memory_fact",
+                sourceId: alphaMemory.Id);
+            await InsertContextFeedbackAsync(
+                databaseConnectionString,
+                query,
+                "useful",
+                targetScopeType: "project",
+                targetScopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                sourceType: "memory_fact",
+                sourceId: betaMemory.Id);
+            await InsertContextFeedbackAsync(
+                databaseConnectionString,
+                query,
+                "useful",
+                targetScopeType: "project",
+                targetScopeId: ProjectAId.ToString(),
+                roleId: "cfo",
+                sourceType: "memory_fact",
+                sourceId: alphaMemory.Id);
+
+            var (ctoStatusCode, ctoPayload, _) = await SendHybridSearchAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto");
+            var ctoResults = ctoPayload.GetProperty("results").EnumerateArray().ToArray();
+            var ctoAlpha = ctoResults.Single(result => result.GetProperty("sourceId").GetGuid() == alphaMemory.Id);
+            var ctoBeta = ctoResults.Single(result => result.GetProperty("sourceId").GetGuid() == betaMemory.Id);
+
+            Assert.Equal(HttpStatusCode.OK, ctoStatusCode);
+            Assert.Equal(betaMemory.Id, ctoResults[0].GetProperty("sourceId").GetGuid());
+            Assert.True(ctoAlpha.GetProperty("components").GetProperty("feedbackAdjustment").GetDouble() < 0);
+            Assert.True(ctoBeta.GetProperty("components").GetProperty("feedbackAdjustment").GetDouble() > 0);
+            Assert.Equal(
+                ComputeHybridScore(ctoBeta.GetProperty("components")),
+                ctoBeta.GetProperty("rank").GetDouble(),
+                precision: 6);
+
+            var (cfoStatusCode, cfoPayload, _) = await SendHybridSearchAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cfo");
+
+            Assert.Equal(HttpStatusCode.OK, cfoStatusCode);
+            Assert.Equal(
+                alphaMemory.Id,
+                cfoPayload.GetProperty("results").EnumerateArray().First().GetProperty("sourceId").GetGuid());
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_memory_hybrid_search_consumes_missing_feedback_as_bounded_query_signal()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_hybrid_missing_feedback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var (_, _, _, _, query) = await PrepareHybridSearchFixtureAsync(databaseConnectionString);
+            await InsertContextFeedbackAsync(
+                databaseConnectionString,
+                query,
+                "missing",
+                targetScopeType: "project",
+                targetScopeId: ProjectAId.ToString());
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendHybridSearchAsync(
+                client,
+                query,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString());
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+            Assert.All(
+                payload.GetProperty("results").EnumerateArray(),
+                result => Assert.InRange(
+                    result.GetProperty("components").GetProperty("feedbackAdjustment").GetDouble(),
+                    -0.03d,
+                    -0.001d));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Get_memory_hybrid_search_rejects_partial_target_scope()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();

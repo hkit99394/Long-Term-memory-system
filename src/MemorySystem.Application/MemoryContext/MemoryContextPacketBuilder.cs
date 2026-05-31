@@ -49,7 +49,8 @@ public sealed class MemoryContextPacketBuilder(
                 targetScope?.ScopeType,
                 targetScope?.ScopeId,
                 roleId,
-                query.Limit),
+                query.Limit,
+                IncludeExclusions: true),
             cancellationToken);
         var items = results.Results
             .Where(result => roleId is null || !IsRoleSpecificResult(result) || IsResultForRole(result, roleId))
@@ -64,14 +65,14 @@ public sealed class MemoryContextPacketBuilder(
             roleId,
             new MemoryContextCurrentTask(trimmedQuery, targetScope, roleId),
             items.Where(IsUserPreference).ToArray(),
-            items.Where(IsProjectMemory).ToArray(),
-            items.Where(IsRoleMemory).ToArray(),
-            items.Where(IsRelevantDecision).ToArray(),
-            BuildExcluded(results.Exclusions, roleId).ToArray(),
-            items
-                .Select(item => item.SourceEventId)
-                .Distinct()
-                .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, sourceEventLinks.Build(sourceEventId)))
+              items.Where(IsProjectMemory).ToArray(),
+              items.Where(IsRoleMemory).ToArray(),
+              items.Where(IsRelevantDecision).ToArray(),
+              MemoryContextExclusionSummaryBuilder.Build(results.Exclusions, roleId).ToArray(),
+              items
+                  .Select(item => item.SourceEventId)
+                  .Distinct()
+                  .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, sourceEventLinks.Build(sourceEventId)))
                 .ToArray());
     }
 
@@ -220,119 +221,9 @@ public sealed class MemoryContextPacketBuilder(
             : normalized[..(MaxContentLength - 3)] + "...";
     }
 
-    private static IEnumerable<MemoryContextExclusionSummary> BuildExcluded(
-        IReadOnlyList<MemoryChunkHybridExclusionSummary> searchExclusions,
-        string? roleId)
-    {
-        var emittedReasons = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var exclusion in searchExclusions)
-        {
-            if (!TryBuildExclusion(exclusion, out var packetExclusion))
-            {
-                continue;
-            }
-
-            emittedReasons.Add(packetExclusion.Reason);
-            yield return packetExclusion;
-        }
-
-        if (emittedReasons.Add("not_authorized"))
-        {
-            yield return BuildWithheldExclusion(
-                "not_authorized",
-                "Some matching memory may be omitted because it is outside the caller's authorization boundary.");
-        }
-
-        if (roleId is not null && emittedReasons.Add("role_mismatch"))
-        {
-            yield return BuildWithheldExclusion(
-                "role_mismatch",
-                "Some role-specific memory may be omitted when it does not match the requested role.");
-        }
-
-        if (emittedReasons.Add("sensitive"))
-        {
-            yield return BuildWithheldExclusion(
-                "sensitive",
-                "Some matching memory may be omitted because sensitivity rules prevent direct context injection.");
-        }
-    }
-
-    private static bool TryBuildExclusion(
-        MemoryChunkHybridExclusionSummary exclusion,
-        out MemoryContextExclusionSummary packetExclusion)
-    {
-        packetExclusion = null!;
-
-        if (exclusion.Count is <= 0 && !string.Equals(exclusion.CountDisclosure, "withheld", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        packetExclusion = exclusion.Reason switch
-        {
-            "inactive" => BuildDisclosedExclusion(
-                exclusion,
-                "Authorized memory was omitted because it is inactive, deleted, redacted, expired, superseded, or contradicted.",
-                ["stale", "wrong"]),
-            "scope_mismatch" => BuildDisclosedExclusion(
-                exclusion,
-                "Authorized memory was omitted because it did not fit the requested target scope.",
-                ["missing", "over_broad"]),
-            "role_mismatch" when string.Equals(exclusion.CountDisclosure, "withheld", StringComparison.Ordinal)
-                => BuildWithheldExclusion(
-                    "role_mismatch",
-                    "Some role-specific memory may be omitted when it does not match the requested role."),
-            "role_mismatch" => BuildDisclosedExclusion(
-                exclusion,
-                "Authorized role-specific memory was omitted because it did not fit the requested role.",
-                ["missing", "over_broad"]),
-            "below_rank_cutoff" => BuildDisclosedExclusion(
-                exclusion,
-                "Authorized memory matched but was omitted by the packet item limit or ranking cutoff.",
-                ["missing", "over_broad"]),
-            "source_unavailable" => BuildDisclosedExclusion(
-                exclusion,
-                "Authorized memory was omitted because its source evidence is unavailable for context linking.",
-                ["stale", "wrong"]),
-            "sensitive" => BuildWithheldExclusion(
-                "sensitive",
-                "Some matching memory may be omitted because sensitivity rules prevent direct context injection."),
-            _ => null!
-        };
-
-        return packetExclusion is not null;
-    }
-
-    private static MemoryContextExclusionSummary BuildDisclosedExclusion(
-        MemoryChunkHybridExclusionSummary exclusion,
-        string safeSummary,
-        IReadOnlyList<string> reviewActions)
-    {
-        return new MemoryContextExclusionSummary(
-            exclusion.Reason,
-            exclusion.Count.GetValueOrDefault(),
-            "disclosed",
-            safeSummary,
-            reviewActions);
-    }
-
-    private static MemoryContextExclusionSummary BuildWithheldExclusion(
-        string reason,
-        string safeSummary)
-    {
-        return new MemoryContextExclusionSummary(
-            reason,
-            Count: null,
-            CountDisclosure: "withheld",
-            safeSummary,
-            ["missing"]);
-    }
-
     private static string BuildExplanationSummary()
     {
-        return "Included after authorization because rank combines query relevance, confidence, recency, authority, and scope match.";
+        return "Included after authorization because rank combines query relevance, confidence, recency, authority, scope match, and bounded feedback.";
     }
 
     private static string ResolvePrimaryReason(string kind, MemoryChunkHybridSearchResult result)
@@ -398,6 +289,11 @@ public sealed class MemoryContextPacketBuilder(
         if (result.Components.Recency > 0)
         {
             signals.Add("recency");
+        }
+
+        if (Math.Abs(result.Components.FeedbackAdjustment) > double.Epsilon)
+        {
+            signals.Add("feedback");
         }
 
         if (!string.IsNullOrWhiteSpace(sourceLink))

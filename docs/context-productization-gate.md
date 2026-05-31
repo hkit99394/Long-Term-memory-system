@@ -27,7 +27,7 @@ benchmark release gate can see.
 The production-pilot baseline already has:
 
 - authorized hybrid retrieval with rank components for relevance, confidence,
-  recency, authority, and scope match
+  recency, authority, scope match, and bounded feedback adjustment
 - a context packet builder that groups memory into user preferences, project
   memory, role memory, and relevant decisions
 - source event links for packet items
@@ -92,7 +92,7 @@ Minimum explanation fields:
 | --- | --- |
 | `primaryReason` | Human-readable reason such as `query_match`, `role_match`, `recent_decision`, or `high_confidence_preference`. |
 | `matchedSignals` | Bounded list of signals that contributed to inclusion, such as query relevance, scope, role, confidence, authority, recency, source linkage, or active lifecycle state. |
-| `components` | Existing relevance, confidence, recency, authority, and scope-match rank components. |
+| `components` | Existing relevance, confidence, recency, authority, scope-match, and bounded feedback-adjustment rank components. |
 | `policyFit` | Safe statement that the item matched the authenticated principal, target scope, role, and namespace grant. |
 | `lifecycleFit` | Whether the item is active and evidence-current. |
 | `sourceEvidence` | Source event ids and links already present today. |
@@ -184,8 +184,8 @@ Benchmark-visible success criteria:
 | CP-03 | P0 | Done | Implement structured inclusion explanations. | Context packet items now return primary reason, matched signals, rank components, policy fit, lifecycle fit, source evidence, and suggested review actions; tests prove unauthorized candidate metadata stays out of the packet. |
 | CP-04 | P0 | Done | Add safe exclusion summaries to context packets. | Context packets now return payload-safe excluded summaries for inactive, not-authorized, scope-mismatch, role-mismatch, rank-cutoff, source-unavailable, and sensitive omissions using disclosed counts only for safe post-policy filters and withheld disclosure for side-channel-sensitive reasons. |
 | CP-05 | P0 | Done | Expand context feedback actions. | Feedback now supports useful, stale, wrong, sensitive, over_broad, and missing actions while preserving the legacy noisy path; validation requires source ids for item-level actions and stores only payload-safe metadata. |
-| CP-06 | P0 | Todo | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations, open stale/wrong/sensitive reviews, and see source-linked evidence without raw query storage. |
-| CP-07 | P0 | Todo | Feed reviewer actions into ranking signals. | Ranking consumes bounded usefulness, stale, wrong, sensitive, over-broad, and missing signals by scope, namespace, role, and source id; feedback can down-rank or suppress but cannot rewrite facts without review or broker decisions. |
+| CP-06 | P0 | Done | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations through `GET /api/reviews/context-observations`, open pending reviews from stale/wrong/sensitive observations through `POST /api/reviews/context-observations/{id}/review`, and see source-linked evidence without raw query storage. |
+| CP-07 | P0 | Done | Feed reviewer actions into ranking signals. | Hybrid ranking now consumes bounded useful, stale, wrong, sensitive, over-broad, legacy noisy, and packet-level missing feedback as a `feedbackAdjustment` rank component scoped by target scope, role, source id, and the candidate namespace; feedback can down-rank or boost retrieval but cannot rewrite facts without review or broker decisions. |
 | CP-08 | P0 | Todo | Add context-product benchmark checks. | Benchmark tasks assert inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after ranking behavior against the LR-03 baseline. |
 | CP-09 | P1 | Todo | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
 | CP-10 | P1 | Todo | Update caller docs and examples. | API docs and client examples show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |
@@ -204,6 +204,36 @@ Benchmark-visible success criteria:
 
 Rollback should be additive: disabling productized context features should return
 the API to the current context packet behavior without deleting feedback history.
+
+## CP-06 Runtime Surface
+
+CP-06 adds a reviewer-facing bridge from retrieval feedback to the existing
+`memory_reviews` workflow:
+
+- `GET /api/reviews/context-observations` lists review-authorized context
+  feedback observations with query hashes, packet/item ids, source ids,
+  source-event links, existing pending review ids, and memory metadata.
+- `POST /api/reviews/context-observations/{id}/review` opens or returns a
+  pending `memory_reviews` row for `stale`, `wrong`, or `sensitive` feedback.
+- The response never includes raw query text; observations expose only the
+  already-stored `queryHash` plus payload-safe ids and source links.
+- Feedback outside the caller's review authorization boundary is omitted from
+  the observation list, and non-reviewable feedback such as `over_broad`,
+  `missing`, or legacy `noisy` cannot open memory reviews.
+
+## CP-07 Ranking Loop
+
+CP-07 adds bounded feedback ranking signals to authorized hybrid retrieval:
+
+- Source feedback for `useful`, `stale`, `wrong`, `sensitive`,
+  `over_broad`, and legacy `noisy` applies only when the retrieved source id,
+  target scope, and role match the current query context.
+- Packet-level `missing` feedback applies by query hash, target scope, and
+  role. It is a small bounded signal because it does not identify a source.
+- The `feedbackAdjustment` rank component is additive, clamped by policy, and
+  visible in hybrid search and context-packet explanations.
+- Ranking changes are read-time only. Feedback never mutates `memory_facts`,
+  `role_memory_lenses`, chunks, source events, or review records.
 
 ## Risks
 

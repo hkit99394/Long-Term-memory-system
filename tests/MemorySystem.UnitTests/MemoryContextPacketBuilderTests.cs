@@ -77,6 +77,7 @@ public sealed class MemoryContextPacketBuilderTests
         Assert.Equal(projectId, search.LastQuery?.TargetScopeId);
         Assert.Equal("cto", search.LastQuery?.RoleId);
         Assert.Equal(1, search.LastQuery?.ContextLimit);
+        Assert.True(search.LastQuery?.IncludeExclusions);
     }
 
     [Fact]

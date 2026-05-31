@@ -5,4 +5,5 @@ public sealed record MemoryChunkHybridRankComponents(
     double Confidence,
     double Recency,
     double Authority,
-    double ScopeMatch);
+    double ScopeMatch,
+    double FeedbackAdjustment = 0);

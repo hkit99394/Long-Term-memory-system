@@ -423,6 +423,7 @@
               "confidence",
               "authority",
               "recency",
+              "feedback",
               "source_linked",
               "lifecycle_active"
             ]
@@ -465,7 +466,8 @@
         "confidence",
         "recency",
         "authority",
-        "scopeMatch"
+        "scopeMatch",
+        "feedbackAdjustment"
       ],
       "properties": {
         "relevance": {
@@ -481,6 +483,9 @@
           "type": "number"
         },
         "scopeMatch": {
+          "type": "number"
+        },
+        "feedbackAdjustment": {
           "type": "number"
         }
       }

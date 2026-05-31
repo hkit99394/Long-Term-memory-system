@@ -10,6 +10,7 @@ using MemorySystem.Infrastructure.MemoryFacts;
 using MemorySystem.Infrastructure.MemoryReviews;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace MemorySystem.IntegrationTests;
 
@@ -92,6 +93,155 @@ public sealed class ApiMemoryReviewTests
             Assert.Equal($"/api/events/{fixture.ProjectAMemoryEventId}", memory.GetProperty("sourceLink").GetString());
             Assert.DoesNotContain(fixture.ProjectBReviewId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Project B pending review", responseBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseTheory]
+    [Trait("Category", "Database")]
+    [InlineData(null, 2)]
+    [InlineData("wrong", 1)]
+    public async Task Get_reviews_context_observations_returns_authorized_feedback_without_raw_query(
+        string? feedbackType,
+        int expectedObservationCount)
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_context_observations_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(databaseConnectionString, grantReviewAccess: true);
+            var wrongFeedbackId = await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "wrong",
+                fixture.ProjectAMemoryId,
+                queryHash: "sha256:wrong-observation-hash");
+            await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "sensitive",
+                fixture.ProjectAMemoryId,
+                queryHash: "sha256:sensitive-observation-hash");
+            await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "wrong",
+                fixture.ProjectBMemoryId,
+                queryHash: "sha256:hidden-project-observation-hash");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, responseBody) = await SendContextFeedbackObservationsAsync(
+                client,
+                feedbackType);
+
+            Assert.Equal(HttpStatusCode.OK, statusCode);
+            Assert.DoesNotContain("raw context query", responseBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(fixture.ProjectBMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+
+            var observations = payload.GetProperty("observations").EnumerateArray().ToArray();
+            Assert.Equal(expectedObservationCount, observations.Length);
+
+            if (feedbackType is not null)
+            {
+                var observation = Assert.Single(observations);
+                Assert.Equal(wrongFeedbackId, observation.GetProperty("id").GetGuid());
+                Assert.Equal("wrong", observation.GetProperty("feedbackType").GetString());
+                Assert.Equal("sha256:wrong-observation-hash", observation.GetProperty("queryHash").GetString());
+                Assert.Equal(fixture.ProjectAMemoryId, observation.GetProperty("sourceId").GetGuid());
+                Assert.Equal(fixture.ProjectAReviewId, observation.GetProperty("existingPendingReviewId").GetGuid());
+                Assert.True(observation.GetProperty("reviewable").GetBoolean());
+                Assert.Contains(
+                    observation.GetProperty("suggestedActions").EnumerateArray(),
+                    action => action.GetString() == "open_review");
+                Assert.Equal(
+                    $"/api/events/{fixture.ProjectAMemoryEventId}",
+                    observation.GetProperty("reviewSourceLink").GetString());
+                Assert.Equal(
+                    fixture.ProjectAMemoryId,
+                    observation.GetProperty("memory").GetProperty("id").GetGuid());
+            }
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_reviews_context_observation_review_opens_pending_review()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_context_observation_open_review_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(databaseConnectionString, grantReviewAccess: true);
+            await DeleteReviewAsync(databaseConnectionString, fixture.ProjectAReviewId);
+            var feedbackId = await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "stale",
+                fixture.ProjectAMemoryId,
+                queryHash: "sha256:stale-open-review-hash");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload) = await SendOpenContextObservationReviewAsync(
+                client,
+                feedbackId,
+                "Context feedback says this memory may be stale.");
+
+            Assert.Equal(HttpStatusCode.Created, statusCode);
+            Assert.True(payload.GetProperty("created").GetBoolean());
+            Assert.Equal(feedbackId, payload.GetProperty("feedbackId").GetGuid());
+
+            var review = payload.GetProperty("review");
+            Assert.Equal("pending", review.GetProperty("reviewStatus").GetString());
+            Assert.Equal("Context feedback says this memory may be stale.", review.GetProperty("notes").GetString());
+            Assert.Equal(fixture.ProjectAMemoryEventId, review.GetProperty("sourceEventId").GetGuid());
+            Assert.Equal($"/api/events/{fixture.ProjectAMemoryEventId}", review.GetProperty("sourceLink").GetString());
+            Assert.Equal(fixture.ProjectAMemoryId, review.GetProperty("memory").GetProperty("id").GetGuid());
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_reviews_context_observation_review_rejects_non_reviewable_feedback()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_context_observation_non_reviewable_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PreparePendingReviewFixtureAsync(databaseConnectionString, grantReviewAccess: true);
+            var feedbackId = await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "over_broad",
+                fixture.ProjectAMemoryId,
+                queryHash: "sha256:over-broad-observation-hash");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload) = await SendOpenContextObservationReviewAsync(
+                client,
+                feedbackId,
+                "Try to open an unsupported review.");
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Context feedback review request is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("stale, wrong, and sensitive", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -848,6 +998,55 @@ public sealed class ApiMemoryReviewTests
         return (response.StatusCode, document.RootElement.Clone(), responseBody);
     }
 
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload, string Body)> SendContextFeedbackObservationsAsync(
+        HttpClient client,
+        string? feedbackType = null)
+    {
+        var uri = "/api/reviews/context-observations?limit=50";
+
+        if (!string.IsNullOrWhiteSpace(feedbackType))
+        {
+            uri += $"&feedbackType={Uri.EscapeDataString(feedbackType)}";
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Add("X-Api-Key", TestApiKey);
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(responseBody);
+        return (response.StatusCode, document.RootElement.Clone(), responseBody);
+    }
+
+    private static async Task<(HttpStatusCode StatusCode, JsonElement Payload)> SendOpenContextObservationReviewAsync(
+        HttpClient client,
+        Guid feedbackId,
+        string notes)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/reviews/context-observations/{feedbackId}/review")
+        {
+            Content = new StringContent(
+                $$"""
+                {
+                  "notes": "{{notes}}"
+                }
+                """,
+                Encoding.UTF8,
+                "application/json")
+        };
+        request.Headers.Add("X-Api-Key", TestApiKey);
+        request.Headers.Add("Idempotency-Key", $"context-feedback-review-{feedbackId:N}");
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(responseBody);
+        return (response.StatusCode, document.RootElement.Clone());
+    }
+
     private static async Task<(HttpStatusCode StatusCode, JsonElement Payload)> SendReviewActionAsync(
         HttpClient client,
         Guid reviewId,
@@ -884,6 +1083,75 @@ public sealed class ApiMemoryReviewTests
 
         using var document = JsonDocument.Parse(responseBody);
         return (response.StatusCode, document.RootElement.Clone());
+    }
+
+    private static async Task<Guid> InsertRetrievalFeedbackAsync(
+        string connectionString,
+        string feedbackType,
+        Guid sourceId,
+        string queryHash)
+    {
+        var feedbackId = Guid.NewGuid();
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_retrieval_feedback (
+                id,
+                principal_id,
+                retrieval_mode,
+                query_hash,
+                packet_id,
+                item_id,
+                target_scope_type,
+                target_scope_id,
+                role_id,
+                source_type,
+                source_id,
+                feedback_type
+            )
+            VALUES (
+                @id,
+                @principal_id,
+                'context_packet',
+                @query_hash,
+                @packet_id,
+                @item_id,
+                'project',
+                @target_scope_id,
+                'cto',
+                'memory_fact',
+                @source_id,
+                @feedback_type
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", feedbackId);
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("query_hash", queryHash);
+        command.Parameters.AddWithValue("packet_id", Guid.NewGuid());
+        command.Parameters.AddWithValue("item_id", Guid.NewGuid());
+        command.Parameters.AddWithValue("target_scope_id", ProjectAId.ToString());
+        command.Parameters.AddWithValue("source_id", sourceId);
+        command.Parameters.AddWithValue("feedback_type", feedbackType);
+
+        await command.ExecuteNonQueryAsync();
+        return feedbackId;
+    }
+
+    private static async Task DeleteReviewAsync(string connectionString, Guid reviewId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "DELETE FROM memory_reviews WHERE id = @review_id;",
+            connection);
+        command.Parameters.Add("review_id", NpgsqlDbType.Uuid).Value = reviewId;
+
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<ReviewMemoryStatus> ReadReviewAndMemoryStatusAsync(

@@ -24,4 +24,5 @@ public sealed record MemoryHybridRankComponentsResponse(
     double Confidence,
     double Recency,
     double Authority,
-    double ScopeMatch);
+    double ScopeMatch,
+    double FeedbackAdjustment);

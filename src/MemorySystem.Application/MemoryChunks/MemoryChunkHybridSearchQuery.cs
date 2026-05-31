@@ -7,4 +7,5 @@ public sealed record MemoryChunkHybridSearchQuery(
     string? TargetScopeType = null,
     string? TargetScopeId = null,
     string? RoleId = null,
-    int? ContextLimit = null);
+    int? ContextLimit = null,
+    bool IncludeExclusions = false);

@@ -1,5 +1,7 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryFacts;
@@ -425,6 +427,7 @@ public sealed partial class ApiMemorySearchTests
         var roleLensEventId = Guid.NewGuid();
         var cfoRoleLensEventId = Guid.NewGuid();
         var projectBDecisionEventId = Guid.NewGuid();
+        var sensitiveInactiveProjectDecisionEventId = Guid.NewGuid();
 
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
@@ -477,6 +480,16 @@ public sealed partial class ApiMemorySearchTests
             scopeOrgId: OrgBId,
             scopeProjectId: ProjectBId,
             trustLevel: "human_approved");
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sensitiveInactiveProjectDecisionEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            trustLevel: "human_approved",
+            sensitivity: "secret");
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         var memoryFacts = new PostgresMemoryFactRepository(dataSource);
@@ -527,6 +540,17 @@ public sealed partial class ApiMemorySearchTests
             0.990m,
             projectBDecisionEventId,
             PrincipalId));
+        var sensitiveInactiveProjectDecision = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "Sensitive inactive context packet overlay",
+            "uses",
+            "authorization predicates before hybrid ranking and context packet construction",
+            0.930m,
+            sensitiveInactiveProjectDecisionEventId,
+            PrincipalId));
         var roleLens = await roleLenses.StoreAsync(new RoleMemoryLensWriteCommand(
             new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
             "cto",
@@ -548,6 +572,10 @@ public sealed partial class ApiMemorySearchTests
         await SetMemoryFactStatusAsync(
             connectionString,
             contradictedProjectDecision.Id,
+            MemoryFactStatuses.Contradicted);
+        await SetMemoryFactStatusAsync(
+            connectionString,
+            sensitiveInactiveProjectDecision.Id,
             MemoryFactStatuses.Contradicted);
 
         return new ContextPacketFixture(
@@ -759,7 +787,8 @@ public sealed partial class ApiMemorySearchTests
         string query,
         int limit = 10,
         string? scopeType = null,
-        string? scopeId = null)
+        string? scopeId = null,
+        string? roleId = null)
     {
         var uri = $"/api/memory/search/hybrid?q={Uri.EscapeDataString(query)}&limit={limit}";
 
@@ -771,6 +800,11 @@ public sealed partial class ApiMemorySearchTests
         if (!string.IsNullOrWhiteSpace(scopeId))
         {
             uri += $"&scopeId={Uri.EscapeDataString(scopeId)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(roleId))
+        {
+            uri += $"&roleId={Uri.EscapeDataString(roleId)}";
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
@@ -820,11 +854,80 @@ public sealed partial class ApiMemorySearchTests
 
     private static double ComputeHybridScore(JsonElement components)
     {
-        return (components.GetProperty("relevance").GetDouble() * 0.40d)
+        var score = (components.GetProperty("relevance").GetDouble() * 0.40d)
             + (components.GetProperty("confidence").GetDouble() * 0.25d)
             + (components.GetProperty("recency").GetDouble() * 0.15d)
             + (components.GetProperty("authority").GetDouble() * 0.15d)
-            + (components.GetProperty("scopeMatch").GetDouble() * 0.05d);
+            + (components.GetProperty("scopeMatch").GetDouble() * 0.05d)
+            + components.GetProperty("feedbackAdjustment").GetDouble();
+
+        return Math.Clamp(score, 0, 1);
+    }
+
+    private static async Task InsertContextFeedbackAsync(
+        string connectionString,
+        string query,
+        string feedbackType,
+        string? targetScopeType = null,
+        string? targetScopeId = null,
+        string? roleId = null,
+        string? sourceType = null,
+        Guid? sourceId = null)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_retrieval_feedback (
+                id,
+                principal_id,
+                retrieval_mode,
+                query_hash,
+                target_scope_type,
+                target_scope_id,
+                role_id,
+                source_type,
+                source_id,
+                feedback_type
+            )
+            VALUES (
+                @id,
+                @principal_id,
+                'context_packet',
+                @query_hash,
+                @target_scope_type,
+                @target_scope_id,
+                @role_id,
+                @source_type,
+                @source_id,
+                @feedback_type
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("query_hash", ComputeSha256(query.Trim()));
+        command.Parameters.Add("target_scope_type", NpgsqlTypes.NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(targetScopeType) ? DBNull.Value : targetScopeType;
+        command.Parameters.Add("target_scope_id", NpgsqlTypes.NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(targetScopeId) ? DBNull.Value : targetScopeId;
+        command.Parameters.Add("role_id", NpgsqlTypes.NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(roleId) ? DBNull.Value : roleId;
+        command.Parameters.Add("source_type", NpgsqlTypes.NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(sourceType) ? DBNull.Value : sourceType;
+        command.Parameters.Add("source_id", NpgsqlTypes.NpgsqlDbType.Uuid).Value =
+            sourceId.HasValue ? sourceId.Value : DBNull.Value;
+        command.Parameters.AddWithValue("feedback_type", feedbackType);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static string ComputeSha256(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+
+        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static IReadOnlyList<MemoryRetrievalEvaluationItem> ReadContextPacketEvaluationItems(JsonElement payload)

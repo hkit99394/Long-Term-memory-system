@@ -1,6 +1,7 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Events;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryReviews;
 
 namespace MemorySystem.Api.MemoryReviews;
@@ -8,6 +9,7 @@ namespace MemorySystem.Api.MemoryReviews;
 public static class MemoryReviewEndpointExtensions
 {
     private const int MaxPendingReviewLimit = 50;
+    private const int MaxContextObservationLimit = 50;
 
     public static IEndpointRouteBuilder MapMemorySystemMemoryReviewEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -19,6 +21,40 @@ public static class MemoryReviewEndpointExtensions
                 ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
                 await ListPendingAsync(context, reviewQueue, sourceEventLinks, cancellationToken))
+              .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/reviews/context-observations",
+            async (
+                HttpContext context,
+                IMemoryContextFeedbackObservationStore observationStore,
+                ISourceEventLinkBuilder sourceEventLinks,
+                CancellationToken cancellationToken) =>
+                await ListContextObservationsAsync(context, observationStore, sourceEventLinks, cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/reviews/context-observations/{id:guid}/review",
+            async (
+                Guid id,
+                HttpContext context,
+                ApiIdempotencyHttpService idempotency,
+                IMemoryContextFeedbackObservationStore observationStore,
+                ISourceEventLinkBuilder sourceEventLinks,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await idempotency.ExecuteAsync(
+                    context,
+                    "POST /api/reviews/context-observations/review",
+                    async (idempotencyContext, operationCancellationToken) =>
+                        await OpenContextObservationReviewAsync(
+                            id,
+                            context,
+                            observationStore,
+                            sourceEventLinks,
+                            loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
+                            idempotencyContext,
+                            operationCancellationToken)))
             .RequireAuthorization();
 
         MapReviewActionEndpoint(endpoints, MemoryReviewActions.Approve);
@@ -83,6 +119,90 @@ public static class MemoryReviewEndpointExtensions
             cancellationToken);
 
         return Results.Ok(MemoryReviewResponseMapper.ToPendingReviewsResponse(reviews, sourceEventLinks));
+    }
+
+    private static async Task<IResult> ListContextObservationsAsync(
+        HttpContext context,
+        IMemoryContextFeedbackObservationStore observationStore,
+        ISourceEventLinkBuilder sourceEventLinks,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        if (!TryReadContextObservationLimit(context, out var limit, out var error)
+            || !TryReadFeedbackType(context, out var feedbackType, out error))
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Context feedback observations request is invalid.",
+                detail: error);
+        }
+
+        var observations = await observationStore.ListAsync(
+            new MemoryContextFeedbackObservationQuery(principalId, limit, feedbackType),
+            cancellationToken);
+
+        return Results.Ok(MemoryReviewResponseMapper.ToContextFeedbackObservationsResponse(observations, sourceEventLinks));
+    }
+
+    private static async Task<ApiIdempotencyResponse> OpenContextObservationReviewAsync(
+        Guid feedbackId,
+        HttpContext context,
+        IMemoryContextFeedbackObservationStore observationStore,
+        ISourceEventLinkBuilder sourceEventLinks,
+        ILogger logger,
+        ApiIdempotencyExecutionContext idempotency,
+        CancellationToken cancellationToken)
+    {
+        var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<ContextFeedbackReviewRequest>(
+            context.Request,
+            "Context feedback review request is invalid.",
+            cancellationToken);
+
+        if (!requestResult.Succeeded)
+        {
+            return requestResult.Problem!;
+        }
+
+        var result = await observationStore.OpenReviewAsync(
+            new MemoryContextFeedbackReviewCommand(
+                idempotency.PrincipalId,
+                feedbackId,
+                requestResult.Value!.Notes),
+            cancellationToken);
+
+        if (result.Status == MemoryContextFeedbackReviewStatus.NotFound)
+        {
+            return ApiRequestHelpers.Problem(
+                StatusCodes.Status404NotFound,
+                "Context feedback review request is invalid.",
+                result.Error!);
+        }
+
+        if (result.Status == MemoryContextFeedbackReviewStatus.NotReviewable)
+        {
+            return ApiRequestHelpers.Problem(
+                StatusCodes.Status400BadRequest,
+                "Context feedback review request is invalid.",
+                result.Error!);
+        }
+
+        logger.LogInformation(
+            "Context feedback review opened. PrincipalId={PrincipalId} FeedbackId={FeedbackId} ReviewId={ReviewId} Created={Created} FeedbackReviewStatus={ReviewStatus}",
+            idempotency.PrincipalId,
+            feedbackId,
+            result.Review!.Id,
+            result.Created,
+            result.Review.ReviewStatus);
+
+        return new ApiIdempotencyResponse(
+            result.Created ? StatusCodes.Status201Created : StatusCodes.Status200OK,
+            MemoryReviewResponseMapper.ToContextFeedbackReviewOpenResponse(feedbackId, result, sourceEventLinks),
+            "memory_review",
+            result.Review.Id);
     }
 
     private static async Task<ApiIdempotencyResponse> CompleteReviewAsync(
@@ -203,5 +323,35 @@ public static class MemoryReviewEndpointExtensions
             maxLimit: MaxPendingReviewLimit,
             out limit,
             out error);
+    }
+
+    private static bool TryReadContextObservationLimit(HttpContext context, out int limit, out string? error)
+    {
+        return ApiRequestHelpers.TryReadLimitQuery(
+            context,
+            defaultLimit: 50,
+            maxLimit: MaxContextObservationLimit,
+            out limit,
+            out error);
+    }
+
+    private static bool TryReadFeedbackType(HttpContext context, out string? feedbackType, out string? error)
+    {
+        var requestedFeedbackType = context.Request.Query["feedbackType"].ToString();
+        feedbackType = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(requestedFeedbackType))
+        {
+            return true;
+        }
+
+        if (!MemoryRetrievalFeedbackTypes.TryNormalize(requestedFeedbackType, out var normalized, out error))
+        {
+            return false;
+        }
+
+        feedbackType = normalized;
+        return true;
     }
 }

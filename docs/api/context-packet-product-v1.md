@@ -74,7 +74,8 @@ Each grouped item keeps the existing fields and adds:
 - `itemId`
 - structured `explanation.primaryReason`
 - bounded `explanation.matchedSignals`
-- existing rank components
+- rank components, including bounded feedback adjustment when feedback history
+  applies to the current source, scope, and role
 - `explanation.policyFit`
 - `explanation.lifecycleFit`
 - `explanation.sourceEvidence`

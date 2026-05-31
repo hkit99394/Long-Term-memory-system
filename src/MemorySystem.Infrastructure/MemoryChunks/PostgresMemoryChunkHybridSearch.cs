@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Access;
@@ -39,7 +41,9 @@ public sealed class PostgresMemoryChunkHybridSearch(
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var results = await ReadResultsAsync(connection, query, queryEmbedding, cancellationToken);
-        var exclusions = await ReadExclusionsAsync(connection, query, queryEmbedding, cancellationToken);
+        var exclusions = query.IncludeExclusions
+            ? await ReadExclusionsAsync(connection, query, queryEmbedding, cancellationToken)
+            : [];
 
         return new MemoryChunkHybridSearchResultSet(results, exclusions);
     }
@@ -77,7 +81,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     reader.GetDouble(14),
                     reader.GetDouble(15),
                     reader.GetDouble(16),
-                    reader.GetDouble(17))));
+                    reader.GetDouble(17),
+                    reader.GetDouble(18))));
         }
 
         return results;
@@ -114,6 +119,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("query", query.Query.Trim());
+        command.Parameters.AddWithValue("query_hash", ComputeSha256(query.Query.Trim()));
         command.Parameters.AddWithValue("embedding_model", queryEmbedding.Model);
         command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
         command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
@@ -126,6 +132,13 @@ public sealed class PostgresMemoryChunkHybridSearch(
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("context_limit", query.ContextLimit ?? query.Limit);
         PostgresMemoryAccessSql.AddReadParameters(command);
+    }
+
+    private static string ComputeSha256(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+
+        return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static readonly string SearchSql = SearchSqlTemplate.Replace(
@@ -340,21 +353,100 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     WHEN authorized.scope_type = 'org' THEN 0.80
                     WHEN authorized.scope_type = 'role' THEN 0.75
                     ELSE 0.60
-                END::double precision AS scope_match_score
+                END::double precision AS scope_match_score,
+                (
+                    LEAST(0.10, COALESCE(feedback_signals.useful_count, 0) * 0.05)
+                    - LEAST(0.18, COALESCE(feedback_signals.stale_count, 0) * 0.09)
+                    - LEAST(0.22, COALESCE(feedback_signals.wrong_count, 0) * 0.11)
+                    - LEAST(0.25, COALESCE(feedback_signals.sensitive_count, 0) * 0.125)
+                    - LEAST(
+                        0.12,
+                        (
+                            COALESCE(feedback_signals.over_broad_count, 0)
+                            + COALESCE(feedback_signals.noisy_count, 0)
+                        ) * 0.06)
+                    - LEAST(0.03, COALESCE(missing_feedback.missing_count, 0) * 0.015)
+                )::double precision AS feedback_adjustment
             FROM authorized_chunks AS authorized
             CROSS JOIN fts
             LEFT JOIN target_project AS target_project
                 ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT
+                    count(*) FILTER (WHERE feedback.feedback_type = 'useful')::double precision AS useful_count,
+                    count(*) FILTER (WHERE feedback.feedback_type = 'stale')::double precision AS stale_count,
+                    count(*) FILTER (WHERE feedback.feedback_type = 'wrong')::double precision AS wrong_count,
+                    count(*) FILTER (WHERE feedback.feedback_type = 'sensitive')::double precision AS sensitive_count,
+                    count(*) FILTER (WHERE feedback.feedback_type = 'over_broad')::double precision AS over_broad_count,
+                    count(*) FILTER (WHERE feedback.feedback_type = 'noisy')::double precision AS noisy_count
+                FROM memory_retrieval_feedback AS feedback
+                WHERE feedback.retrieval_mode = 'context_packet'
+                    AND feedback.source_type = authorized.source_type
+                    AND feedback.source_id = authorized.source_id
+                    AND feedback.created_at >= now() - INTERVAL '90 days'
+                    AND (
+                        (
+                            feedback.target_scope_type IS NULL
+                            AND @target_scope_type IS NULL
+                        )
+                        OR (
+                            feedback.target_scope_type = @target_scope_type
+                            AND feedback.target_scope_id = @target_scope_id
+                        )
+                    )
+                    AND (
+                        (
+                            feedback.role_id IS NULL
+                            AND @role_id IS NULL
+                        )
+                        OR feedback.role_id = @role_id
+                    )
+            ) AS feedback_signals ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT
+                    count(*) FILTER (WHERE feedback.feedback_type = 'missing')::double precision AS missing_count
+                FROM memory_retrieval_feedback AS feedback
+                WHERE feedback.retrieval_mode = 'context_packet'
+                    AND feedback.feedback_type = 'missing'
+                    AND feedback.query_hash = @query_hash
+                    AND feedback.source_type IS NULL
+                    AND feedback.source_id IS NULL
+                    AND feedback.created_at >= now() - INTERVAL '90 days'
+                    AND (
+                        (
+                            feedback.target_scope_type IS NULL
+                            AND @target_scope_type IS NULL
+                        )
+                        OR (
+                            feedback.target_scope_type = @target_scope_type
+                            AND feedback.target_scope_id = @target_scope_id
+                        )
+                    )
+                    AND (
+                        (
+                            feedback.role_id IS NULL
+                            AND @role_id IS NULL
+                        )
+                        OR feedback.role_id = @role_id
+                    )
+            ) AS missing_feedback ON TRUE
         ),
         final_scores AS (
             SELECT
                 component.*,
-                (
-                    (component.relevance_score * 0.40)
-                    + (component.confidence_score * 0.25)
-                    + (component.recency_score * 0.15)
-                    + (component.authority_score * 0.15)
-                    + (component.scope_match_score * 0.05)
+                GREATEST(
+                    0.0,
+                    LEAST(
+                        1.0,
+                        (
+                            (component.relevance_score * 0.40)
+                            + (component.confidence_score * 0.25)
+                            + (component.recency_score * 0.15)
+                            + (component.authority_score * 0.15)
+                            + (component.scope_match_score * 0.05)
+                            + component.feedback_adjustment
+                        )
+                    )
                 )::double precision AS final_score
             FROM component_scores AS component
         )
@@ -376,7 +468,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
             final.confidence_score,
             final.recency_score,
             final.authority_score,
-            final.scope_match_score
+            final.scope_match_score,
+            final.feedback_adjustment
         FROM final_scores AS final
         ORDER BY final.final_score DESC, final.chunk_updated_at DESC, final.id
         LIMIT @limit;
@@ -521,6 +614,8 @@ public sealed class PostgresMemoryChunkHybridSearch(
             FROM classified_chunks AS classified
             WHERE classified.scope_fits
                 AND classified.requested_role_fits
+                AND classified.source_available
+                AND classified.sensitivity_allowed
                 AND (
                     classified.source_status <> 'active'
                     OR classified.chunk_redacted_at IS NOT NULL
