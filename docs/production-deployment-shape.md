@@ -61,8 +61,9 @@ Use managed PostgreSQL or an equivalent operator-owned PostgreSQL service with:
 
 PostgreSQL is the recovery authority for events, memory facts, chunks,
 embeddings, reviews, outbox jobs, idempotency records, retrieval feedback,
-vault export tracking, and worker heartbeats. Vault files and generated
-benchmark outputs are projections, not recovery sources.
+context packet observations, governance legal holds, vault export tracking, and
+worker heartbeats. Vault files and generated benchmark outputs are projections,
+not recovery sources.
 
 ## Secret Store Expectations
 
@@ -167,8 +168,8 @@ The production restore path follows [Backup and Restore Runbook](backup-restore.
 
 1. Restore into a fresh validation database.
 2. Run the migrator against the restored database.
-3. Verify `schema_migrations`, `events`, `memory_facts`, `memory_chunks`,
-   `memory_embeddings`, `memory_redactions`, and `pg_extension` for `vector`.
+3. Verify the table-count manifest in `scripts/restore-validation-tables.txt`
+   and `pg_extension` for `vector`.
 4. Start API and worker processes against the restored database in an isolated
    validation environment when possible.
 5. Check `/health/live`, `/health/ready`, and one authenticated memory read.

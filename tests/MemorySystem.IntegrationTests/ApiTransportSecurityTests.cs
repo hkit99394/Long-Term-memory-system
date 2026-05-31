@@ -287,6 +287,7 @@ public sealed class ApiTransportSecurityTests
                     services.AddSingleton<IMemoryChunkSemanticSearch, EmptySemanticSearch>();
                     services.AddSingleton<IMemoryChunkHybridSearch, EmptyHybridSearch>();
                     services.AddSingleton<IContextPacketBuilder, EmptyContextPacketBuilder>();
+                    services.AddSingleton<IMemoryContextPacketObservationStore, NoOpMemoryContextPacketObservationStore>();
                 });
             });
 
@@ -321,6 +322,24 @@ public sealed class ApiTransportSecurityTests
         public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
+        }
+    }
+
+    private sealed class NoOpMemoryContextPacketObservationStore : IMemoryContextPacketObservationStore
+    {
+        public Task RecordAsync(
+            MemoryContextPacketObservation observation,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<MemoryContextPacketObservation?> FindAsync(
+            Guid packetId,
+            Guid principalId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<MemoryContextPacketObservation?>(null);
         }
     }
 

@@ -3,6 +3,7 @@ using System.Text;
 using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Access;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using Npgsql;
 using NpgsqlTypes;
@@ -62,19 +63,21 @@ public sealed class PostgresMemoryChunkHybridSearch(
 
         while (await reader.ReadAsync(cancellationToken))
         {
+            var scope = PostgresDomainMapping.RequireScope(reader.GetString(6), reader.GetString(7));
+
             results.Add(new MemoryChunkHybridSearchResult(
                 reader.GetGuid(0),
                 reader.GetString(1),
                 reader.GetGuid(2),
                 reader.GetString(3),
                 reader.IsDBNull(4) ? null : reader.GetGuid(4),
-                reader.GetString(5),
-                reader.GetString(6),
-                reader.GetString(7),
+                PostgresDomainMapping.RequireNamespace(reader.GetString(5)),
+                scope.ScopeType,
+                scope.ScopeId,
                 reader.IsDBNull(8) ? null : reader.GetString(8),
                 reader.GetString(9),
                 reader.GetDouble(10),
-                reader.GetString(11),
+                PostgresDomainMapping.RequireTrustLevel(reader.GetString(11)),
                 reader.GetGuid(12),
                 new MemoryChunkHybridRankComponents(
                     reader.GetDouble(13),
@@ -123,12 +126,15 @@ public sealed class PostgresMemoryChunkHybridSearch(
         command.Parameters.AddWithValue("embedding_model", queryEmbedding.Model);
         command.Parameters.AddWithValue("embedding_dimension", queryEmbedding.Dimension);
         command.Parameters.AddWithValue("query_embedding", MemoryEmbeddingVectorLiteral.Format(queryEmbedding.Values));
+        var targetScope = string.IsNullOrWhiteSpace(query.TargetScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.TargetScopeType, query.TargetScopeId);
         command.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeType) ? DBNull.Value : query.TargetScopeType.Trim();
+            targetScope is null ? DBNull.Value : targetScope.ScopeType;
         command.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeId) ? DBNull.Value : query.TargetScopeId.Trim();
+            targetScope is null ? DBNull.Value : targetScope.ScopeId;
         command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId.Trim();
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : PostgresDomainMapping.RequireRoleId(query.RoleId);
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("context_limit", query.ContextLimit ?? query.Limit);
         PostgresMemoryAccessSql.AddReadParameters(command);

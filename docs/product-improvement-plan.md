@@ -83,7 +83,7 @@ Success metric: a new developer or private-alpha user can run the system, store 
 
 Goal: make the product production-pilot credible.
 
-Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. Long Run gate scoping has started with enterprise access and context productization now defined as implementable backlogs.
+Status: Production-pilot credible baseline complete as of May 30, 2026. The Middle Run production-pilot slices store context-packet feedback without raw query text, expose recent retrieval feedback metrics in the operator summary, load the full LMSS benchmark smoke contradiction overlay, add the first authenticated metrics export plus alert-input smoke, add the admin console memory/source-event inspection workflow, automate the first governance workflows for legal holds, erasure execution, and retention reporting, prove the local production-pilot deployment shape across separate migrator, API, and worker roles with rollback and restore validation, make pilot observability executable through versioned alert rules, dashboard definitions, trace coverage, and metric-input smokes, and add benchmark release gates for Memory Lift, Contract Lift, safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. Long Run gate scoping now defines enterprise access, context productization, Domain extraction, and production platform integration as implementable backlogs; PI-01 selects the first AWS/Terraform/container platform baseline.
 
 Middle Run status language:
 
@@ -155,6 +155,7 @@ Middle Run capability areas:
 7. Move core concepts into the domain model.
    - Promote stable concepts such as scope, namespace, trust level, memory lifecycle, retention class, and source evidence into the Domain layer where useful.
    - Keep database-specific SQL in Infrastructure and HTTP-specific DTOs in API.
+   - Done: [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) and [Decision 0044](decisions/0044-domain-model-extraction-slice.md) define the planning-first extraction sequence, compatibility tests, and follow-on `DM-*` implementation backlog.
 
 Success metric: one real project or team can use the system continuously, and an operator can explain, correct, remove, or restore any memory with confidence.
 
@@ -178,15 +179,26 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
    - Outcome: context packets explain why memory was included, what was excluded, and how reviewers can mark memory useful, stale, wrong, sensitive, or over-broad.
    - Done: [Context Productization Gate](context-productization-gate.md) and [Decision 0043](decisions/0043-context-productization-gate.md) scope productized packet ids, inclusion explanations, safe exclusions, reviewer actions, feedback-to-ranking loops, benchmark checks, and payload-safe context health metrics.
 
-4. Memory intelligence gate.
+4. Domain model extraction gate.
+   - Entry criteria: agent contract, context product, governance, and benchmark gates have stabilized the public behavior that Domain extraction must preserve.
+   - Outcome: stable IO-free concepts such as scope, namespace, trust level, lifecycle status, retention class, sensitivity, source evidence, and feedback type move into `MemorySystem.Domain` behind compatibility tests without schema or endpoint churn.
+   - Done: [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) and [Decision 0044](decisions/0044-domain-model-extraction-slice.md) define the staged extraction plan and `DM-*` implementation backlog.
+
+5. Production platform integration gate.
+   - Entry criteria: production-pilot deployment shape, executable observability, backup/restore runbook, and benchmark release gates are documented and locally smoke-tested.
+   - Outcome: infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment-specific release checklists are clear enough for vendor-specific implementation.
+   - Done: [Production Platform Integration LR-05](production-platform-integration-lr05.md) and [Decision 0045](decisions/0045-production-platform-integration.md) define the platform boundary and `PI-*` implementation backlog.
+   - Done: [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) and [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md) select AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, Terraform, and immutable multi-role OCI image digests for the first platform target.
+
+6. Memory intelligence gate.
    - Entry criteria: human review outcomes and benchmark results are available as calibration signals.
    - Outcome: classification, deduplication, contradiction detection, confidence calibration, summarization, and time decay improve measured Memory Lift without increasing leaks or stale-memory usage.
 
-5. Retrieval scale gate.
+7. Retrieval scale gate.
    - Entry criteria: production model and embedding dimensions are stable enough to justify specialized indexes.
    - Outcome: model-specific vector indexes, rebuild pipelines, queue separation, and provider cost controls can scale without changing the trust model.
 
-6. Integration gate.
+8. Integration gate.
    - Entry criteria: identity, governance, and context packet semantics are stable.
    - Outcome: SDKs, conversation import, Git/Markdown ingestion, issue tracker connectors, and Obsidian import paths can be added without turning external content into ungoverned memory.
 
@@ -233,6 +245,18 @@ Long Run capability areas:
    - Let reviewers mark memories as useful, stale, wrong, sensitive, or over-broad.
    - Feed those signals back into ranking and broker policy.
 
+7. Extract stable concepts into the domain model.
+   - Add dependency-free value objects for scope, namespace, roles, trust, lifecycle, retention, sensitivity, source evidence, and feedback type.
+   - Keep API and database contracts stable through Application facades and Infrastructure boundary mapping.
+   - Use compatibility tests and benchmark smoke checks to prove behavior does not drift.
+
+8. Integrate the production platform.
+   - Choose a platform and IaC baseline.
+   - Provision separate migrator, API, and worker roles.
+   - Add managed PostgreSQL, backup exporter evidence, and restore validation.
+   - Wire runtime OpenTelemetry exporters and alert routing.
+   - Keep environment release checklists attached to release records.
+
 Success metric: teams can trust the system as shared AI memory infrastructure across projects, roles, agents, and time.
 
 ## Ultimate Goal
@@ -255,10 +279,12 @@ The final product vision is simple: AI agents get durable continuity without tur
 
 ## Near-Term Product Decision
 
-LR-01 has scoped the enterprise access gate, and LR-03 has captured the first
-local benchmark release-gate baseline. LR-02 now scopes context productization.
-The next move should be implementing `CP-*` context product slices and `EA-*`
-enterprise access slices in small, benchmark-visible steps. Before inviting an
-external pilot user, rerun the benchmark release gate with the intended pilot
-model, fresh scorecards, and a fresh live smoke artifact from the target
-environment.
+LR-01 has scoped the enterprise access gate, LR-02 has scoped and implemented
+the context productization gate, LR-03 has captured the first local benchmark
+release-gate baseline, LR-04 scopes Domain model extraction, LR-05 scopes
+production platform integration, and PI-01 selects the AWS/Terraform/container
+baseline. The next move should be `PI-02`: add the Terraform skeleton and
+multi-role OCI artifact contract while continuing small `DM-*` cleanup and
+`EA-*` enterprise access slices. Before inviting an external pilot user, rerun
+the benchmark release gate with the intended pilot model, fresh scorecards, and
+a fresh live smoke artifact from the target environment.

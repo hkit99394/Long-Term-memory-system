@@ -107,6 +107,20 @@ public sealed class OperationalSummaryEndpointTests
             Assert.Equal(1, feedbackByType["missing"].GetProperty("count").GetInt64());
             Assert.Equal(0, feedbackByType["noisy"].GetProperty("count").GetInt64());
 
+            var contextProduct = root.GetProperty("contextProduct");
+            Assert.Equal(0, contextProduct.GetProperty("runtime").GetProperty("packetCount").GetInt64());
+            Assert.Equal(0m, contextProduct.GetProperty("runtime").GetProperty("explanationCoverage").GetDecimal());
+            Assert.False(contextProduct.GetProperty("benchmark").GetProperty("observed").GetBoolean());
+
+            var contextFeedbackByAction = contextProduct
+                .GetProperty("feedbackActions")
+                .GetProperty("byAction")
+                .EnumerateArray()
+                .ToDictionary(item => item.GetProperty("feedbackType").GetString()!);
+            Assert.Equal(2, contextFeedbackByAction["useful"].GetProperty("count").GetInt64());
+            Assert.Equal(0.5m, contextFeedbackByAction["useful"].GetProperty("share").GetDecimal());
+            Assert.Equal(1, contextFeedbackByAction["missing"].GetProperty("count").GetInt64());
+
             var embeddingFailures = root.GetProperty("embeddingFailures");
             Assert.Equal(1, embeddingFailures.GetProperty("retryingFailed").GetInt64());
             Assert.Equal(1, embeddingFailures.GetProperty("deadLetter").GetInt64());
@@ -190,6 +204,16 @@ public sealed class OperationalSummaryEndpointTests
             Assert.Contains("memorysystem_worker_heartbeat_stale{worker_type=\"outbox\"} 0", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_retrieval_feedback_total{window=\"24h\"} 2", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_retrieval_feedback_type_total{feedback_type=\"useful\",window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_packet_total 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_explanation_coverage 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_exclusion_summary_total{reason=\"not_authorized\",count_disclosure=\"withheld\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_feedback_action_total{feedback_type=\"useful\",window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_feedback_action_share{feedback_type=\"useful\",window=\"24h\"} 0.5", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_review_open_total{feedback_type=\"stale\",created=\"true\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_ranking_signal_applied_total{signal=\"feedback_adjustment_negative\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_benchmark_observed 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_benchmark_delta{metric=\"feedbackAdjustmentDelta\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_benchmark_read_error{reason=\"invalid_json\"} 0", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_embedding_provider_ready 1", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_embedding_outbox_retrying_failed 1", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_embedding_outbox_dead_letter 1", body, StringComparison.Ordinal);
@@ -200,9 +224,60 @@ public sealed class OperationalSummaryEndpointTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_operations_metrics_flags_invalid_context_product_benchmark_artifact()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_operations_metrics_benchmark_error_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+        var benchmarkPath = Path.Combine(
+            Path.GetTempPath(),
+            $"memorysystem-context-product-invalid-benchmark-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await File.WriteAllTextAsync(benchmarkPath, "{ invalid json");
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString, benchmarkPath);
+            using var client = factory.CreateClient();
+            using var metricsRequest = CreateAuthenticatedRequest("/api/operations/metrics");
+
+            using var response = await client.SendAsync(metricsRequest);
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("memorysystem_context_product_benchmark_observed 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_benchmark_read_error{reason=\"invalid_json\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_context_product_benchmark_read_error{reason=\"io_error\"} 0", body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(benchmarkPath))
+            {
+                File.Delete(benchmarkPath);
+            }
+
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
     {
-        return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, PrincipalId.ToString());
+        return CreateFactory(postgresConnectionString, contextProductBenchmarkLatestResultPath: null);
+    }
+
+    private static WebApplicationFactory<Program> CreateFactory(
+        string postgresConnectionString,
+        string? contextProductBenchmarkLatestResultPath)
+    {
+        return MemorySystemApiTestFactory.Create(
+            postgresConnectionString,
+            TestApiKey,
+            PrincipalId.ToString(),
+            contextProductBenchmarkLatestResultPath: contextProductBenchmarkLatestResultPath);
     }
 
     private static HttpRequestMessage CreateAuthenticatedRequest(string path)

@@ -90,13 +90,15 @@ internal static class MemoryReviewResponseMapper
         ArgumentNullException.ThrowIfNull(review);
         ArgumentNullException.ThrowIfNull(sourceEventLinks);
 
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(review.SourceEventId);
+
         return new PendingMemoryReviewResponse(
             review.Id,
             review.ReviewStatus,
             review.ReviewerId,
             review.Notes,
-            review.SourceEventId,
-            sourceEventLinks.Build(review.SourceEventId),
+            sourceEvidenceLink.SourceEventId,
+            sourceEvidenceLink.Link,
             review.CreatedAt,
             review.UpdatedAt,
             ToPendingMemoryResponse(review.MemoryFact, sourceEventLinks));
@@ -147,6 +149,8 @@ internal static class MemoryReviewResponseMapper
         MemoryContextFeedbackObservationRecord observation,
         ISourceEventLinkBuilder sourceEventLinks)
     {
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(observation.ReviewSourceEventId);
+
         return new ContextFeedbackObservationResponse(
             observation.Id,
             observation.PrincipalId,
@@ -162,8 +166,8 @@ internal static class MemoryReviewResponseMapper
             observation.FeedbackType,
             observation.CreatedAt,
             observation.ReviewMemoryFactId,
-            observation.ReviewSourceEventId,
-            sourceEventLinks.Build(observation.ReviewSourceEventId),
+            sourceEvidenceLink.SourceEventId,
+            sourceEvidenceLink.Link,
             observation.ExistingPendingReviewId,
             observation.Reviewable,
             observation.Reviewable ? ["open_review"] : [],
@@ -174,6 +178,8 @@ internal static class MemoryReviewResponseMapper
         MemoryFactRecord memoryFact,
         ISourceEventLinkBuilder sourceEventLinks)
     {
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(memoryFact.SourceEventId);
+
         return new PendingMemoryReviewFactResponse(
             memoryFact.Id,
             memoryFact.ScopeType,
@@ -187,8 +193,8 @@ internal static class MemoryReviewResponseMapper
             memoryFact.Confidence,
             memoryFact.TrustLevel,
             memoryFact.Status,
-            memoryFact.SourceEventId,
-            sourceEventLinks.Build(memoryFact.SourceEventId),
+            sourceEvidenceLink.SourceEventId,
+            sourceEvidenceLink.Link,
             memoryFact.ProposedByPrincipalId);
     }
 }

@@ -1,6 +1,7 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryReviews;
 using MemorySystem.Infrastructure.Access;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -100,9 +101,10 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
         }
 
         var created = reader.GetBoolean(1);
-        var review = PostgresMemoryReviewRows.ReadReview(reader, start: 2);
+        var feedbackType = PostgresDomainMapping.RequireFeedbackType(reader.GetString(2));
+        var review = PostgresMemoryReviewRows.ReadReview(reader, start: 3);
 
-        return MemoryContextFeedbackReviewResult.Opened(review, created);
+        return MemoryContextFeedbackReviewResult.Opened(review, created, feedbackType);
     }
 
     private static void AddObservationParameters(NpgsqlCommand command, Guid principalId, string? feedbackType)
@@ -116,13 +118,16 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
 
     private static string? NormalizeFeedbackType(string? feedbackType)
     {
-        return string.IsNullOrWhiteSpace(feedbackType)
-            ? null
-            : feedbackType.Trim().ToLowerInvariant().Replace('-', '_');
+        return PostgresDomainMapping.NormalizeOptionalFeedbackType(feedbackType);
     }
 
     private static MemoryContextFeedbackObservationRecord ReadObservation(NpgsqlDataReader reader)
     {
+        var targetScope = reader.IsDBNull(6)
+            ? null
+            : PostgresDomainMapping.RequireScope(reader.GetString(6), reader.IsDBNull(7) ? null : reader.GetString(7));
+        var feedbackType = PostgresDomainMapping.RequireFeedbackType(reader.GetString(11));
+
         return new MemoryContextFeedbackObservationRecord(
             reader.GetGuid(0),
             reader.GetGuid(1),
@@ -130,31 +135,33 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
             reader.GetString(3),
             reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetGuid(5),
-            reader.IsDBNull(6) ? null : reader.GetString(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.IsDBNull(8) ? null : reader.GetString(8),
+            targetScope?.ScopeType,
+            targetScope?.ScopeId,
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(8) ? null : reader.GetString(8)),
             reader.GetString(9),
             reader.GetGuid(10),
-            reader.GetString(11),
+            feedbackType,
             reader.GetFieldValue<DateTimeOffset>(12),
             reader.GetGuid(13),
             reader.GetGuid(14),
             reader.IsDBNull(15) ? null : reader.GetGuid(15),
-            ReviewableFeedbackTypes.Contains(reader.GetString(11)),
+            ReviewableFeedbackTypes.Contains(feedbackType),
             ReadMemoryFact(reader, start: 16));
     }
 
     private static MemoryFactRecord ReadMemoryFact(NpgsqlDataReader reader, int start)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(start + 1), reader.GetString(start + 2));
+
         return new MemoryFactRecord(
             reader.GetGuid(start),
-            reader.GetString(start + 1),
-            reader.GetString(start + 2),
-            reader.GetString(start + 3),
+            scope.ScopeType,
+            scope.ScopeId,
+            PostgresDomainMapping.RequireNamespace(reader.GetString(start + 3)),
             reader.IsDBNull(start + 4) ? null : reader.GetGuid(start + 4),
             reader.IsDBNull(start + 5) ? null : reader.GetGuid(start + 5),
             reader.IsDBNull(start + 6) ? null : reader.GetGuid(start + 6),
-            reader.IsDBNull(start + 7) ? null : reader.GetString(start + 7),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(start + 7) ? null : reader.GetString(start + 7)),
             reader.IsDBNull(start + 8) ? null : reader.GetGuid(start + 8),
             reader.GetString(start + 9),
             reader.GetString(start + 10),
@@ -162,8 +169,8 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
             reader.GetString(start + 12),
             reader.GetString(start + 13),
             reader.GetDecimal(start + 14),
-            reader.GetString(start + 15),
-            reader.GetString(start + 16),
+            PostgresDomainMapping.RequireTrustLevel(reader.GetString(start + 15)),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(start + 16)),
             reader.GetGuid(start + 17),
             reader.IsDBNull(start + 18) ? null : reader.GetGuid(start + 18));
     }
@@ -405,8 +412,10 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
         selected_review AS (
             SELECT 'opened'::text AS result_status,
                 true AS created,
+                observation.feedback_type,
                 inserted.*
             FROM inserted_review AS inserted
+            CROSS JOIN authorized_observation AS observation
 
             UNION ALL
 
@@ -416,6 +425,7 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
                     ELSE 'not_reviewable'
                 END AS result_status,
                 false AS created,
+                observation.feedback_type,
                 existing.*
             FROM authorized_observation AS observation
             LEFT JOIN existing_review AS existing ON TRUE
@@ -425,6 +435,7 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
         SELECT
             selected.result_status,
             selected.created,
+            selected.feedback_type,
             selected.id,
             selected.memory_fact_id,
             selected.review_status,

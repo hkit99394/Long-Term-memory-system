@@ -112,23 +112,25 @@ Status values:
 
 M8 operational readiness backlog is complete. Short Run is closed and should
 only receive regression-maintenance fixes. Middle Run now has two connected
-tracks: production-pilot operations and the
-agent-facing LLM Memory Support Service v1 contract. The first LMSS v1 contract
-slice is documented, implemented, benchmarkable, and smoke-tested with the
-contradiction overlay. Retrieval feedback is visible in the operator summary.
-MR-06 adds the first authenticated metrics export and local alert-input smoke.
-MR-07 adds the first admin console memory/source inspection slice. MR-08 expands
-that console into source event and audit browsing. MR-09 automates the first
-governance workflows for legal holds, erasure execution, and retention
-reporting. MR-10 proves the local production-pilot deployment shape across
-separate migrator, API, and worker roles with rollback and restore validation.
-MR-11 makes observability executable through versioned alert rules, dashboard
-definitions, trace coverage, and metric-input smokes. MR-12 adds the benchmark
-release gate for Memory Lift, Contract Lift, scoped-safety leaks, stale-memory
-usage, source-link coverage, and agent-contract smoke. LR-01 now scopes
-enterprise access, and LR-02 now scopes context productization. The next focus
-is implementing `CP-*` context product slices and `EA-*` enterprise access
-slices in small, benchmark-visible steps.
+tracks: production-pilot operations and the agent-facing LLM Memory Support
+Service v1 contract. The first LMSS v1 contract slice is documented,
+implemented, benchmarkable, and smoke-tested with the contradiction overlay.
+Retrieval feedback is visible in the operator summary. MR-06 adds the first
+authenticated metrics export and local alert-input smoke. MR-07 adds the first
+admin console memory/source inspection slice. MR-08 expands that console into
+source event and audit browsing. MR-09 automates the first governance workflows
+for legal holds, erasure execution, and retention reporting. MR-10 proves the
+local production-pilot deployment shape across separate migrator, API, and
+worker roles with rollback and restore validation. MR-11 makes observability
+executable through versioned alert rules, dashboard definitions, trace coverage,
+and metric-input smokes. MR-12 adds the benchmark release gate for Memory Lift,
+Contract Lift, scoped-safety leaks, stale-memory usage, source-link coverage,
+and agent-contract smoke. LR-01 scopes enterprise access, LR-02 scopes context
+productization, LR-04 scopes Domain model extraction, LR-05 scopes production
+platform integration, and PI-01 selects the first AWS/Terraform/container
+platform baseline. The next focus is implementing `PI-02` platform skeleton
+work alongside remaining `DM-*` and `EA-*` work in small, benchmark-visible
+steps.
 
 ## Middle Run Production Pilot
 
@@ -166,8 +168,32 @@ slices in small, benchmark-visible steps.
 | LR-01 | P0 | Done | Scope enterprise access gate. | [Decision 0042](decisions/0042-enterprise-access-gate.md) and [Enterprise Access Gate](enterprise-access-gate.md) define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
 | LR-02 | P0 | Done | Scope context productization gate. | [Decision 0043](decisions/0043-context-productization-gate.md) and [Context Productization Gate](context-productization-gate.md) define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad/missing context, and how those signals feed benchmark-visible ranking improvements. |
 | LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; the generated ignored report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage. A fresh live smoke rerun remains required before external pilot release. |
-| LR-04 | P1 | Todo | Define Domain model extraction slice. | Stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, and source evidence have a staged extraction plan from Application/Infrastructure into `MemorySystem.Domain` with compatibility tests. |
-| LR-05 | P1 | Todo | Scope production platform integration. | A deployment decision record defines infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
+| LR-04 | P1 | Done | Define Domain model extraction slice. | [Decision 0044](decisions/0044-domain-model-extraction-slice.md) and [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) inventory stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, source evidence, and feedback type, then split staged extraction into compatibility-tested `DM-*` implementation slices without schema or endpoint churn. |
+| LR-05 | P1 | Done | Scope production platform integration. | [Decision 0045](decisions/0045-production-platform-integration.md) and [Production Platform Integration LR-05](production-platform-integration-lr05.md) define infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
+
+## Long Run Production Platform Integration Implementation Backlog
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| PI-01 | P0 | Done | Choose production platform and IaC baseline. | [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md) and [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) select AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, Terraform, immutable OCI image digests, environment layout, state/secrets rules, and owner model without changing application contracts. |
+| PI-02 | P0 | Todo | Add Terraform IaC skeleton for runtime roles. | `infra/terraform` defines the initial module and environment layout for separate ECS migrator, API, and worker roles, ingress/TLS assumptions, secret references, resource limits, image digest input, and environment parameters without committing secret values. |
+| PI-03 | P0 | Todo | Provision Amazon RDS PostgreSQL with pgvector. | Terraform defines managed PostgreSQL, pgvector availability checks, network access, dedicated credentials or identity, backup/PITR settings where supported, and a validation database path. |
+| PI-04 | P0 | Todo | Add backup exporter and restore validation automation. | Backup status/export evidence and restore-to-new-database validation can run per environment and emit alertable metrics or logs. |
+| PI-05 | P0 | Todo | Wire runtime OpenTelemetry exporters. | API and worker emit payload-safe traces and metrics with service name, environment, version, instance id, and correlation ids according to the checked-in trace coverage manifest. |
+| PI-06 | P1 | Todo | Connect alert routing and runbook links. | Platform alert rules route page, ticket, and info alerts to named owners, include runbook links, define silencing policy, and have a test route per environment. |
+| PI-07 | P1 | Todo | Add environment-specific release checklists. | Local, CI, pilot, and production release checklists cover migration, health, metrics, benchmark gate, backup/restore, rollback owner, alert routing, and audit evidence. |
+| PI-08 | P1 | Todo | Run first platform rehearsal. | An isolated pilot environment completes migrator/API/worker deployment, health checks, authenticated smoke, metrics collection, backup restore validation, and rollback rehearsal with a written report. |
+
+## Long Run Domain Model Extraction Implementation Backlog
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| DM-01 | P0 | Done | Add pure Domain value objects. | `MemorySystem.Domain` defines dependency-free value objects and vocabulary types for scope, namespace, role id, trust level, lifecycle status, retention class, sensitivity, source evidence, and feedback type; compatibility unit tests prove normalization and string round-trips match existing Application behavior without migrating callers. |
+| DM-02 | P0 | Done | Move namespace parsing behind a Domain parser. | Application keeps the existing `MemoryNamespaceParser` facade and public error behavior while Domain owns the parser rules; namespace compatibility tests prove the facade returns the same scope metadata, role ids, segments, error text, and scope prefixes. |
+| DM-03 | P0 | Done | Extract lifecycle, trust, retention, and sensitivity vocabularies. | Existing Application constants and policies now delegate to Domain lifecycle, trust, retention, and sensitivity vocabularies while memory fact status, broker policy, event append, governance, admin, and context tests preserve current string values and behavior. |
+| DM-04 | P1 | Done | Introduce Domain source evidence references. | Proposal, query-facts, context packet, review/admin inspection, and source evidence read paths map source ids and links through Domain references while preserving current JSON and authorization behavior. |
+| DM-05 | P1 | Done | Map Infrastructure repository boundaries to Domain values. | Repositories map database strings to Domain values at the boundary without SQL schema changes; database-backed proposal, read, search, context, governance, and export tests pass. |
+| DM-06 | P2 | Todo | Remove duplicate string normalization helpers. | After all callers migrate, duplicate policy vocabularies are removed or replaced by thin compatibility facades; `rg` confirms stable concepts are no longer independently redefined across layers. |
 
 ## Long Run Enterprise Access Implementation Backlog
 
@@ -195,6 +221,6 @@ slices in small, benchmark-visible steps.
 | CP-05 | P0 | Done | Expand context feedback actions. | Feedback now supports useful, stale, wrong, sensitive, over_broad, and missing actions while preserving the legacy noisy path; validation requires source ids for item-level actions and stores only payload-safe metadata. |
 | CP-06 | P0 | Done | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations through `GET /api/reviews/context-observations`, open pending reviews from stale/wrong/sensitive observations through `POST /api/reviews/context-observations/{id}/review`, and see source-linked evidence without raw query storage. |
 | CP-07 | P0 | Done | Feed reviewer actions into ranking signals. | Hybrid ranking now consumes bounded useful, stale, wrong, sensitive, over-broad, legacy noisy, and packet-level missing feedback as a `feedbackAdjustment` rank component scoped by target scope, role, source id, and the candidate namespace; feedback can down-rank or boost retrieval but cannot rewrite facts without review or broker decisions. |
-| CP-08 | P0 | Todo | Add context-product benchmark checks. | Benchmark tasks assert inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after ranking behavior against the LR-03 baseline. |
-| CP-09 | P1 | Todo | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
-| CP-10 | P1 | Todo | Update caller docs and examples. | API docs and client examples show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |
+| CP-08 | P0 | Done | Add context-product benchmark checks. | [Context Product Benchmark v1](../benchmarks/context-product-v1/README.md) adds live API smoke tasks for inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after feedback ranking behavior against the LR-03 baseline. |
+| CP-09 | P1 | Done | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
+| CP-10 | P1 | Done | Update caller docs and examples. | [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) and the v1 curl workflow show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |

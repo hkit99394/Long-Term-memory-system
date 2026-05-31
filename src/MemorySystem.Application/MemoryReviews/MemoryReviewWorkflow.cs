@@ -86,6 +86,8 @@ public sealed class MemoryReviewWorkflow(
             return MemoryReviewWorkflowResult.Invalid("sourceEventId must reference accessible review evidence for the memory scope.");
         }
 
+        _ = sourceEvent.ToDomain();
+
         var result = await actionStore.ApplyAsync(
             new MemoryReviewActionStoreCommand(
                 review,

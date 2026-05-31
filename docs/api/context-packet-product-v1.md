@@ -2,18 +2,23 @@
 
 Date: 2026-05-31
 
-Status: Draft contract for CP-01
+Status: Draft product contract; CP-02 through CP-05 runtime subset implemented
 
 Schema: [context-packet-product-v1.schema.json](context-packet-product-v1.schema.json)
+
+Caller guide: [Context Product v1 Caller Guide](context-product-v1-caller-guide.md)
 
 ## Purpose
 
 This document defines the first productized context packet response contract.
 It is the CP-01 deliverable for the LR-02 context productization gate.
 
-The current `GET /api/memory/context` response remains unchanged until runtime
-implementation slices start. This contract defines the target additive response
-shape that later CP slices will implement and verify.
+The current `GET /api/memory/context` runtime response implements the CP-02
+through CP-05 additive fields for packet ids, item ids, structured item
+explanations, safe exclusions, and expanded feedback actions. The exact current
+HTTP shape is also documented in [Agent Memory OpenAPI v1](agent-memory-v1.openapi.json).
+This document remains the product target for reserved top-level fields such as
+`schemaVersion`, `policy`, `feedbackPolicy`, and `evaluationHints`.
 
 ## Version
 
@@ -148,4 +153,5 @@ order:
 2. Done: CP-03 fills structured inclusion explanations.
 3. Done: CP-04 adds safe exclusion summaries.
 4. Done: CP-05 expands feedback actions.
-5. CP-08 adds benchmark checks against this contract.
+5. Done: CP-08 adds benchmark checks against this contract.
+6. Done: CP-10 publishes caller guidance and runnable examples.

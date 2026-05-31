@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 using NpgsqlTypes;
@@ -77,7 +78,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             """,
             connection);
         AddScopeParameters(command, query.Scope);
-        command.Parameters.AddWithValue("status", query.Status);
+        command.Parameters.AddWithValue("status", PostgresDomainMapping.RequireLifecycleStatus(query.Status));
         command.Parameters.Add("memory_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.MemoryType) ? DBNull.Value : query.MemoryType;
         command.Parameters.Add("subject", NpgsqlDbType.Text).Value =
@@ -162,6 +163,9 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             throw new ArgumentOutOfRangeException(nameof(command), command.Confidence, "Memory fact confidence must be between 0 and 1.");
         }
 
+        var scope = PostgresDomainMapping.RequireScope(command.Scope.ScopeType, command.Scope.ScopeId);
+        var namespaceValue = PostgresDomainMapping.RequireNamespace(command.Namespace);
+        var status = PostgresDomainMapping.RequireLifecycleStatus(command.Status);
         var memoryFactId = command.Id ?? Guid.NewGuid();
         var subject = command.Subject.Trim();
         var predicate = command.Predicate.Trim();
@@ -221,7 +225,7 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             transaction);
         insert.Parameters.AddWithValue("id", memoryFactId);
         AddScopeParameters(insert, command.Scope);
-        insert.Parameters.AddWithValue("namespace", command.Namespace);
+        insert.Parameters.AddWithValue("namespace", namespaceValue);
         AddOwnerParameters(insert, ownerColumns);
         insert.Parameters.AddWithValue("memory_type", command.MemoryType);
         insert.Parameters.AddWithValue("visibility", command.Visibility);
@@ -230,13 +234,13 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         insert.Parameters.AddWithValue("object", objectValue);
         insert.Parameters.AddWithValue("confidence", command.Confidence);
         insert.Parameters.AddWithValue("trust_level", trustLevel);
-        insert.Parameters.AddWithValue("status", command.Status);
+        insert.Parameters.AddWithValue("status", status);
         insert.Parameters.AddWithValue("source_event_id", command.SourceEventId);
         insert.Parameters.AddWithValue("proposed_by_principal_id", command.ProposedByPrincipalId);
 
         await insert.ExecuteNonQueryAsync(cancellationToken);
 
-        if (MemoryFactStatuses.IsNormalRetrievalStatus(command.Status))
+        if (MemoryFactStatuses.IsNormalRetrievalStatus(status))
         {
             var chunkId = Guid.NewGuid();
             await MemoryIndexWriteOperations.InsertMemoryChunkAsync(
@@ -245,9 +249,9 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
                 chunkId,
                 MemoryIndexOutboxJobContract.AggregateType,
                 memoryFactId,
-                command.Namespace,
-                command.Scope.ScopeType,
-                command.Scope.ScopeId,
+                namespaceValue,
+                scope.ScopeType,
+                scope.ScopeId,
                 subject,
                 MemoryIndexWriteOperations.BuildFactChunkContent(subject, predicate, objectValue),
                 trustLevel,
@@ -294,9 +298,11 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
         command.Parameters.AddWithValue("principal_id", memoryFact.ProposedByPrincipalId);
         AddScopeParameters(command, memoryFact.Scope);
 
-        return await command.ExecuteScalarAsync(cancellationToken) as string
+        var trustLevel = await command.ExecuteScalarAsync(cancellationToken) as string
             ?? throw new InvalidOperationException(
                 $"Source event {memoryFact.SourceEventId} does not exist for the memory fact scope.");
+
+        return PostgresDomainMapping.RequireTrustLevel(trustLevel);
     }
 
     private const string SelectMemoryFactSql = """
@@ -325,15 +331,17 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
 
     private static MemoryFactRecord ReadMemoryFact(NpgsqlDataReader reader)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(1), reader.GetString(2));
+
         return new MemoryFactRecord(
             reader.GetGuid(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
+            scope.ScopeType,
+            scope.ScopeId,
+            PostgresDomainMapping.RequireNamespace(reader.GetString(3)),
             reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetGuid(5),
             reader.IsDBNull(6) ? null : reader.GetGuid(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(7) ? null : reader.GetString(7)),
             reader.IsDBNull(8) ? null : reader.GetGuid(8),
             reader.GetString(9),
             reader.GetString(10),
@@ -341,15 +349,17 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             reader.GetString(12),
             reader.GetString(13),
             reader.GetDecimal(14),
-            reader.GetString(15),
-            reader.GetString(16),
+            PostgresDomainMapping.RequireTrustLevel(reader.GetString(15)),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(16)),
             reader.GetGuid(17),
             reader.IsDBNull(18) ? null : reader.GetGuid(18));
     }
 
     private static ScopeOwnerColumns ResolveOwnerColumns(MemoryScopeResolution scope)
     {
-        return scope.ScopeType switch
+        var normalizedScope = PostgresDomainMapping.RequireScope(scope.ScopeType, scope.ScopeId);
+
+        return normalizedScope.ScopeType switch
         {
             "global" => new ScopeOwnerColumns(),
             "org" => new ScopeOwnerColumns(OrgId: Require(scope.OrgId, "Organization scope requires an organization id.")),
@@ -357,10 +367,10 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
             "project" => new ScopeOwnerColumns(
                 ProjectId: Require(scope.ProjectId, "Project scope requires a project id."),
                 OrgId: Require(scope.OrgId, "Project scope requires an organization id.")),
-            "role" => new ScopeOwnerColumns(RoleId: Require(scope.ScopeRoleId ?? scope.RoleId, "Role scope requires a role id.")),
+            "role" => new ScopeOwnerColumns(RoleId: PostgresDomainMapping.RequireRoleId(Require(scope.ScopeRoleId ?? scope.RoleId, "Role scope requires a role id."))),
             "agent" => new ScopeOwnerColumns(AgentPrincipalId: Require(scope.AgentPrincipalId, "Agent scope requires an agent principal id.")),
             "session" => new ScopeOwnerColumns(),
-            _ => throw new InvalidOperationException($"Unsupported memory fact scope type '{scope.ScopeType}'.")
+            _ => throw new InvalidOperationException($"Unsupported memory fact scope type '{normalizedScope.ScopeType}'.")
         };
     }
 
@@ -378,8 +388,9 @@ public sealed class PostgresMemoryFactRepository(NpgsqlDataSource dataSource) : 
 
     private static void AddScopeParameters(NpgsqlCommand command, MemoryScopeResolution scope)
     {
-        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
-        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
+        var normalizedScope = PostgresDomainMapping.RequireScope(scope.ScopeType, scope.ScopeId);
+        command.Parameters.AddWithValue("scope_type", normalizedScope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", normalizedScope.ScopeId);
     }
 
     private static void AddOwnerParameters(NpgsqlCommand command, ScopeOwnerColumns ownerColumns)

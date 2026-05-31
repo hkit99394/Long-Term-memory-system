@@ -1,46 +1,19 @@
+using MemorySystem.Domain.Roles;
+using MemorySystem.Domain.Scopes;
+using MemorySystem.Domain.Sensitivity;
+using MemorySystem.Domain.Trust;
+
 namespace MemorySystem.Application.Scopes;
 
 public static class MemoryScopePolicy
 {
-    public static readonly IReadOnlySet<string> RoleIds = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "designer",
-        "developer",
-        "cto",
-        "cfo",
-        "coo",
-        "ceo"
-    };
+    public static readonly IReadOnlySet<string> RoleIds = MemoryRoleId.All;
 
-    public static readonly IReadOnlySet<string> ScopeTypes = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "global",
-        "org",
-        "user",
-        "project",
-        "role",
-        "agent",
-        "session"
-    };
+    public static readonly IReadOnlySet<string> ScopeTypes = MemoryScopeType.All;
 
-    public static readonly IReadOnlySet<string> Sensitivities = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "none",
-        "personal",
-        "secret",
-        "regulated"
-    };
+    public static readonly IReadOnlySet<string> Sensitivities = MemorySensitivity.All;
 
-    public static readonly IReadOnlySet<string> TrustLevels = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "system_trusted",
-        "human_approved",
-        "user_scoped",
-        "agent_private",
-        "tool_output",
-        "retrieved_untrusted",
-        "web_content"
-    };
+    public static readonly IReadOnlySet<string> TrustLevels = MemoryTrustLevel.All;
 
     public static bool TryNormalizeProposalScope(
         Guid authenticatedPrincipalId,

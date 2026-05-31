@@ -6,6 +6,7 @@ using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryContext;
 using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Operations;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
 using Microsoft.Extensions.Options;
@@ -55,11 +56,13 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IContextPacketBuilder contextPacketBuilder,
+                IMemoryContextPacketObservationStore contextPacketObservations,
+                IContextProductHealthMetricStore contextProductMetrics,
                 IHostEnvironment environment,
                 IOptions<MemoryEmbeddingOptions> embeddingOptions,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await BuildContextPacketAsync(context, contextPacketBuilder, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
+                await BuildContextPacketAsync(context, contextPacketBuilder, contextPacketObservations, contextProductMetrics, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
             .RequireAuthorization();
 
         endpoints.MapPost(
@@ -67,13 +70,17 @@ public static class MemoryFactEndpointExtensions
             async (
                 HttpContext context,
                 IMemoryRetrievalFeedbackStore feedbackStore,
+                IMemoryContextPacketObservationStore contextPacketObservations,
                 IMemoryRetrievalFeedbackSourceAuthorizer feedbackSourceAuthorizer,
+                IContextProductHealthMetricStore contextProductMetrics,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await RecordContextFeedbackAsync(
                     context,
                     feedbackStore,
+                    contextPacketObservations,
                     feedbackSourceAuthorizer,
+                    contextProductMetrics,
                     loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"),
                     cancellationToken))
             .RequireAuthorization();
@@ -248,6 +255,8 @@ public static class MemoryFactEndpointExtensions
     private static async Task<IResult> BuildContextPacketAsync(
         HttpContext context,
         IContextPacketBuilder contextPacketBuilder,
+        IMemoryContextPacketObservationStore contextPacketObservations,
+        IContextProductHealthMetricStore contextProductMetrics,
         IHostEnvironment environment,
         MemoryEmbeddingOptions embeddingOptions,
         ILogger logger,
@@ -311,13 +320,32 @@ public static class MemoryFactEndpointExtensions
             packet.RelevantDecisions.Count,
             packet.SourceEvents.Count);
 
-        return Results.Ok(ToContextPacketResponse(packet));
+        var response = ToContextPacketResponse(packet);
+        await contextPacketObservations.RecordAsync(
+            new MemoryContextPacketObservation(
+                response.PacketId,
+                principalId,
+                ComputeSha256(packet.Query),
+                packet.TargetScope?.ScopeType,
+                packet.TargetScope?.ScopeId,
+                packet.RoleId,
+                response.UserPreferences.Count
+                    + response.ProjectMemory.Count
+                    + response.RoleMemory.Count
+                    + response.RelevantDecisions.Count),
+            cancellationToken);
+
+        contextProductMetrics.RecordContextPacket(packet);
+
+        return Results.Ok(response);
     }
 
     private static async Task<IResult> RecordContextFeedbackAsync(
         HttpContext context,
         IMemoryRetrievalFeedbackStore feedbackStore,
+        IMemoryContextPacketObservationStore contextPacketObservations,
         IMemoryRetrievalFeedbackSourceAuthorizer feedbackSourceAuthorizer,
+        IContextProductHealthMetricStore contextProductMetrics,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -340,13 +368,21 @@ public static class MemoryFactEndpointExtensions
 
         var request = requestResult.Value!;
 
-        if (!TryCreateFeedbackCommand(principalId, request, out var command, out var error))
+        var commandResult = await TryCreateFeedbackCommandAsync(
+            principalId,
+            request,
+            contextPacketObservations,
+            cancellationToken);
+
+        if (!commandResult.Succeeded)
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Memory context feedback is invalid.",
-                detail: error);
+                detail: commandResult.Error);
         }
+
+        var command = commandResult.Command!;
 
         if (command.SourceType is not null
             && command.SourceId.HasValue
@@ -363,6 +399,7 @@ public static class MemoryFactEndpointExtensions
         }
 
         var record = await feedbackStore.StoreAsync(command, cancellationToken);
+        contextProductMetrics.RecordContextFeedbackAction(record.FeedbackType);
 
         logger.LogInformation(
             "Memory retrieval feedback recorded. PrincipalId={PrincipalId} RetrievalMode={RetrievalMode} QueryHash={QueryHash} FeedbackType={FeedbackType} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} SourceType={SourceType} SourceId={SourceId}",
@@ -453,54 +490,77 @@ public static class MemoryFactEndpointExtensions
         return Results.Ok(ToQueryFactsResponse(result));
     }
 
-    private static bool TryCreateFeedbackCommand(
+    private static async Task<FeedbackCommandResult> TryCreateFeedbackCommandAsync(
         Guid principalId,
         MemoryContextFeedbackRequest request,
-        out MemoryRetrievalFeedbackCommand command,
-        out string? error)
+        IMemoryContextPacketObservationStore contextPacketObservations,
+        CancellationToken cancellationToken)
     {
-        command = null!;
-        error = null;
-
         var query = request.Query?.Trim();
 
         if (request.PacketId == Guid.Empty)
         {
-            error = "packetId is invalid.";
-            return false;
+            return FeedbackCommandResult.Failure("packetId is invalid.");
         }
 
         if (request.ItemId == Guid.Empty)
         {
-            error = "itemId is invalid.";
-            return false;
+            return FeedbackCommandResult.Failure("itemId is invalid.");
         }
 
         if (request.ItemId.HasValue && !request.PacketId.HasValue)
         {
-            error = "itemId requires packetId.";
-            return false;
+            return FeedbackCommandResult.Failure("itemId requires packetId.");
         }
 
         if (string.IsNullOrWhiteSpace(query) && !request.PacketId.HasValue)
         {
-            error = "query or packetId is required.";
-            return false;
+            return FeedbackCommandResult.Failure("query or packetId is required.");
         }
 
+        string? error;
         if (!MemoryRetrievalFeedbackTypes.TryNormalize(request.FeedbackType, out var feedbackType, out error)
             || !TryNormalizeOptionalTargetScope(request.TargetScopeType, request.TargetScopeId, out var targetScopeType, out var targetScopeId, out error)
             || !TryNormalizeOptionalRoleId(request.RoleId, out var roleId, out error)
             || !TryNormalizeOptionalFeedbackSource(request.SourceType, request.SourceId, request.ItemId, feedbackType, out var sourceType, out error))
         {
-            return false;
+            return FeedbackCommandResult.Failure(error);
         }
 
-        var queryHash = string.IsNullOrWhiteSpace(query)
-            ? ComputeSha256($"packet:{request.PacketId!.Value:D}")
-            : ComputeSha256(query);
+        string queryHash;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            var observation = await contextPacketObservations.FindAsync(
+                request.PacketId!.Value,
+                principalId,
+                cancellationToken);
 
-        command = new MemoryRetrievalFeedbackCommand(
+            if (observation is null)
+            {
+                return FeedbackCommandResult.Failure("packetId must identify a context packet previously returned to the caller.");
+            }
+
+            if (!MatchesRequestedTargetScope(targetScopeType, targetScopeId, observation))
+            {
+                return FeedbackCommandResult.Failure("targetScopeType and targetScopeId must match the recorded context packet.");
+            }
+
+            if (roleId is not null && !string.Equals(roleId, observation.RoleId, StringComparison.Ordinal))
+            {
+                return FeedbackCommandResult.Failure("roleId must match the recorded context packet.");
+            }
+
+            queryHash = observation.QueryHash;
+            targetScopeType ??= observation.TargetScopeType;
+            targetScopeId ??= observation.TargetScopeId;
+            roleId ??= observation.RoleId;
+        }
+        else
+        {
+            queryHash = ComputeSha256(query);
+        }
+
+        var command = new MemoryRetrievalFeedbackCommand(
             principalId,
             "context_packet",
             queryHash,
@@ -512,7 +572,38 @@ public static class MemoryFactEndpointExtensions
             sourceType,
             request.SourceId,
             feedbackType);
-        return true;
+
+        return FeedbackCommandResult.Success(command);
+    }
+
+    private static bool MatchesRequestedTargetScope(
+        string? targetScopeType,
+        string? targetScopeId,
+        MemoryContextPacketObservation observation)
+    {
+        if (targetScopeType is null && targetScopeId is null)
+        {
+            return true;
+        }
+
+        return string.Equals(targetScopeType, observation.TargetScopeType, StringComparison.Ordinal)
+            && string.Equals(targetScopeId, observation.TargetScopeId, StringComparison.Ordinal);
+    }
+
+    private sealed record FeedbackCommandResult(
+        bool Succeeded,
+        MemoryRetrievalFeedbackCommand? Command,
+        string? Error)
+    {
+        public static FeedbackCommandResult Success(MemoryRetrievalFeedbackCommand command)
+        {
+            return new FeedbackCommandResult(true, command, null);
+        }
+
+        public static FeedbackCommandResult Failure(string? error)
+        {
+            return new FeedbackCommandResult(false, null, error ?? "Feedback request is invalid.");
+        }
     }
 
     private static void LogRetrievalCompleted(
@@ -927,7 +1018,13 @@ public static class MemoryFactEndpointExtensions
 
     private static MemoryContextSourceEventResponse ToSourceEventResponse(MemoryContextSourceEvent sourceEvent)
     {
-        return new MemoryContextSourceEventResponse(sourceEvent.Id, sourceEvent.Link);
+        var sourceEvidenceLink = sourceEvent.ToDomain();
+
+        return sourceEvidenceLink is null
+            ? new MemoryContextSourceEventResponse(sourceEvent.Id, sourceEvent.Link)
+            : new MemoryContextSourceEventResponse(
+                sourceEvidenceLink.SourceEventId,
+                sourceEvidenceLink.Link);
     }
 
     private static MemoryContextExclusionSummaryResponse ToContextExclusionSummaryResponse(

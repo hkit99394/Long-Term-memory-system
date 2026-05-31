@@ -21,6 +21,7 @@ public static class OperationalMetricsTextRenderer
         AppendOutboxMetrics(builder, summary.Outbox);
         AppendWorkerMetrics(builder, summary.Worker);
         AppendRetrievalFeedbackMetrics(builder, summary.RetrievalFeedback);
+        AppendContextProductMetrics(builder, summary.ContextProduct);
         AppendEmbeddingMetrics(builder, summary.EmbeddingFailures, readiness);
         AppendGovernanceMetrics(builder, summary);
 
@@ -209,6 +210,227 @@ public static class OperationalMetricsTextRenderer
                 feedbackType.PerHour,
                 ("feedback_type", feedbackType.FeedbackType),
                 ("window", "24h"));
+        }
+    }
+
+    private static void AppendContextProductMetrics(
+        StringBuilder builder,
+        OperationalContextProductSummary contextProduct)
+    {
+        var runtime = contextProduct.Runtime;
+
+        AppendHelp(builder, "memorysystem_context_product_packet_total", "Context product packets built by the API process.");
+        AppendType(builder, "memorysystem_context_product_packet_total", "counter");
+        AppendSample(builder, "memorysystem_context_product_packet_total", runtime.PacketCount);
+
+        AppendHelp(builder, "memorysystem_context_product_item_total", "Context product items returned by the API process.");
+        AppendType(builder, "memorysystem_context_product_item_total", "counter");
+        AppendSample(builder, "memorysystem_context_product_item_total", runtime.ItemCount);
+
+        AppendHelp(builder, "memorysystem_context_product_explanation_coverage", "Share of returned context product items with structured explanations.");
+        AppendType(builder, "memorysystem_context_product_explanation_coverage", "gauge");
+        AppendSample(builder, "memorysystem_context_product_explanation_coverage", decimal.ToDouble(runtime.ExplanationCoverage));
+
+        AppendHelp(builder, "memorysystem_context_product_feedback_action_observed_total", "Context feedback actions observed by the API process.");
+        AppendType(builder, "memorysystem_context_product_feedback_action_observed_total", "counter");
+        AppendSample(builder, "memorysystem_context_product_feedback_action_observed_total", runtime.FeedbackActionCount);
+
+        AppendContextProductExclusionMetrics(builder, runtime.ExclusionsByReason);
+        AppendContextProductFeedbackMetrics(builder, contextProduct.FeedbackActions);
+        AppendContextProductReviewOpenMetrics(builder, runtime.ReviewOpens);
+        AppendContextProductRankingMetrics(builder, runtime.RankingSignals);
+        AppendContextProductBenchmarkMetrics(builder, contextProduct.Benchmark);
+    }
+
+    private static void AppendContextProductExclusionMetrics(
+        StringBuilder builder,
+        IReadOnlyList<OperationalContextProductExclusionSummary> exclusions)
+    {
+        AppendHelp(builder, "memorysystem_context_product_exclusion_summary_total", "Context product exclusion summaries emitted by safe reason and disclosure mode.");
+        AppendType(builder, "memorysystem_context_product_exclusion_summary_total", "counter");
+        AppendHelp(builder, "memorysystem_context_product_exclusion_disclosed_item_total", "Disclosed context product exclusion item counts by safe reason.");
+        AppendType(builder, "memorysystem_context_product_exclusion_disclosed_item_total", "counter");
+
+        var byKey = exclusions.ToDictionary(
+            item => $"{item.Reason}\0{item.CountDisclosure}",
+            item => item,
+            StringComparer.Ordinal);
+        var knownReasons = new[]
+        {
+            "inactive",
+            "not_authorized",
+            "scope_mismatch",
+            "role_mismatch",
+            "below_rank_cutoff",
+            "source_unavailable",
+            "sensitive"
+        };
+        var emittedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var reason in knownReasons)
+        {
+            var disclosure = reason is "not_authorized" or "sensitive"
+                ? "withheld"
+                : "disclosed";
+            var key = $"{reason}\0{disclosure}";
+            emittedKeys.Add(key);
+            byKey.TryGetValue(key, out var exclusion);
+
+            AppendSample(
+                builder,
+                "memorysystem_context_product_exclusion_summary_total",
+                exclusion?.SummaryCount ?? 0,
+                ("reason", reason),
+                ("count_disclosure", disclosure));
+            AppendSample(
+                builder,
+                "memorysystem_context_product_exclusion_disclosed_item_total",
+                exclusion?.DisclosedItemCount ?? 0,
+                ("reason", reason));
+        }
+
+        foreach (var exclusion in exclusions)
+        {
+            if (emittedKeys.Contains($"{exclusion.Reason}\0{exclusion.CountDisclosure}"))
+            {
+                continue;
+            }
+
+            AppendSample(
+                builder,
+                "memorysystem_context_product_exclusion_summary_total",
+                exclusion.SummaryCount,
+                ("reason", exclusion.Reason),
+                ("count_disclosure", exclusion.CountDisclosure));
+            if (string.Equals(exclusion.CountDisclosure, "disclosed", StringComparison.Ordinal))
+            {
+                AppendSample(
+                    builder,
+                    "memorysystem_context_product_exclusion_disclosed_item_total",
+                    exclusion.DisclosedItemCount,
+                    ("reason", exclusion.Reason));
+            }
+        }
+    }
+
+    private static void AppendContextProductFeedbackMetrics(
+        StringBuilder builder,
+        OperationalContextProductFeedbackSummary feedback)
+    {
+        AppendHelp(builder, "memorysystem_context_product_feedback_action_total", "Context product feedback action count in the recent operator window.");
+        AppendType(builder, "memorysystem_context_product_feedback_action_total", "gauge");
+        AppendHelp(builder, "memorysystem_context_product_feedback_action_share", "Context product feedback action share in the recent operator window.");
+        AppendType(builder, "memorysystem_context_product_feedback_action_share", "gauge");
+        AppendHelp(builder, "memorysystem_context_product_feedback_action_per_hour", "Context product feedback action rate in the recent operator window.");
+        AppendType(builder, "memorysystem_context_product_feedback_action_per_hour", "gauge");
+
+        foreach (var action in feedback.ByAction)
+        {
+            AppendSample(
+                builder,
+                "memorysystem_context_product_feedback_action_total",
+                action.Count,
+                ("feedback_type", action.FeedbackType),
+                ("window", "24h"));
+            AppendSample(
+                builder,
+                "memorysystem_context_product_feedback_action_share",
+                decimal.ToDouble(action.Share),
+                ("feedback_type", action.FeedbackType),
+                ("window", "24h"));
+            AppendSample(
+                builder,
+                "memorysystem_context_product_feedback_action_per_hour",
+                action.PerHour,
+                ("feedback_type", action.FeedbackType),
+                ("window", "24h"));
+        }
+    }
+
+    private static void AppendContextProductReviewOpenMetrics(
+        StringBuilder builder,
+        IReadOnlyList<OperationalContextProductReviewOpenSummary> reviewOpens)
+    {
+        AppendHelp(builder, "memorysystem_context_product_review_open_total", "Context feedback observations routed to memory review by feedback type.");
+        AppendType(builder, "memorysystem_context_product_review_open_total", "counter");
+
+        var byKey = reviewOpens.ToDictionary(
+            item => $"{item.FeedbackType}\0{item.Created}",
+            item => item.Count,
+            StringComparer.Ordinal);
+
+        foreach (var feedbackType in new[] { "stale", "wrong", "sensitive" })
+        {
+            foreach (var created in new[] { true, false })
+            {
+                byKey.TryGetValue($"{feedbackType}\0{created}", out var count);
+                AppendSample(
+                    builder,
+                    "memorysystem_context_product_review_open_total",
+                    count,
+                    ("feedback_type", feedbackType),
+                    ("created", created ? "true" : "false"));
+            }
+        }
+    }
+
+    private static void AppendContextProductRankingMetrics(
+        StringBuilder builder,
+        IReadOnlyList<OperationalContextProductRankingSignalSummary> rankingSignals)
+    {
+        AppendHelp(builder, "memorysystem_context_product_ranking_signal_applied_total", "Context product ranking feedback signals applied to returned items.");
+        AppendType(builder, "memorysystem_context_product_ranking_signal_applied_total", "counter");
+
+        var bySignal = rankingSignals.ToDictionary(
+            item => item.Signal,
+            item => item.Count,
+            StringComparer.Ordinal);
+
+        foreach (var signal in new[] { "feedback_adjustment_positive", "feedback_adjustment_negative" })
+        {
+            bySignal.TryGetValue(signal, out var count);
+            AppendSample(
+                builder,
+                "memorysystem_context_product_ranking_signal_applied_total",
+                count,
+                ("signal", signal));
+        }
+    }
+
+    private static void AppendContextProductBenchmarkMetrics(
+        StringBuilder builder,
+        OperationalContextProductBenchmarkSummary benchmark)
+    {
+        AppendHelp(builder, "memorysystem_context_product_benchmark_observed", "Whether a latest context-product benchmark result was observed.");
+        AppendType(builder, "memorysystem_context_product_benchmark_observed", "gauge");
+        AppendSample(builder, "memorysystem_context_product_benchmark_observed", benchmark.Observed ? 1 : 0);
+
+        AppendHelp(builder, "memorysystem_context_product_benchmark_delta", "Latest context-product benchmark before-and-after delta by metric.");
+        AppendType(builder, "memorysystem_context_product_benchmark_delta", "gauge");
+        AppendHelp(builder, "memorysystem_context_product_benchmark_read_error", "Whether the latest context-product benchmark artifact could not be read by reason.");
+        AppendType(builder, "memorysystem_context_product_benchmark_read_error", "gauge");
+
+        var byMetric = benchmark.Deltas.ToDictionary(
+            delta => delta.Metric,
+            delta => delta.Value,
+            StringComparer.Ordinal);
+        foreach (var metric in new[] { "feedbackAdjustmentDelta", "rankDelta" })
+        {
+            byMetric.TryGetValue(metric, out var value);
+            AppendSample(
+                builder,
+                "memorysystem_context_product_benchmark_delta",
+                value,
+                ("metric", metric));
+        }
+
+        foreach (var reason in new[] { "invalid_json", "io_error", "missing_metrics" })
+        {
+            AppendSample(
+                builder,
+                "memorysystem_context_product_benchmark_read_error",
+                string.Equals(benchmark.ReadError, reason, StringComparison.Ordinal) ? 1 : 0,
+                ("reason", reason));
         }
     }
 

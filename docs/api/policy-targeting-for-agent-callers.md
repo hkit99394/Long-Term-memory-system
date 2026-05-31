@@ -344,7 +344,7 @@ Memory proposal example:
 | `memory.propose` | `sourceEventId`, `memoryType`, `scopeType`, `scopeId`, `namespace`, `visibility`, `subject`, `predicate`, `object`, `confidence`, `trustLevel`, `sensitivity`, optional `roleId`, optional `baseMemoryFactId` |
 | `memory.getContext` | `q`, optional `scopeType`, optional `scopeId`, optional `roleId`, `limit` |
 | `memory.queryFacts` | `query`, optional `targetScope`, optional `roleId`, optional `namespaces`, optional `memoryTypes`, optional `includeContradictions`, optional `includeExcluded`, `limit` |
-| `memory.recordContextFeedback` | `query`, optional `targetScopeType`, optional `targetScopeId`, optional `roleId`, optional `sourceType`, optional `sourceId`, `feedbackType` |
+| `memory.recordContextFeedback` | `query` or `packetId`, optional `itemId`, optional `targetScopeType`, optional `targetScopeId`, optional `roleId`, optional `sourceType`, optional `sourceId`, `feedbackType` |
 | `memory.readFact` | Path `id`; authorization uses the authenticated principal and the fact's stored scope and namespace. |
 | `memory.readEvidence` | Path `id`; authorization uses the authenticated principal and the event's stored scope. |
 
@@ -357,6 +357,8 @@ Memory proposal example:
 | Using a namespace outside the requested scope. | Invalid or forbidden proposal. | Use the canonical namespace prefix for the scope. |
 | Using `roleId` on a non-role event. | Invalid event append. | Use role namespaces or read-time role targeting instead. |
 | Querying role memory without assignment. | Empty result or not found without content leak. | Grant the role assignment and namespace access. |
+| Sending item-level feedback without `sourceType` and `sourceId`. | Invalid request. | Send the item `sourceType` and `sourceId` returned by `memory.getContext`. |
+| Sending `missing` feedback with `itemId` or `sourceId`. | Invalid request. | Send packet-level `missing` feedback with `packetId`, target scope, and role only. |
 | Sending `human_approved` from an external client. | Invalid request. | Use `user_scoped`, `tool_output`, or another external trust level. |
 | Referencing redacted evidence. | Proposal rejected or blocked by database guard. | Append fresh, allowed evidence. |
 | Expecting unauthorized exclusion counts. | Count is withheld. | Treat `countDisclosure = withheld` as intentional. |

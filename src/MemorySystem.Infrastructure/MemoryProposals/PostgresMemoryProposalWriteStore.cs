@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MemorySystem.Application.MemoryProposals;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Idempotency;
 using MemorySystem.Infrastructure.Outbox;
 using MemorySystem.Infrastructure.RoleMemoryLenses;
@@ -359,16 +360,18 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
         string scopeId,
         CancellationToken cancellationToken)
     {
-        return scopeType switch
+        var scope = PostgresDomainMapping.RequireScope(scopeType, scopeId);
+
+        return scope.ScopeType switch
         {
             "global" => new ScopeOwnerColumns(),
-            "org" => new ScopeOwnerColumns(OrgId: Guid.Parse(scopeId)),
-            "user" => new ScopeOwnerColumns(UserPrincipalId: Guid.Parse(scopeId)),
-            "agent" => new ScopeOwnerColumns(AgentPrincipalId: Guid.Parse(scopeId)),
-            "role" => new ScopeOwnerColumns(RoleId: scopeId),
+            "org" => new ScopeOwnerColumns(OrgId: Guid.Parse(scope.ScopeId)),
+            "user" => new ScopeOwnerColumns(UserPrincipalId: Guid.Parse(scope.ScopeId)),
+            "agent" => new ScopeOwnerColumns(AgentPrincipalId: Guid.Parse(scope.ScopeId)),
+            "role" => new ScopeOwnerColumns(RoleId: scope.ScopeId),
             "session" => new ScopeOwnerColumns(),
-            "project" => await ResolveProjectOwnerColumnsAsync(connection, transaction, scopeId, cancellationToken),
-            _ => throw new InvalidOperationException($"Unsupported memory proposal scope type '{scopeType}'.")
+            "project" => await ResolveProjectOwnerColumnsAsync(connection, transaction, scope.ScopeId, cancellationToken),
+            _ => throw new InvalidOperationException($"Unsupported memory proposal scope type '{scope.ScopeType}'.")
         };
     }
 
@@ -454,7 +457,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
         AddProposalParameters(command, proposal);
         AddOwnerParameters(command, ownerColumns);
         command.Parameters.AddWithValue("confidence", proposal.Confidence!.Value);
-        command.Parameters.AddWithValue("trust_level", proposal.TrustLevel);
+        command.Parameters.AddWithValue("trust_level", PostgresDomainMapping.RequireTrustLevel(proposal.TrustLevel));
         command.Parameters.AddWithValue("source_event_id", proposal.SourceEventId!.Value);
         command.Parameters.AddWithValue("proposed_by_principal_id", proposedByPrincipalId);
 
@@ -511,7 +514,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
             """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("role_id", proposal.RoleId!);
+        command.Parameters.AddWithValue("role_id", PostgresDomainMapping.RequireRoleId(proposal.RoleId!));
         RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
         command.Parameters.AddWithValue("base_memory_fact_id", proposal.BaseMemoryFactId!.Value);
         command.Parameters.AddWithValue("interpretation", NormalizeStorageText(proposal.Object));
@@ -563,7 +566,7 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("id", roleMemoryLensId);
-        command.Parameters.AddWithValue("role_id", proposal.RoleId!);
+        command.Parameters.AddWithValue("role_id", PostgresDomainMapping.RequireRoleId(proposal.RoleId!));
         RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
         RoleMemoryLensStorageRules.AddOwnerParameters(command, lensScope);
         command.Parameters.AddWithValue("base_memory_fact_id", proposal.BaseMemoryFactId!.Value);
@@ -577,9 +580,10 @@ public sealed class PostgresMemoryProposalWriteStore(NpgsqlDataSource dataSource
 
     private static void AddProposalParameters(NpgsqlCommand command, MemoryProposalCommand proposal)
     {
-        command.Parameters.AddWithValue("scope_type", proposal.ScopeType);
-        command.Parameters.AddWithValue("scope_id", proposal.ScopeId);
-        command.Parameters.AddWithValue("namespace", proposal.Namespace);
+        var scope = PostgresDomainMapping.RequireScope(proposal.ScopeType, proposal.ScopeId);
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
+        command.Parameters.AddWithValue("namespace", PostgresDomainMapping.RequireNamespace(proposal.Namespace));
         command.Parameters.AddWithValue("memory_type", proposal.MemoryType);
         command.Parameters.AddWithValue("visibility", proposal.Visibility);
         command.Parameters.AddWithValue("subject", NormalizeStorageText(proposal.Subject));

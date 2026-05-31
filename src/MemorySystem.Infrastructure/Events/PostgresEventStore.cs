@@ -2,6 +2,7 @@ using System.Text.Json;
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryProposals;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Idempotency;
 using MemorySystem.Infrastructure.Scopes;
 using Npgsql;
@@ -56,37 +57,37 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         }
 
         Guid? agentPrincipalId = reader.IsDBNull(3) ? null : reader.GetGuid(3);
-        var scopeType = reader.GetString(13);
-        var scopeId = reader.GetString(14);
+        Guid? conversationId = reader.IsDBNull(2) ? null : reader.GetGuid(2);
         Guid? scopeOrgId = reader.IsDBNull(15) ? null : reader.GetGuid(15);
         Guid? scopeProjectId = reader.IsDBNull(16) ? null : reader.GetGuid(16);
         Guid? scopePrincipalId = reader.IsDBNull(17) ? null : reader.GetGuid(17);
         var scopeRoleId = reader.IsDBNull(18) ? null : reader.GetString(18);
+        var scope = PostgresDomainMapping.RequireScopeResolution(
+            reader.GetString(13),
+            reader.GetString(14),
+            orgId: scopeOrgId,
+            projectId: scopeProjectId,
+            principalId: scopePrincipalId,
+            roleId: scopeRoleId,
+            scopeRoleId: scopeRoleId,
+            conversationId: conversationId,
+            agentPrincipalId: agentPrincipalId);
 
         return new EventRecord(
             reader.GetGuid(0),
             reader.IsDBNull(1) ? null : reader.GetGuid(1),
-            reader.IsDBNull(2) ? null : reader.GetGuid(2),
+            conversationId,
             agentPrincipalId,
-            reader.IsDBNull(4) ? null : reader.GetString(4),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(4) ? null : reader.GetString(4)),
             reader.GetString(5),
             reader.GetString(6),
             reader.IsDBNull(7) ? null : reader.GetString(7),
             reader.IsDBNull(8) ? null : reader.GetString(8),
-            reader.GetString(9),
-            reader.GetString(10),
-            reader.GetString(11),
+            PostgresDomainMapping.RequireRetentionClass(reader.GetString(9)),
+            PostgresDomainMapping.RequireSensitivity(reader.GetString(10)),
+            PostgresDomainMapping.RequireTrustLevel(reader.GetString(11)),
             reader.GetFieldValue<DateTimeOffset>(12),
-            new MemoryScopeResolution(
-                scopeType,
-                scopeId,
-                OrgId: scopeOrgId,
-                ProjectId: scopeProjectId,
-                PrincipalId: scopeType == "agent" ? agentPrincipalId : scopePrincipalId,
-                RoleId: scopeRoleId,
-                ScopeRoleId: scopeRoleId,
-                ConversationId: reader.IsDBNull(2) ? null : reader.GetGuid(2),
-                AgentPrincipalId: agentPrincipalId));
+            scope);
     }
 
     public async Task<SourceEventReference?> FindForPrincipalScopeAsync(
@@ -115,13 +116,14 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
             connection);
         command.Parameters.AddWithValue("event_id", eventId);
         command.Parameters.AddWithValue("principal_id", principalId);
-        command.Parameters.AddWithValue("scope_type", scopeType);
-        command.Parameters.AddWithValue("scope_id", scopeId);
+        var scope = PostgresDomainMapping.RequireScope(scopeType, scopeId);
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         return await reader.ReadAsync(cancellationToken)
-            ? new SourceEventReference(reader.GetGuid(0), reader.GetString(1), reader.GetString(2))
+            ? SourceEventReference.FromValues(reader.GetGuid(0), reader.GetString(1), reader.GetString(2))
             : null;
     }
 
@@ -135,11 +137,17 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
 
         var eventId = Guid.NewGuid();
+        var scope = PostgresDomainMapping.RequireScope(command.Scope.Type, command.Scope.Id);
+        var roleId = PostgresDomainMapping.NormalizeOptionalRoleId(command.RoleId);
+        var scopeRoleId = PostgresDomainMapping.NormalizeOptionalRoleId(command.Scope.RoleId);
+        var retentionClass = PostgresDomainMapping.RequireRetentionClass(command.RetentionClass);
+        var sensitivity = PostgresDomainMapping.RequireSensitivity(command.Sensitivity);
+        var trustLevel = PostgresDomainMapping.RequireTrustLevel(command.TrustLevel);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var scopeOrgId = command.Scope.Type == "project"
+        var scopeOrgId = scope.ScopeType == "project"
             ? await ResolveProjectOrgIdAsync(connection, transaction, command.Scope.ProjectId, cancellationToken)
             : command.Scope.OrgId;
 
@@ -200,20 +208,20 @@ public sealed class PostgresEventStore(NpgsqlDataSource dataSource) : IEventStor
         insert.Parameters.AddWithValue("principal_id", command.PrincipalId);
         insert.Parameters.AddWithValue("conversation_id", command.ConversationId.HasValue ? command.ConversationId.Value : DBNull.Value);
         insert.Parameters.AddWithValue("agent_principal_id", command.AgentPrincipalId.HasValue ? command.AgentPrincipalId.Value : DBNull.Value);
-        insert.Parameters.AddWithValue("role_id", string.IsNullOrWhiteSpace(command.RoleId) ? DBNull.Value : command.RoleId);
+        insert.Parameters.AddWithValue("role_id", string.IsNullOrWhiteSpace(roleId) ? DBNull.Value : roleId);
         insert.Parameters.AddWithValue("event_type", command.EventType);
         insert.Parameters.Add("content", NpgsqlDbType.Jsonb).Value = command.ContentJson;
         insert.Parameters.AddWithValue("content_hash", command.ContentHash);
         insert.Parameters.AddWithValue("external_payload_uri", string.IsNullOrWhiteSpace(command.ExternalPayloadUri) ? DBNull.Value : command.ExternalPayloadUri);
-        insert.Parameters.AddWithValue("retention_class", command.RetentionClass);
-        insert.Parameters.AddWithValue("sensitivity", command.Sensitivity);
-        insert.Parameters.AddWithValue("trust_level", command.TrustLevel);
-        insert.Parameters.AddWithValue("scope_type", command.Scope.Type);
-        insert.Parameters.AddWithValue("scope_id", command.Scope.Id);
+        insert.Parameters.AddWithValue("retention_class", retentionClass);
+        insert.Parameters.AddWithValue("sensitivity", sensitivity);
+        insert.Parameters.AddWithValue("trust_level", trustLevel);
+        insert.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        insert.Parameters.AddWithValue("scope_id", scope.ScopeId);
         insert.Parameters.AddWithValue("scope_org_id", scopeOrgId.HasValue ? scopeOrgId.Value : DBNull.Value);
         insert.Parameters.AddWithValue("scope_project_id", command.Scope.ProjectId.HasValue ? command.Scope.ProjectId.Value : DBNull.Value);
         insert.Parameters.AddWithValue("scope_principal_id", command.Scope.PrincipalId.HasValue ? command.Scope.PrincipalId.Value : DBNull.Value);
-        insert.Parameters.AddWithValue("scope_role_id", string.IsNullOrWhiteSpace(command.Scope.RoleId) ? DBNull.Value : command.Scope.RoleId);
+        insert.Parameters.AddWithValue("scope_role_id", string.IsNullOrWhiteSpace(scopeRoleId) ? DBNull.Value : scopeRoleId);
 
         var createdAt = await insert.ExecuteScalarAsync(cancellationToken)
             ?? throw new InvalidOperationException("Event append did not return a creation timestamp.");

@@ -1,4 +1,6 @@
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Sensitivity;
+using MemorySystem.Domain.Trust;
 
 namespace MemorySystem.Application.MemoryProposals;
 
@@ -96,8 +98,8 @@ public sealed class MinimalMemoryProposalBroker : IMemoryProposalBroker
 
     private static bool IsUntrustedPolicyWrite(MemoryProposalCommand proposal)
     {
-        var untrusted = string.Equals(proposal.TrustLevel, "web_content", StringComparison.Ordinal)
-            || string.Equals(proposal.TrustLevel, "retrieved_untrusted", StringComparison.Ordinal);
+        var untrusted = string.Equals(proposal.TrustLevel, MemoryTrustLevel.WebContent, StringComparison.Ordinal)
+            || string.Equals(proposal.TrustLevel, MemoryTrustLevel.RetrievedUntrusted, StringComparison.Ordinal);
 
         return untrusted
             && (string.Equals(proposal.ScopeType, "global", StringComparison.Ordinal)
@@ -117,8 +119,8 @@ public sealed class MinimalMemoryProposalBroker : IMemoryProposalBroker
         MemoryProposalConfidenceScore confidenceScore,
         out string reason)
     {
-        if (string.Equals(proposal.Sensitivity, "secret", StringComparison.Ordinal)
-            || string.Equals(proposal.Sensitivity, "regulated", StringComparison.Ordinal))
+        if (string.Equals(proposal.Sensitivity, MemorySensitivity.Secret, StringComparison.Ordinal)
+            || string.Equals(proposal.Sensitivity, MemorySensitivity.Regulated, StringComparison.Ordinal))
         {
             reason = "The proposal contains sensitive content and needs human review before durable storage.";
             return true;

@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Infrastructure.Access;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -75,7 +76,7 @@ public sealed class PostgresMemoryFactFindingStore(NpgsqlDataSource dataSource) 
                 reader.GetString(1),
                 reader.GetGuid(2),
                 reader.GetGuid(3),
-                reader.GetString(4),
+                PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(4), "relatedStatus"),
                 reader.GetGuid(5)));
         }
 
@@ -105,22 +106,28 @@ public sealed class PostgresMemoryFactFindingStore(NpgsqlDataSource dataSource) 
 
     private static MemoryFactFindingRecord ReadFact(NpgsqlDataReader reader)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(3), reader.GetString(4));
+        var sourceEvidence = PostgresDomainMapping.RequireSourceEvidence(
+            reader.GetGuid(14),
+            reader.GetString(10),
+            reader.GetString(11));
+
         return new MemoryFactFindingRecord(
             reader.GetGuid(0),
             reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
-            reader.GetString(4),
-            reader.GetString(5),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(2)),
+            scope.ScopeType,
+            scope.ScopeId,
+            PostgresDomainMapping.RequireNamespace(reader.GetString(5)),
             reader.GetString(6),
             reader.GetString(7),
             reader.GetString(8),
             reader.GetDecimal(9),
-            reader.GetString(10),
-            reader.GetString(11),
-            reader.GetString(12),
+            sourceEvidence.TrustLevel.Value,
+            sourceEvidence.Sensitivity.Value,
+            PostgresDomainMapping.RequireRetentionClass(reader.GetString(12)),
             reader.GetString(13),
-            reader.GetGuid(14));
+            sourceEvidence.SourceEventId);
     }
 
     private static void AddQueryParameters(NpgsqlCommand command, MemoryFactFindingQuery query)
@@ -131,14 +138,18 @@ public sealed class PostgresMemoryFactFindingStore(NpgsqlDataSource dataSource) 
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("query", query.Query.Trim());
+        var targetScope = string.IsNullOrWhiteSpace(query.TargetScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.TargetScopeType, query.TargetScopeId);
         command.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeType) ? DBNull.Value : query.TargetScopeType;
+            targetScope is null ? DBNull.Value : targetScope.ScopeType;
         command.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TargetScopeId) ? DBNull.Value : query.TargetScopeId;
+            targetScope is null ? DBNull.Value : targetScope.ScopeId;
         command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : query.RoleId;
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : PostgresDomainMapping.RequireRoleId(query.RoleId);
         command.Parameters.Add("has_namespaces", NpgsqlDbType.Boolean).Value = namespaces.Length > 0;
-        command.Parameters.Add("namespaces", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = namespaces;
+        command.Parameters.Add("namespaces", NpgsqlDbType.Array | NpgsqlDbType.Text).Value =
+            namespaces.Select(namespaceValue => PostgresDomainMapping.RequireNamespace(namespaceValue)).ToArray();
         command.Parameters.Add("has_memory_types", NpgsqlDbType.Boolean).Value = memoryTypes.Length > 0;
         command.Parameters.Add("memory_types", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = memoryTypes;
         command.Parameters.AddWithValue("limit", query.Limit);

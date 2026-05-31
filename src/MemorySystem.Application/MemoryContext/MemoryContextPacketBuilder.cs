@@ -72,7 +72,7 @@ public sealed class MemoryContextPacketBuilder(
               items
                   .Select(item => item.SourceEventId)
                   .Distinct()
-                  .Select(sourceEventId => new MemoryContextSourceEvent(sourceEventId, sourceEventLinks.Build(sourceEventId)))
+                  .Select(sourceEventId => MemoryContextSourceEvent.FromDomain(sourceEventLinks.BuildEvidenceLink(sourceEventId)))
                 .ToArray());
     }
 
@@ -102,7 +102,8 @@ public sealed class MemoryContextPacketBuilder(
         string? roleId)
     {
         var kind = ResolveKind(result);
-        var sourceLink = sourceEventLinks.Build(result.SourceEventId);
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(result.SourceEventId);
+        var sourceLink = sourceEvidenceLink.Link;
 
         return new MemoryContextPacketItem(
             kind,
@@ -117,7 +118,7 @@ public sealed class MemoryContextPacketBuilder(
             Compact(result.Content),
             result.Rank,
             result.TrustLevel,
-            result.SourceEventId,
+            sourceEvidenceLink.SourceEventId,
             sourceLink,
             new MemoryContextExplanation(
                 result.Rank,
@@ -135,9 +136,9 @@ public sealed class MemoryContextPacketBuilder(
                     EvidenceCurrent: true,
                     RedactionStatus: "none"),
                 new MemoryContextSourceEvidence(
-                    [result.SourceEventId],
-                    string.IsNullOrWhiteSpace(sourceLink) ? [] : [sourceLink],
-                    !string.IsNullOrWhiteSpace(sourceLink)),
+                    [sourceEvidenceLink.SourceEventId],
+                    [sourceEvidenceLink.Link],
+                    true),
                 ReviewSuggestedActionsFor()));
     }
 

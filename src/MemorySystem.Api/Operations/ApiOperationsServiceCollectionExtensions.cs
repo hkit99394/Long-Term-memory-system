@@ -11,6 +11,8 @@ public static class ApiOperationsServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.AddSingleton(WorkerHeartbeatHealthOptions.Read(configuration));
+        services.AddSingleton<IContextProductHealthMetricStore, ContextProductHealthMetricStore>();
+        services.AddSingleton<IContextProductBenchmarkMetricReader, ContextProductBenchmarkMetricReader>();
         services.AddSingleton<IOperationalSummaryStore, PostgresOperationalSummaryStore>();
         services.AddSingleton<ApiRequestMetricsStore>();
 

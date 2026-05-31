@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+. "$ROOT_DIR/scripts/restore-validation-tables.sh"
+
 POSTGRES_DB="${MEMORYSYSTEM_POSTGRES_DB:-memory_system}"
 POSTGRES_USER="${MEMORYSYSTEM_POSTGRES_USER:-memory_system}"
 POSTGRES_PASSWORD="${MEMORYSYSTEM_POSTGRES_PASSWORD:-memory_system_dev_password}"
@@ -78,26 +80,9 @@ dotnet run --project src/MemorySystem.Migrator --configuration Release -- \
   --migrations-directory migrations >/dev/null
 
 echo "Comparing source and restored table counts..."
-tables=(
-  schema_migrations
-  principals
-  organizations
-  projects
-  events
-  memory_facts
-  role_memory_lenses
-  memory_chunks
-  memory_embeddings
-  memory_retrieval_feedback
-  memory_redactions
-  api_idempotency_keys
-  outbox_jobs
-  memory_reviews
-  vault_exports
-  worker_heartbeats
-)
+load_restore_validation_tables
 
-for table_name in "${tables[@]}"; do
+for table_name in "${RESTORE_VALIDATION_TABLES[@]}"; do
   source_count="$(count_rows "$POSTGRES_DB" "$table_name")"
   restored_count="$(count_rows "$RESTORE_DB" "$table_name")"
 

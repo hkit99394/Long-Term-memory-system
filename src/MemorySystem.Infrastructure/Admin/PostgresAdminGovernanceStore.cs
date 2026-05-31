@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using MemorySystem.Application.Access;
 using MemorySystem.Application.Admin;
+using MemorySystem.Application.Retention;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -158,6 +160,10 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
 
         while (await reader.ReadAsync(cancellationToken))
         {
+            var scope = reader.IsDBNull(6)
+                ? null
+                : PostgresDomainMapping.RequireScope(reader.GetString(6), reader.IsDBNull(7) ? null : reader.GetString(7));
+
             records.Add(new AdminLegalHoldRecord(
                 reader.GetGuid(0),
                 reader.GetString(1),
@@ -165,11 +171,11 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 reader.GetGuid(4),
                 reader.IsDBNull(5) ? null : reader.GetGuid(5),
-                reader.IsDBNull(6) ? null : reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7),
+                scope?.ScopeType,
+                scope?.ScopeId,
                 reader.IsDBNull(8) ? null : reader.GetString(8),
-                reader.IsDBNull(9) ? null : reader.GetString(9),
-                reader.IsDBNull(10) ? null : reader.GetString(10),
+                reader.IsDBNull(9) ? null : PostgresDomainMapping.RequireRetentionClass(reader.GetString(9)),
+                reader.IsDBNull(10) ? null : PostgresDomainMapping.RequireSensitivity(reader.GetString(10)),
                 reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
                 reader.IsDBNull(12) ? null : reader.GetFieldValue<DateTimeOffset>(12),
                 reader.GetFieldValue<DateTimeOffset>(13),
@@ -358,13 +364,16 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(RetentionReportSql, connection);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.Add("namespace_prefix", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.NamespacePrefix) ? DBNull.Value : query.NamespacePrefix;
         AddAdminAuthorizationParameters(command);
@@ -375,9 +384,9 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
         while (await reader.ReadAsync(cancellationToken))
         {
             records.Add(new AdminRetentionReportRecord(
-                reader.GetString(0),
-                reader.GetString(1),
-                reader.GetString(2),
+                PostgresDomainMapping.RequireNamespace(reader.GetString(0)),
+                PostgresDomainMapping.RequireRetentionClass(reader.GetString(1)),
+                PostgresDomainMapping.RequireSensitivity(reader.GetString(2)),
                 reader.GetString(3),
                 reader.GetInt32(4),
                 reader.GetInt32(5),
@@ -467,7 +476,7 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
         {
             candidates.Add(new LegalHoldCandidate(
                 reader.GetGuid(0),
-                reader.GetString(1),
+                PostgresDomainMapping.RequireRetentionClass(reader.GetString(1), "originalRetentionClass"),
                 reader.GetBoolean(2)));
         }
 
@@ -1016,16 +1025,19 @@ public sealed class PostgresAdminGovernanceStore(NpgsqlDataSource dataSource) : 
 
     private static void AddSelectionMetadataParameters(NpgsqlCommand command, AdminGovernanceEventSelector selector)
     {
+        var scope = string.IsNullOrWhiteSpace(selector.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(selector.ScopeType, selector.ScopeId);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(selector.ScopeType) ? DBNull.Value : selector.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(selector.ScopeId) ? DBNull.Value : selector.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.Add("namespace_prefix", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(selector.NamespacePrefix) ? DBNull.Value : selector.NamespacePrefix;
         command.Parameters.Add("retention_class", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(selector.RetentionClass) ? DBNull.Value : selector.RetentionClass;
+            string.IsNullOrWhiteSpace(selector.RetentionClass) ? DBNull.Value : PostgresDomainMapping.RequireRetentionClass(selector.RetentionClass);
         command.Parameters.Add("sensitivity", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(selector.Sensitivity) ? DBNull.Value : selector.Sensitivity;
+            string.IsNullOrWhiteSpace(selector.Sensitivity) ? DBNull.Value : PostgresDomainMapping.RequireSensitivity(selector.Sensitivity);
         command.Parameters.Add("created_from", NpgsqlDbType.TimestampTz).Value =
             selector.CreatedFrom.HasValue ? selector.CreatedFrom.Value : DBNull.Value;
         command.Parameters.Add("created_to", NpgsqlDbType.TimestampTz).Value =

@@ -10,16 +10,19 @@ internal static class MemorySystemApiTestFactory
         string postgresConnectionString,
         string apiKey,
         string principalId,
-        string displayName = "Test API caller")
+        string displayName = "Test API caller",
+        string? contextProductBenchmarkLatestResultPath = null)
     {
         return Create(
             postgresConnectionString,
-            [new ApiKeyConfiguration("test-key", apiKey, principalId, displayName)]);
+            [new ApiKeyConfiguration("test-key", apiKey, principalId, displayName)],
+            contextProductBenchmarkLatestResultPath);
     }
 
     public static WebApplicationFactory<Program> Create(
         string postgresConnectionString,
-        IReadOnlyList<ApiKeyConfiguration> apiKeys)
+        IReadOnlyList<ApiKeyConfiguration> apiKeys,
+        string? contextProductBenchmarkLatestResultPath = null)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -29,7 +32,12 @@ internal static class MemorySystemApiTestFactory
                 {
                     var configuration = new Dictionary<string, string?>
                     {
-                        ["ConnectionStrings:Postgres"] = postgresConnectionString
+                        ["ConnectionStrings:Postgres"] = postgresConnectionString,
+                        ["MemorySystem:ContextProductBenchmark:LatestResultPath"] =
+                            contextProductBenchmarkLatestResultPath
+                            ?? Path.Combine(
+                                Path.GetTempPath(),
+                                $"memorysystem-context-product-benchmark-{Guid.NewGuid():N}.json")
                     };
 
                     foreach (var apiKey in apiKeys)

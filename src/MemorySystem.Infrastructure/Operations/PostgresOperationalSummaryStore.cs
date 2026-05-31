@@ -8,7 +8,9 @@ namespace MemorySystem.Infrastructure.Operations;
 
 public sealed class PostgresOperationalSummaryStore(
     NpgsqlDataSource dataSource,
-    WorkerHeartbeatHealthOptions workerOptions) : IOperationalSummaryStore
+    WorkerHeartbeatHealthOptions workerOptions,
+    IContextProductHealthMetricStore contextProductMetrics,
+    IContextProductBenchmarkMetricReader contextProductBenchmarks) : IOperationalSummaryStore
 {
     private const int CommandTimeoutSeconds = 3;
     private static readonly TimeSpan RetrievalFeedbackWindow = TimeSpan.FromHours(24);
@@ -144,6 +146,10 @@ public sealed class PostgresOperationalSummaryStore(
             retrievalFeedbackWindowStartedAt,
             generatedAt,
             cancellationToken);
+        var contextProduct = new OperationalContextProductSummary(
+            contextProductMetrics.ReadRuntimeSummary(),
+            ToContextProductFeedbackSummary(retrievalFeedback),
+            contextProductBenchmarks.Read());
         var status = DetermineStatus(worker, outbox, reviews, vaultExports);
 
         return new OperationalSummary(
@@ -155,6 +161,7 @@ public sealed class PostgresOperationalSummaryStore(
             reviews,
             vaultExports,
             retrievalFeedback,
+            contextProduct,
             embeddingFailures);
     }
 
@@ -270,6 +277,23 @@ public sealed class PostgresOperationalSummaryStore(
             windowHours,
             total,
             byType);
+    }
+
+    private static OperationalContextProductFeedbackSummary ToContextProductFeedbackSummary(
+        OperationalRetrievalFeedbackSummary retrievalFeedback)
+    {
+        return new OperationalContextProductFeedbackSummary(
+            retrievalFeedback.WindowStartedAt,
+            retrievalFeedback.WindowEndedAt,
+            retrievalFeedback.WindowHours,
+            retrievalFeedback.Total,
+            retrievalFeedback.ByType
+                .Select(feedback => new OperationalContextProductFeedbackActionSummary(
+                    feedback.FeedbackType,
+                    feedback.Count,
+                    feedback.Share,
+                    feedback.PerHour))
+                .ToArray());
     }
 
     private static string DetermineStatus(

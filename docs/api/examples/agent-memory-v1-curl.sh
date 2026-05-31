@@ -35,8 +35,72 @@ import sys
 packet = json.load(sys.stdin)
 for group in ["userPreferences", "projectMemory", "roleMemory", "relevantDecisions"]:
     for item in packet.get(group, []):
-        print(packet["packetId"], item["itemId"])
-        sys.exit(0)
+        if item.get("itemId") and item.get("sourceType") and item.get("sourceId"):
+            print(packet["packetId"], item["itemId"], item["sourceType"], item["sourceId"])
+            sys.exit(0)
+
+sys.exit(1)
+'
+}
+
+context_product_summary() {
+  python3 -c '
+import json
+import sys
+
+packet = json.load(sys.stdin)
+items = [
+    item
+    for group in ["userPreferences", "projectMemory", "roleMemory", "relevantDecisions"]
+    for item in packet.get(group, [])
+]
+
+print(f"Included context items: {len(items)}")
+for item in items[:5]:
+    explanation = item.get("explanation") or {}
+    source_evidence = explanation.get("sourceEvidence") or {}
+    kind = item.get("kind")
+    source_type = item.get("sourceType")
+    source_id = item.get("sourceId")
+    item_id = item.get("itemId")
+    primary_reason = explanation.get("primaryReason")
+    matched = ", ".join(explanation.get("matchedSignals") or [])
+    actions = ", ".join(explanation.get("reviewSuggestedActions") or [])
+    source_linked = source_evidence.get("sourceLinked")
+    print(
+        f"- {kind}: {source_type}/{source_id} "
+        f"itemId={item_id} reason={primary_reason} "
+        f"signals=[{matched}] sourceLinked={source_linked} actions=[{actions}]"
+    )
+
+exclusions = packet.get("excluded") or []
+print(f"Safe exclusion summaries: {len(exclusions)}")
+for exclusion in exclusions:
+    reason = exclusion.get("reason")
+    disclosure = exclusion.get("countDisclosure")
+    count = exclusion.get("count")
+    count_text = "withheld" if count is None else str(count)
+    actions = ", ".join(exclusion.get("reviewActions") or [])
+    print(
+        f"- {reason}: count={count_text} "
+        f"disclosure={disclosure} actions=[{actions}]"
+    )
+
+if packet.get("query"):
+    print("Caller note: do not persist packet.query in client logs; use packetId for feedback when possible.")
+'
+}
+
+packet_id() {
+  python3 -c '
+import json
+import sys
+
+packet = json.load(sys.stdin)
+packet_id = packet.get("packetId")
+if packet_id:
+    print(packet_id)
+    sys.exit(0)
 
 sys.exit(1)
 '
@@ -172,6 +236,10 @@ context_response="$(curl --fail-with-body -sS --get "${BASE_URL}/api/memory/cont
   --data-urlencode "limit=12")"
 printf '%s\n' "${context_response}" | pretty_json
 
+echo
+echo "7a. Inspect explanation, safe exclusion, and reviewer-action signals"
+printf '%s\n' "${context_response}" | context_product_summary
+
 query_facts_body="$(cat <<JSON
 {
   "query": "What migration strategy is accepted for Project A?",
@@ -196,7 +264,7 @@ post_json "/api/memory/query-facts" "${query_facts_body}" | pretty_json
 item_pair="$(printf '%s' "${context_response}" | first_context_item || true)"
 
 if [[ -n "${item_pair}" ]]; then
-  read -r feedback_packet_id feedback_item_id <<< "${item_pair}"
+  read -r feedback_packet_id feedback_item_id feedback_source_type feedback_source_id <<< "${item_pair}"
   feedback_body="$(cat <<JSON
 {
   "packetId": "${feedback_packet_id}",
@@ -204,12 +272,27 @@ if [[ -n "${item_pair}" ]]; then
   "targetScopeType": "project",
   "targetScopeId": "${PROJECT_A_ID}",
   "roleId": "cto",
+  "sourceType": "${feedback_source_type}",
+  "sourceId": "${feedback_source_id}",
   "feedbackType": "useful"
 }
 JSON
 )"
 else
-  feedback_body="$(cat <<JSON
+  feedback_packet_id="$(printf '%s' "${context_response}" | packet_id || true)"
+  if [[ -n "${feedback_packet_id}" ]]; then
+    feedback_body="$(cat <<JSON
+{
+  "packetId": "${feedback_packet_id}",
+  "targetScopeType": "project",
+  "targetScopeId": "${PROJECT_A_ID}",
+  "roleId": "cto",
+  "feedbackType": "missing"
+}
+JSON
+)"
+  else
+    feedback_body="$(cat <<JSON
 {
   "query": "${context_query}",
   "targetScopeType": "project",
@@ -219,6 +302,7 @@ else
 }
 JSON
 )"
+  fi
 fi
 
 echo

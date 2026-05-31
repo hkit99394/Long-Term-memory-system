@@ -267,6 +267,7 @@ Start with these documents:
 - [Agent-facing memory contract](docs/agent-facing-memory-contract.md)
 - [Agent Memory OpenAPI v1](docs/api/agent-memory-v1.openapi.json)
 - [Agent Memory v1 client examples](docs/api/agent-memory-v1-examples.md)
+- [Context Product v1 caller guide](docs/api/context-product-v1-caller-guide.md)
 - [Policy targeting for agent callers](docs/api/policy-targeting-for-agent-callers.md)
 - [API `memory.queryFacts` implementation plan](docs/api/memory-query-facts-implementation-plan.md)
 - [Roadmap](docs/roadmap.md)

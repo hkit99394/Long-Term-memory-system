@@ -12,7 +12,7 @@ The system stores durable AI memory in a way that is auditable, permission-aware
 | --- | --- | --- |
 | ASP.NET Core Memory API | HTTP endpoints, authentication, authorization boundaries, OpenAPI, ProblemDetails, health checks. | Put business rules directly in route handlers. |
 | Application layer | Memory Broker orchestration, Context Builder orchestration, scope resolution, permission decisions, lifecycle workflows. | Depend on ASP.NET Core or PostgreSQL-specific implementation details. |
-| Domain layer | Target home for stable entities, value objects, status rules, scope concepts, role and trust concepts. Current extraction is tracked by `LR-04`. | Reach into database, HTTP, filesystem, or embedding providers. |
+| Domain layer | Target home for stable entities, value objects, status rules, scope concepts, role and trust concepts. Current extraction is tracked by [Domain Model Extraction LR-04](domain-model-extraction-lr04.md). | Reach into database, HTTP, filesystem, or embedding providers. |
 | Infrastructure layer | Npgsql data access, SQL migrations, pgvector queries, full-text search, embedding adapters, vault adapters. | Decide memory policy or bypass application authorization. |
 | Worker | Outbox processing for embedding, indexing, summaries, review notifications, expiry, redaction, and vault export. | Create durable memory outside the broker workflow. |
 | TypeScript tools | Review dashboard, local admin workflows, vault sync tooling. | Become the source of truth for memory. |

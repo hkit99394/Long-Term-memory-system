@@ -149,7 +149,9 @@ Rules:
 
 Current status: the project is intentionally thin today. Most durable concepts
 still live in Application and Infrastructure while the production-pilot surface
-stabilizes. Long Run item `LR-04` tracks staged extraction into this project.
+stabilizes. [Domain Model Extraction LR-04](domain-model-extraction-lr04.md)
+tracks the staged extraction into this project with compatibility tests and no
+schema or endpoint churn.
 
 ### `src/MemorySystem.Infrastructure`
 
@@ -245,6 +247,20 @@ Prometheus-compatible alert rules, a Grafana-compatible dashboard, trace
 coverage, and metric input manifests. Use `scripts/observability-artifacts-smoke.sh`
 after changing these files.
 
+## Production Platform
+
+[Production Platform Integration LR-05](production-platform-integration-lr05.md)
+defines the future boundary for infrastructure-as-code, managed PostgreSQL,
+backup exporter evidence, runtime OpenTelemetry exporters, alert routing, and
+environment-specific release checklists.
+
+[Production Platform Baseline PI-01](production-platform-baseline-pi01.md)
+selects AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, and
+Terraform for the first pilot baseline. When `PI-02` starts, platform-specific
+code should live under `infra/terraform`. That folder should own deployment
+resources and environment overlays, while SQL schema history remains in
+`migrations/` and application behavior remains in `src/`.
+
 ## Benchmarks
 
 `benchmarks/` contains benchmark suites, scorecard templates, summarizers, and
@@ -314,6 +330,8 @@ Rules:
 | `docs/roadmap.md` | Milestone roadmap. |
 | `docs/backlog.md` | Milestone backlog and acceptance criteria. |
 | `docs/folder-structure.md` | Repository layout and ownership guide. |
+| `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
+| `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |
 

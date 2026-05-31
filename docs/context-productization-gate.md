@@ -186,9 +186,9 @@ Benchmark-visible success criteria:
 | CP-05 | P0 | Done | Expand context feedback actions. | Feedback now supports useful, stale, wrong, sensitive, over_broad, and missing actions while preserving the legacy noisy path; validation requires source ids for item-level actions and stores only payload-safe metadata. |
 | CP-06 | P0 | Done | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations through `GET /api/reviews/context-observations`, open pending reviews from stale/wrong/sensitive observations through `POST /api/reviews/context-observations/{id}/review`, and see source-linked evidence without raw query storage. |
 | CP-07 | P0 | Done | Feed reviewer actions into ranking signals. | Hybrid ranking now consumes bounded useful, stale, wrong, sensitive, over-broad, legacy noisy, and packet-level missing feedback as a `feedbackAdjustment` rank component scoped by target scope, role, source id, and the candidate namespace; feedback can down-rank or boost retrieval but cannot rewrite facts without review or broker decisions. |
-| CP-08 | P0 | Todo | Add context-product benchmark checks. | Benchmark tasks assert inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after ranking behavior against the LR-03 baseline. |
-| CP-09 | P1 | Todo | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
-| CP-10 | P1 | Todo | Update caller docs and examples. | API docs and client examples show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |
+| CP-08 | P0 | Done | Add context-product benchmark checks. | [Context Product Benchmark v1](../benchmarks/context-product-v1/README.md) adds live API smoke tasks for inclusion explanations, safe exclusions, reviewer-action hygiene, source-link coverage, stale-memory avoidance, and before/after feedback ranking behavior against the LR-03 baseline. |
+| CP-09 | P1 | Done | Add context product health dashboard metrics. | Operations metrics expose explanation coverage, exclusion counts by safe reason, feedback action shares, review-open counts, ranking-signal application counts, and benchmark deltas. |
+| CP-10 | P1 | Done | Update caller docs and examples. | [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) and the v1 curl workflow show how agents should read explanations, handle safe exclusions, submit reviewer actions, and avoid storing raw query text. |
 
 ## Migration Plan
 
@@ -234,6 +234,27 @@ CP-07 adds bounded feedback ranking signals to authorized hybrid retrieval:
   visible in hybrid search and context-packet explanations.
 - Ranking changes are read-time only. Feedback never mutates `memory_facts`,
   `role_memory_lenses`, chunks, source events, or review records.
+
+## CP-08 Benchmark Smoke
+
+CP-08 adds a dedicated benchmark suite under
+`benchmarks/context-product-v1`:
+
+- `context-product-cp08-001` checks explainable context items, source-link
+  coverage, review actions, feedback rank components, and withheld safe
+  exclusions.
+- `context-product-cp08-002` checks that the benchmark overlay does not revive
+  superseded or redacted memory as active context.
+- `context-product-cp08-003` records packet-level `missing` feedback for a
+  run-unique query and verifies the after packet shows a bounded negative
+  `feedbackAdjustment` without echoing raw query text.
+
+The wrapper command is:
+
+```bash
+./scripts/context-product-benchmark-smoke.sh \
+  --output benchmarks/outputs/context-product-v1/latest-smoke.run.json
+```
 
 ## Risks
 

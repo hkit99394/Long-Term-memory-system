@@ -1,5 +1,7 @@
 using MemorySystem.Application.Admin;
+using MemorySystem.Application.Retention;
 using MemorySystem.Infrastructure.Access;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 using System.Text.Json;
@@ -75,12 +77,15 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("limit", query.Limit);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.Add("status", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.Status) ? DBNull.Value : query.Status;
+            string.IsNullOrWhiteSpace(query.Status) ? DBNull.Value : PostgresDomainMapping.RequireLifecycleStatus(query.Status);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.Add("memory_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.MemoryType) ? DBNull.Value : query.MemoryType;
         command.Parameters.Add("namespace_prefix", NpgsqlDbType.Text).Value =
@@ -95,18 +100,21 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
         command.Parameters.AddWithValue("principal_id", query.PrincipalId);
         command.Parameters.AddWithValue("principal_id_text", query.PrincipalId.ToString());
         command.Parameters.AddWithValue("limit", query.Limit);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.Add("event_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.EventType) ? DBNull.Value : query.EventType;
         command.Parameters.Add("retention_class", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.RetentionClass) ? DBNull.Value : query.RetentionClass;
+            string.IsNullOrWhiteSpace(query.RetentionClass) ? DBNull.Value : PostgresDomainMapping.RequireRetentionClass(query.RetentionClass);
         command.Parameters.Add("sensitivity", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.Sensitivity) ? DBNull.Value : query.Sensitivity;
+            string.IsNullOrWhiteSpace(query.Sensitivity) ? DBNull.Value : PostgresDomainMapping.RequireSensitivity(query.Sensitivity);
         command.Parameters.Add("trust_level", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.TrustLevel) ? DBNull.Value : query.TrustLevel;
+            string.IsNullOrWhiteSpace(query.TrustLevel) ? DBNull.Value : PostgresDomainMapping.RequireTrustLevel(query.TrustLevel);
         command.Parameters.Add("redaction_status", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.RedactionStatus) ? DBNull.Value : query.RedactionStatus;
         command.Parameters.Add("created_from", NpgsqlDbType.TimestampTz).Value =
@@ -120,15 +128,21 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
 
     private static AdminMemoryFactRecord ReadRecord(NpgsqlDataReader reader)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(1), reader.GetString(2));
+        var sourceEvidence = PostgresDomainMapping.RequireSourceEvidence(
+            reader.GetGuid(17),
+            reader.GetString(25),
+            reader.GetString(24));
+
         return new AdminMemoryFactRecord(
             reader.GetGuid(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
+            scope.ScopeType,
+            scope.ScopeId,
+            PostgresDomainMapping.RequireNamespace(reader.GetString(3)),
             reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetGuid(5),
             reader.IsDBNull(6) ? null : reader.GetGuid(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(7) ? null : reader.GetString(7)),
             reader.IsDBNull(8) ? null : reader.GetGuid(8),
             reader.GetString(9),
             reader.GetString(10),
@@ -136,48 +150,55 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
             reader.IsDBNull(12) ? null : reader.GetString(12),
             reader.IsDBNull(13) ? null : reader.GetString(13),
             reader.GetDecimal(14),
-            reader.GetString(15),
-            reader.GetString(16),
-            reader.GetGuid(17),
+            PostgresDomainMapping.RequireTrustLevel(reader.GetString(15)),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(16)),
+            sourceEvidence.SourceEventId,
             reader.IsDBNull(18) ? null : reader.GetGuid(18),
             reader.GetFieldValue<DateTimeOffset>(19),
             reader.GetFieldValue<DateTimeOffset>(20),
             reader.GetBoolean(21),
             reader.IsDBNull(22) ? null : reader.GetString(22),
             new AdminMemorySourcePolicyRecord(
-                reader.GetString(23),
-                reader.GetString(24),
-                reader.GetString(25),
+                PostgresDomainMapping.RequireRetentionClass(reader.GetString(23)),
+                sourceEvidence.Sensitivity.Value,
+                sourceEvidence.TrustLevel.Value,
                 reader.GetString(26),
                 SourcePayloadIncluded: false));
     }
 
     private static AdminSourceEventRecord ReadSourceEventRecord(NpgsqlDataReader reader)
     {
-        return new AdminSourceEventRecord(
+        var sourceEvidence = PostgresDomainMapping.RequireSourceEvidence(
             reader.GetGuid(0),
+            reader.GetString(13),
+            reader.GetString(9));
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(15), reader.GetString(16));
+        var retentionClass = PostgresDomainMapping.RequireRetentionClass(reader.GetString(8));
+
+        return new AdminSourceEventRecord(
+            sourceEvidence.SourceEventId,
             reader.IsDBNull(1) ? null : reader.GetGuid(1),
             reader.IsDBNull(2) ? null : reader.GetGuid(2),
             reader.IsDBNull(3) ? null : reader.GetGuid(3),
-            reader.IsDBNull(4) ? null : reader.GetString(4),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(4) ? null : reader.GetString(4)),
             reader.GetString(5),
             reader.IsDBNull(6) ? null : reader.GetString(6),
             reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.GetString(8),
-            reader.GetString(9),
+            retentionClass,
+            sourceEvidence.Sensitivity.Value,
             reader.GetString(10),
             reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
             reader.IsDBNull(12) ? null : reader.GetGuid(12),
-            reader.GetString(13),
+            sourceEvidence.TrustLevel.Value,
             reader.GetFieldValue<DateTimeOffset>(14),
-            reader.GetString(15),
-            reader.GetString(16),
+            scope.ScopeType,
+            scope.ScopeId,
             reader.IsDBNull(17) ? null : reader.GetGuid(17),
             reader.IsDBNull(18) ? null : reader.GetGuid(18),
             reader.IsDBNull(19) ? null : reader.GetGuid(19),
-            reader.IsDBNull(20) ? null : reader.GetString(20),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(20) ? null : reader.GetString(20)),
             false,
-            SourceEventContentVisibilityReason(reader.GetString(8), reader.GetString(10)),
+            SourceEventContentVisibilityReason(retentionClass, reader.GetString(10)),
             ReadSourceEventReferences(reader.GetString(21)));
     }
 
@@ -216,7 +237,7 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
 
     private static string SourceEventContentVisibilityReason(string retentionClass, string redactionStatus)
     {
-        if (string.Equals(retentionClass, "erasure_requested", StringComparison.Ordinal))
+        if (string.Equals(retentionClass, MemoryRetentionClasses.ErasureRequested, StringComparison.Ordinal))
         {
             return "source_payload_hidden_by_retention";
         }

@@ -1,0 +1,25 @@
+# Tables that backup/restore validation must count after restoring a database.
+# Keep this file in lockstep with migrations that create tables.
+schema_migrations
+principals
+organizations
+projects
+organization_memberships
+project_memberships
+role_assignments
+memory_access_grants
+events
+memory_facts
+role_memory_lenses
+memory_chunks
+memory_embeddings
+memory_reviews
+memory_redactions
+api_idempotency_keys
+outbox_jobs
+vault_exports
+worker_heartbeats
+memory_retrieval_feedback
+governance_legal_holds
+governance_legal_hold_events
+memory_context_packets

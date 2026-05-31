@@ -4,6 +4,7 @@ using MemorySystem.Application.MemoryContext;
 using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Infrastructure.MemoryChunks;
+using MemorySystem.Infrastructure.MemoryContext;
 using MemorySystem.Infrastructure.MemoryEvaluations;
 using MemorySystem.Application.RoleMemoryLenses;
 using MemorySystem.Infrastructure.MemoryFacts;
@@ -20,6 +21,7 @@ public static class ApiMemoryFactServiceCollectionExtensions
         services.AddSingleton<IMemoryChunkSemanticSearch, PostgresMemoryChunkSemanticSearch>();
         services.AddSingleton<IMemoryChunkHybridSearch, PostgresMemoryChunkHybridSearch>();
         services.AddSingleton<IContextPacketBuilder, MemoryContextPacketBuilder>();
+        services.AddSingleton<IMemoryContextPacketObservationStore, PostgresMemoryContextPacketObservationStore>();
         services.AddSingleton<IMemoryRetrievalFeedbackStore, PostgresMemoryRetrievalFeedbackStore>();
         services.AddSingleton<IMemoryRetrievalFeedbackSourceAuthorizer, PostgresMemoryRetrievalFeedbackSourceAuthorizer>();
         services.AddSingleton<IMemoryFactReadService, MemoryFactReadService>();

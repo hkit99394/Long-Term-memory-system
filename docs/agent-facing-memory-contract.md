@@ -111,9 +111,9 @@ The curated LMSS v1 OpenAPI contract is published at
 [api/agent-memory-v1.openapi.json](api/agent-memory-v1.openapi.json).
 
 The CP-01 productized context packet response contract is published at
-[api/context-packet-product-v1.md](api/context-packet-product-v1.md). Runtime
-context responses keep the current LMSS v1 shape until CP-02 and later slices
-start adding productized fields.
+[api/context-packet-product-v1.md](api/context-packet-product-v1.md). The CP-10
+caller guide is published at
+[api/context-product-v1-caller-guide.md](api/context-product-v1-caller-guide.md).
 
 ## Existing Capability Contracts
 
@@ -246,6 +246,11 @@ Contract rules:
 - Current, active memory should be preferred over stale, deleted, redacted, or
   superseded memory.
 - Agents should cite or preserve source ids when making project-specific claims.
+- Agents should read `explanation.primaryReason`, `matchedSignals`,
+  `sourceEvidence`, and `reviewSuggestedActions` as structured signals instead
+  of inferring policy from free-form content.
+- Agents should treat `excluded` as payload-safe omission metadata. Withheld
+  counts are policy boundaries, not hints to reconstruct hidden content.
 
 ### `memory.recordContextFeedback`
 
@@ -292,6 +297,8 @@ Contract rules:
   feedback must identify the retrieved source with `sourceType` and `sourceId`.
 - `missing` feedback is packet-level and must omit source and item identifiers
   because it points to absent memory.
+- `stale`, `wrong`, and `sensitive` observations can be handed to operators
+  through the context-observation review workflow without raw query text.
 
 ## Fact-Finding Contract
 

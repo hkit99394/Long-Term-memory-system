@@ -1,6 +1,7 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.RoleMemoryLenses;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 
@@ -73,9 +74,11 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             LIMIT @limit;
             """,
             connection);
-        command.Parameters.AddWithValue("role_id", query.RoleId);
+        var roleId = PostgresDomainMapping.RequireRoleId(query.RoleId);
+        var status = PostgresDomainMapping.RequireLifecycleStatus(query.Status);
+        command.Parameters.AddWithValue("role_id", roleId);
         RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
-        command.Parameters.AddWithValue("status", query.Status);
+        command.Parameters.AddWithValue("status", status);
         command.Parameters.AddWithValue("limit", query.Limit);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -130,6 +133,8 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         }
 
         var roleMemoryLensId = command.Id ?? Guid.NewGuid();
+        var roleId = PostgresDomainMapping.RequireRoleId(command.RoleId);
+        var status = PostgresDomainMapping.RequireLifecycleStatus(command.Status);
         var lensScope = RoleMemoryLensStorageRules.ResolveLensScope(command.Scope);
         var interpretation = command.Interpretation.Trim();
 
@@ -141,7 +146,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             transaction,
             lensScope,
             command.BaseMemoryFactId,
-            command.Status,
+            status,
             cancellationToken);
         var trustLevel = await ValidateSourceEventScopeAsync(
             connection,
@@ -185,21 +190,21 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             connection,
             transaction);
         insert.Parameters.AddWithValue("id", roleMemoryLensId);
-        insert.Parameters.AddWithValue("role_id", command.RoleId);
+        insert.Parameters.AddWithValue("role_id", roleId);
         RoleMemoryLensStorageRules.AddScopeParameters(insert, lensScope);
         RoleMemoryLensStorageRules.AddOwnerParameters(insert, lensScope);
         insert.Parameters.AddWithValue("base_memory_fact_id", command.BaseMemoryFactId);
         insert.Parameters.AddWithValue("interpretation", interpretation);
         insert.Parameters.AddWithValue("confidence", command.Confidence);
-        insert.Parameters.AddWithValue("status", command.Status);
+        insert.Parameters.AddWithValue("status", status);
         insert.Parameters.AddWithValue("source_event_id", command.SourceEventId);
         insert.Parameters.AddWithValue("proposed_by_principal_id", command.ProposedByPrincipalId);
 
         await insert.ExecuteNonQueryAsync(cancellationToken);
 
-        if (MemoryFactStatuses.IsNormalRetrievalStatus(command.Status))
+        if (MemoryFactStatuses.IsNormalRetrievalStatus(status))
         {
-            var chunkScope = RoleMemoryLensStorageRules.ResolveChunkScope(lensScope, command.RoleId);
+            var chunkScope = RoleMemoryLensStorageRules.ResolveChunkScope(lensScope, roleId);
             var chunkId = Guid.NewGuid();
             await MemoryIndexWriteOperations.InsertMemoryChunkAsync(
                 connection,
@@ -210,7 +215,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
                 chunkScope.Namespace,
                 chunkScope.ScopeType,
                 chunkScope.ScopeId,
-                command.RoleId,
+                roleId,
                 interpretation,
                 trustLevel,
                 command.SourceEventId,
@@ -253,17 +258,19 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
 
     private static RoleMemoryLensRecord ReadRoleMemoryLens(NpgsqlDataReader reader)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(2), reader.GetString(3));
+
         return new RoleMemoryLensRecord(
             reader.GetGuid(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
+            PostgresDomainMapping.RequireRoleId(reader.GetString(1)),
+            scope.ScopeType,
+            scope.ScopeId,
             reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetGuid(5),
             reader.GetGuid(6),
             reader.GetString(7),
             reader.GetDecimal(8),
-            reader.GetString(9),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(9)),
             reader.GetGuid(10),
             reader.GetGuid(11));
     }
@@ -295,10 +302,10 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         }
 
         var baseScope = new BaseMemoryFactScope(
-            reader.GetString(0),
+            PostgresDomainMapping.RequireScopeType(reader.GetString(0)),
             reader.IsDBNull(1) ? null : reader.GetGuid(1),
             reader.IsDBNull(2) ? null : reader.GetGuid(2),
-            reader.GetString(3));
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(3)));
 
         if (string.Equals(lensStatus, MemoryFactStatuses.Active, StringComparison.Ordinal)
             && !string.Equals(baseScope.Status, MemoryFactStatuses.Active, StringComparison.Ordinal))
@@ -341,9 +348,11 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         command.Parameters.AddWithValue("principal_id", proposedByPrincipalId);
         RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
 
-        return await command.ExecuteScalarAsync(cancellationToken) as string
+        var trustLevel = await command.ExecuteScalarAsync(cancellationToken) as string
             ?? throw new InvalidOperationException(
                 $"Source event {sourceEventId} does not exist for the role memory lens scope.");
+
+        return PostgresDomainMapping.RequireTrustLevel(trustLevel);
     }
 
     private sealed record BaseMemoryFactScope(

@@ -1,0 +1,155 @@
+{
+  "suiteId": "context-product-v1",
+  "scenario": "0001-user-preference-project-decision-cto-context",
+  "version": 1,
+  "contractVersion": "context-product-v1",
+  "baselineReport": "docs/benchmark-release-gate-lr03.md",
+  "principalId": "11111111-1111-4111-8111-111111111111",
+  "projectAId": "33333333-3333-4333-8333-333333333333",
+  "projectBId": "44444444-4444-4444-8444-444444444444",
+  "roleId": "cto",
+  "tasks": [
+    {
+      "id": "context-product-cp08-001",
+      "title": "Explain included context and safe exclusions",
+      "category": "context_explainability",
+      "objective": "Assert that context packets expose item explanations, source links, review actions, feedback rank components, and payload-safe exclusion summaries.",
+      "scenarioRequirements": [
+        "scenario_0001"
+      ],
+      "toolCalls": [
+        {
+          "toolName": "memory.getContext",
+          "purpose": "Retrieve Project A CTO context through the productized context packet surface.",
+          "http": {
+            "method": "GET",
+            "path": "/api/memory/context",
+            "query": {
+              "q": "Project A CTO guidance migration risk delivery sequencing security boundaries",
+              "scopeType": "project",
+              "scopeId": "33333333-3333-4333-8333-333333333333",
+              "roleId": "cto",
+              "limit": 12
+            }
+          },
+          "expectedResponseSignals": [
+            "context includes the Project A SQL-first Npgsql decision",
+            "included items expose explanation.primaryReason and bounded matchedSignals",
+            "rank components include feedbackAdjustment",
+            "memory-derived items have source links",
+            "excluded contains withheld not_authorized and sensitive summaries"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "context-product-cp08-002",
+      "title": "Avoid stale and redacted benchmark overlay memory",
+      "category": "stale_memory_avoidance",
+      "objective": "Assert that the benchmark overlay exposes inactive state as metadata without reviving superseded or redacted memory as current context.",
+      "scenarioRequirements": [
+        "scenario_0001",
+        "fact_finding_contradiction_overlay"
+      ],
+      "toolCalls": [
+        {
+          "toolName": "memory.queryFacts",
+          "purpose": "Find the current Project A migration decision and related inactive overlay facts.",
+          "http": {
+            "method": "POST",
+            "path": "/api/memory/query-facts",
+            "body": {
+              "query": "M1-M3 data access",
+              "targetScope": {
+                "scopeType": "project",
+                "scopeId": "33333333-3333-4333-8333-333333333333"
+              },
+              "roleId": "cto",
+              "memoryTypes": [
+                "decision"
+              ],
+              "includeContradictions": true,
+              "includeExcluded": true,
+              "limit": 8
+            }
+          },
+          "expectedResponseSignals": [
+            "facts include the active Project A SQL-first Npgsql decision",
+            "superseded overlay memory is contradiction or exclusion metadata only",
+            "redacted overlay content is not returned",
+            "inactive and redacted-or-deleted exclusion counters remain metadata"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "context-product-cp08-003",
+      "title": "Apply payload-safe missing feedback as a ranking signal",
+      "category": "feedback_ranking_loop",
+      "objective": "Assert before-and-after context ranking behavior for packet-level missing feedback without storing or echoing raw query text.",
+      "scenarioRequirements": [
+        "scenario_0001"
+      ],
+      "toolCalls": [
+        {
+          "toolName": "memory.getContext",
+          "purpose": "Capture the before-feedback context packet for a run-unique query.",
+          "http": {
+            "method": "GET",
+            "path": "/api/memory/context",
+            "query": {
+              "q": "{{feedbackQuery}}",
+              "scopeType": "project",
+              "scopeId": "33333333-3333-4333-8333-333333333333",
+              "roleId": "cto",
+              "limit": 12
+            }
+          },
+          "expectedResponseSignals": [
+            "Project A decision item is present before feedback",
+            "feedbackAdjustment is captured as the baseline rank component"
+          ]
+        },
+        {
+          "toolName": "memory.recordContextFeedback",
+          "purpose": "Record packet-level missing feedback using the query hash path.",
+          "http": {
+            "method": "POST",
+            "path": "/api/memory/context/feedback",
+            "body": {
+              "query": "{{feedbackQuery}}",
+              "targetScopeType": "project",
+              "targetScopeId": "33333333-3333-4333-8333-333333333333",
+              "roleId": "cto",
+              "feedbackType": "missing"
+            }
+          },
+          "expectedResponseSignals": [
+            "feedbackType is missing",
+            "queryHash starts with sha256:",
+            "raw query text is not returned"
+          ]
+        },
+        {
+          "toolName": "memory.getContext",
+          "purpose": "Capture the after-feedback context packet for the same query.",
+          "http": {
+            "method": "GET",
+            "path": "/api/memory/context",
+            "query": {
+              "q": "{{feedbackQuery}}",
+              "scopeType": "project",
+              "scopeId": "33333333-3333-4333-8333-333333333333",
+              "roleId": "cto",
+              "limit": 12
+            }
+          },
+          "expectedResponseSignals": [
+            "feedbackAdjustment is lower after missing feedback",
+            "rank changes remain bounded and payload-safe"
+          ]
+        }
+      ]
+    }
+  ]
+}

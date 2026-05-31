@@ -70,6 +70,10 @@ for (const metricName of externalMetrics) {
     alertRules.includes(metricName) || dashboardText.includes(metricName),
     `External metric '${metricName}' is not referenced by alert rules or dashboard.`
   );
+  assert(
+    alertRules.includes(`absent(${metricName})`),
+    `External metric '${metricName}' does not have missing-series alert coverage.`
+  );
 }
 
 const alertNames = [...alertRules.matchAll(/^\s*-\s*alert:\s*([A-Za-z0-9_]+)/gmu)]

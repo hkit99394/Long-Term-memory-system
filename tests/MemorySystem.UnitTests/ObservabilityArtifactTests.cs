@@ -39,6 +39,11 @@ public sealed class ObservabilityArtifactTests
             Assert.Contains(metric, dashboardJson, StringComparison.Ordinal);
         }
 
+        foreach (var metric in externalMetrics)
+        {
+            Assert.Contains($"absent({metric})", alertRules, StringComparison.Ordinal);
+        }
+
         foreach (var area in RequiredAreas)
         {
             Assert.Contains($"area: {area}", alertRules, StringComparison.Ordinal);

@@ -1,7 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using MemorySystem.Application.Access;
+using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Sensitivity;
+using MemorySystem.Domain.Trust;
 
 namespace MemorySystem.Application.Events;
 
@@ -20,15 +23,6 @@ public sealed class EventAppendWorkflow(
         "memory_deleted",
         "memory_redacted",
         "memory_reviewed"
-    };
-
-    private static readonly IReadOnlySet<string> RetentionClasses = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "ephemeral",
-        "standard",
-        "audit",
-        "legal_hold",
-        "erasure_requested"
     };
 
     public async Task<EventAppendWorkflowResult> AppendAsync(
@@ -104,9 +98,9 @@ public sealed class EventAppendWorkflow(
         }
 
         if (!TryNormalizeRequired(request.EventType, EventTypes, "eventType", out var eventType, out var error)
-            || !TryNormalizeOptional(request.TrustLevel, MemoryScopePolicy.TrustLevels, "trustLevel", "user_scoped", out var trustLevel, out error)
-            || !TryNormalizeOptional(request.RetentionClass, RetentionClasses, "retentionClass", "standard", out var retentionClass, out error)
-            || !TryNormalizeOptional(request.Sensitivity, MemoryScopePolicy.Sensitivities, "sensitivity", "none", out var sensitivity, out error))
+            || !TryNormalizeOptional(request.TrustLevel, MemoryScopePolicy.TrustLevels, "trustLevel", MemoryTrustLevel.UserScoped, out var trustLevel, out error)
+            || !TryNormalizeOptional(request.RetentionClass, MemoryRetentionClasses.All, "retentionClass", MemoryRetentionClasses.Standard, out var retentionClass, out error)
+            || !TryNormalizeOptional(request.Sensitivity, MemoryScopePolicy.Sensitivities, "sensitivity", MemorySensitivity.None, out var sensitivity, out error))
         {
             failure = EventAppendWorkflowResult.InvalidRequest(error!);
             return false;

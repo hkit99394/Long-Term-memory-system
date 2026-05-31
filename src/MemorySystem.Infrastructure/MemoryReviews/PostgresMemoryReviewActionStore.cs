@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryReviews;
+using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Idempotency;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
@@ -265,7 +266,7 @@ public sealed class PostgresMemoryReviewActionStore(
             connection,
             transaction);
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
-        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("status", PostgresDomainMapping.RequireLifecycleStatus(status));
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -287,7 +288,7 @@ public sealed class PostgresMemoryReviewActionStore(
             connection,
             transaction);
         command.Parameters.AddWithValue("memory_fact_id", memoryFactId);
-        command.Parameters.AddWithValue("status", MemoryFactStatuses.Superseded);
+        command.Parameters.AddWithValue("status", PostgresDomainMapping.RequireLifecycleStatus(MemoryFactStatuses.Superseded));
         command.Parameters.AddWithValue("superseded_by", supersededByMemoryFactId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -325,9 +326,9 @@ public sealed class PostgresMemoryReviewActionStore(
         command.Parameters.AddWithValue("predicate", predicate);
         command.Parameters.AddWithValue("object", objectValue);
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
-        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("trust_level", PostgresDomainMapping.RequireTrustLevel(trustLevel));
         command.Parameters.AddWithValue("proposed_by_principal_id", proposedByPrincipalId);
-        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("status", PostgresDomainMapping.RequireLifecycleStatus(status));
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -393,9 +394,10 @@ public sealed class PostgresMemoryReviewActionStore(
             connection,
             transaction);
         command.Parameters.AddWithValue("id", replacementMemoryFactId);
-        command.Parameters.AddWithValue("scope_type", original.ScopeType);
-        command.Parameters.AddWithValue("scope_id", original.ScopeId);
-        command.Parameters.AddWithValue("namespace", original.Namespace);
+        var scope = PostgresDomainMapping.RequireScope(original.ScopeType, original.ScopeId);
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
+        command.Parameters.AddWithValue("namespace", PostgresDomainMapping.RequireNamespace(original.Namespace));
         command.Parameters.Add("user_principal_id", NpgsqlDbType.Uuid).Value =
             original.UserPrincipalId.HasValue ? original.UserPrincipalId.Value : DBNull.Value;
         command.Parameters.Add("project_id", NpgsqlDbType.Uuid).Value =
@@ -403,7 +405,7 @@ public sealed class PostgresMemoryReviewActionStore(
         command.Parameters.Add("org_id", NpgsqlDbType.Uuid).Value =
             original.OrgId.HasValue ? original.OrgId.Value : DBNull.Value;
         command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(original.RoleId) ? DBNull.Value : original.RoleId;
+            string.IsNullOrWhiteSpace(original.RoleId) ? DBNull.Value : PostgresDomainMapping.RequireRoleId(original.RoleId);
         command.Parameters.Add("agent_principal_id", NpgsqlDbType.Uuid).Value =
             original.AgentPrincipalId.HasValue ? original.AgentPrincipalId.Value : DBNull.Value;
         command.Parameters.AddWithValue("memory_type", original.MemoryType);
@@ -412,8 +414,8 @@ public sealed class PostgresMemoryReviewActionStore(
         command.Parameters.AddWithValue("predicate", predicate);
         command.Parameters.AddWithValue("object", objectValue);
         command.Parameters.AddWithValue("confidence", original.Confidence);
-        command.Parameters.AddWithValue("trust_level", sourceEvent.TrustLevel);
-        command.Parameters.AddWithValue("status", MemoryFactStatuses.Active);
+        command.Parameters.AddWithValue("trust_level", PostgresDomainMapping.RequireTrustLevel(sourceEvent.TrustLevel));
+        command.Parameters.AddWithValue("status", PostgresDomainMapping.RequireLifecycleStatus(MemoryFactStatuses.Active));
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
         command.Parameters.AddWithValue("proposed_by_principal_id", sourceEvent.ProposedByPrincipalId);
 
@@ -605,6 +607,7 @@ public sealed class PostgresMemoryReviewActionStore(
             """
             SELECT
                 trust_level,
+                sensitivity,
                 COALESCE(
                     principal_id,
                     scope_principal_id,
@@ -620,7 +623,9 @@ public sealed class PostgresMemoryReviewActionStore(
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         return await reader.ReadAsync(cancellationToken)
-            ? new SourceEventEvidence(reader.GetString(0), reader.GetGuid(1))
+            ? new SourceEventEvidence(
+                PostgresDomainMapping.RequireSourceEvidence(sourceEventId, reader.GetString(0), reader.GetString(1)).TrustLevel.Value,
+                reader.GetGuid(2))
             : throw new InvalidOperationException($"Source event {sourceEventId} could not be read.");
     }
 

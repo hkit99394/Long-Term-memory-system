@@ -7,7 +7,8 @@ for the Long-Term Memory System.
 
 - `alert-inputs/api-metrics.txt`: metrics exported by
   `GET /api/operations/metrics` and required by the pilot dashboard or alert
-  rules.
+  rules, including context-product explanation, exclusion, feedback, review,
+  ranking, and benchmark-delta signals.
 - `alert-inputs/external-pilot-metrics.txt`: metrics expected from the hosting
   platform, PostgreSQL provider, backup/restore jobs, or release-gate runner.
 - `prometheus/memorysystem-pilot-alerts.yml`: Prometheus-compatible pilot alert

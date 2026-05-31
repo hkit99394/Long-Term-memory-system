@@ -26,8 +26,8 @@ The current service already exposes:
   exports, and recent retrieval feedback counts.
 - `/api/operations/metrics` for authenticated Prometheus-compatible pilot
   metrics covering API request health, readiness, outbox backlog, worker
-  heartbeat, retrieval feedback, review/vault counts, and embedding-index
-  failures.
+  heartbeat, retrieval feedback, context-product health, review/vault counts,
+  and embedding-index failures.
 - Structured operational logs for proposal, retrieval, review, and redaction
   decision points without logging raw proposal text, query text, review notes,
   memory body text, or raw event payloads.
@@ -112,6 +112,14 @@ Minimum retrieval metrics:
 - retrieval feedback count by type: `useful`, `stale`, `wrong`, `sensitive`,
   `over_broad`, `missing`, and legacy `noisy`
 - retrieval feedback share by type over the recent operator window
+- context-product explanation coverage for returned packet items
+- context-product exclusion summary counts by safe reason and disclosure mode
+- context-product feedback action shares over the recent operator window
+- context-product review-open counts by feedback type and created/existing
+  outcome
+- context-product ranking feedback-signal application counts
+- latest context-product benchmark deltas for before/after feedback adjustment
+  and rank
 - benchmark smoke result for the LMSS agent-contract suite
 
 Initial alert signals:
@@ -120,6 +128,9 @@ Initial alert signals:
 - source evidence read failures above zero for known-good source links
 - `missing`, `stale`, `wrong`, `sensitive`, `over_broad`, or legacy `noisy`
   retrieval feedback share materially above baseline
+- context-product explanation coverage drops below the release baseline after
+  active context traffic
+- context-product benchmark deltas are missing or regress after a release
 - agent-contract smoke fails in a release verification run
 
 ### Worker and Outbox
@@ -373,6 +384,9 @@ MR-11 adds the first executable observability artifact path:
 - Prometheus-compatible alert rules cover API, worker/outbox, retrieval,
   embedding, review, vault export, governance, PostgreSQL, backup/restore, and
   benchmark-gate signals.
+- External PostgreSQL, backup, restore-validation, and benchmark-gate metrics
+  also have missing-series alerts so absent platform exporters fail closed
+  instead of making recovery alerts silently disappear.
 - The dashboard references every API metric input and every external pilot
   metric input so missing platform integrations are visible during pilot setup.
 - Trace coverage is represented as a versioned manifest until runtime

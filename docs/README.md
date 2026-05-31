@@ -22,12 +22,16 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
 | [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
+| [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Scopes infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment release checklists. |
+| [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | Selects the first AWS/Terraform/container platform baseline, artifact contract, environment model, state/secrets rules, and owner model. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
 | [Context Productization Gate](context-productization-gate.md) | Scopes the LR-02 explainable context packet, safe exclusion, reviewer action, feedback loop, and benchmark-visible ranking plan. |
+| [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Inventories stable scope, namespace, trust, lifecycle, retention, sensitivity, source evidence, and feedback concepts and defines the compatibility-tested extraction sequence into `MemorySystem.Domain`. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
 | [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Shows curl-based client examples for the v1 memory workflow, including idempotent writes and retrieval feedback. |
+| [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) | Shows how agent callers read inclusion explanations, handle safe exclusions, submit feedback actions, hand off reviewable observations, and avoid raw query storage. |
 | [Context Packet Product v1 Contract](api/context-packet-product-v1.md) | Defines the CP-01 productized context packet response contract and JSON Schema. |
 | [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) | Documents principal resolution, target scope, namespace, role id, trust level, retention class, sensitivity, and source event rules for agent callers. |
 | [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) | Maps the fact-finding endpoint to Application, Infrastructure, API, authorization, contradiction handling, and tests. |
@@ -78,6 +82,9 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0041: Benchmark Release Gates](decisions/0041-benchmark-release-gates.md) | Records the MR-12 release gate that combines Memory Lift, Contract Lift, scoped-safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. |
 | [Decision 0042: Enterprise Access Gate](decisions/0042-enterprise-access-gate.md) | Records the LR-01 enterprise access scope and the decision to keep local memberships, role assignments, and namespace grants as the runtime authorization boundary. |
 | [Decision 0043: Context Productization Gate](decisions/0043-context-productization-gate.md) | Records the LR-02 context productization scope for inclusion explanations, safe exclusions, reviewer actions, and benchmark-visible ranking loops. |
+| [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Records the LR-04 planning-first extraction scope for moving stable IO-free concepts into `MemorySystem.Domain` without schema or endpoint churn. |
+| [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Records the LR-05 platform boundary for IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and release checklists. |
+| [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Records the PI-01 AWS ECS/RDS/ECR/Terraform baseline and immutable multi-role OCI image contract. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -97,6 +104,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
 | Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
+| Domain model extraction | The LR-04 track for moving stable, IO-free memory concepts into `MemorySystem.Domain` behind compatibility tests while preserving current API and database contracts. |
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Enterprise access gate | The LR-01 plan for OIDC or SSO, service accounts, access-management UI, audit export, and migration from API-key-only operation without weakening namespace grants. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
@@ -127,6 +135,8 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
 | Production deployment shape | The production-pilot runtime split between the migrator, API, worker, managed PostgreSQL, secret store, rollback procedure, and restore validation path. |
 | Production observability | The production-pilot signal contract, metrics export, alert rules, dashboard, trace coverage manifest, and operator first-response checks. |
+| Production platform integration | The LR-05 plan for connecting the service to IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and per-environment release gates. |
+| Production platform baseline | The PI-01 decision selecting AWS ECS Fargate, Amazon RDS PostgreSQL, Amazon ECR, Terraform, and immutable OCI image digests for the first pilot platform target. |
 | Admin console | The authenticated `/admin/` surface for inspecting authorized memory facts, source events, lifecycle state, source links, audit references, and safe policy metadata. |
 | Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
 | Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |

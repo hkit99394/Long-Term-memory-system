@@ -92,9 +92,10 @@ public static class EventEndpointExtensions
     private static EventResponse ToResponse(EventRecord eventRecord)
     {
         using var content = JsonDocument.Parse(eventRecord.ContentJson);
+        var sourceEvidence = eventRecord.ToSourceEvidenceReference();
 
         return new EventResponse(
-            eventRecord.Id,
+            sourceEvidence.SourceEventId,
             eventRecord.PrincipalId,
             eventRecord.ConversationId,
             eventRecord.AgentPrincipalId,
@@ -104,8 +105,8 @@ public static class EventEndpointExtensions
             eventRecord.ContentHash,
             eventRecord.ExternalPayloadUri,
             eventRecord.RetentionClass,
-            eventRecord.Sensitivity,
-            eventRecord.TrustLevel,
+            sourceEvidence.Sensitivity.Value,
+            sourceEvidence.TrustLevel.Value,
             eventRecord.CreatedAt,
             new EventScopeResponse(
                 eventRecord.Scope.ScopeType,

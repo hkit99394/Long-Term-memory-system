@@ -162,7 +162,7 @@
         "operationId": "memory_getContext",
         "x-agent-tool-name": "memory.getContext",
         "summary": "Build a scoped context packet",
-        "description": "Returns compact, source-linked context for an agent task. Authorization is applied before ranking and packet construction.",
+        "description": "Returns compact, source-linked context for an agent task. Authorization is applied before ranking and packet construction. Each returned item includes structured explanation fields, source evidence, and suggested review actions; the packet also includes payload-safe exclusion summaries.",
         "tags": [
           "Memory Retrieval"
         ],
@@ -211,7 +211,7 @@
         "operationId": "memory_recordContextFeedback",
         "x-agent-tool-name": "memory.recordContextFeedback",
         "summary": "Record retrieval feedback",
-        "description": "Records useful, stale, wrong, sensitive, over_broad, missing, or legacy noisy context-packet feedback. Callers may send either the original query or a packetId returned by memory.getContext; the API stores a hash instead of raw query text. Item-level feedback must include sourceType and sourceId. This endpoint is append-only and is not currently idempotent.",
+        "description": "Records useful, stale, wrong, sensitive, over_broad, missing, or legacy noisy context-packet feedback. Callers may send either the original query or a packetId returned by memory.getContext; the API stores a hash instead of raw query text. When query is omitted, packetId must identify a context packet previously returned to the caller so the server can reuse the packet query hash. Item-level feedback must include sourceType and sourceId. Packet-level missing feedback must omit item and source identifiers. This endpoint is append-only and is not currently idempotent.",
         "tags": [
           "Memory Evaluation"
         ],

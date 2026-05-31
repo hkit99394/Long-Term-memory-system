@@ -289,6 +289,18 @@ groups:
 
   - name: memorysystem-postgresql-and-recovery
     rules:
+      - alert: MemorySystemPostgresExporterMetricsMissing
+        expr: absent(memorysystem_postgres_up) or absent(memorysystem_postgres_storage_used_ratio) or absent(memorysystem_postgres_connections_used_ratio) or absent(memorysystem_postgres_long_running_queries)
+        for: 15m
+        labels:
+          severity: page
+          area: postgresql
+          signal: exporter_missing
+        annotations:
+          summary: Memory System PostgreSQL exporter metrics are missing.
+          description: Managed PostgreSQL platform metrics are absent, so database health alerts may not fire.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
       - alert: MemorySystemPostgresHealthCheckFailed
         expr: max(memorysystem_health_check_status{check="postgres",status!="healthy"}) == 1 or max(memorysystem_postgres_up) == 0
         for: 5m
@@ -337,6 +349,18 @@ groups:
           description: Long-running queries may affect API readiness or worker leases.
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
 
+      - alert: MemorySystemBackupExporterMetricsMissing
+        expr: absent(memorysystem_backup_age_seconds) or absent(memorysystem_restore_validation_success)
+        for: 15m
+        labels:
+          severity: page
+          area: backup
+          signal: exporter_missing
+        annotations:
+          summary: Memory System backup exporter metrics are missing.
+          description: Backup age or restore-validation metrics are absent, so recovery alerts may not fire.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
       - alert: MemorySystemBackupTooOld
         expr: max(memorysystem_backup_age_seconds) > 86400
         for: 15m
@@ -360,6 +384,18 @@ groups:
           summary: Memory System restore validation failed.
           description: Latest restore-validation job did not complete successfully.
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemBenchmarkGateMetricMissing
+        expr: absent(memorysystem_benchmark_agent_contract_success)
+        for: 15m
+        labels:
+          severity: page
+          area: retrieval
+          signal: benchmark_gate_missing
+        annotations:
+          summary: Memory System benchmark gate metric is missing.
+          description: The latest agent-contract benchmark success metric is absent, so release-gate alerts may not fire.
+          runbook_url: docs/production-observability.md#retrieval-quality-regression
 
       - alert: MemorySystemAgentContractBenchmarkFailed
         expr: max(memorysystem_benchmark_agent_contract_success) == 0

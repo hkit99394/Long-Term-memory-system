@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -63,17 +64,19 @@ internal static class MemoryIndexWriteOperations
             );
             """;
 
+        var scope = PostgresDomainMapping.RequireScope(scopeType, scopeId);
+
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("id", chunkId);
         command.Parameters.AddWithValue("source_type", sourceType);
         command.Parameters.AddWithValue("source_id", sourceId);
-        command.Parameters.AddWithValue("namespace", namespaceValue);
-        command.Parameters.AddWithValue("scope_type", scopeType);
-        command.Parameters.AddWithValue("scope_id", scopeId);
+        command.Parameters.AddWithValue("namespace", PostgresDomainMapping.RequireNamespace(namespaceValue));
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("content", content);
         command.Parameters.AddWithValue("content_hash", ComputeSha256(content));
-        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("trust_level", PostgresDomainMapping.RequireTrustLevel(trustLevel));
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -106,15 +109,17 @@ internal static class MemoryIndexWriteOperations
             WHERE id = @chunk_id;
             """;
 
+        var scope = PostgresDomainMapping.RequireScope(scopeType, scopeId);
+
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("chunk_id", chunkId);
-        command.Parameters.AddWithValue("namespace", namespaceValue);
-        command.Parameters.AddWithValue("scope_type", scopeType);
-        command.Parameters.AddWithValue("scope_id", scopeId);
+        command.Parameters.AddWithValue("namespace", PostgresDomainMapping.RequireNamespace(namespaceValue));
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("content", content);
         command.Parameters.AddWithValue("content_hash", ComputeSha256(content));
-        command.Parameters.AddWithValue("trust_level", trustLevel);
+        command.Parameters.AddWithValue("trust_level", PostgresDomainMapping.RequireTrustLevel(trustLevel));
         command.Parameters.AddWithValue("source_event_id", sourceEventId);
 
         var updatedRows = await command.ExecuteNonQueryAsync(cancellationToken);

@@ -126,6 +126,21 @@ lists.
 Set `MEMORYSYSTEM_OBSERVABILITY_VALIDATE_LIVE_METRICS=true` to also run the
 live operations metrics smoke against `MEMORYSYSTEM_API_BASE_URL`.
 
+## Context Product Benchmark Smoke
+
+Use this after changing context packets, safe exclusions, context feedback, or
+feedback-to-ranking behavior. It expects Scenario 0001 with benchmark overlays
+and a running local API:
+
+```bash
+./scripts/context-product-benchmark-smoke.sh \
+  --output benchmarks/outputs/context-product-v1/latest-smoke.run.json
+```
+
+When `--output` is omitted, the runner writes
+`benchmarks/outputs/context-product-v1/latest.json`, which is the default file
+read by `/api/operations/metrics` for context-product benchmark deltas.
+
 ## Benchmark Release Gate
 
 Use this before a production-pilot release after the LLM outcome scorecard,

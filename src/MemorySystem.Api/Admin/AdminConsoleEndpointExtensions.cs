@@ -2,7 +2,9 @@ using MemorySystem.Api.Http;
 using MemorySystem.Application.Admin;
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Evidence;
 using System.Globalization;
 
 namespace MemorySystem.Api.Admin;
@@ -22,15 +24,6 @@ public static class AdminConsoleEndpointExtensions
         "memory_deleted",
         "memory_redacted",
         "memory_reviewed"
-    };
-
-    private static readonly IReadOnlySet<string> RetentionClasses = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "ephemeral",
-        "standard",
-        "audit",
-        "legal_hold",
-        "erasure_requested"
     };
 
     private static readonly IReadOnlySet<string> RedactionStatuses = new HashSet<string>(StringComparer.Ordinal)
@@ -203,9 +196,9 @@ public static class AdminConsoleEndpointExtensions
         }
 
         var retentionClass = NormalizeAllQuery(context, "retentionClass");
-        if (!string.IsNullOrWhiteSpace(retentionClass) && !RetentionClasses.Contains(retentionClass))
+        if (!string.IsNullOrWhiteSpace(retentionClass) && !MemoryRetentionClasses.All.Contains(retentionClass))
         {
-            error = $"retentionClass must be one of: all, {string.Join(", ", RetentionClasses)}.";
+            error = $"retentionClass must be one of: all, {string.Join(", ", MemoryRetentionClasses.All)}.";
             return false;
         }
 
@@ -307,6 +300,12 @@ public static class AdminConsoleEndpointExtensions
         AdminMemoryFactRecord record,
         ISourceEventLinkBuilder sourceEventLinks)
     {
+        var sourceEvidence = SourceEvidenceReference.Create(
+            record.SourceEventId,
+            record.SourcePolicy.TrustLevel,
+            record.SourcePolicy.Sensitivity);
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(sourceEvidence.SourceEventId);
+
         return new AdminMemoryFactResponse(
             record.Id,
             record.ScopeType,
@@ -325,8 +324,8 @@ public static class AdminConsoleEndpointExtensions
             record.Confidence,
             record.TrustLevel,
             record.Status,
-            record.SourceEventId,
-            sourceEventLinks.Build(record.SourceEventId),
+            sourceEvidence.SourceEventId,
+            sourceEvidenceLink.Link,
             record.ProposedByPrincipalId,
             record.CreatedAt,
             record.UpdatedAt,
@@ -334,8 +333,8 @@ public static class AdminConsoleEndpointExtensions
                 record.ContentVisible,
                 record.ContentVisibilityReason,
                 record.SourcePolicy.RetentionClass,
-                record.SourcePolicy.Sensitivity,
-                record.SourcePolicy.TrustLevel,
+                sourceEvidence.Sensitivity.Value,
+                sourceEvidence.TrustLevel.Value,
                 record.SourcePolicy.RedactionStatus,
                 record.SourcePolicy.SourcePayloadIncluded));
     }
@@ -344,23 +343,32 @@ public static class AdminConsoleEndpointExtensions
         AdminSourceEventRecord record,
         ISourceEventLinkBuilder sourceEventLinks)
     {
-        return new AdminSourceEventResponse(
+        var sourceEvidence = SourceEvidenceReference.Create(
             record.Id,
+            record.TrustLevel,
+            record.Sensitivity);
+        var sourceEvidenceLink = sourceEventLinks.BuildEvidenceLink(sourceEvidence.SourceEventId);
+        var redactionEvidenceLink = record.RedactionEventId.HasValue
+            ? sourceEventLinks.BuildEvidenceLink(record.RedactionEventId.Value)
+            : null;
+
+        return new AdminSourceEventResponse(
+            sourceEvidence.SourceEventId,
             record.PrincipalId,
             record.ConversationId,
             record.AgentPrincipalId,
             record.RoleId,
             record.EventType,
-            sourceEventLinks.Build(record.Id),
+            sourceEvidenceLink.Link,
             record.ContentHash,
             record.ExternalPayloadUri,
             record.RetentionClass,
-            record.Sensitivity,
+            sourceEvidence.Sensitivity.Value,
             record.RedactionStatus,
             record.RedactedAt,
             record.RedactionEventId,
-            record.RedactionEventId.HasValue ? sourceEventLinks.Build(record.RedactionEventId.Value) : null,
-            record.TrustLevel,
+            redactionEvidenceLink?.Link,
+            sourceEvidence.TrustLevel.Value,
             record.CreatedAt,
             new AdminSourceEventScopeResponse(
                 record.ScopeType,

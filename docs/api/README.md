@@ -9,6 +9,7 @@ use of the memory system.
 | --- | --- |
 | [agent-memory-v1.openapi.json](agent-memory-v1.openapi.json) | LMSS v1 OpenAPI contract for the existing agent-facing memory workflow. |
 | [agent-memory-v1-examples.md](agent-memory-v1-examples.md) | Client examples for the v1 memory workflow. |
+| [context-product-v1-caller-guide.md](context-product-v1-caller-guide.md) | CP-10 caller guide for reading context explanations, safe exclusions, feedback actions, review handoff, and raw query hygiene. |
 | [context-packet-product-v1.md](context-packet-product-v1.md) | CP-01 productized context packet response contract. |
 | [context-packet-product-v1.schema.json](context-packet-product-v1.schema.json) | JSON Schema for the productized context packet response. |
 | [policy-targeting-for-agent-callers.md](policy-targeting-for-agent-callers.md) | Caller-facing policy guide for principal, scope, namespace, role, trust, retention, sensitivity, and source evidence fields. |
@@ -27,6 +28,10 @@ Run it from the repository root after starting the API:
 ```bash
 bash docs/api/examples/agent-memory-v1-curl.sh
 ```
+
+The workflow prints productized context signals and records item feedback using
+`packetId`, `itemId`, `sourceType`, and `sourceId` so clients do not need to
+resend raw query text.
 
 ## Authentication
 

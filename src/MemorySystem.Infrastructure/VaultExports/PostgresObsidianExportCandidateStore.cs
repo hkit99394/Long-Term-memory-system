@@ -1,5 +1,6 @@
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.VaultExports;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -66,10 +67,13 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             OFFSET @offset;
             """,
             connection);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.Add("scope_type", NpgsqlTypes.NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlTypes.NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("offset", query.Offset);
 
@@ -139,10 +143,13 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             OFFSET @offset;
             """,
             connection);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("offset", query.Offset);
 
@@ -211,10 +218,13 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             OFFSET @offset;
             """,
             connection);
+        var scope = string.IsNullOrWhiteSpace(query.ScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(query.ScopeType, query.ScopeId);
         command.Parameters.Add("scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeType) ? DBNull.Value : query.ScopeType;
+            scope is null ? DBNull.Value : scope.ScopeType;
         command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(query.ScopeId) ? DBNull.Value : query.ScopeId;
+            scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("offset", query.Offset);
 
@@ -395,15 +405,17 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
 
     private static MemoryFactRecord ReadMemoryFact(NpgsqlDataReader reader)
     {
+        var scope = PostgresDomainMapping.RequireScope(reader.GetString(1), reader.GetString(2));
+
         return new MemoryFactRecord(
             reader.GetGuid(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
+            scope.ScopeType,
+            scope.ScopeId,
+            PostgresDomainMapping.RequireNamespace(reader.GetString(3)),
             reader.IsDBNull(4) ? null : reader.GetGuid(4),
             reader.IsDBNull(5) ? null : reader.GetGuid(5),
             reader.IsDBNull(6) ? null : reader.GetGuid(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
+            PostgresDomainMapping.NormalizeOptionalRoleId(reader.IsDBNull(7) ? null : reader.GetString(7)),
             reader.IsDBNull(8) ? null : reader.GetGuid(8),
             reader.GetString(9),
             reader.GetString(10),
@@ -411,8 +423,8 @@ public sealed class PostgresObsidianExportCandidateStore(NpgsqlDataSource dataSo
             reader.GetString(12),
             reader.GetString(13),
             reader.GetDecimal(14),
-            reader.GetString(15),
-            reader.GetString(16),
+            PostgresDomainMapping.RequireTrustLevel(reader.GetString(15)),
+            PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(16)),
             reader.GetGuid(17),
             reader.IsDBNull(18) ? null : reader.GetGuid(18));
     }

@@ -3,6 +3,7 @@ using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryReviews;
+using MemorySystem.Application.Operations;
 
 namespace MemorySystem.Api.MemoryReviews;
 
@@ -40,6 +41,7 @@ public static class MemoryReviewEndpointExtensions
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
                 IMemoryContextFeedbackObservationStore observationStore,
+                IContextProductHealthMetricStore contextProductMetrics,
                 ISourceEventLinkBuilder sourceEventLinks,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
@@ -51,6 +53,7 @@ public static class MemoryReviewEndpointExtensions
                             id,
                             context,
                             observationStore,
+                            contextProductMetrics,
                             sourceEventLinks,
                             loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
                             idempotencyContext,
@@ -152,6 +155,7 @@ public static class MemoryReviewEndpointExtensions
         Guid feedbackId,
         HttpContext context,
         IMemoryContextFeedbackObservationStore observationStore,
+        IContextProductHealthMetricStore contextProductMetrics,
         ISourceEventLinkBuilder sourceEventLinks,
         ILogger logger,
         ApiIdempotencyExecutionContext idempotency,
@@ -189,6 +193,8 @@ public static class MemoryReviewEndpointExtensions
                 "Context feedback review request is invalid.",
                 result.Error!);
         }
+
+        contextProductMetrics.RecordContextReviewOpen(result.FeedbackType!, result.Created);
 
         logger.LogInformation(
             "Context feedback review opened. PrincipalId={PrincipalId} FeedbackId={FeedbackId} ReviewId={ReviewId} Created={Created} FeedbackReviewStatus={ReviewStatus}",

@@ -1,4 +1,5 @@
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -8,9 +9,11 @@ internal static class RoleMemoryLensStorageRules
 {
     public static RoleMemoryLensStorageScope ResolveLensScope(MemoryScopeResolution scope)
     {
-        return scope.ScopeType switch
+        var normalizedScope = PostgresDomainMapping.RequireScope(scope.ScopeType, scope.ScopeId);
+
+        return normalizedScope.ScopeType switch
         {
-            "global" when scope.ScopeId == "global" => new RoleMemoryLensStorageScope("global", "global"),
+            "global" when normalizedScope.ScopeId == "global" => new RoleMemoryLensStorageScope("global", "global"),
             "org" => new RoleMemoryLensStorageScope(
                 "org",
                 Require(scope.OrgId, "Organization role lens scope requires an organization id.").ToString(),
@@ -21,7 +24,7 @@ internal static class RoleMemoryLensStorageRules
                 OrgId: Require(scope.OrgId, "Project role lens scope requires an organization id."),
                 ProjectId: Require(scope.ProjectId, "Project role lens scope requires a project id.")),
             "global" => throw new InvalidOperationException("Global role lens scope requires scope id 'global'."),
-            _ => throw new InvalidOperationException($"Unsupported role memory lens scope type '{scope.ScopeType}'.")
+            _ => throw new InvalidOperationException($"Unsupported role memory lens scope type '{normalizedScope.ScopeType}'.")
         };
     }
 
@@ -43,12 +46,13 @@ internal static class RoleMemoryLensStorageRules
         string roleId,
         string? requestedNamespace = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(roleId);
+        roleId = PostgresDomainMapping.RequireRoleId(roleId);
 
         var canonicalNamespace = CanonicalNamespace(lensScope, roleId);
         var namespaceValue = string.IsNullOrWhiteSpace(requestedNamespace)
             ? canonicalNamespace
             : RequireNamespaceAtOrBelow(requestedNamespace, canonicalNamespace);
+        namespaceValue = PostgresDomainMapping.RequireNamespace(namespaceValue);
 
         return lensScope.ScopeType switch
         {
@@ -95,8 +99,9 @@ internal static class RoleMemoryLensStorageRules
 
     public static void AddScopeParameters(NpgsqlCommand command, RoleMemoryLensStorageScope lensScope)
     {
-        command.Parameters.AddWithValue("scope_type", lensScope.ScopeType);
-        command.Parameters.AddWithValue("scope_id", lensScope.ScopeId);
+        var scope = PostgresDomainMapping.RequireScope(lensScope.ScopeType, lensScope.ScopeId);
+        command.Parameters.AddWithValue("scope_type", scope.ScopeType);
+        command.Parameters.AddWithValue("scope_id", scope.ScopeId);
     }
 
     public static void AddOwnerParameters(NpgsqlCommand command, RoleMemoryLensStorageScope lensScope)

@@ -1,5 +1,7 @@
 using MemorySystem.Application.Events;
+using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Evidence;
 
 namespace MemorySystem.Application.MemoryFacts;
 
@@ -183,7 +185,11 @@ public sealed class MemoryFactFindingService(
 
     private MemoryFactFindingFact ToFact(MemoryFactFindingRecord record)
     {
-        var sourceLink = sourceEventLinks.Build(record.SourceEventId);
+        var sourceEvidence = SourceEvidenceReference.Create(
+            record.SourceEventId,
+            record.TrustLevel,
+            record.Sensitivity);
+        var sourceLink = sourceEventLinks.BuildEvidenceLink(sourceEvidence.SourceEventId);
 
         return new MemoryFactFindingFact(
             record.Id,
@@ -194,18 +200,20 @@ public sealed class MemoryFactFindingService(
             record.ScopeType,
             record.ScopeId,
             record.Namespace,
-            [record.SourceEventId],
-            [sourceLink],
+            [sourceEvidence.SourceEventId],
+            [sourceLink.Link],
             new MemoryFactFindingPolicy(
                 Authorized: true,
-                record.TrustLevel,
-                record.Sensitivity,
+                sourceEvidence.TrustLevel.Value,
+                sourceEvidence.Sensitivity.Value,
                 LifecycleStatus: record.Status,
                 EvidenceCurrent: IsEvidenceCurrent(record)));
     }
 
     private MemoryFactFindingContradiction ToContradiction(MemoryFactContradictionRecord record)
     {
+        var sourceLink = sourceEventLinks.BuildEvidenceLink(record.SourceEventId);
+
         return new MemoryFactFindingContradiction(
             record.Subject,
             record.Predicate,
@@ -213,8 +221,8 @@ public sealed class MemoryFactFindingService(
             record.RelatedFactId,
             record.RelatedStatus,
             BuildContradictionSummary(record.RelatedStatus),
-            [record.SourceEventId],
-            [sourceEventLinks.Build(record.SourceEventId)]);
+            [sourceLink.SourceEventId],
+            [sourceLink.Link]);
     }
 
     private static IEnumerable<MemoryFactExclusionSummary> BuildExcluded(
@@ -278,6 +286,6 @@ public sealed class MemoryFactFindingService(
     private static bool IsEvidenceCurrent(MemoryFactFindingRecord record)
     {
         return string.Equals(record.RedactionStatus, "none", StringComparison.Ordinal)
-            && !string.Equals(record.RetentionClass, "erasure_requested", StringComparison.Ordinal);
+            && !string.Equals(record.RetentionClass, MemoryRetentionClasses.ErasureRequested, StringComparison.Ordinal);
     }
 }

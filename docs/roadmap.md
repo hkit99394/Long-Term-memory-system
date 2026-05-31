@@ -7,11 +7,12 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 ## Current Track
 
 Current milestone: Middle Run production-pilot hardening baseline is complete;
-Long Run gate scoping is next.
+Long Run gate scoping is active.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: Enterprise access and context productization gates.
+Next milestone: production platform integration implementation, remaining
+Domain extraction cleanup, and enterprise access implementation.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -22,7 +23,9 @@ dashboard definitions, trace coverage, and observability smoke checks. MR-12
 adds benchmark release gates for Memory Lift, Contract Lift, scoped-safety
 leaks, stale-memory usage, source-link coverage, and agent-contract smoke.
 MR-08 operator evidence browsing and MR-09 governance automation are also
-implemented, so the next roadmap movement should be Long Run gate scoping.
+implemented. LR-01, LR-02, LR-04, LR-05, and PI-01 now define implementable
+gate backlogs and platform baseline choices for enterprise access, context
+productization, Domain extraction, and production platform integration.
 
 ## Milestones
 
@@ -148,6 +151,18 @@ After M8:
   scorecards, filled agent-contract scorecards, source-link coverage counters,
   stale-memory usage counters, scoped-safety counters, and agent-contract smoke
   output into a pass/fail production-pilot release report.
+- Domain model extraction is decided in [Decision 0044](decisions/0044-domain-model-extraction-slice.md):
+  stable IO-free concepts move into `MemorySystem.Domain` through
+  compatibility-tested `DM-*` slices without schema or endpoint churn.
+- Production platform integration is decided in [Decision 0045](decisions/0045-production-platform-integration.md):
+  infrastructure-as-code boundaries, managed PostgreSQL and backup exporter
+  assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and
+  environment-specific release checklists are scoped before platform-specific
+  implementation starts.
+- Production platform and IaC baseline is decided in [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md):
+  the first pilot target is AWS ECS Fargate plus Amazon RDS PostgreSQL with
+  pgvector, Amazon ECR, Terraform under `infra/terraform`, Secrets Manager or
+  SSM references, and immutable multi-role OCI image digests.
 
 ## First Build Sequence
 

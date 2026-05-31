@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+. "$ROOT_DIR/scripts/restore-validation-tables.sh"
+
 POSTGRES_USER="${MEMORYSYSTEM_POSTGRES_USER:-memory_system}"
 POSTGRES_PASSWORD="${MEMORYSYSTEM_POSTGRES_PASSWORD:-memory_system_dev_password}"
 POSTGRES_PORT="${MEMORYSYSTEM_POSTGRES_PORT:-55432}"
@@ -258,24 +260,10 @@ verify_api_paths() {
 verify_database_counts_match() {
   local source_db="$1"
   local restored_db="$2"
-  local tables=(
-    schema_migrations
-    principals
-    organizations
-    projects
-    events
-    memory_facts
-    role_memory_lenses
-    memory_chunks
-    memory_embeddings
-    api_idempotency_keys
-    outbox_jobs
-    memory_reviews
-    vault_exports
-    worker_heartbeats
-  )
 
-  for table_name in "${tables[@]}"; do
+  load_restore_validation_tables
+
+  for table_name in "${RESTORE_VALIDATION_TABLES[@]}"; do
     local source_count
     local restored_count
     source_count="$(db_scalar "$source_db" "SELECT count(*) FROM $table_name;")"

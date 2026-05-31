@@ -14,6 +14,7 @@ public sealed record OperationalSummary(
     OperationalReviewSummary Reviews,
     OperationalVaultExportSummary VaultExports,
     OperationalRetrievalFeedbackSummary RetrievalFeedback,
+    OperationalContextProductSummary ContextProduct,
     OperationalEmbeddingFailureSummary EmbeddingFailures);
 
 public sealed record OperationalApiSummary(string Status);
@@ -55,6 +56,61 @@ public sealed record OperationalRetrievalFeedbackTypeSummary(
     long Count,
     decimal Share,
     double PerHour);
+
+public sealed record OperationalContextProductSummary(
+    OperationalContextProductRuntimeSummary Runtime,
+    OperationalContextProductFeedbackSummary FeedbackActions,
+    OperationalContextProductBenchmarkSummary Benchmark);
+
+public sealed record OperationalContextProductRuntimeSummary(
+    DateTimeOffset StartedAt,
+    long PacketCount,
+    long ItemCount,
+    long ExplainedItemCount,
+    long FeedbackActionCount,
+    decimal ExplanationCoverage,
+    IReadOnlyList<OperationalContextProductExclusionSummary> ExclusionsByReason,
+    IReadOnlyList<OperationalContextProductReviewOpenSummary> ReviewOpens,
+    IReadOnlyList<OperationalContextProductRankingSignalSummary> RankingSignals);
+
+public sealed record OperationalContextProductExclusionSummary(
+    string Reason,
+    string CountDisclosure,
+    long SummaryCount,
+    long DisclosedItemCount);
+
+public sealed record OperationalContextProductReviewOpenSummary(
+    string FeedbackType,
+    bool Created,
+    long Count);
+
+public sealed record OperationalContextProductRankingSignalSummary(
+    string Signal,
+    long Count);
+
+public sealed record OperationalContextProductFeedbackSummary(
+    DateTimeOffset WindowStartedAt,
+    DateTimeOffset WindowEndedAt,
+    double WindowHours,
+    long Total,
+    IReadOnlyList<OperationalContextProductFeedbackActionSummary> ByAction);
+
+public sealed record OperationalContextProductFeedbackActionSummary(
+    string FeedbackType,
+    long Count,
+    decimal Share,
+    double PerHour);
+
+public sealed record OperationalContextProductBenchmarkSummary(
+    bool Observed,
+    string Source,
+    DateTimeOffset? GeneratedAt,
+    string? ReadError,
+    IReadOnlyList<OperationalContextProductBenchmarkDeltaSummary> Deltas);
+
+public sealed record OperationalContextProductBenchmarkDeltaSummary(
+    string Metric,
+    double Value);
 
 public sealed record OperationalEmbeddingFailureSummary(
     long RetryingFailed,

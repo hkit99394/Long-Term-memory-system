@@ -36,11 +36,12 @@ public sealed record MemoryContextFeedbackReviewResult(
     MemoryContextFeedbackReviewStatus Status,
     MemoryReviewRecord? Review = null,
     bool Created = false,
+    string? FeedbackType = null,
     string? Error = null)
 {
-    public static MemoryContextFeedbackReviewResult Opened(MemoryReviewRecord review, bool created)
+    public static MemoryContextFeedbackReviewResult Opened(MemoryReviewRecord review, bool created, string feedbackType)
     {
-        return new MemoryContextFeedbackReviewResult(MemoryContextFeedbackReviewStatus.Opened, review, created);
+        return new MemoryContextFeedbackReviewResult(MemoryContextFeedbackReviewStatus.Opened, review, created, feedbackType);
     }
 
     public static MemoryContextFeedbackReviewResult NotFound(string error)

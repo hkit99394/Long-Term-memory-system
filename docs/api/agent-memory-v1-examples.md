@@ -5,6 +5,8 @@ view. They use the curated [OpenAPI contract](agent-memory-v1.openapi.json) and
 the private-alpha Scenario 0001 local API setup. For field-level scope,
 namespace, role, trust, retention, sensitivity, and evidence rules, see
 [Policy Targeting For Agent Callers](policy-targeting-for-agent-callers.md).
+For context-product-specific explanation, exclusion, feedback, and review
+handoff guidance, see [Context Product v1 Caller Guide](context-product-v1-caller-guide.md).
 
 ## Prerequisites
 
@@ -41,12 +43,16 @@ workflow:
 5. Read the source evidence with `memory.readEvidence`.
 6. Read the stored memory fact with `memory.readFact` when the broker stores it.
 7. Retrieve Project A CTO context with `memory.getContext`.
-8. Query Project A facts with `memory.queryFacts`.
-9. Record context feedback with `memory.recordContextFeedback`.
+8. Inspect explanation, safe exclusion, source evidence, and reviewer-action
+   signals from the context packet.
+9. Query Project A facts with `memory.queryFacts`.
+10. Record context feedback with `memory.recordContextFeedback`.
 
-The feedback request can include the returned `packetId` and `itemId` instead
-of resending the raw query. When clients do send the query for compatibility,
-the server stores only `queryHash`.
+The feedback request can include the returned `packetId`, `itemId`,
+`sourceType`, and `sourceId` instead of resending the raw query. When clients do
+send the query for compatibility, the server stores only `queryHash`. When
+clients omit `query`, `packetId` must identify a context packet previously
+returned to the same caller.
 
 ## Environment Variables
 
@@ -126,6 +132,10 @@ Each returned context item includes a structured `explanation` with
 bounded fields over parsing free-form summary text when deciding how to cite,
 review, or ignore memory-derived context.
 
+For item-level feedback, keep the returned `packetId`, `itemId`, `sourceType`,
+and `sourceId` together. For packet-level `missing` feedback, keep only
+`packetId`, target scope, and role metadata; omit item and source identifiers.
+
 The packet-level `excluded` array summarizes omitted candidates without
 revealing hidden ids, namespaces, or content. Exact counts are only disclosed for
 safe post-policy filters such as inactive memory or ranking cutoff; unauthorized,
@@ -175,6 +185,11 @@ new integrations. Legacy `noisy` remains accepted during migration, and
 `over-broad` is normalized to `over_broad`. Item-level actions require
 `sourceType` and `sourceId`; `missing` is packet-level and omits source and item
 identifiers.
+
+`stale`, `wrong`, and `sensitive` observations can later be routed by an
+operator through `GET /api/reviews/context-observations` and
+`POST /api/reviews/context-observations/{id}/review`. Agents should submit the
+feedback action and avoid embedding raw query text in review notes.
 
 ## Retry Behavior
 

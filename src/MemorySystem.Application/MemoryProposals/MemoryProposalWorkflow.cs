@@ -1,6 +1,8 @@
 using MemorySystem.Application.Access;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Sensitivity;
+using MemorySystem.Domain.Trust;
 
 namespace MemorySystem.Application.MemoryProposals;
 
@@ -98,13 +100,14 @@ public sealed class MemoryProposalWorkflow(
             request.AuthenticatedPrincipalId,
             proposal,
             cancellationToken);
+        var sourceEvidence = sourceEvent?.ToDomain();
         proposal = proposal with
         {
             SourceEventExists = sourceEvent is not null,
-            TrustLevel = sourceEvent?.TrustLevel ?? proposal.TrustLevel,
-            Sensitivity = sourceEvent is null
+            TrustLevel = sourceEvidence?.TrustLevel.Value ?? proposal.TrustLevel,
+            Sensitivity = sourceEvidence is null
                 ? proposal.Sensitivity
-                : MoreRestrictiveSensitivity(proposal.Sensitivity, sourceEvent.Sensitivity)
+                : MoreRestrictiveSensitivity(proposal.Sensitivity, sourceEvidence.Sensitivity.Value)
         };
 
         var decision = broker.Decide(proposal);
@@ -207,8 +210,8 @@ public sealed class MemoryProposalWorkflow(
         var scopeId = request.ScopeId?.Trim() ?? string.Empty;
         var namespaceValue = request.Namespace?.Trim() ?? string.Empty;
         var visibility = Normalize(request.Visibility, "private");
-        var trustLevel = Normalize(request.TrustLevel, "user_scoped");
-        var sensitivity = Normalize(request.Sensitivity, "none");
+        var trustLevel = Normalize(request.TrustLevel, MemoryTrustLevel.UserScoped);
+        var sensitivity = Normalize(request.Sensitivity, MemorySensitivity.None);
 
         if (!MemoryTypes.Contains(memoryType))
         {
@@ -490,14 +493,9 @@ public sealed class MemoryProposalWorkflow(
 
     private static int SensitivityRank(string sensitivity)
     {
-        return sensitivity switch
-        {
-            "none" => 0,
-            "personal" => 1,
-            "secret" => 2,
-            "regulated" => 3,
-            _ => 0
-        };
+        return MemorySensitivity.TryNormalize(sensitivity, out var normalizedSensitivity, out _)
+            ? normalizedSensitivity!.Rank
+            : 0;
     }
 
     private static MemoryFactRecord? FindConflictingActiveMemory(

@@ -1,4 +1,5 @@
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Evidence;
 
 namespace MemorySystem.Application.Events;
 
@@ -16,4 +17,10 @@ public sealed record EventRecord(
     string Sensitivity,
     string TrustLevel,
     DateTimeOffset CreatedAt,
-    MemoryScopeResolution Scope);
+    MemoryScopeResolution Scope)
+{
+    public SourceEvidenceReference ToSourceEvidenceReference()
+    {
+        return SourceEvidenceReference.Create(Id, TrustLevel, Sensitivity);
+    }
+}

@@ -100,6 +100,30 @@
       ]
     },
     {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Context Product Health",
+      "description": "area:retrieval signal:context-product-health",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_context_product_packet_total" },
+        { "refId": "B", "expr": "memorysystem_context_product_item_total" },
+        { "refId": "C", "expr": "memorysystem_context_product_explanation_coverage" },
+        { "refId": "D", "expr": "memorysystem_context_product_feedback_action_observed_total" },
+        { "refId": "E", "expr": "memorysystem_context_product_exclusion_summary_total" },
+        { "refId": "F", "expr": "memorysystem_context_product_exclusion_disclosed_item_total" },
+        { "refId": "G", "expr": "memorysystem_context_product_feedback_action_total" },
+        { "refId": "H", "expr": "memorysystem_context_product_feedback_action_share" },
+        { "refId": "I", "expr": "memorysystem_context_product_feedback_action_per_hour" },
+        { "refId": "J", "expr": "memorysystem_context_product_review_open_total" },
+        { "refId": "K", "expr": "memorysystem_context_product_ranking_signal_applied_total" },
+        { "refId": "L", "expr": "memorysystem_context_product_benchmark_observed" },
+        { "refId": "M", "expr": "memorysystem_context_product_benchmark_delta" },
+        { "refId": "N", "expr": "memorysystem_context_product_benchmark_read_error" }
+      ]
+    },
+    {
       "id": 6,
       "type": "timeseries",
       "title": "Embedding Indexing",

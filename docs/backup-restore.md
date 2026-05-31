@@ -40,7 +40,7 @@ For the normal local smoke check, use the repo script:
 ./scripts/backup-restore-smoke.sh
 ```
 
-The script creates a custom-format backup under `/tmp/memorysystem-backups`, inspects it, restores it into a fresh validation database, runs migrations against the restored database, verifies key table counts and `pgvector`, and drops the validation database when it exits. By default it removes the temporary backup file. Set `MEMORYSYSTEM_BACKUP_SMOKE_KEEP_BACKUP=true` to keep the dump for manual inspection.
+The script creates a custom-format backup under `/tmp/memorysystem-backups`, inspects it, restores it into a fresh validation database, runs migrations against the restored database, verifies the table counts listed in `scripts/restore-validation-tables.txt` plus `pgvector`, and drops the validation database when it exits. By default it removes the temporary backup file. Set `MEMORYSYSTEM_BACKUP_SMOKE_KEEP_BACKUP=true` to keep the dump for manual inspection.
 
 Create a timestamped backup outside the repository:
 
@@ -91,7 +91,7 @@ The restore test should prove that:
 
 - the dump is readable
 - migrations history exists
-- application tables can be queried
+- all tables listed in `scripts/restore-validation-tables.txt` can be queried
 - `pgvector` extension-dependent objects restore without errors
 
 ## Production Restore Shape
@@ -168,15 +168,10 @@ Minimum checks after a restore:
 
 ```sql
 SELECT count(*) FROM schema_migrations;
-SELECT count(*) FROM events;
-SELECT count(*) FROM memory_facts;
-SELECT count(*) FROM memory_chunks;
-SELECT count(*) FROM memory_embeddings;
-SELECT count(*) FROM memory_redactions;
 SELECT extname FROM pg_extension WHERE extname = 'vector';
 ```
 
-For a populated environment, compare expected row counts with the backup source or monitoring snapshot. Row counts are not a substitute for application verification, but they catch empty or schema-only restores quickly.
+For a populated environment, compare every table in `scripts/restore-validation-tables.txt` with the backup source or monitoring snapshot. Row counts are not a substitute for application verification, but they catch empty, schema-only, or partially restored tables quickly.
 
 Application checks:
 

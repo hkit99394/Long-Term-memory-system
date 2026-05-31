@@ -1,6 +1,7 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Admin;
+using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Api.Admin;
@@ -11,15 +12,6 @@ public static class AdminGovernanceEndpointExtensions
     private const int MaxGovernanceBatchSize = 500;
     private const int MaxLegalHoldListLimit = 100;
     private const int MaxRetentionReportLimit = 200;
-
-    private static readonly IReadOnlySet<string> RetentionClasses = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "ephemeral",
-        "standard",
-        "audit",
-        "legal_hold",
-        "erasure_requested"
-    };
 
     private static readonly IReadOnlySet<string> LegalHoldStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -469,9 +461,9 @@ public static class AdminGovernanceEndpointExtensions
             return true;
         }
 
-        if (!RetentionClasses.Contains(retentionClass))
+        if (!MemoryRetentionClasses.All.Contains(retentionClass))
         {
-            error = $"retentionClass must be one of: {string.Join(", ", RetentionClasses)}.";
+            error = $"retentionClass must be one of: {string.Join(", ", MemoryRetentionClasses.All)}.";
             return false;
         }
 

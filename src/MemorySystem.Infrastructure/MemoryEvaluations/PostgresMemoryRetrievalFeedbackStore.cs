@@ -1,4 +1,5 @@
 using MemorySystem.Application.MemoryEvaluations;
+using MemorySystem.Infrastructure.DomainMapping;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -14,6 +15,11 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
         Validate(command);
 
         var feedbackId = Guid.NewGuid();
+        var targetScope = string.IsNullOrWhiteSpace(command.TargetScopeType)
+            ? null
+            : PostgresDomainMapping.RequireScope(command.TargetScopeType, command.TargetScopeId);
+        var roleId = PostgresDomainMapping.NormalizeOptionalRoleId(command.RoleId);
+        var feedbackType = PostgresDomainMapping.RequireFeedbackType(command.FeedbackType);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var sql = new NpgsqlCommand(
@@ -58,16 +64,16 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
         sql.Parameters.Add("item_id", NpgsqlDbType.Uuid).Value =
             command.ItemId.HasValue ? command.ItemId.Value : DBNull.Value;
         sql.Parameters.Add("target_scope_type", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(command.TargetScopeType) ? DBNull.Value : command.TargetScopeType;
+            targetScope is null ? DBNull.Value : targetScope.ScopeType;
         sql.Parameters.Add("target_scope_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(command.TargetScopeId) ? DBNull.Value : command.TargetScopeId;
+            targetScope is null ? DBNull.Value : targetScope.ScopeId;
         sql.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
-            string.IsNullOrWhiteSpace(command.RoleId) ? DBNull.Value : command.RoleId;
+            string.IsNullOrWhiteSpace(roleId) ? DBNull.Value : roleId;
         sql.Parameters.Add("source_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(command.SourceType) ? DBNull.Value : command.SourceType;
         sql.Parameters.Add("source_id", NpgsqlDbType.Uuid).Value =
             command.SourceId.HasValue ? command.SourceId.Value : DBNull.Value;
-        sql.Parameters.AddWithValue("feedback_type", command.FeedbackType);
+        sql.Parameters.AddWithValue("feedback_type", feedbackType);
 
         var createdAt = await sql.ExecuteScalarAsync(cancellationToken)
             ?? throw new InvalidOperationException("Retrieval feedback insert did not return a creation timestamp.");
@@ -79,12 +85,12 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
             command.QueryHash,
             command.PacketId,
             command.ItemId,
-            command.TargetScopeType,
-            command.TargetScopeId,
-            command.RoleId,
+            targetScope?.ScopeType,
+            targetScope?.ScopeId,
+            roleId,
             command.SourceType,
             command.SourceId,
-            command.FeedbackType,
+            feedbackType,
             ToDateTimeOffset(createdAt));
     }
 

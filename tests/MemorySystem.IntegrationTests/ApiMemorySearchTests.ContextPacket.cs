@@ -168,6 +168,18 @@ public sealed partial class ApiMemorySearchTests
             Assert.DoesNotContain(fixture.CfoRoleMemoryLensId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(fixture.ProjectBDecisionId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Project B private decision", responseBody, StringComparison.Ordinal);
+
+            using var metricsRequest = new HttpRequestMessage(HttpMethod.Get, "/api/operations/metrics");
+            metricsRequest.Headers.Add("X-Api-Key", TestApiKey);
+            using var metricsResponse = await client.SendAsync(metricsRequest);
+            var metricsBody = await metricsResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, metricsResponse.StatusCode);
+            Assert.Equal(
+                1,
+                CountOccurrences(
+                    metricsBody,
+                    "memorysystem_context_product_exclusion_disclosed_item_total{reason=\"role_mismatch\"}"));
         }
         finally
         {
@@ -352,6 +364,7 @@ public sealed partial class ApiMemorySearchTests
             Assert.Equal(PrincipalId, storedFeedback.PrincipalId);
             Assert.Equal("context_packet", storedFeedback.RetrievalMode);
             Assert.StartsWith("sha256:", storedFeedback.QueryHash, StringComparison.Ordinal);
+            Assert.Equal(ComputeSha256(query), storedFeedback.QueryHash);
             Assert.Equal(feedbackPayload.GetProperty("queryHash").GetString(), storedFeedback.QueryHash);
             Assert.DoesNotContain("concise decision logs", storedFeedback.QueryHash, StringComparison.Ordinal);
             Assert.Equal(packetId, feedbackPayload.GetProperty("packetId").GetGuid());
@@ -407,7 +420,61 @@ public sealed partial class ApiMemorySearchTests
                     payload.GetProperty("feedbackType").GetString());
             }
 
+            const string contextQuery = "cto context packet concise decision logs authorization predicates operational reversibility";
+            var (contextStatusCode, contextPayload, _) = await SendContextPacketAsync(
+                client,
+                contextQuery,
+                scopeType: "project",
+                scopeId: ProjectAId.ToString(),
+                roleId: "cto",
+                limit: 6);
+
+            Assert.Equal(HttpStatusCode.OK, contextStatusCode);
+            var packetId = contextPayload.GetProperty("packetId").GetGuid();
+
             var (missingStatusCode, missingPayload, missingBody) = await SendContextFeedbackAsync(
+                client,
+                $$"""
+                {
+                  "packetId": "{{packetId}}",
+                  "feedbackType": "missing"
+                }
+                """);
+
+            Assert.Equal(HttpStatusCode.Created, missingStatusCode);
+            Assert.Equal("missing", missingPayload.GetProperty("feedbackType").GetString());
+            Assert.DoesNotContain("payload safe feedback action check", missingBody, StringComparison.Ordinal);
+
+            var feedbackId = missingPayload.GetProperty("id").GetGuid();
+            var storedFeedback = await ReadRetrievalFeedbackAsync(databaseConnectionString, feedbackId);
+            Assert.Equal(ComputeSha256(contextQuery), storedFeedback.QueryHash);
+            Assert.Equal("project", storedFeedback.TargetScopeType);
+            Assert.Equal(ProjectAId.ToString(), storedFeedback.TargetScopeId);
+            Assert.Equal("cto", storedFeedback.RoleId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_context_feedback_rejects_unknown_packet_id_without_query()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_unknown_packet_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendContextFeedbackAsync(
                 client,
                 """
                 {
@@ -416,9 +483,9 @@ public sealed partial class ApiMemorySearchTests
                 }
                 """);
 
-            Assert.Equal(HttpStatusCode.Created, missingStatusCode);
-            Assert.Equal("missing", missingPayload.GetProperty("feedbackType").GetString());
-            Assert.DoesNotContain("payload safe feedback action check", missingBody, StringComparison.Ordinal);
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory context feedback is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("previously returned", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -641,4 +708,18 @@ public sealed partial class ApiMemorySearchTests
         string? SourceType,
         Guid? SourceId,
         string FeedbackType);
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
 }
