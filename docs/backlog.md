@@ -125,9 +125,9 @@ separate migrator, API, and worker roles with rollback and restore validation.
 MR-11 makes observability executable through versioned alert rules, dashboard
 definitions, trace coverage, and metric-input smokes. MR-12 adds the benchmark
 release gate for Memory Lift, Contract Lift, scoped-safety leaks, stale-memory
-usage, source-link coverage, and agent-contract smoke. The next planning focus
-is Long Run gate scoping, starting with enterprise access and context
-productization.
+usage, source-link coverage, and agent-contract smoke. LR-01 now scopes
+enterprise access; the next planning focus is LR-02 context productization,
+followed by implementation of the `EA-*` enterprise access backlog.
 
 ## Middle Run Production Pilot
 
@@ -162,8 +162,23 @@ productization.
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| LR-01 | P0 | Todo | Scope enterprise access gate. | A decision record and implementation backlog define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
+| LR-01 | P0 | Done | Scope enterprise access gate. | [Decision 0042](decisions/0042-enterprise-access-gate.md) and [Enterprise Access Gate](enterprise-access-gate.md) define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
 | LR-02 | P0 | Todo | Scope context productization gate. | A decision record and implementation backlog define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad memory, and how those signals feed benchmark-visible ranking improvements. |
 | LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; the generated ignored report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage. A fresh live smoke rerun remains required before external pilot release. |
 | LR-04 | P1 | Todo | Define Domain model extraction slice. | Stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, and source evidence have a staged extraction plan from Application/Infrastructure into `MemorySystem.Domain` with compatibility tests. |
 | LR-05 | P1 | Todo | Scope production platform integration. | A deployment decision record defines infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
+
+## Long Run Enterprise Access Implementation Backlog
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| EA-01 | P0 | Todo | Add identity-binding schema. | Migrations add provider, issuer, subject, principal, status, display metadata, timestamps, and uniqueness constraints; disabled bindings fail lookup; migration tests cover duplicate and deleted-binding behavior. |
+| EA-02 | P0 | Todo | Introduce shared principal resolution. | API key authentication and future OIDC authentication both produce one principal-resolution result containing principal id, type, auth method, and credential or binding id; current API-key tests remain unchanged. |
+| EA-03 | P0 | Todo | Add access audit event model. | Authentication, authorization denial, membership change, role assignment change, namespace grant change, service credential change, and audit export records can be written without storing raw memory payloads. |
+| EA-04 | P0 | Todo | Add generic OIDC authentication. | Configured issuer, audience, JWKS, HTTPS metadata, lifetime validation, and identity binding lookup authenticate human principals; unbound, disabled, or ambiguous identities fail closed. |
+| EA-05 | P0 | Todo | Add service-account lifecycle. | Service principals have owner metadata, allowed auth method, credential review or expiry date, rotation/disable path, and least-privilege namespace grants. |
+| EA-06 | P0 | Todo | Add admin access-management UI. | Authorized operators can manage memberships, role assignments, and namespace grants with effective-access preview, authorizer-backed explanations, and audited changes. |
+| EA-07 | P0 | Todo | Add audit export. | Operators can export access-management and auth audit records for a time window and scope as newline-delimited JSON with manifest hash and payload-safe fields. |
+| EA-08 | P0 | Todo | Add migration and rollback smoke. | A smoke script proves API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes without weakening namespace grants. |
+| EA-09 | P1 | Todo | Document pilot operator runbook. | Runbook covers provider setup, identity binding, service-account creation, role/grant review, audit export, rollback, and break-glass API-key handling. |
+| EA-10 | P1 | Todo | Evaluate directory sync. | Decide whether SCIM or provider group sync is needed after the first pilot; any sync remains provisioning-only and does not bypass local grants. |

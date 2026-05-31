@@ -23,6 +23,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
+| [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
 | [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Shows curl-based client examples for the v1 memory workflow, including idempotent writes and retrieval feedback. |
@@ -73,6 +74,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0039: Production Deployment Shape](decisions/0039-production-deployment-shape.md) | Records the production-pilot migrator, API, worker, managed PostgreSQL, secret-store, rollback, and restore-validation shape. |
 | [Decision 0040: Production Observability and Alerting](decisions/0040-production-observability-and-alerting.md) | Records the production-pilot signal ownership, alerting, dashboard, and payload-safe tracing/logging contract. |
 | [Decision 0041: Benchmark Release Gates](decisions/0041-benchmark-release-gates.md) | Records the MR-12 release gate that combines Memory Lift, Contract Lift, scoped-safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. |
+| [Decision 0042: Enterprise Access Gate](decisions/0042-enterprise-access-gate.md) | Records the LR-01 enterprise access scope and the decision to keep local memberships, role assignments, and namespace grants as the runtime authorization boundary. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -92,10 +94,12 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
 | Embedding | A vector representation of text used for semantic similarity search. |
+| Enterprise access gate | The LR-01 plan for OIDC or SSO, service accounts, access-management UI, audit export, and migration from API-key-only operation without weakening namespace grants. |
 | Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Governance workflow | Authenticated operator action for legal holds, erasure execution, or retention reporting. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
+| Identity binding | A durable mapping from an external identity provider, issuer, and subject to one internal principal. |
 | Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
 | LLM outcome evaluation | A benchmark that scores the final LLM output, not only retrieved memory, to prove whether governed memory improves task success, decision consistency, preference adherence, correction handling, and safety. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |

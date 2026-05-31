@@ -167,6 +167,7 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
 1. Enterprise access gate.
    - Entry criteria: MR-08 audit browsing, MR-09 governance automation, MR-10 pilot deployment smoke, MR-11 executable observability, and MR-12 benchmark release gates are complete.
    - Outcome: OIDC or SSO, service accounts, role assignment UI, and audit export are coherent enough for a real team.
+   - Done: [Enterprise Access Gate](enterprise-access-gate.md) and [Decision 0042](decisions/0042-enterprise-access-gate.md) scope the identity binding model, OIDC or SSO path, service-account lifecycle, admin access-management UI, audit export, migration phases, and pilot acceptance checks.
 
 2. Governance and compliance gate.
    - Entry criteria: erasure, legal hold, retention reporting, and audit browsing are working in the pilot path.
@@ -253,9 +254,9 @@ The final product vision is simple: AI agents get durable continuity without tur
 
 ## Near-Term Product Decision
 
-LR-03 has captured the first local benchmark release-gate baseline. The next
-move should be Long Run gate scoping around enterprise access and context
-productization. Short Run private alpha and Middle Run production-pilot
-hardening are complete as baselines; before inviting an external pilot user,
-rerun the benchmark release gate with the intended pilot model, fresh scorecards,
-and a fresh live smoke artifact from the target environment.
+LR-01 has scoped the enterprise access gate, and LR-03 has captured the first
+local benchmark release-gate baseline. The next move should be LR-02 context
+productization gate scoping, then implementation of the `EA-*` enterprise access
+backlog in small slices. Before inviting an external pilot user, rerun the
+benchmark release gate with the intended pilot model, fresh scorecards, and a
+fresh live smoke artifact from the target environment.
