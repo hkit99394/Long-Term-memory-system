@@ -90,8 +90,8 @@ Minimum explanation fields:
 | Field | Meaning |
 | --- | --- |
 | `primaryReason` | Human-readable reason such as `query_match`, `role_match`, `recent_decision`, or `high_confidence_preference`. |
-| `matchedSignals` | Bounded list of signals that contributed to inclusion, such as full-text, semantic, scope, role, confidence, authority, or recency. |
-| `rankComponents` | Existing relevance, confidence, recency, authority, and scope-match components. |
+| `matchedSignals` | Bounded list of signals that contributed to inclusion, such as query relevance, scope, role, confidence, authority, recency, source linkage, or active lifecycle state. |
+| `components` | Existing relevance, confidence, recency, authority, and scope-match rank components. |
 | `policyFit` | Safe statement that the item matched the authenticated principal, target scope, role, and namespace grant. |
 | `lifecycleFit` | Whether the item is active and evidence-current. |
 | `sourceEvidence` | Source event ids and links already present today. |
@@ -180,7 +180,7 @@ Benchmark-visible success criteria:
 | --- | --- | --- | --- | --- |
 | CP-01 | P0 | Done | Define productized context packet schema. | [Context Packet Product v1 Contract](api/context-packet-product-v1.md) defines a versioned response contract and JSON Schema with packet id, generated time, policy summary, included item explanations, exclusion summaries, review actions, feedback policy, and evaluation hints while preserving current grouped items. |
 | CP-02 | P0 | Done | Add packet and item identifiers for feedback. | Context packet responses include stable packet ids and item ids; context feedback can reference `packetId` and `itemId` so item feedback no longer requires resending raw query text. |
-| CP-03 | P0 | Todo | Implement structured inclusion explanations. | Each included item explains primary reason, matched signals, rank components, policy fit, lifecycle fit, source evidence, and suggested review actions; tests prove no unauthorized candidate metadata leaks. |
+| CP-03 | P0 | Done | Implement structured inclusion explanations. | Context packet items now return primary reason, matched signals, rank components, policy fit, lifecycle fit, source evidence, and suggested review actions; tests prove unauthorized candidate metadata stays out of the packet. |
 | CP-04 | P0 | Todo | Add safe exclusion summaries to context packets. | Context packets summarize inactive, not-authorized, scope-mismatch, role-mismatch, rank-cutoff, source-unavailable, and sensitive exclusions using count-disclosure rules aligned with `memory.queryFacts`. |
 | CP-05 | P0 | Todo | Expand context feedback actions. | Feedback supports useful, stale, wrong, sensitive, over-broad, and missing actions while preserving the legacy noisy path; validation requires source ids for item-level actions and stores only payload-safe metadata. |
 | CP-06 | P0 | Todo | Add reviewer workflow for context observations. | Admin operators can inspect context feedback observations, open stale/wrong/sensitive reviews, and see source-linked evidence without raw query storage. |

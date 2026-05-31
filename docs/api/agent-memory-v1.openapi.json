@@ -1098,7 +1098,13 @@
         "required": [
           "rank",
           "components",
-          "summary"
+          "summary",
+          "primaryReason",
+          "matchedSignals",
+          "policyFit",
+          "lifecycleFit",
+          "sourceEvidence",
+          "reviewSuggestedActions"
         ],
         "properties": {
           "rank": {
@@ -1109,6 +1115,148 @@
           },
           "summary": {
             "type": "string"
+          },
+          "primaryReason": {
+            "type": "string",
+            "enum": [
+              "query_match",
+              "role_match",
+              "recent_decision",
+              "high_confidence_preference",
+              "high_authority_source",
+              "scope_match"
+            ]
+          },
+          "matchedSignals": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "query_relevance",
+                "scope",
+                "role",
+                "confidence",
+                "authority",
+                "recency",
+                "source_linked",
+                "lifecycle_active"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "policyFit": {
+            "$ref": "#/components/schemas/MemoryContextPolicyFitResponse"
+          },
+          "lifecycleFit": {
+            "$ref": "#/components/schemas/MemoryContextLifecycleFitResponse"
+          },
+          "sourceEvidence": {
+            "$ref": "#/components/schemas/MemoryContextSourceEvidenceResponse"
+          },
+          "reviewSuggestedActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "useful",
+                "stale",
+                "wrong",
+                "sensitive",
+                "over_broad"
+              ]
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextPolicyFitResponse": {
+        "type": "object",
+        "required": [
+          "authorized",
+          "scopeMatched",
+          "namespaceGrantMatched",
+          "roleMatched"
+        ],
+        "properties": {
+          "authorized": {
+            "type": "boolean"
+          },
+          "scopeMatched": {
+            "type": "boolean"
+          },
+          "namespaceGrantMatched": {
+            "type": "boolean"
+          },
+          "roleMatched": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextLifecycleFitResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "evidenceCurrent",
+          "redactionStatus"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "tentative",
+              "superseded",
+              "contradicted",
+              "expired",
+              "deleted",
+              "redacted"
+            ]
+          },
+          "evidenceCurrent": {
+            "type": "boolean"
+          },
+          "redactionStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "redacted",
+              "erased"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MemoryContextSourceEvidenceResponse": {
+        "type": "object",
+        "required": [
+          "sourceEventIds",
+          "sourceLinks",
+          "sourceLinked"
+        ],
+        "properties": {
+          "sourceEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "uniqueItems": true
+          },
+          "sourceLinks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "sourceLinked": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

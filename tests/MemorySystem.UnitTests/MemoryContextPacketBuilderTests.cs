@@ -39,6 +39,20 @@ public sealed class MemoryContextPacketBuilderTests
         Assert.Equal(360, item.Content.Length);
         Assert.EndsWith("...", item.Content, StringComparison.Ordinal);
         Assert.Equal($"/api/events/{sourceEventId}", item.SourceLink);
+        Assert.Equal("recent_decision", item.Explanation.PrimaryReason);
+        Assert.Contains("query_relevance", item.Explanation.MatchedSignals);
+        Assert.Contains("source_linked", item.Explanation.MatchedSignals);
+        Assert.Contains("lifecycle_active", item.Explanation.MatchedSignals);
+        Assert.True(item.Explanation.PolicyFit.Authorized);
+        Assert.True(item.Explanation.PolicyFit.NamespaceGrantMatched);
+        Assert.Equal("active", item.Explanation.LifecycleFit.Status);
+        Assert.True(item.Explanation.LifecycleFit.EvidenceCurrent);
+        Assert.Equal("none", item.Explanation.LifecycleFit.RedactionStatus);
+        Assert.Equal(sourceEventId, Assert.Single(item.Explanation.SourceEvidence.SourceEventIds));
+        Assert.Equal($"/api/events/{sourceEventId}", Assert.Single(item.Explanation.SourceEvidence.SourceLinks));
+        Assert.True(item.Explanation.SourceEvidence.SourceLinked);
+        Assert.Contains("useful", item.Explanation.ReviewSuggestedActions);
+        Assert.Contains("wrong", item.Explanation.ReviewSuggestedActions);
     }
 
     [Fact]
@@ -87,6 +101,9 @@ public sealed class MemoryContextPacketBuilderTests
 
         var roleMemory = Assert.Single(packet.RoleMemory);
         Assert.Equal(ctoLensId, roleMemory.SourceId);
+        Assert.Equal("role_match", roleMemory.Explanation.PrimaryReason);
+        Assert.Contains("role", roleMemory.Explanation.MatchedSignals);
+        Assert.True(roleMemory.Explanation.PolicyFit.RoleMatched);
     }
 
     [Fact]

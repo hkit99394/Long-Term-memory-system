@@ -43,7 +43,29 @@ public sealed record MemoryContextPacketItemResponse(
 public sealed record MemoryContextExplanationResponse(
     double Rank,
     MemoryHybridRankComponentsResponse Components,
-    string Summary);
+    string Summary,
+    string PrimaryReason,
+    IReadOnlyList<string> MatchedSignals,
+    MemoryContextPolicyFitResponse PolicyFit,
+    MemoryContextLifecycleFitResponse LifecycleFit,
+    MemoryContextSourceEvidenceResponse SourceEvidence,
+    IReadOnlyList<string> ReviewSuggestedActions);
+
+public sealed record MemoryContextPolicyFitResponse(
+    bool Authorized,
+    bool ScopeMatched,
+    bool NamespaceGrantMatched,
+    bool? RoleMatched);
+
+public sealed record MemoryContextLifecycleFitResponse(
+    string Status,
+    bool EvidenceCurrent,
+    string RedactionStatus);
+
+public sealed record MemoryContextSourceEvidenceResponse(
+    IReadOnlyList<Guid> SourceEventIds,
+    IReadOnlyList<string> SourceLinks,
+    bool SourceLinked);
 
 public sealed record MemoryContextSourceEventResponse(
     Guid Id,

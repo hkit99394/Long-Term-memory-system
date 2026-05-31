@@ -415,6 +415,7 @@
           "items": {
             "type": "string",
             "enum": [
+              "query_relevance",
               "full_text",
               "semantic",
               "scope",

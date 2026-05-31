@@ -861,7 +861,23 @@ public static class MemoryFactEndpointExtensions
                     item.Explanation.Components.Recency,
                     item.Explanation.Components.Authority,
                     item.Explanation.Components.ScopeMatch),
-                item.Explanation.Summary));
+                item.Explanation.Summary,
+                item.Explanation.PrimaryReason,
+                item.Explanation.MatchedSignals,
+                new MemoryContextPolicyFitResponse(
+                    item.Explanation.PolicyFit.Authorized,
+                    item.Explanation.PolicyFit.ScopeMatched,
+                    item.Explanation.PolicyFit.NamespaceGrantMatched,
+                    item.Explanation.PolicyFit.RoleMatched),
+                new MemoryContextLifecycleFitResponse(
+                    item.Explanation.LifecycleFit.Status,
+                    item.Explanation.LifecycleFit.EvidenceCurrent,
+                    item.Explanation.LifecycleFit.RedactionStatus),
+                new MemoryContextSourceEvidenceResponse(
+                    item.Explanation.SourceEvidence.SourceEventIds,
+                    item.Explanation.SourceEvidence.SourceLinks,
+                    item.Explanation.SourceEvidence.SourceLinked),
+                item.Explanation.ReviewSuggestedActions));
     }
 
     private static Guid ComputeContextItemId(Guid packetId, MemoryContextPacketItem item)

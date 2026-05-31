@@ -120,6 +120,12 @@ curl -sS --get "$MEMORYSYSTEM_API_BASE_URL/api/memory/context" \
   --data-urlencode "limit=12"
 ```
 
+Each returned context item includes a structured `explanation` with
+`primaryReason`, `matchedSignals`, `policyFit`, `lifecycleFit`,
+`sourceEvidence`, and `reviewSuggestedActions`. Agents should prefer these
+bounded fields over parsing free-form summary text when deciding how to cite,
+review, or ignore memory-derived context.
+
 Query facts with source links and policy metadata:
 
 ```bash

@@ -53,7 +53,7 @@ public sealed class MemoryContextPacketBuilder(
         var items = results
             .Where(result => roleId is null || !IsRoleSpecificResult(result) || IsResultForRole(result, roleId))
             .Take(query.Limit)
-            .Select(ToPacketItem)
+            .Select(result => ToPacketItem(result, targetScope, roleId))
             .ToArray();
 
         return new MemoryContextPacket(
@@ -93,9 +93,13 @@ public sealed class MemoryContextPacketBuilder(
         return new MemoryContextTargetScope(normalizedScopeType, normalizedScopeId);
     }
 
-    private MemoryContextPacketItem ToPacketItem(MemoryChunkHybridSearchResult result)
+    private MemoryContextPacketItem ToPacketItem(
+        MemoryChunkHybridSearchResult result,
+        MemoryContextTargetScope? targetScope,
+        string? roleId)
     {
         var kind = ResolveKind(result);
+        var sourceLink = sourceEventLinks.Build(result.SourceEventId);
 
         return new MemoryContextPacketItem(
             kind,
@@ -111,11 +115,27 @@ public sealed class MemoryContextPacketBuilder(
             result.Rank,
             result.TrustLevel,
             result.SourceEventId,
-            sourceEventLinks.Build(result.SourceEventId),
+            sourceLink,
             new MemoryContextExplanation(
                 result.Rank,
                 result.Components,
-                BuildExplanationSummary(result)));
+                BuildExplanationSummary(),
+                ResolvePrimaryReason(kind, result),
+                ResolveMatchedSignals(result, roleId, sourceLink),
+                new MemoryContextPolicyFit(
+                    Authorized: true,
+                    ScopeMatched: IsScopeMatched(result, targetScope),
+                    NamespaceGrantMatched: true,
+                    RoleMatched: ResolveRoleMatch(result, roleId)),
+                new MemoryContextLifecycleFit(
+                    Status: "active",
+                    EvidenceCurrent: true,
+                    RedactionStatus: "none"),
+                new MemoryContextSourceEvidence(
+                    [result.SourceEventId],
+                    string.IsNullOrWhiteSpace(sourceLink) ? [] : [sourceLink],
+                    !string.IsNullOrWhiteSpace(sourceLink)),
+                ReviewSuggestedActionsFor()));
     }
 
     private static string ResolveKind(MemoryChunkHybridSearchResult result)
@@ -198,8 +218,107 @@ public sealed class MemoryContextPacketBuilder(
             : normalized[..(MaxContentLength - 3)] + "...";
     }
 
-    private static string BuildExplanationSummary(MemoryChunkHybridSearchResult result)
+    private static string BuildExplanationSummary()
     {
-        return "Rank combines relevance, confidence, recency, authority, and scope match.";
+        return "Included after authorization because rank combines query relevance, confidence, recency, authority, and scope match.";
+    }
+
+    private static string ResolvePrimaryReason(string kind, MemoryChunkHybridSearchResult result)
+    {
+        if (IsRoleSpecificResult(result))
+        {
+            return "role_match";
+        }
+
+        if (string.Equals(kind, "project_decision", StringComparison.Ordinal))
+        {
+            return "recent_decision";
+        }
+
+        if (string.Equals(kind, "user_preference", StringComparison.Ordinal)
+            && result.Components.Confidence >= 0.75d)
+        {
+            return "high_confidence_preference";
+        }
+
+        if (result.Components.Authority >= 0.9d)
+        {
+            return "high_authority_source";
+        }
+
+        return result.Components.ScopeMatch >= 0.9d
+            ? "scope_match"
+            : "query_match";
+    }
+
+    private static IReadOnlyList<string> ResolveMatchedSignals(
+        MemoryChunkHybridSearchResult result,
+        string? roleId,
+        string sourceLink)
+    {
+        var signals = new List<string>();
+
+        if (result.Components.Relevance > 0)
+        {
+            signals.Add("query_relevance");
+        }
+
+        if (result.Components.ScopeMatch > 0)
+        {
+            signals.Add("scope");
+        }
+
+        if (roleId is not null && IsRoleSpecificResult(result) && IsResultForRole(result, roleId))
+        {
+            signals.Add("role");
+        }
+
+        if (result.Components.Confidence > 0)
+        {
+            signals.Add("confidence");
+        }
+
+        if (result.Components.Authority > 0)
+        {
+            signals.Add("authority");
+        }
+
+        if (result.Components.Recency > 0)
+        {
+            signals.Add("recency");
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourceLink))
+        {
+            signals.Add("source_linked");
+        }
+
+        signals.Add("lifecycle_active");
+
+        return signals.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static bool IsScopeMatched(
+        MemoryChunkHybridSearchResult result,
+        MemoryContextTargetScope? targetScope)
+    {
+        return targetScope is null
+            || (string.Equals(result.ScopeType, targetScope.ScopeType, StringComparison.Ordinal)
+                && string.Equals(result.ScopeId, targetScope.ScopeId, StringComparison.Ordinal));
+    }
+
+    private static bool? ResolveRoleMatch(MemoryChunkHybridSearchResult result, string? roleId)
+    {
+        if (roleId is null || !IsRoleSpecificResult(result))
+        {
+            return null;
+        }
+
+        return IsResultForRole(result, roleId);
+    }
+
+    private static IReadOnlyList<string> ReviewSuggestedActionsFor()
+    {
+        return ["useful", "stale", "wrong", "sensitive", "over_broad"];
     }
 }

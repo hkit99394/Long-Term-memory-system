@@ -58,12 +58,40 @@ public sealed partial class ApiMemorySearchTests
             Assert.True(userPreference.GetProperty("explanation").GetProperty("rank").GetDouble() > 0);
             Assert.True(userPreference.GetProperty("explanation").GetProperty("components").GetProperty("relevance").GetDouble() >= 0);
             Assert.Contains("confidence", userPreference.GetProperty("explanation").GetProperty("summary").GetString(), StringComparison.Ordinal);
+            var userPreferenceExplanation = userPreference.GetProperty("explanation");
+            Assert.Equal("high_confidence_preference", userPreferenceExplanation.GetProperty("primaryReason").GetString());
+            Assert.Contains(
+                userPreferenceExplanation.GetProperty("matchedSignals").EnumerateArray(),
+                signal => signal.GetString() == "confidence");
+            Assert.True(userPreferenceExplanation.GetProperty("policyFit").GetProperty("authorized").GetBoolean());
+            Assert.True(userPreferenceExplanation.GetProperty("policyFit").GetProperty("namespaceGrantMatched").GetBoolean());
+            Assert.Equal("active", userPreferenceExplanation.GetProperty("lifecycleFit").GetProperty("status").GetString());
+            Assert.True(userPreferenceExplanation.GetProperty("lifecycleFit").GetProperty("evidenceCurrent").GetBoolean());
+            Assert.Equal("none", userPreferenceExplanation.GetProperty("lifecycleFit").GetProperty("redactionStatus").GetString());
+            Assert.Equal(
+                fixture.UserPreferenceEventId,
+                Assert.Single(userPreferenceExplanation.GetProperty("sourceEvidence").GetProperty("sourceEventIds").EnumerateArray()).GetGuid());
+            Assert.True(userPreferenceExplanation.GetProperty("sourceEvidence").GetProperty("sourceLinked").GetBoolean());
+            Assert.Equal(
+                $"/api/events/{fixture.UserPreferenceEventId}",
+                Assert.Single(userPreferenceExplanation.GetProperty("sourceEvidence").GetProperty("sourceLinks").EnumerateArray()).GetString());
+            Assert.Contains(
+                userPreferenceExplanation.GetProperty("reviewSuggestedActions").EnumerateArray(),
+                action => action.GetString() == "useful");
 
             var relevantDecision = Assert.Single(payload.GetProperty("relevantDecisions").EnumerateArray());
             Assert.NotEqual(Guid.Empty, relevantDecision.GetProperty("itemId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, relevantDecision.GetProperty("sourceId").GetGuid());
             Assert.Equal("project_decision", relevantDecision.GetProperty("kind").GetString());
             Assert.Equal($"/api/events/{fixture.ProjectDecisionEventId}", relevantDecision.GetProperty("sourceLink").GetString());
+            var decisionExplanation = relevantDecision.GetProperty("explanation");
+            Assert.Equal("recent_decision", decisionExplanation.GetProperty("primaryReason").GetString());
+            Assert.True(decisionExplanation.GetProperty("policyFit").GetProperty("authorized").GetBoolean());
+            Assert.True(decisionExplanation.GetProperty("policyFit").GetProperty("scopeMatched").GetBoolean());
+            Assert.Equal("active", decisionExplanation.GetProperty("lifecycleFit").GetProperty("status").GetString());
+            Assert.Equal(
+                fixture.ProjectDecisionEventId,
+                Assert.Single(decisionExplanation.GetProperty("sourceEvidence").GetProperty("sourceEventIds").EnumerateArray()).GetGuid());
 
             var roleMemory = Assert.Single(payload.GetProperty("roleMemory").EnumerateArray());
             Assert.NotEqual(Guid.Empty, roleMemory.GetProperty("itemId").GetGuid());
@@ -71,6 +99,15 @@ public sealed partial class ApiMemorySearchTests
             Assert.Equal(fixture.RoleMemoryLensId, roleMemory.GetProperty("sourceId").GetGuid());
             Assert.Equal(fixture.ProjectDecisionId, roleMemory.GetProperty("baseMemoryFactId").GetGuid());
             Assert.Equal($"/api/events/{fixture.RoleLensEventId}", roleMemory.GetProperty("sourceLink").GetString());
+            var roleExplanation = roleMemory.GetProperty("explanation");
+            Assert.Equal("role_match", roleExplanation.GetProperty("primaryReason").GetString());
+            Assert.Contains(
+                roleExplanation.GetProperty("matchedSignals").EnumerateArray(),
+                signal => signal.GetString() == "role");
+            Assert.True(roleExplanation.GetProperty("policyFit").GetProperty("roleMatched").GetBoolean());
+            Assert.Equal(
+                fixture.RoleLensEventId,
+                Assert.Single(roleExplanation.GetProperty("sourceEvidence").GetProperty("sourceEventIds").EnumerateArray()).GetGuid());
 
             var (repeatStatusCode, repeatPayload, _) = await SendContextPacketAsync(
                 client,

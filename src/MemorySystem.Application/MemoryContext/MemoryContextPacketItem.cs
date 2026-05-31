@@ -22,4 +22,26 @@ public sealed record MemoryContextPacketItem(
 public sealed record MemoryContextExplanation(
     double Rank,
     MemoryChunkHybridRankComponents Components,
-    string Summary);
+    string Summary,
+    string PrimaryReason,
+    IReadOnlyList<string> MatchedSignals,
+    MemoryContextPolicyFit PolicyFit,
+    MemoryContextLifecycleFit LifecycleFit,
+    MemoryContextSourceEvidence SourceEvidence,
+    IReadOnlyList<string> ReviewSuggestedActions);
+
+public sealed record MemoryContextPolicyFit(
+    bool Authorized,
+    bool ScopeMatched,
+    bool NamespaceGrantMatched,
+    bool? RoleMatched);
+
+public sealed record MemoryContextLifecycleFit(
+    string Status,
+    bool EvidenceCurrent,
+    string RedactionStatus);
+
+public sealed record MemoryContextSourceEvidence(
+    IReadOnlyList<Guid> SourceEventIds,
+    IReadOnlyList<string> SourceLinks,
+    bool SourceLinked);
