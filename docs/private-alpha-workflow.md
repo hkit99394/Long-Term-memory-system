@@ -133,7 +133,7 @@ Record retrieval feedback after a reviewer inspects the packet:
 POST /api/memory/context/feedback
 ```
 
-Use `feedbackType` values `useful`, `stale`, `missing`, or `noisy`. The API stores a hash of the query, not the raw query text.
+Use `feedbackType` values `useful`, `stale`, `wrong`, `sensitive`, `over_broad`, or `missing`. Legacy `noisy` is still accepted during migration. Item-level actions require `sourceType` and `sourceId`; the API stores a hash of the query, not the raw query text.
 
 ### 5. Export Human-Readable Memory
 

@@ -289,7 +289,7 @@ public sealed class OperationalSummaryEndpointTests
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
 
-        var requiresSource = feedbackType is "useful" or "stale" or "noisy";
+        var requiresSource = feedbackType is "useful" or "stale" or "wrong" or "sensitive" or "over_broad" or "noisy";
 
         await using var command = new NpgsqlCommand(
             """

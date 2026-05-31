@@ -211,7 +211,7 @@
         "operationId": "memory_recordContextFeedback",
         "x-agent-tool-name": "memory.recordContextFeedback",
         "summary": "Record retrieval feedback",
-        "description": "Records useful, stale, missing, or noisy context-packet feedback. Callers may send either the original query or a packetId returned by memory.getContext; the API stores a hash instead of raw query text. This endpoint is append-only and is not currently idempotent.",
+        "description": "Records useful, stale, wrong, sensitive, over_broad, missing, or legacy noisy context-packet feedback. Callers may send either the original query or a packetId returned by memory.getContext; the API stores a hash instead of raw query text. Item-level feedback must include sourceType and sourceId. This endpoint is append-only and is not currently idempotent.",
         "tags": [
           "Memory Evaluation"
         ],
@@ -1403,7 +1403,7 @@
           "itemId": {
             "type": "string",
             "format": "uuid",
-            "description": "Context packet item id returned by memory.getContext. Item-level feedback can identify this instead of sourceType/sourceId."
+            "description": "Context packet item id returned by memory.getContext. Item-level feedback must also include sourceType and sourceId."
           },
           "targetScopeType": {
             "oneOf": [
@@ -1446,7 +1446,8 @@
               "string",
               "null"
             ],
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Required with sourceType for useful, stale, wrong, sensitive, over_broad, and legacy noisy feedback."
           },
           "feedbackType": {
             "$ref": "#/components/schemas/RetrievalFeedbackType"
@@ -2060,9 +2061,13 @@
       },
       "RetrievalFeedbackType": {
         "type": "string",
+        "description": "Preferred product values plus legacy noisy. The API also accepts over-broad and normalizes it to over_broad.",
         "enum": [
           "useful",
           "stale",
+          "wrong",
+          "sensitive",
+          "over_broad",
           "missing",
           "noisy"
         ]

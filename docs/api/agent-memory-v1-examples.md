@@ -164,9 +164,17 @@ curl -sS -X POST "$MEMORYSYSTEM_API_BASE_URL/api/memory/context/feedback" \
     "targetScopeType": "project",
     "targetScopeId": "33333333-3333-4333-8333-333333333333",
     "roleId": "cto",
+    "sourceType": "memory_fact",
+    "sourceId": "<source-id>",
     "feedbackType": "useful"
   }'
 ```
+
+Use `useful`, `stale`, `wrong`, `sensitive`, `over_broad`, or `missing` for
+new integrations. Legacy `noisy` remains accepted during migration, and
+`over-broad` is normalized to `over_broad`. Item-level actions require
+`sourceType` and `sourceId`; `missing` is packet-level and omits source and item
+identifiers.
 
 ## Retry Behavior
 

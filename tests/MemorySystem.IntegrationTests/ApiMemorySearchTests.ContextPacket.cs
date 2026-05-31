@@ -325,6 +325,8 @@ public sealed partial class ApiMemorySearchTests
                 contextPayload.GetProperty("relevantDecisions").EnumerateArray(),
                 item => item.GetProperty("sourceId").GetGuid() == fixture.ProjectDecisionId);
             var itemId = feedbackItem.GetProperty("itemId").GetGuid();
+            var sourceType = feedbackItem.GetProperty("sourceType").GetString();
+            var sourceId = feedbackItem.GetProperty("sourceId").GetGuid();
 
             var (feedbackStatusCode, feedbackPayload, feedbackBody) = await SendContextFeedbackAsync(
                 client,
@@ -335,6 +337,8 @@ public sealed partial class ApiMemorySearchTests
                   "targetScopeType": "project",
                   "targetScopeId": "{{ProjectAId}}",
                   "roleId": "cto",
+                  "sourceType": "{{sourceType}}",
+                  "sourceId": "{{sourceId}}",
                   "feedbackType": "useful"
                 }
                 """);
@@ -357,8 +361,8 @@ public sealed partial class ApiMemorySearchTests
             Assert.Equal("project", storedFeedback.TargetScopeType);
             Assert.Equal(ProjectAId.ToString(), storedFeedback.TargetScopeId);
             Assert.Equal("cto", storedFeedback.RoleId);
-            Assert.Null(storedFeedback.SourceType);
-            Assert.Null(storedFeedback.SourceId);
+            Assert.Equal(sourceType, storedFeedback.SourceType);
+            Assert.Equal(sourceId, storedFeedback.SourceId);
             Assert.Equal("useful", storedFeedback.FeedbackType);
         }
         finally
@@ -369,7 +373,63 @@ public sealed partial class ApiMemorySearchTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
-    public async Task Post_memory_context_feedback_rejects_source_feedback_without_source()
+    public async Task Post_memory_context_feedback_accepts_product_actions_and_legacy_noisy()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_feedback_actions_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var sourceId = Guid.NewGuid();
+
+            foreach (var feedbackType in new[] { "wrong", "sensitive", "over-broad", "over_broad", "noisy" })
+            {
+                var (statusCode, payload, _) = await SendContextFeedbackAsync(
+                    client,
+                    $$"""
+                    {
+                      "query": "payload safe feedback action check",
+                      "sourceType": "memory_fact",
+                      "sourceId": "{{sourceId}}",
+                      "feedbackType": "{{feedbackType}}"
+                    }
+                    """);
+
+                Assert.Equal(HttpStatusCode.Created, statusCode);
+                Assert.Equal(
+                    feedbackType.Replace('-', '_'),
+                    payload.GetProperty("feedbackType").GetString());
+            }
+
+            var (missingStatusCode, missingPayload, missingBody) = await SendContextFeedbackAsync(
+                client,
+                """
+                {
+                  "packetId": "11111111-1111-4111-8111-111111111111",
+                  "feedbackType": "missing"
+                }
+                """);
+
+            Assert.Equal(HttpStatusCode.Created, missingStatusCode);
+            Assert.Equal("missing", missingPayload.GetProperty("feedbackType").GetString());
+            Assert.DoesNotContain("payload safe feedback action check", missingBody, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_context_feedback_rejects_item_feedback_without_source()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
         var databaseName = $"memorysystem_memory_context_feedback_validation_test_{Guid.NewGuid():N}";
@@ -388,13 +448,51 @@ public sealed partial class ApiMemorySearchTests
                 """
                 {
                   "packetId": "11111111-1111-4111-8111-111111111111",
+                  "itemId": "22222222-2222-4222-8222-222222222222",
                   "feedbackType": "stale"
                 }
                 """);
 
             Assert.Equal(HttpStatusCode.BadRequest, statusCode);
             Assert.Equal("Memory context feedback is invalid.", payload.GetProperty("title").GetString());
-            Assert.Contains("must identify a retrieved source or item", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            Assert.Contains("must identify a retrieved source", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Post_memory_context_feedback_rejects_packet_feedback_with_source()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_memory_context_missing_feedback_validation_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var (statusCode, payload, _) = await SendContextFeedbackAsync(
+                client,
+                """
+                {
+                  "packetId": "11111111-1111-4111-8111-111111111111",
+                  "sourceType": "memory_fact",
+                  "sourceId": "33333333-3333-4333-8333-333333333333",
+                  "feedbackType": "missing"
+                }
+                """);
+
+            Assert.Equal(HttpStatusCode.BadRequest, statusCode);
+            Assert.Equal("Memory context feedback is invalid.", payload.GetProperty("title").GetString());
+            Assert.Contains("packet-level", payload.GetProperty("detail").GetString(), StringComparison.Ordinal);
         }
         finally
         {

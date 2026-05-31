@@ -102,8 +102,11 @@ public sealed class PostgresOperationalSummaryStore(
                 VALUES
                     ('useful', 1),
                     ('stale', 2),
-                    ('missing', 3),
-                    ('noisy', 4)
+                    ('wrong', 3),
+                    ('sensitive', 4),
+                    ('over_broad', 5),
+                    ('missing', 6),
+                    ('noisy', 7)
             ) AS feedback_types(feedback_type, sort_order)
             LEFT JOIN memory_retrieval_feedback feedback
                 ON feedback.feedback_type = feedback_types.feedback_type

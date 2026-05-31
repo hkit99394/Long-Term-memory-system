@@ -975,7 +975,7 @@ Contract rules:
 
 `POST /api/memory/context/feedback`
 
-- record useful, stale, missing, or noisy context-packet feedback without storing raw query text
+- record useful, stale, wrong, sensitive, over-broad, missing, or legacy noisy context-packet feedback without storing raw query text
 
 ### Review
 

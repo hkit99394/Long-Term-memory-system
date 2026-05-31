@@ -121,12 +121,14 @@ The first productized action set is:
 - `over_broad`
 - `missing`
 
-The legacy `noisy` feedback type remains a compatibility alias for
-`over_broad` until the runtime migration is complete.
+The legacy `noisy` feedback type remains a compatibility path while product
+callers prefer `over_broad`. The API also accepts `over-broad` and normalizes it
+to `over_broad`.
 
-Item-level feedback must identify the returned item or source. Packet-level
-`missing` feedback may omit source identifiers because it describes absent
-memory.
+Item-level feedback must identify the retrieved source with `sourceType` and
+`sourceId`; callers may also send the returned `itemId` for trace correlation.
+Packet-level `missing` feedback omits source and item identifiers because it
+describes absent memory.
 
 ## Evaluation Hints
 
@@ -144,5 +146,5 @@ order:
    feedback.
 2. Done: CP-03 fills structured inclusion explanations.
 3. Done: CP-04 adds safe exclusion summaries.
-4. CP-05 expands feedback actions.
+4. Done: CP-05 expands feedback actions.
 5. CP-08 adds benchmark checks against this contract.

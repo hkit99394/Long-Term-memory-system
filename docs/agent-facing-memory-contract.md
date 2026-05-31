@@ -27,7 +27,8 @@ An agent should be able to:
 - propose durable memory with an explicit source event
 - retrieve scoped context for a task
 - query known facts with evidence and policy metadata
-- report whether retrieved memory was useful, stale, missing, or noisy
+- report whether retrieved memory was useful, stale, wrong, sensitive,
+  over-broad, missing, or legacy noisy
 - read source evidence when it is authorized
 - understand why memory was included, excluded, rejected, or sent to review
 
@@ -94,7 +95,7 @@ capabilities.
 | `memory.appendEvent` | `POST /api/events` | Store source evidence for a later memory or review action. | Existing |
 | `memory.propose` | `POST /api/memory/proposals` | Ask the broker whether a candidate should be stored, rejected, reused, or reviewed. | Existing |
 | `memory.getContext` | `GET /api/memory/context` | Return a compact, source-linked task context packet. | Existing |
-| `memory.recordContextFeedback` | `POST /api/memory/context/feedback` | Record useful, stale, missing, or noisy retrieval feedback without raw query storage. | Existing |
+| `memory.recordContextFeedback` | `POST /api/memory/context/feedback` | Record useful, stale, wrong, sensitive, over-broad, missing, or legacy noisy retrieval feedback without raw query storage. | Existing |
 | `memory.readFact` | `GET /api/memory/{id}` | Read one authorized memory fact. | Existing |
 | `memory.readEvidence` | `GET /api/events/{id}` | Read one authorized source event. | Existing |
 | `memory.queryFacts` | `POST /api/memory/query-facts` | Return fact-finding results with evidence, confidence, contradictions, and policy metadata. | Existing |
@@ -259,6 +260,8 @@ Input shape:
   "targetScopeType": "project",
   "targetScopeId": "project-a",
   "roleId": "cto",
+  "sourceType": "memory_fact",
+  "sourceId": "source-memory-id",
   "feedbackType": "useful"
 }
 ```
@@ -279,13 +282,16 @@ Expected output:
 
 Contract rules:
 
-- `feedbackType` must be one of `useful`, `stale`, `missing`, or `noisy`.
+- `feedbackType` must be one of `useful`, `stale`, `wrong`, `sensitive`,
+  `over_broad`, `missing`, or legacy `noisy`. Clients may send `over-broad`;
+  the API normalizes it to `over_broad`.
 - Raw query text must not be stored.
 - Feedback may send the original query or the `packetId` returned by
   `memory.getContext`; `packetId` lets clients avoid resending raw query text.
-- `useful`, `stale`, and `noisy` feedback should identify the retrieved source
-  or returned `itemId`.
-- `missing` feedback may omit source id because it points to absent memory.
+- `useful`, `stale`, `wrong`, `sensitive`, `over_broad`, and legacy `noisy`
+  feedback must identify the retrieved source with `sourceType` and `sourceId`.
+- `missing` feedback is packet-level and must omit source and item identifiers
+  because it points to absent memory.
 
 ## Fact-Finding Contract
 

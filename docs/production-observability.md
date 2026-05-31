@@ -109,7 +109,8 @@ Minimum retrieval metrics:
 - query-facts request count, latency, fact count, contradiction count, exclusion
   count, warning count, and overall confidence distribution
 - source evidence read count and failure count
-- retrieval feedback count by type: `useful`, `stale`, `missing`, `noisy`
+- retrieval feedback count by type: `useful`, `stale`, `wrong`, `sensitive`,
+  `over_broad`, `missing`, and legacy `noisy`
 - retrieval feedback share by type over the recent operator window
 - benchmark smoke result for the LMSS agent-contract suite
 
@@ -117,8 +118,8 @@ Initial alert signals:
 
 - query-facts or context packet 5xx rate above 1 percent for 10 minutes
 - source evidence read failures above zero for known-good source links
-- `missing`, `stale`, or `noisy` retrieval feedback share materially above
-  baseline
+- `missing`, `stale`, `wrong`, `sensitive`, `over_broad`, or legacy `noisy`
+  retrieval feedback share materially above baseline
 - agent-contract smoke fails in a release verification run
 
 ### Worker and Outbox

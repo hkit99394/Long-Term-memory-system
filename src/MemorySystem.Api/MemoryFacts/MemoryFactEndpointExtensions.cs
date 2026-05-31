@@ -702,9 +702,15 @@ public static class MemoryFactEndpointExtensions
             return false;
         }
 
-        if (MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && !sourceId.HasValue && !itemId.HasValue)
+        if (MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && !sourceId.HasValue)
         {
-            error = "useful, stale, and noisy feedback must identify a retrieved source or item.";
+            error = "useful, stale, wrong, sensitive, over_broad, and noisy feedback must identify a retrieved source.";
+            return false;
+        }
+
+        if (!MemoryRetrievalFeedbackTypes.RequiresSource(feedbackType) && (itemId.HasValue || sourceId.HasValue))
+        {
+            error = "missing feedback is packet-level and must not identify a source or item.";
             return false;
         }
 

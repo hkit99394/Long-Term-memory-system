@@ -143,10 +143,15 @@ public sealed class PostgresMemoryRetrievalFeedbackStore(NpgsqlDataSource dataSo
         }
 
         if (MemoryRetrievalFeedbackTypes.RequiresSource(command.FeedbackType)
-            && !command.SourceId.HasValue
-            && !command.ItemId.HasValue)
+            && !command.SourceId.HasValue)
         {
-            throw new ArgumentException("Useful, stale, and noisy feedback must identify a retrieved source or item.", nameof(command));
+            throw new ArgumentException("Item-level feedback must identify a retrieved source.", nameof(command));
+        }
+
+        if (!MemoryRetrievalFeedbackTypes.RequiresSource(command.FeedbackType)
+            && (command.ItemId.HasValue || command.SourceId.HasValue))
+        {
+            throw new ArgumentException("Missing feedback is packet-level and must not identify a source or item.", nameof(command));
         }
     }
 
