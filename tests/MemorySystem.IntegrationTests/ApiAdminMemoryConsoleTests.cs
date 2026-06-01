@@ -42,10 +42,15 @@ public sealed class ApiAdminMemoryConsoleTests
             Assert.Contains("/admin/admin-console.js", html, StringComparison.Ordinal);
             Assert.Contains("/api/admin/memory/facts", script, StringComparison.Ordinal);
             Assert.Contains("/api/admin/source-events", script, StringComparison.Ordinal);
+            Assert.Contains("/api/admin/access/project-memberships", script, StringComparison.Ordinal);
+            Assert.Contains("/api/admin/access/effective-preview", script, StringComparison.Ordinal);
+            Assert.Contains("/api/admin/audit-exports", script, StringComparison.Ordinal);
+            Assert.Contains("Audit export", script, StringComparison.Ordinal);
             Assert.Contains("sourceLink", script, StringComparison.Ordinal);
             Assert.Contains("sourceRetentionClass", script, StringComparison.Ordinal);
             Assert.Contains("contentVisibilityReason", script, StringComparison.Ordinal);
             Assert.Contains("referenceType", script, StringComparison.Ordinal);
+            Assert.Contains("""<option value="access">Access</option>""", html, StringComparison.Ordinal);
         }
         finally
         {

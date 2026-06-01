@@ -353,6 +353,24 @@ textarea {
   background: var(--surface);
 }
 
+.access-forms {
+  display: grid;
+  gap: 18px;
+}
+
+.access-form {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
 .empty {
   margin-top: 12px;
   padding: 12px;

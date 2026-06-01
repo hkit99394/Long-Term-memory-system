@@ -1,5 +1,6 @@
 using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryChunks;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.MemoryContext;
@@ -328,6 +329,13 @@ public sealed class MemoryContextPacketBuilder(
 
     private static IReadOnlyList<string> ReviewSuggestedActionsFor()
     {
-        return ["useful", "stale", "wrong", "sensitive", "over_broad"];
+        return
+        [
+            MemoryRetrievalFeedbackTypes.Useful,
+            MemoryRetrievalFeedbackTypes.Stale,
+            MemoryRetrievalFeedbackTypes.Wrong,
+            MemoryRetrievalFeedbackTypes.Sensitive,
+            MemoryRetrievalFeedbackTypes.OverBroad
+        ];
     }
 }

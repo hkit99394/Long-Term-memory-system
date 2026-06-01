@@ -2,6 +2,8 @@ using System.Text.Json;
 using MemorySystem.Application.Access;
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Authentication;
+using MemorySystem.Domain.Roles;
+using MemorySystem.Domain.Scopes;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -21,27 +23,6 @@ public sealed class PostgresAccessAuditEventStore(NpgsqlDataSource dataSource) :
         AuthenticationMethods.ApiKey,
         AuthenticationMethods.Oidc,
         AuthenticationMethods.ServiceAccount
-    };
-
-    private static readonly IReadOnlySet<string> ScopeTypes = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "global",
-        "org",
-        "user",
-        "project",
-        "role",
-        "agent",
-        "session"
-    };
-
-    private static readonly IReadOnlySet<string> RoleIds = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "designer",
-        "developer",
-        "cto",
-        "cfo",
-        "coo",
-        "ceo"
     };
 
     private static readonly IReadOnlySet<string> ForbiddenMetadataKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -209,7 +190,7 @@ public sealed class PostgresAccessAuditEventStore(NpgsqlDataSource dataSource) :
         var identityBindingId = NormalizeOptionalGuid(command.IdentityBindingId, "Identity binding id");
         var principalType = NormalizeOptionalAllowedToken(command.PrincipalType, PrincipalTypes, "Principal type");
         var authMethod = NormalizeOptionalAllowedToken(command.AuthMethod, AuthMethods, "Authentication method");
-        var scopeType = NormalizeOptionalAllowedToken(command.ScopeType, ScopeTypes, "Scope type");
+        var scopeType = NormalizeOptionalScopeType(command.ScopeType);
         var scopeId = NormalizeOptionalToken(command.ScopeId, "Scope id");
 
         if ((scopeType is null) != (scopeId is null))
@@ -217,7 +198,7 @@ public sealed class PostgresAccessAuditEventStore(NpgsqlDataSource dataSource) :
             throw new ArgumentException("Scope type and scope id must be provided together.", nameof(command));
         }
 
-        var roleId = NormalizeOptionalAllowedToken(command.RoleId, RoleIds, "Role id");
+        var roleId = NormalizeOptionalRoleId(command.RoleId);
         var namespacePrefix = NormalizeOptionalToken(command.NamespacePrefix, "Namespace prefix");
         if (namespacePrefix is not null && !namespacePrefix.StartsWith("/", StringComparison.Ordinal))
         {
@@ -305,6 +286,38 @@ public sealed class PostgresAccessAuditEventStore(NpgsqlDataSource dataSource) :
         }
 
         return normalized;
+    }
+
+    private static string? NormalizeOptionalScopeType(string? value)
+    {
+        var normalized = NormalizeOptionalToken(value, "Scope type");
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!MemoryScopeType.TryNormalize(normalized, out var scopeType, out _))
+        {
+            throw new ArgumentException("Scope type is not supported.");
+        }
+
+        return scopeType!.Value;
+    }
+
+    private static string? NormalizeOptionalRoleId(string? value)
+    {
+        var normalized = NormalizeOptionalToken(value, "Role id");
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!MemoryRoleId.TryNormalize(normalized, out var roleId, out _))
+        {
+            throw new ArgumentException("Role id is not supported.");
+        }
+
+        return roleId!.Value;
     }
 
     private static IReadOnlyDictionary<string, string?> NormalizeMetadata(IReadOnlyDictionary<string, string?>? metadata)

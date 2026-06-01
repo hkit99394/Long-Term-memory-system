@@ -115,6 +115,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 const state                    = {
   mode: "memory",
   facts: [],
@@ -122,6 +132,7 @@ const state                    = {
   selectedFactId: null,
   selectedEventId: null,
   selectedSource: null,
+  accessResult: null,
   busy: false
 };
 
@@ -159,7 +170,11 @@ elements.query.addEventListener("keydown", event => {
 });
 elements.statusFilter.addEventListener("change", () => void loadFacts());
 elements.modeFilter.addEventListener("change", () => {
-  state.mode = elements.modeFilter.value === "events" ? "events" : "memory";
+  state.mode = elements.modeFilter.value === "events"
+    ? "events"
+    : elements.modeFilter.value === "access"
+      ? "access"
+      : "memory";
   state.selectedSource = null;
   updateFilterVisibility();
   render();
@@ -202,6 +217,12 @@ function byId                       (id        )    {
 async function loadCurrentMode()                {
   if (state.mode === "events") {
     await loadEvents();
+    return;
+  }
+
+  if (state.mode === "access") {
+    setStatus("Access");
+    render();
     return;
   }
 
@@ -342,8 +363,16 @@ async function apiFetch   (path        , init              = {})             {
 }
 
 function render()       {
-  elements.listTitle.textContent = state.mode === "events" ? "Source Events" : "Memory Facts";
-  elements.sourceTitle.textContent = state.mode === "events" ? "Payload" : "Source Evidence";
+  elements.listTitle.textContent = state.mode === "events"
+    ? "Source Events"
+    : state.mode === "access"
+      ? "Access Actions"
+      : "Memory Facts";
+  elements.sourceTitle.textContent = state.mode === "events"
+    ? "Payload"
+    : state.mode === "access"
+      ? "Result"
+      : "Source Evidence";
   renderResultList();
   renderDetail();
   renderSourceDetail();
@@ -357,7 +386,28 @@ function renderResultList()       {
     return;
   }
 
+  if (state.mode === "access") {
+    renderAccessList();
+    return;
+  }
+
   renderMemoryList();
+}
+
+function renderAccessList()       {
+  for (const action of [
+    "Organization membership",
+    "Project membership",
+    "Role assignment",
+    "Namespace grant",
+    "Effective preview",
+    "Audit export"
+  ]) {
+    const row = document.createElement("div");
+    row.className = "memory-row";
+    row.append(line(action, "memory-title"));
+    elements.resultList.append(row);
+  }
 }
 
 function renderMemoryList()       {
@@ -418,7 +468,125 @@ function renderDetail()       {
     return;
   }
 
+  if (state.mode === "access") {
+    renderAccessDetail();
+    return;
+  }
+
   renderMemoryDetail();
+}
+
+function renderAccessDetail()       {
+  const panel = document.createElement("section");
+  panel.className = "access-forms";
+
+  panel.append(
+    heading("Access management"),
+    accessForm(
+      "Organization membership",
+      [
+        textField("orgId", "Org ID"),
+        textField("principalId", "Principal ID"),
+        selectField("accessLevel", "Access", ["reader", "contributor", "reviewer", "admin", "owner"])
+      ],
+      "Save",
+      form => postAccess("/api/admin/access/organization-memberships", {
+        orgId: formValue(form, "orgId"),
+        principalId: formValue(form, "principalId"),
+        accessLevel: formValue(form, "accessLevel")
+      })),
+    accessForm(
+      "Project membership",
+      [
+        textField("projectId", "Project ID"),
+        textField("principalId", "Principal ID"),
+        selectField("accessLevel", "Access", ["reader", "contributor", "reviewer", "admin"])
+      ],
+      "Save",
+      form => postAccess("/api/admin/access/project-memberships", {
+        projectId: formValue(form, "projectId"),
+        principalId: formValue(form, "principalId"),
+        accessLevel: formValue(form, "accessLevel")
+      })),
+    accessForm(
+      "Role assignment",
+      [
+        textField("principalId", "Principal ID"),
+        selectField("roleId", "Role", ["cto", "developer", "designer", "cfo", "coo", "ceo"]),
+        selectField("scopeType", "Scope", ["project", "org"]),
+        textField("scopeId", "Scope ID")
+      ],
+      "Assign",
+      form => postAccess("/api/admin/access/role-assignments", {
+        principalId: formValue(form, "principalId"),
+        roleId: formValue(form, "roleId"),
+        scopeType: formValue(form, "scopeType"),
+        scopeId: formValue(form, "scopeId")
+      })),
+    accessForm(
+      "Namespace grant",
+      [
+        selectField("targetType", "Target", ["principal", "role"]),
+        textField("targetId", "Target ID"),
+        textField("namespacePrefix", "Namespace"),
+        selectField("permission", "Permission", ["read", "write", "review", "admin"]),
+        selectField("scopeType", "Scope", ["project", "org"]),
+        textField("scopeId", "Scope ID")
+      ],
+      "Grant",
+      form => {
+        const targetType = formValue(form, "targetType");
+        return postAccess("/api/admin/access/namespace-grants", {
+          principalId: targetType === "principal" ? formValue(form, "targetId") : null,
+          roleId: targetType === "role" ? formValue(form, "targetId") : null,
+          namespacePrefix: formValue(form, "namespacePrefix"),
+          permission: formValue(form, "permission"),
+          scopeType: formValue(form, "scopeType"),
+          scopeId: formValue(form, "scopeId")
+        });
+      }),
+    accessForm(
+      "Effective preview",
+      [
+        textField("principalId", "Principal ID"),
+        selectField("permission", "Permission", ["read", "write", "review", "admin"]),
+        selectField("scopeType", "Scope", ["project", "org"]),
+        textField("scopeId", "Scope ID"),
+        textField("namespacePrefix", "Namespace")
+      ],
+      "Preview",
+      form => postAccess("/api/admin/access/effective-preview", {
+        principalId: formValue(form, "principalId"),
+        permission: formValue(form, "permission"),
+        scopeType: formValue(form, "scopeType"),
+        scopeId: formValue(form, "scopeId"),
+        namespacePrefix: formValue(form, "namespacePrefix") || null
+      })),
+    accessForm(
+      "Audit export",
+      [
+        dateTimeField("occurredFrom", "From"),
+        dateTimeField("occurredTo", "To"),
+        selectField("scopeType", "Scope", ["project", "org"]),
+        textField("scopeId", "Scope ID"),
+        selectField("actionType", "Action", [
+          "all",
+          "authentication",
+          "authorization_denied",
+          "organization_membership_change",
+          "project_membership_change",
+          "role_assignment_change",
+          "namespace_grant_change",
+          "service_credential_change",
+          "audit_export"
+        ]),
+        selectField("outcome", "Outcome", ["all", "succeeded", "failed", "denied"]),
+        numberField("limit", "Limit", "1000")
+      ],
+      "Export",
+      form => exportAudit(form)));
+
+  elements.detail.append(panel);
 }
 
 function renderMemoryDetail()       {
@@ -513,6 +681,19 @@ function renderEventDetail()       {
 function renderSourceDetail()       {
   elements.sourceDetail.replaceChildren();
 
+  if (state.mode === "access") {
+    if (!state.accessResult) {
+      elements.sourceDetail.append(emptyPanel("No access result"));
+      return;
+    }
+
+    const json = document.createElement("pre");
+    json.className = "source-json";
+    json.textContent = JSON.stringify(state.accessResult, null, 2);
+    elements.sourceDetail.append(json);
+    return;
+  }
+
   if (!state.selectedSource) {
     elements.sourceDetail.append(emptyPanel("No source opened"));
     return;
@@ -538,6 +719,227 @@ function renderSourceDetail()       {
     heading("Source event"),
     detailGrid(rows),
     json);
+}
+
+function accessForm(
+  title        ,
+  fields               ,
+  buttonText        ,
+  onSubmit                                          )              {
+  const form = document.createElement("form");
+  form.className = "access-form";
+  form.append(heading(title));
+
+  const grid = document.createElement("div");
+  grid.className = "access-grid";
+  grid.append(...fields);
+
+  const button = document.createElement("button");
+  button.type = "submit";
+  button.className = "primary-action";
+  button.textContent = buttonText;
+  button.disabled = state.busy;
+
+  form.append(grid, button);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    void onSubmit(form);
+  });
+
+  return form;
+}
+
+function textField(name        , labelText        )              {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  const input = document.createElement("input");
+  span.textContent = labelText;
+  input.name = name;
+  input.autocomplete = "off";
+  label.append(span, input);
+  return label;
+}
+
+function dateTimeField(name        , labelText        )              {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  const input = document.createElement("input");
+  span.textContent = labelText;
+  input.name = name;
+  input.type = "datetime-local";
+  label.append(span, input);
+  return label;
+}
+
+function numberField(name        , labelText        , value        )              {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  const input = document.createElement("input");
+  span.textContent = labelText;
+  input.name = name;
+  input.type = "number";
+  input.min = "1";
+  input.max = "5000";
+  input.value = value;
+  label.append(span, input);
+  return label;
+}
+
+function selectField(name        , labelText        , values          )              {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  const select = document.createElement("select");
+  span.textContent = labelText;
+  select.name = name;
+
+  for (const value of values) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.append(option);
+  }
+
+  label.append(span, select);
+  return label;
+}
+
+function formValue(form                 , name        )         {
+  const value = new FormData(form).get(name);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function apiFetchText(path        , init              = {})                           {
+  const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
+  const headers = new Headers(init.headers);
+  const apiKey = elements.apiKey.value.trim();
+
+  if (apiKey) {
+    headers.set("X-Api-Key", apiKey);
+  }
+
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    headers
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    let detail = response.statusText;
+
+    try {
+      const payload = text ? JSON.parse(text) : null;
+      detail = payload?.detail ?? payload?.title ?? detail;
+    } catch {
+      detail = text || detail;
+    }
+
+    throw new Error(`${response.status} ${detail}`);
+  }
+
+  return {
+    text,
+    headers: response.headers
+  };
+}
+
+async function postAccess(path        , body                         )                {
+  setBusy(true);
+  setStatus("Saving");
+
+  try {
+    state.accessResult = await apiFetch                   (path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    setStatus("Saved");
+  } catch (error) {
+    state.accessResult = { error: errorMessage(error) };
+    setStatus("Error");
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+async function exportAudit(form                 )                {
+  setBusy(true);
+  setStatus("Exporting");
+
+  const actionType = formValue(form, "actionType");
+  const outcome = formValue(form, "outcome");
+  const body                          = {
+    occurredFrom: dateTimeValue(form, "occurredFrom"),
+    occurredTo: dateTimeValue(form, "occurredTo"),
+    scopeType: formValue(form, "scopeType"),
+    scopeId: formValue(form, "scopeId"),
+    limit: Number(formValue(form, "limit") || "1000")
+  };
+
+  if (actionType !== "all") {
+    body.actionTypes = [actionType];
+  }
+
+  if (outcome !== "all") {
+    body.outcomes = [outcome];
+  }
+
+  try {
+    const response = await apiFetchText("/api/admin/audit-exports", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    const firstLine = response.text.split("\n", 1)[0] || "{}";
+    const manifest = JSON.parse(firstLine);
+    const fileName = auditExportFileName(response.headers, manifest.exportId);
+    downloadText(fileName, response.text, "application/x-ndjson");
+    state.accessResult = {
+      manifest,
+      fileName
+    };
+    setStatus("Exported");
+  } catch (error) {
+    state.accessResult = { error: errorMessage(error) };
+    setStatus("Error");
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+function dateTimeValue(form                 , name        )                {
+  const value = formValue(form, name);
+  return value ? new Date(value).toISOString() : null;
+}
+
+function auditExportFileName(headers         , exportId         )         {
+  const disposition = headers.get("content-disposition") ?? "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+
+  if (match) {
+    return match[1];
+  }
+
+  return typeof exportId === "string" && exportId
+    ? `access-audit-${exportId.replaceAll("-", "")}.ndjson`
+    : "access-audit.ndjson";
+}
+
+function downloadText(fileName        , text        , type        )       {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function referenceList(references                             )              {
@@ -679,4 +1081,7 @@ function updateFilterVisibility()       {
   }
 
   elements.statusFilter.closest("label") .hidden = state.mode !== "memory";
+  elements.scopeTypeFilter.closest("label") .hidden = state.mode === "access";
+  elements.scopeIdFilter.closest("label") .hidden = state.mode === "access";
+  elements.query.closest("label") .hidden = state.mode === "access";
 }

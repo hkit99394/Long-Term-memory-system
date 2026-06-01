@@ -1,4 +1,5 @@
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryReviews;
 using MemorySystem.Infrastructure.Access;
 using MemorySystem.Infrastructure.DomainMapping;
@@ -13,9 +14,9 @@ public sealed class PostgresMemoryContextFeedbackObservationStore(NpgsqlDataSour
     private const int MaxLimit = 250;
     private static readonly IReadOnlySet<string> ReviewableFeedbackTypes = new HashSet<string>(StringComparer.Ordinal)
     {
-        "stale",
-        "wrong",
-        "sensitive"
+        MemoryRetrievalFeedbackTypes.Stale,
+        MemoryRetrievalFeedbackTypes.Wrong,
+        MemoryRetrievalFeedbackTypes.Sensitive
     };
 
     private static readonly string ListSql = ListSqlTemplate.Replace(

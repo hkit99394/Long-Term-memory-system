@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.Operations;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -359,7 +360,12 @@ public static class OperationalMetricsTextRenderer
             item => item.Count,
             StringComparer.Ordinal);
 
-        foreach (var feedbackType in new[] { "stale", "wrong", "sensitive" })
+        foreach (var feedbackType in new[]
+                 {
+                     MemoryRetrievalFeedbackTypes.Stale,
+                     MemoryRetrievalFeedbackTypes.Wrong,
+                     MemoryRetrievalFeedbackTypes.Sensitive
+                 })
         {
             foreach (var created in new[] { true, false })
             {

@@ -7,6 +7,16 @@ public sealed class MemoryAccessAuthorizer(
     IMemoryAccessReferenceStore referenceStore,
     IAccessAuditEventStore? accessAuditEventStore = null) : IMemoryAccessAuthorizer
 {
+    public async Task<MemoryAccessDecision> PreviewAsync(
+        MemoryAccessRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Scope);
+
+        return await EvaluateAsync(request, cancellationToken);
+    }
+
     public async Task<MemoryAccessDecision> AuthorizeAsync(
         MemoryAccessRequest request,
         CancellationToken cancellationToken = default)

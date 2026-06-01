@@ -346,6 +346,9 @@ Rules:
 | `docs/backlog.md` | Milestone backlog and acceptance criteria. |
 | `docs/folder-structure.md` | Repository layout and ownership guide. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
+| `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
+| `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
+| `docs/permission-drift-report-gc02.md` | GC-02 payload-safe permission-drift report contract. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

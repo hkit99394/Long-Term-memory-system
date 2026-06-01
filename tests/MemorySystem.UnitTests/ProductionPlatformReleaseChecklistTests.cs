@@ -109,8 +109,8 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("| PI-07 | P1 | Done | Add environment-specific release checklists.", backlog, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", backlog, StringComparison.Ordinal);
-        Assert.Contains("should be `EA-06`: add the admin access-management UI", productPlan, StringComparison.Ordinal);
-        Assert.Contains("`DM-06` as a later cleanup slice", backlog, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-03`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("| DM-06 | P2 | Done | Remove duplicate string normalization helpers.", backlog, StringComparison.Ordinal);
     }
 
     private static string ExtractMarkdownSection(string markdown, string sectionName)

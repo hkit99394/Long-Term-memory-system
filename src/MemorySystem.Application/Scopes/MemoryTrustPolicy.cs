@@ -6,6 +6,7 @@ public static class MemoryTrustPolicy
 {
     public static bool IsExternallyAccepted(string trustLevel)
     {
-        return trustLevel is not MemoryTrustLevel.SystemTrusted and not MemoryTrustLevel.HumanApproved;
+        return MemoryTrustLevel.TryNormalize(trustLevel, out var normalizedTrustLevel, out _)
+            && normalizedTrustLevel!.IsExternallyAccepted;
     }
 }

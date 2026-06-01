@@ -196,6 +196,49 @@ introduced.
 Rollback must be possible through configuration: disabling OIDC should return the
 system to API-key authentication without modifying memory grants or memberships.
 
+## EA-08 Migration And Rollback Smoke
+
+EA-08 adds a focused smoke command for the auth migration path:
+
+```bash
+./scripts/enterprise-access-migration-rollback-smoke.sh
+```
+
+The command runs the database-backed
+`ApiEnterpriseAccessMigrationRollbackSmokeTests` suite against an isolated test
+database. It proves:
+
+- API-key-only mode authenticates existing human API-key callers.
+- OIDC-only mode authenticates a bound human subject and rejects API keys.
+- dual-auth mode maps API key and OIDC requests to the same local principal.
+- service-account mode authenticates an owned service principal through an
+  active service credential.
+- OIDC-disabled rollback mode rejects bearer tokens while API-key access keeps
+  working.
+
+The smoke also reads an allowed project memory fact and a restricted project
+memory fact in each successful mode, then compares the
+`memory_access_grants` fingerprint before and after the run. That keeps the
+rollout invariant executable: auth migration changes who the caller is, not the
+namespace grants required to read memory.
+
+## EA-10 Directory Sync Posture
+
+EA-10 evaluates directory sync in
+[Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md)
+and records the decision in
+[Decision 0047](decisions/0047-directory-sync-provisioning-only.md).
+
+The first pilot does not need SCIM or provider-specific group sync. OIDC,
+identity bindings, service-account lifecycle records, admin access management,
+audit export, and rollback smoke are enough for the first team.
+
+If directory sync is added later, it is provisioning-only. It may create or
+update local principals and identity bindings, or stage local membership, role,
+and namespace-grant proposals for operator approval. It must not authorize
+memory access from provider groups, token roles, token scopes, or directory
+claims at request time.
+
 ## Pilot Acceptance Checks
 
 The enterprise access gate is ready for implementation only when the following
@@ -225,11 +268,11 @@ checks are automated or documented as release checks:
 | EA-03 | P0 | Done | Add access audit event model. | `027_access_audit_events.sql` adds payload-safe `access_audit_events` with constrained action, outcome, scope, auth, resource, and metadata fields; `IAccessAuditEventStore` can write authentication, authorization denial, membership, role assignment, namespace grant, service credential, and audit export records while rejecting raw payload-like metadata. |
 | EA-04 | P0 | Done | Add generic OIDC authentication. | `OidcAuthenticationHandler` validates RS256 bearer tokens against configured issuer, audience, JWKS, HTTPS metadata policy, and token lifetime, then maps the subject through active `identity_bindings`; unbound subjects, disabled bindings, non-human principals, wrong audiences, and expired tokens fail closed while API-key authentication remains available. |
 | EA-05 | P0 | Done | Add service-account lifecycle. | `028_service_account_lifecycle.sql` adds service account profiles and credential posture; `IServiceAccountLifecycleStore` records owner scope/contact, allowed auth method, credential review or expiry, credential rotation/disable operations, least-privilege namespace grants, and access audit events. |
-| EA-06 | P0 | Todo | Add admin access-management UI. | Authorized operators can manage memberships, role assignments, and namespace grants with effective-access preview, authorizer-backed explanations, and audited changes. |
-| EA-07 | P0 | Todo | Add audit export. | Operators can export access-management and auth audit records for a time window and scope as newline-delimited JSON with manifest hash and payload-safe fields. |
-| EA-08 | P0 | Todo | Add migration and rollback smoke. | A smoke script proves API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes without weakening namespace grants. |
-| EA-09 | P1 | Todo | Document pilot operator runbook. | Runbook covers provider setup, identity binding, service-account creation, role/grant review, audit export, rollback, and break-glass API-key handling. |
-| EA-10 | P1 | Todo | Evaluate directory sync. | Decide whether SCIM or provider group sync is needed after the first pilot; any sync remains provisioning-only and does not bypass local grants. |
+| EA-06 | P0 | Done | Add admin access-management UI. | `/admin/` includes an Access view backed by `/api/admin/access/*`; authorized operators can manage organization/project memberships, project/org role assignments, and namespace grants with `IMemoryAccessAuthorizer` effective-access previews, self-escalation guards, and access audit records for every change. |
+| EA-07 | P0 | Done | Add audit export. | Operators can export access-management and auth audit records for a time window and org/project scope as newline-delimited JSON from `/api/admin/audit-exports`; the first manifest row includes export id, created time, filters, row count, and SHA-256 hash over payload-safe audit rows, and every export writes an `audit_export` access audit event. |
+| EA-08 | P0 | Done | Add migration and rollback smoke. | `scripts/enterprise-access-migration-rollback-smoke.sh` runs a DB-backed smoke suite proving API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes while verifying `memory_access_grants` does not drift and restricted namespaces remain hidden. |
+| EA-09 | P1 | Done | Document pilot operator runbook. | [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) covers OIDC provider setup, identity binding, service-account bootstrap, role/grant review, effective-access preview, audit export, OIDC-disabled rollback, and break-glass API-key handling. |
+| EA-10 | P1 | Done | Evaluate directory sync. | [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) and [Decision 0047](decisions/0047-directory-sync-provisioning-only.md) decide not to add sync before the first pilot; future SCIM or group sync must remain provisioning-only and must not bypass local memberships, role assignments, namespace grants, previews, or audit records. |
 
 ## Risks
 

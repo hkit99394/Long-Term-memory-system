@@ -11,8 +11,8 @@ Long Run gate scoping is active.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: production platform integration implementation, remaining
-Domain extraction cleanup, and enterprise access implementation.
+Next milestone: governance and compliance implementation, continuing with
+backup erasure replay validation.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -23,11 +23,13 @@ dashboard definitions, trace coverage, and observability smoke checks. MR-12
 adds benchmark release gates for Memory Lift, Contract Lift, scoped-safety
 leaks, stale-memory usage, source-link coverage, and agent-contract smoke.
 MR-08 operator evidence browsing and MR-09 governance automation are also
-implemented. LR-01, LR-02, LR-04, LR-05, PI-01, PI-02, PI-03, and PI-04 now
-define implementable gate backlogs, platform baseline choices, the first
-Terraform platform layout, managed PostgreSQL/pgvector resources, and
-backup/restore automation for enterprise access, context productization, Domain
-extraction, and production platform integration.
+implemented. LR-01, LR-02, LR-04, LR-05, LR-06, PI-01, PI-02, PI-03, and PI-04
+now define implementable gate backlogs, platform baseline choices, the first
+Terraform platform layout, managed PostgreSQL/pgvector resources,
+backup/restore automation, governance/compliance scope, the first environment
+governance policy contract, and permission-drift reporting for enterprise
+access, context productization, Domain extraction, production platform
+integration, and compliance evidence.
 
 ## Milestones
 
@@ -165,6 +167,11 @@ After M8:
   the first pilot target is AWS ECS Fargate plus Amazon RDS PostgreSQL with
   pgvector, Amazon ECR, Terraform under `infra/terraform`, Secrets Manager or
   SSM references, and immutable multi-role OCI image digests.
+- Governance and compliance gate scope is decided in [Decision 0048](decisions/0048-governance-compliance-gate.md):
+  data residency, backup erasure replay, permission-drift reporting,
+  environment-specific retention policy, external payload-store checks, and
+  payload-safe compliance evidence packages are planned before `GC-*`
+  implementation starts.
 - PI-02 adds `infra/terraform` with pilot/production overlays, runtime,
   PostgreSQL, and observability module contracts, plus a root `Dockerfile` for
   the immutable multi-role OCI image.

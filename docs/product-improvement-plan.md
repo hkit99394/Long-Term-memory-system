@@ -31,7 +31,7 @@ The next product challenge is to turn "memory system that works" into "memory pr
 
 - The product experience is still thin. The review dashboard and first admin memory/source inspection slices exist, but there is no full memory console, onboarding path, role-assignment workflow, or polished operator workflow.
 - Retention, legal hold, and erasure now have first authenticated operator endpoints, but broader production automation for external payload stores, backup pruning, and environment-specific retention policy is still future work.
-- The `MemorySystem.Domain` project does not yet carry many of the durable business concepts described in the architecture.
+- The `MemorySystem.Domain` project now carries the stable IO-free concepts from the extraction track, but future feature work still needs discipline to keep HTTP, SQL, and provider-specific details out of Domain.
 - Pilot observability now has metrics export, alert rules, dashboard artifacts, trace coverage, and smoke checks. Runtime OpenTelemetry wiring, platform exporters, and environment-specific alert routing remain future work.
 - Deployment now has a production-pilot shape and executable local deployment smoke. Managed infrastructure modules, release environments, and environment-specific deployment checklists remain future work.
 - Several important tests and repositories are large enough that ongoing changes will remain review-heavy unless split by feature area.
@@ -173,6 +173,7 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
 2. Governance and compliance gate.
    - Entry criteria: erasure, legal hold, retention reporting, and audit browsing are working in the pilot path.
    - Outcome: data residency, backup erasure replay, permission-drift reporting, and environment-specific retention policy can be implemented without weakening deletion or access guarantees.
+   - Done: [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) and [Decision 0048](decisions/0048-governance-compliance-gate.md) define data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, compliance evidence packages, and the `GC-*` implementation backlog.
 
 3. Context productization gate.
    - Entry criteria: benchmark release gate exists and context feedback is visible to operators.
@@ -305,9 +306,29 @@ activity. EA-04 adds generic OIDC authentication on top of the shared resolver
 and audit model with issuer, audience, JWKS, HTTPS metadata, lifetime, and
 identity-binding checks. EA-05 now adds service-account lifecycle metadata,
 credential posture, review dates, owners, credential creation/rotation/disable
-paths, narrow namespace grants, and audit evidence.
-The next move should be `EA-06`: add the admin access-management UI for
-memberships, role assignments, namespace grants, effective-access previews, and
-audited operator changes. Before inviting an external pilot user, rerun the
+paths, narrow namespace grants, and audit evidence. EA-06 now adds the admin
+access-management UI and API for memberships, role assignments, namespace
+grants, effective-access previews, self-escalation guards, and audited operator
+changes. EA-07 adds scoped NDJSON audit export for authentication,
+authorization, and access-management evidence with manifest hashes and
+`audit_export` records. EA-08 adds a migration and rollback smoke command for
+API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback
+modes while proving namespace grants do not drift. EA-09 adds the pilot operator
+runbook for OIDC provider setup, identity binding, service-account bootstrap,
+role/grant review, audit export, rollback, and break-glass API-key handling.
+EA-10 evaluates directory sync and decides not to add SCIM or provider-specific
+group sync before the first pilot; any future sync must remain provisioning-only
+and cannot bypass local memberships, role assignments, namespace grants,
+effective-access previews, or audit records. DM-06 then removes duplicate
+stable-concept normalization helpers by keeping Application facades backed by
+Domain vocabularies. LR-06 scopes the governance and compliance gate for data
+residency, backup erasure replay, permission-drift reporting,
+environment-specific retention policy, external payload-store checks, and
+compliance evidence packages. GC-01 now defines the environment governance
+policy contract and validator without changing runtime authorization. GC-02 now
+adds the payload-safe permission-drift report over local access records.
+The next move should be `GC-03`: add backup erasure replay validation before
+retention minimization or evidence-package automation.
+Before inviting an external pilot user, rerun the
 benchmark release gate with the intended pilot model, fresh scorecards, and a
 fresh live smoke artifact from the target environment.

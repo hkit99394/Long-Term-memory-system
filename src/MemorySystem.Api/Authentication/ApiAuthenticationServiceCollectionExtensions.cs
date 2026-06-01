@@ -79,11 +79,14 @@ public static class ApiAuthenticationServiceCollectionExtensions
 
         services.AddAuthorization(options =>
         {
-            options.FallbackPolicy = new AuthorizationPolicyBuilder(
+            var authenticatedApiPolicy = new AuthorizationPolicyBuilder(
                     ApiKeyAuthenticationDefaults.AuthenticationScheme,
                     OidcAuthenticationDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
                 .Build();
+
+            options.DefaultPolicy = authenticatedApiPolicy;
+            options.FallbackPolicy = authenticatedApiPolicy;
         });
 
         return services;

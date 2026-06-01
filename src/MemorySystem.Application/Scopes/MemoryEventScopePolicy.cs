@@ -1,3 +1,6 @@
+using MemorySystem.Domain.Roles;
+using MemorySystem.Domain.Scopes;
+
 namespace MemorySystem.Application.Scopes;
 
 public static class MemoryEventScopePolicy
@@ -16,32 +19,27 @@ public static class MemoryEventScopePolicy
         resolution = null!;
         error = null;
 
-        if (!TryNormalizeRequired(scopeType, "scopeType", out var normalizedScopeType, out error))
+        if (!MemoryScopeType.TryNormalize(scopeType, out var normalizedScopeTypeValue, out error))
         {
             return false;
         }
 
-        if (!MemoryScopePolicy.ScopeTypes.Contains(normalizedScopeType))
-        {
-            error = "scopeType is not supported.";
-            return false;
-        }
-
+        var normalizedScopeType = normalizedScopeTypeValue!.Value;
         var normalizedRoleId = NormalizeOptionalRoleId(roleId);
 
-        if (normalizedRoleId is not null && !MemoryScopePolicy.RoleIds.Contains(normalizedRoleId))
+        if (normalizedRoleId == InvalidRoleId)
         {
             error = "roleId is not supported.";
             return false;
         }
 
-        if (agentPrincipalId.HasValue && normalizedScopeType != "agent")
+        if (agentPrincipalId.HasValue && normalizedScopeType != MemoryScopeType.Agent)
         {
             error = "agentPrincipalId is only supported for agent-scoped events.";
             return false;
         }
 
-        if (normalizedRoleId is not null && normalizedScopeType != "role")
+        if (normalizedRoleId is not null && normalizedScopeType != MemoryScopeType.Role)
         {
             error = "roleId is only supported for role-scoped events.";
             return false;
@@ -51,46 +49,45 @@ public static class MemoryEventScopePolicy
 
         switch (normalizedScopeType)
         {
-            case "global":
+            case MemoryScopeType.Global:
                 if (!string.IsNullOrWhiteSpace(trimmedScopeId)
-                    && !string.Equals(trimmedScopeId, "global", StringComparison.Ordinal))
+                    && !MemoryScopeId.TryNormalize(normalizedScopeTypeValue, trimmedScopeId, out _, out error))
                 {
-                    error = "scopeId must be 'global' for global scope.";
                     return false;
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "global",
-                    "global",
+                    MemoryScopeType.Global,
+                    MemoryScopeType.Global,
                     ConversationId: conversationId,
                     AgentPrincipalId: null,
                     RoleId: null);
                 return true;
 
-            case "org":
-                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var orgId, out error))
+            case MemoryScopeType.Organization:
+                if (!TryNormalizeGuidScope(normalizedScopeTypeValue, trimmedScopeId, out var orgId, out var orgScopeId, out error))
                 {
                     return false;
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "org",
-                    orgId.ToString(),
+                    MemoryScopeType.Organization,
+                    orgScopeId,
                     OrgId: orgId,
                     ConversationId: conversationId,
                     AgentPrincipalId: null,
                     RoleId: null);
                 return true;
 
-            case "project":
-                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var projectId, out error))
+            case MemoryScopeType.Project:
+                if (!TryNormalizeGuidScope(normalizedScopeTypeValue, trimmedScopeId, out var projectId, out var projectScopeId, out error))
                 {
                     return false;
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "project",
-                    projectId.ToString(),
+                    MemoryScopeType.Project,
+                    projectScopeId,
                     OrgId: scopeOrgId,
                     ProjectId: projectId,
                     ConversationId: conversationId,
@@ -98,8 +95,8 @@ public static class MemoryEventScopePolicy
                     RoleId: null);
                 return true;
 
-            case "user":
-                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var userPrincipalId, out error))
+            case MemoryScopeType.User:
+                if (!TryNormalizeGuidScope(normalizedScopeTypeValue, trimmedScopeId, out var userPrincipalId, out var userScopeId, out error))
                 {
                     return false;
                 }
@@ -111,16 +108,16 @@ public static class MemoryEventScopePolicy
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "user",
-                    userPrincipalId.ToString(),
+                    MemoryScopeType.User,
+                    userScopeId,
                     PrincipalId: userPrincipalId,
                     ConversationId: conversationId,
                     AgentPrincipalId: null,
                     RoleId: null);
                 return true;
 
-            case "agent":
-                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var scopedAgentPrincipalId, out error))
+            case MemoryScopeType.Agent:
+                if (!TryNormalizeGuidScope(normalizedScopeTypeValue, trimmedScopeId, out var scopedAgentPrincipalId, out var agentScopeId, out error))
                 {
                     return false;
                 }
@@ -132,28 +129,21 @@ public static class MemoryEventScopePolicy
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "agent",
-                    scopedAgentPrincipalId.ToString(),
+                    MemoryScopeType.Agent,
+                    agentScopeId,
                     PrincipalId: scopedAgentPrincipalId,
                     ConversationId: conversationId,
                     AgentPrincipalId: scopedAgentPrincipalId,
                     RoleId: normalizedRoleId);
                 return true;
 
-            case "role":
-                if (string.IsNullOrWhiteSpace(trimmedScopeId))
+            case MemoryScopeType.Role:
+                if (!MemoryScopeId.TryNormalize(normalizedScopeTypeValue, trimmedScopeId, out var scopedRoleScopeId, out error))
                 {
-                    error = "scopeId is required.";
                     return false;
                 }
 
-                var scopedRoleId = trimmedScopeId.ToLowerInvariant();
-
-                if (!MemoryScopePolicy.RoleIds.Contains(scopedRoleId))
-                {
-                    error = "scopeId is not a supported role.";
-                    return false;
-                }
+                var scopedRoleId = scopedRoleScopeId!.Value;
 
                 if (normalizedRoleId is not null && !string.Equals(normalizedRoleId, scopedRoleId, StringComparison.Ordinal))
                 {
@@ -162,7 +152,7 @@ public static class MemoryEventScopePolicy
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "role",
+                    MemoryScopeType.Role,
                     scopedRoleId,
                     RoleId: scopedRoleId,
                     ScopeRoleId: scopedRoleId,
@@ -170,15 +160,21 @@ public static class MemoryEventScopePolicy
                     AgentPrincipalId: null);
                 return true;
 
-            case "session":
-                if (string.IsNullOrWhiteSpace(trimmedScopeId)
-                    || string.Equals(trimmedScopeId, "global", StringComparison.Ordinal))
+            case MemoryScopeType.Session:
+                if (!MemoryScopeId.TryNormalize(normalizedScopeTypeValue, trimmedScopeId, out var sessionScopeId, out error))
                 {
-                    error = "scopeId is required for session scope and must not be 'global'.";
+                    if (string.Equals(error, "scopeId is required.", StringComparison.Ordinal)
+                        || string.Equals(error, "scopeId must not be 'global' for session scope.", StringComparison.Ordinal))
+                    {
+                        error = "scopeId is required for session scope and must not be 'global'.";
+                    }
+
                     return false;
                 }
 
-                if (Guid.TryParse(trimmedScopeId, out var parsedConversationId))
+                var normalizedSessionScopeId = sessionScopeId!.Value;
+
+                if (Guid.TryParse(normalizedSessionScopeId, out var parsedConversationId))
                 {
                     if (conversationId.HasValue && conversationId.Value != parsedConversationId)
                     {
@@ -190,8 +186,8 @@ public static class MemoryEventScopePolicy
                 }
 
                 resolution = new MemoryScopeResolution(
-                    "session",
-                    trimmedScopeId,
+                    MemoryScopeType.Session,
+                    normalizedSessionScopeId,
                     ConversationId: conversationId,
                     AgentPrincipalId: null,
                     RoleId: null);
@@ -203,43 +199,37 @@ public static class MemoryEventScopePolicy
         }
     }
 
-    private static bool TryNormalizeRequired(
-        string? value,
-        string fieldName,
-        out string normalizedValue,
+    private const string InvalidRoleId = "\0invalid-role-id";
+
+    private static bool TryNormalizeGuidScope(
+        MemoryScopeType scopeType,
+        string? scopeId,
+        out Guid guid,
+        out string normalizedScopeId,
         out string? error)
     {
-        normalizedValue = string.Empty;
-        error = null;
+        guid = Guid.Empty;
+        normalizedScopeId = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(value))
+        if (!MemoryScopeId.TryNormalize(scopeType, scopeId, out var normalizedScopeIdValue, out error))
         {
-            error = $"{fieldName} is required.";
             return false;
         }
 
-        normalizedValue = value.Trim().ToLowerInvariant();
+        normalizedScopeId = normalizedScopeIdValue!.Value;
+        guid = Guid.Parse(normalizedScopeId);
         return true;
-    }
-
-    private static bool TryParseScopedGuid(
-        string? value,
-        string fieldName,
-        out Guid guid,
-        out string? error)
-    {
-        if (Guid.TryParse(value, out guid))
-        {
-            error = null;
-            return true;
-        }
-
-        error = $"{fieldName} must be a valid GUID.";
-        return false;
     }
 
     private static string? NormalizeOptionalRoleId(string? roleId)
     {
-        return string.IsNullOrWhiteSpace(roleId) ? null : roleId.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(roleId))
+        {
+            return null;
+        }
+
+        return MemoryRoleId.TryNormalize(roleId, out var normalizedRoleId, out _)
+            ? normalizedRoleId!.Value
+            : InvalidRoleId;
     }
 }

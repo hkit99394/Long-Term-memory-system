@@ -26,74 +26,47 @@ public static class MemoryScopePolicy
         normalizedScopeId = string.Empty;
         error = null;
 
-        switch (scopeType)
+        if (!MemoryScopeType.TryNormalize(scopeType, out var normalizedScopeType, out error))
         {
-            case "global":
-                if (!string.Equals(scopeId, "global", StringComparison.Ordinal))
-                {
-                    error = "scopeId must be 'global' for global scope.";
-                    return false;
-                }
+            return false;
+        }
 
-                return HasNamespaceScope(namespaceValue, "global", "global", out normalizedScopeId, out error);
+        if (!MemoryScopeId.TryNormalize(normalizedScopeType!, scopeId, out var normalizedScopeIdValue, out error))
+        {
+            return false;
+        }
 
-            case "org":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var orgId, out error))
-                {
-                    return false;
-                }
+        var normalizedScopeTypeValue = normalizedScopeType!.Value;
+        var candidateScopeId = normalizedScopeIdValue!.Value;
 
-                return HasNamespaceScope(namespaceValue, "org", orgId.ToString(), out normalizedScopeId, out error);
+        switch (normalizedScopeTypeValue)
+        {
+            case MemoryScopeType.Global:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Global, candidateScopeId, out normalizedScopeId, out error);
 
-            case "project":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var projectId, out error))
-                {
-                    return false;
-                }
+            case MemoryScopeType.Organization:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Organization, candidateScopeId, out normalizedScopeId, out error);
 
-                return HasNamespaceScope(namespaceValue, "project", projectId.ToString(), out normalizedScopeId, out error);
+            case MemoryScopeType.Project:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Project, candidateScopeId, out normalizedScopeId, out error);
 
-            case "user":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var userPrincipalId, out error))
-                {
-                    return false;
-                }
-
-                if (userPrincipalId != authenticatedPrincipalId)
+            case MemoryScopeType.User:
+                if (Guid.Parse(candidateScopeId) != authenticatedPrincipalId)
                 {
                     error = "User-scoped memory proposals must use the authenticated principal as scopeId.";
                     return false;
                 }
 
-                return HasNamespaceScope(namespaceValue, "user", userPrincipalId.ToString(), out normalizedScopeId, out error);
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.User, candidateScopeId, out normalizedScopeId, out error);
 
-            case "agent":
-                if (!TryParseScopedGuid(scopeId, "scopeId", out var agentPrincipalId, out error))
-                {
-                    return false;
-                }
+            case MemoryScopeType.Agent:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Agent, candidateScopeId, out normalizedScopeId, out error);
 
-                return HasNamespaceScope(namespaceValue, "agent", agentPrincipalId.ToString(), out normalizedScopeId, out error);
+            case MemoryScopeType.Role:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Role, candidateScopeId, out normalizedScopeId, out error);
 
-            case "role":
-                var roleId = scopeId.ToLowerInvariant();
-
-                if (!RoleIds.Contains(roleId))
-                {
-                    error = "scopeId is not a supported role.";
-                    return false;
-                }
-
-                return HasNamespaceScope(namespaceValue, "role", roleId, out normalizedScopeId, out error);
-
-            case "session":
-                if (string.Equals(scopeId, "global", StringComparison.Ordinal))
-                {
-                    error = "scopeId must not be 'global' for session scope.";
-                    return false;
-                }
-
-                return HasNamespaceScope(namespaceValue, "session", scopeId, out normalizedScopeId, out error);
+            case MemoryScopeType.Session:
+                return HasNamespaceScope(namespaceValue, MemoryScopeType.Session, candidateScopeId, out normalizedScopeId, out error);
 
             default:
                 error = "scopeType is not supported.";
@@ -112,77 +85,20 @@ public static class MemoryScopePolicy
         normalizedScopeId = string.Empty;
         error = null;
 
-        if (string.IsNullOrWhiteSpace(scopeType))
+        if (!MemoryScopeType.TryNormalize(scopeType, out var normalizedScopeTypeValue, out error))
         {
-            error = "scopeType is required.";
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(scopeId))
+        normalizedScopeType = normalizedScopeTypeValue!.Value;
+
+        if (!MemoryScopeId.TryNormalize(normalizedScopeTypeValue, scopeId, out var normalizedScopeIdValue, out error))
         {
-            error = "scopeId is required.";
             return false;
         }
 
-        normalizedScopeType = scopeType.Trim().ToLowerInvariant();
-        var trimmedScopeId = scopeId.Trim();
-
-        if (!ScopeTypes.Contains(normalizedScopeType))
-        {
-            error = "scopeType is not supported.";
-            return false;
-        }
-
-        switch (normalizedScopeType)
-        {
-            case "global":
-                if (!string.Equals(trimmedScopeId, "global", StringComparison.OrdinalIgnoreCase))
-                {
-                    error = "scopeId must be 'global' for global scope.";
-                    return false;
-                }
-
-                normalizedScopeId = "global";
-                return true;
-
-            case "org":
-            case "project":
-            case "user":
-            case "agent":
-                if (!TryParseScopedGuid(trimmedScopeId, "scopeId", out var scopedGuid, out error))
-                {
-                    return false;
-                }
-
-                normalizedScopeId = scopedGuid.ToString();
-                return true;
-
-            case "role":
-                normalizedScopeId = trimmedScopeId.ToLowerInvariant();
-
-                if (!RoleIds.Contains(normalizedScopeId))
-                {
-                    error = "scopeId is not a supported role.";
-                    normalizedScopeId = string.Empty;
-                    return false;
-                }
-
-                return true;
-
-            case "session":
-                if (string.Equals(trimmedScopeId, "global", StringComparison.OrdinalIgnoreCase))
-                {
-                    error = "scopeId must not be 'global' for session scope.";
-                    return false;
-                }
-
-                normalizedScopeId = trimmedScopeId;
-                return true;
-
-            default:
-                error = "scopeType is not supported.";
-                return false;
-        }
+        normalizedScopeId = normalizedScopeIdValue!.Value;
+        return true;
     }
 
     public static bool TryNormalizeRoleId(
@@ -198,31 +114,13 @@ public static class MemoryScopePolicy
             return true;
         }
 
-        normalizedRoleId = roleId.Trim().ToLowerInvariant();
-
-        if (RoleIds.Contains(normalizedRoleId))
+        if (MemoryRoleId.TryNormalize(roleId, out var normalizedRoleIdValue, out error))
         {
+            normalizedRoleId = normalizedRoleIdValue!.Value;
             return true;
         }
 
-        error = "roleId is not supported.";
         normalizedRoleId = null;
-        return false;
-    }
-
-    private static bool TryParseScopedGuid(
-        string? value,
-        string fieldName,
-        out Guid guid,
-        out string? error)
-    {
-        if (Guid.TryParse(value, out guid))
-        {
-            error = null;
-            return true;
-        }
-
-        error = $"{fieldName} must be a valid GUID.";
         return false;
     }
 

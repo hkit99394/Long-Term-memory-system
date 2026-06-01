@@ -131,8 +131,22 @@ service credential, and export evidence. EA-04 added generic OIDC
 authentication with issuer, audience, JWKS, HTTPS metadata, lifetime, and
 identity-binding checks. EA-05 added service-account lifecycle metadata,
 credential review/expiry posture, rotation and disable paths, narrow namespace
-grants, and audit records. The next highest-value pilot blocker is now `EA-06`:
-add the admin access-management UI.
+grants, and audit records. EA-06 added the admin access-management UI and API
+for memberships, roles, grants, effective-access previews, self-escalation
+guards, and audited changes. EA-07 added scoped NDJSON audit export with
+manifest hashes and payload-safe access audit rows. EA-08 added migration and
+rollback smoke for API-key-only, OIDC-only, dual-auth, service-account, and
+OIDC-disabled rollback modes while proving namespace grants do not drift. The
+EA-09 pilot operator runbook now covers provider setup, identity binding,
+service-account bootstrap, role/grant review, audit export, rollback, and
+break-glass API-key handling. EA-10 now evaluates directory sync and decides to
+defer SCIM or provider group sync until after pilot evidence; any future sync
+must remain provisioning-only. DM-06 now completes the stable-concept cleanup by
+removing duplicate normalization helpers behind Domain-backed facades. LR-06 now
+scopes the governance and compliance gate. GC-01 now defines the environment
+governance policy contract. GC-02 now adds the payload-safe permission-drift
+report. The next implementation slice is `GC-03`, backup erasure replay
+validation.
 
 Recommended sequence:
 
@@ -144,6 +158,17 @@ Recommended sequence:
    methods.
 4. Done: `EA-04` adds generic OIDC authentication.
 5. Done: `EA-05` adds service-account lifecycle.
-6. Next: `EA-06` adds admin access-management UI.
-7. Keep `DM-06` as a cleanup slice after the enterprise access foundation is
-   stable.
+6. Done: `EA-06` adds admin access-management UI.
+7. Done: `EA-07` adds audit export.
+8. Done: `EA-08` adds migration and rollback smoke.
+9. Done: `EA-09` documents the pilot operator runbook.
+10. Done: `EA-10` evaluates directory sync.
+11. Done: `DM-06` removes duplicate string normalization helpers after the
+    enterprise access foundation stabilized.
+12. Done: `LR-06` scopes the governance and compliance gate before adding data
+    residency, backup erasure replay, permission-drift reporting,
+    environment-specific retention policy, external payload-store checks, or
+    compliance evidence packages.
+13. Done: `GC-01` defines the environment governance policy contract.
+14. Done: `GC-02` adds the payload-safe permission-drift report.
+15. Next: `GC-03` adds backup erasure replay validation.

@@ -75,7 +75,7 @@ Infrastructure map those strings at their boundaries.
 | DM-03 | Done | Extract lifecycle, trust, retention, and sensitivity vocabularies, then adapt Application constants to Domain. | `MemoryFactStatuses`, `MemoryTrustPolicy`, retention, sensitivity, proposal, review, and admin tests pass without endpoint or OpenAPI diffs. |
 | DM-04 | Done | Introduce source evidence references in Domain and map them in Application responses and Infrastructure rows. | Query-facts, context packets, review/admin evidence paths, and source evidence reads preserve existing JSON shape and authorization behavior. |
 | DM-05 | Done | Move Infrastructure boundary mapping to Domain value objects while leaving SQL schema, predicates, and migration history unchanged. | Database-backed proposal/read/search/context/governance tests pass; no new migration is required. |
-| DM-06 | Todo | Remove duplicate string normalization helpers only after callers are migrated. | Application keeps thin facades for compatibility; `rg` shows stable concepts are no longer independently redefined in multiple layers. |
+| DM-06 | Done | Remove duplicate string normalization helpers only after callers are migrated. | Application keeps thin facades for compatibility; stable scope, role, trust, and feedback normalization now delegates to Domain vocabularies, and Infrastructure access-audit/admin boundaries no longer redefine those vocabularies independently. |
 
 ## Compatibility Test Matrix
 

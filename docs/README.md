@@ -23,12 +23,17 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Scopes infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment release checklists. |
+| [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) | Scopes data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages. |
+| [Environment Governance Policy GC-01](environment-governance-policy-gc01.md) | Defines the local, CI, pilot, and production governance policy contract for data residency, retention windows, external payload stores, exceptions, evidence locations, and unchanged runtime authorization. |
+| [Permission-Drift Report GC-02](permission-drift-report-gc02.md) | Defines the payload-safe permission-drift report for principals, identity bindings, service accounts, memberships, role assignments, namespace grants, effective-access previews, and review findings. |
 | [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | Selects the first AWS/Terraform/container platform baseline, artifact contract, environment model, state/secrets rules, and owner model. |
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Defines local, CI, pilot, and production release evidence gates for migration, health, metrics, benchmark, backup/restore, rollback, alert routing, and audit records. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | Records the first isolated platform rehearsal across migrator/API/worker, health, metrics, backup/restore, rollback, benchmark, alert routing, and next-move planning. |
 | [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Defines the Terraform module/environment layout, multi-role OCI image contract, managed RDS PostgreSQL/pgvector baseline, and backup/restore job contracts for the AWS pilot target. |
 | [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
 | [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
+| [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) | Defines the EA-09 pilot workflow for OIDC provider setup, identity binding, service-account bootstrap, role/grant review, audit export, rollback, and break-glass API-key handling. |
+| [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) | Decides that the first pilot does not need SCIM or directory sync yet, and defines any future sync as provisioning-only. |
 | [Context Productization Gate](context-productization-gate.md) | Scopes the LR-02 explainable context packet, safe exclusion, reviewer action, feedback loop, and benchmark-visible ranking plan. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Inventories stable scope, namespace, trust, lifecycle, retention, sensitivity, source evidence, and feedback concepts and defines the compatibility-tested extraction sequence into `MemorySystem.Domain`. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
@@ -88,6 +93,8 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Records the LR-04 planning-first extraction scope for moving stable IO-free concepts into `MemorySystem.Domain` without schema or endpoint churn. |
 | [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Records the LR-05 platform boundary for IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and release checklists. |
 | [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Records the PI-01 AWS ECS/RDS/ECR/Terraform baseline and immutable multi-role OCI image contract. |
+| [Decision 0047: Directory Sync Is Provisioning Only](decisions/0047-directory-sync-provisioning-only.md) | Records the EA-10 decision to defer directory sync until after pilot evidence and keep any future sync outside runtime authorization. |
+| [Decision 0048: Governance And Compliance Gate](decisions/0048-governance-compliance-gate.md) | Records the LR-06 governance/compliance boundary for environment policy, backup erasure replay, permission-drift reporting, external payload-store checks, and payload-safe evidence packages. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
 
 ## Dictionary
@@ -107,6 +114,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
 | Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
+| Directory sync evaluation | The EA-10 decision that SCIM or provider group sync is not needed before the first pilot; any future sync must provision local records and never bypass the local authorizer. |
 | Domain model extraction | The LR-04 track for moving stable, IO-free memory concepts into `MemorySystem.Domain` behind compatibility tests while preserving current API and database contracts. |
 | Embedding | A vector representation of text used for semantic similarity search. |
 | Enterprise access gate | The LR-01 plan for OIDC or SSO, service accounts, access-management UI, audit export, and migration from API-key-only operation without weakening namespace grants. |
@@ -114,8 +122,13 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Exclusion summary | A payload-safe explanation of why candidate memory was omitted, using withheld disclosure where counts or details could leak unauthorized or sensitive content. |
 | Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
 | Governance workflow | Authenticated operator action for legal holds, erasure execution, or retention reporting. |
+| Governance and compliance gate | The LR-06 plan for data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages. |
+| Compliance evidence package | A payload-safe manifest and optional NDJSON bundle that links audit export, retention, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, and permission-drift evidence without raw payloads. |
+| Environment governance policy | The GC-01 contract that declares environment, residency areas, data classes, retention windows, external payload-store policy, exception records, evidence locations, and the `local_access_records_only` authorization boundary. |
+| Permission-drift report | The GC-02 payload-safe report that compares scoped principals, identity bindings, service accounts, memberships, roles, namespace grants, and authorizer previews to flag stale, expired, inactive, or over-broad access records. |
 | Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
 | Identity binding | A durable mapping from an external identity provider, issuer, and subject to one internal principal. |
+| Enterprise access pilot operator runbook | The EA-09 operational guide for safely running OIDC, service accounts, admin access management, audit export, rollback, and break-glass API-key procedures during the first pilot. |
 | Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
 | LLM outcome evaluation | A benchmark that scores the final LLM output, not only retrieved memory, to prove whether governed memory improves task success, decision consistency, preference adherence, correction handling, and safety. |
 | Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |

@@ -144,8 +144,25 @@ service credential, and export evidence. EA-04 adds generic OIDC authentication
 with issuer, audience, JWKS, HTTPS metadata, lifetime, and identity-binding
 checks. EA-05 adds service-account lifecycle metadata, credential posture,
 review or expiry dates, rotation and disable paths, least-privilege namespace
-grants, and audit records. The next focus is `EA-06`: add the admin
-access-management UI while keeping `DM-06` as a later cleanup slice.
+grants, and audit records. EA-06 adds an admin access-management UI and API for
+memberships, role assignments, namespace grants, effective-access previews, and
+audited operator changes. EA-07 adds scoped NDJSON audit export with manifest
+hashes and payload-safe access audit fields. EA-08 adds migration and rollback
+smoke for API-key-only, OIDC-only, dual-auth, service-account, and
+OIDC-disabled rollback modes while fingerprinting namespace grants. EA-09 adds
+the pilot operator runbook for provider setup, identity binding,
+service-account bootstrap, role/grant review, audit export, rollback, and
+break-glass API-key handling. EA-10 evaluates directory sync and decides not to
+add SCIM or provider group sync before the first pilot; any future sync remains
+provisioning-only and cannot bypass local access records. DM-06 then removes
+duplicate stable-concept normalization helpers by keeping Application facades
+backed by Domain vocabularies. LR-06 scopes the governance and compliance gate
+for data residency, backup erasure replay, permission-drift reporting,
+environment-specific retention policy, external payload-store checks, and
+compliance evidence packages. GC-01 defines the environment governance policy
+contract and validator for local, CI, pilot, and production. GC-02 adds the
+payload-safe permission-drift report over local access records. The next focus
+is `GC-03`: add backup erasure replay validation.
 
 ## Middle Run Production Pilot
 
@@ -185,6 +202,7 @@ access-management UI while keeping `DM-06` as a later cleanup slice.
 | LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; the generated ignored report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage. A fresh live smoke rerun remains required before external pilot release. |
 | LR-04 | P1 | Done | Define Domain model extraction slice. | [Decision 0044](decisions/0044-domain-model-extraction-slice.md) and [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) inventory stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, source evidence, and feedback type, then split staged extraction into compatibility-tested `DM-*` implementation slices without schema or endpoint churn. |
 | LR-05 | P1 | Done | Scope production platform integration. | [Decision 0045](decisions/0045-production-platform-integration.md) and [Production Platform Integration LR-05](production-platform-integration-lr05.md) define infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
+| LR-06 | P1 | Done | Scope governance and compliance gate. | [Decision 0048](decisions/0048-governance-compliance-gate.md) and [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) define the implementation boundary for data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages while preserving existing erasure, legal hold, retention report, audit export, and namespace access guarantees. |
 
 ## Long Run Production Platform Integration Implementation Backlog
 
@@ -208,7 +226,20 @@ access-management UI while keeping `DM-06` as a later cleanup slice.
 | DM-03 | P0 | Done | Extract lifecycle, trust, retention, and sensitivity vocabularies. | Existing Application constants and policies now delegate to Domain lifecycle, trust, retention, and sensitivity vocabularies while memory fact status, broker policy, event append, governance, admin, and context tests preserve current string values and behavior. |
 | DM-04 | P1 | Done | Introduce Domain source evidence references. | Proposal, query-facts, context packet, review/admin inspection, and source evidence read paths map source ids and links through Domain references while preserving current JSON and authorization behavior. |
 | DM-05 | P1 | Done | Map Infrastructure repository boundaries to Domain values. | Repositories map database strings to Domain values at the boundary without SQL schema changes; database-backed proposal, read, search, context, governance, and export tests pass. |
-| DM-06 | P2 | Todo | Remove duplicate string normalization helpers. | After all callers migrate, duplicate policy vocabularies are removed or replaced by thin compatibility facades; `rg` confirms stable concepts are no longer independently redefined across layers. |
+| DM-06 | P2 | Done | Remove duplicate string normalization helpers. | Application keeps thin facades backed by Domain scope, role, trust, and feedback vocabularies; Infrastructure access-audit and admin boundary checks no longer independently redefine stable role/scope/feedback sets. |
+
+## Long Run Governance And Compliance Implementation Backlog
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| GC-01 | P0 | Done | Define environment governance policy contract. | [Environment Governance Policy GC-01](environment-governance-policy-gc01.md) and `EnvironmentGovernancePolicyValidator` document and validate the policy shape for data residency, retention windows, external payload stores, exception records, and evidence locations for local, CI, pilot, and production without changing runtime authorization. |
+| GC-02 | P0 | Done | Add permission-drift report. | [Permission-Drift Report GC-02](permission-drift-report-gc02.md) and `POST /api/admin/access/permission-drift` let operators generate a payload-safe report for principals, bindings, service accounts, memberships, role assignments, namespace grants, and `IMemoryAccessAuthorizer` effective-access previews, with stale, expired, inactive, over-broad, and effective-admin-access records flagged for review. |
+| GC-03 | P0 | Todo | Add backup erasure replay validation. | Restore validation can replay or verify erasure and redaction actions newer than the selected backup and emit evidence proving erased payloads remain hidden after restore. |
+| GC-04 | P0 | Todo | Implement standard and audit retention minimization. | A worker or operator job supports dry-run and execute modes for non-ephemeral minimization, respects legal holds, updates derived copies safely, and emits metrics plus audit evidence. |
+| GC-05 | P1 | Todo | Check external payload-store retention. | Events with `external_payload_uri` have provider-specific existence, deletion, and evidence checks without logging payload content or secret material. |
+| GC-06 | P1 | Todo | Generate compliance evidence package. | A command or endpoint creates a payload-safe manifest that links audit export, retention report, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, and permission-drift evidence. |
+| GC-07 | P1 | Todo | Add governance/compliance admin console view. | `/admin/` surfaces retention, erasure replay, legal hold, permission drift, and evidence package status with links to existing payload-safe reports and no raw source payloads in lists. |
+| GC-08 | P1 | Todo | Add governance/compliance release smoke. | A repeatable smoke command verifies policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and evidence manifest creation against an isolated database. |
 
 ## Long Run Enterprise Access Implementation Backlog
 
@@ -219,11 +250,11 @@ access-management UI while keeping `DM-06` as a later cleanup slice.
 | EA-03 | P0 | Done | Add access audit event model. | `027_access_audit_events.sql` adds payload-safe `access_audit_events` with constrained action, outcome, scope, auth, resource, and metadata fields; `IAccessAuditEventStore` can write authentication, authorization denial, membership, role assignment, namespace grant, service credential, and audit export records while rejecting raw payload-like metadata. |
 | EA-04 | P0 | Done | Add generic OIDC authentication. | `OidcAuthenticationHandler` validates RS256 bearer tokens against configured issuer, audience, JWKS, HTTPS metadata policy, and token lifetime, then maps the subject through active `identity_bindings`; unbound subjects, disabled bindings, non-human principals, wrong audiences, and expired tokens fail closed while API-key authentication remains available. |
 | EA-05 | P0 | Done | Add service-account lifecycle. | `028_service_account_lifecycle.sql` adds service account profiles and credential posture; `IServiceAccountLifecycleStore` records owner scope/contact, allowed auth method, credential review or expiry, credential rotation/disable operations, least-privilege namespace grants, and access audit events. |
-| EA-06 | P0 | Todo | Add admin access-management UI. | Authorized operators can manage memberships, role assignments, and namespace grants with effective-access preview, authorizer-backed explanations, and audited changes. |
-| EA-07 | P0 | Todo | Add audit export. | Operators can export access-management and auth audit records for a time window and scope as newline-delimited JSON with manifest hash and payload-safe fields. |
-| EA-08 | P0 | Todo | Add migration and rollback smoke. | A smoke script proves API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes without weakening namespace grants. |
-| EA-09 | P1 | Todo | Document pilot operator runbook. | Runbook covers provider setup, identity binding, service-account creation, role/grant review, audit export, rollback, and break-glass API-key handling. |
-| EA-10 | P1 | Todo | Evaluate directory sync. | Decide whether SCIM or provider group sync is needed after the first pilot; any sync remains provisioning-only and does not bypass local grants. |
+| EA-06 | P0 | Done | Add admin access-management UI. | `/admin/` includes an Access view backed by `/api/admin/access/*`; authorized operators can manage organization/project memberships, project/org role assignments, and namespace grants with `IMemoryAccessAuthorizer` effective-access previews, self-escalation guards, and access audit records for every change. |
+| EA-07 | P0 | Done | Add audit export. | Operators can export access-management and auth audit records for a time window and org/project scope as newline-delimited JSON from `/api/admin/audit-exports`; the first manifest row includes export id, created time, filters, row count, and SHA-256 hash over payload-safe audit rows, and every export writes an `audit_export` access audit event. |
+| EA-08 | P0 | Done | Add migration and rollback smoke. | `scripts/enterprise-access-migration-rollback-smoke.sh` runs a DB-backed smoke suite proving API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes while verifying `memory_access_grants` does not drift and restricted namespaces remain hidden. |
+| EA-09 | P1 | Done | Document pilot operator runbook. | [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) covers OIDC provider setup, identity binding, service-account bootstrap, role/grant review, effective-access preview, audit export, OIDC-disabled rollback, and break-glass API-key handling. |
+| EA-10 | P1 | Done | Evaluate directory sync. | [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) and [Decision 0047](decisions/0047-directory-sync-provisioning-only.md) decide not to add sync before the first pilot; future SCIM or group sync must remain provisioning-only and must not bypass local memberships, role assignments, namespace grants, previews, or audit records. |
 
 ## Long Run Context Productization Implementation Backlog
 

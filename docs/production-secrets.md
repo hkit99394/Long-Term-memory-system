@@ -33,9 +33,14 @@ API keys are configured under:
 Authentication:ApiKey:Keys:{keyId}:Key
 Authentication:ApiKey:Keys:{keyId}:PrincipalId
 Authentication:ApiKey:Keys:{keyId}:DisplayName
+Authentication:ApiKey:Keys:{keyId}:CredentialId
 ```
 
-`Key` is secret. `PrincipalId` and `DisplayName` are operational metadata, but they should still be managed with the same deployment change because the API maps each key to an active principal.
+`Key` is secret. `PrincipalId`, `DisplayName`, and `CredentialId` are
+operational metadata, but they should still be managed with the same deployment
+change because the API maps each key to an active principal. `CredentialId` is
+required for service-account API keys unless the key id itself is the service
+credential GUID.
 
 Example shape:
 
@@ -43,6 +48,7 @@ Example shape:
 Authentication:ApiKey:Keys:agent-service-2026-05:Key=<secret-api-key>
 Authentication:ApiKey:Keys:agent-service-2026-05:PrincipalId=<principal-guid>
 Authentication:ApiKey:Keys:agent-service-2026-05:DisplayName=Agent service
+Authentication:ApiKey:Keys:agent-service-2026-05:CredentialId=<service-credential-guid>
 ```
 
 Rotation pattern:
