@@ -139,6 +139,65 @@ public sealed class ApiAdminGovernanceTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_legal_hold_release_records_authorization_denied_audit_when_release_is_forbidden()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_legal_hold_release_denied_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareGovernanceFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var createRequest = CreateAuthenticatedJsonRequest(
+                HttpMethod.Post,
+                "/api/admin/governance/legal-holds",
+                "legal-hold-forbidden-release-create-key",
+                $$"""
+                {
+                  "eventIds": ["{{fixture.ErasableEventId}}"],
+                  "reason": "customer preservation request",
+                  "maxEvents": 10
+                }
+                """);
+
+            using var createResponse = await client.SendAsync(createRequest);
+            var createBody = await createResponse.Content.ReadAsStringAsync();
+            using var createPayload = JsonDocument.Parse(createBody);
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var holdId = createPayload.RootElement.GetProperty("holdId").GetGuid();
+
+            await DeletePrincipalNamespaceGrantAsync(databaseConnectionString, Namespace);
+
+            using var releaseRequest = CreateAuthenticatedJsonRequest(
+                HttpMethod.Post,
+                $"/api/admin/governance/legal-holds/{holdId}/release",
+                "legal-hold-forbidden-release-key",
+                """
+                {
+                  "reason": "preservation request closed"
+                }
+                """);
+
+            using var releaseResponse = await client.SendAsync(releaseRequest);
+
+            Assert.Equal(HttpStatusCode.Forbidden, releaseResponse.StatusCode);
+            Assert.Equal(
+                1L,
+                await CountLegalHoldReleaseDeniedAuditEventsAsync(databaseConnectionString, holdId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_erasure_executes_payload_and_derived_redaction_but_skips_legal_hold()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -477,6 +536,52 @@ public sealed class ApiAdminGovernanceTests
             $$"""{"message":"{{message}}"}""";
 
         await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DeletePrincipalNamespaceGrantAsync(
+        string connectionString,
+        string namespacePrefix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM memory_access_grants
+            WHERE principal_id = @principal_id
+                AND namespace_prefix = @namespace_prefix;
+            """,
+            connection);
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("namespace_prefix", namespacePrefix);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<long> CountLegalHoldReleaseDeniedAuditEventsAsync(
+        string connectionString,
+        Guid holdId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT count(*)
+            FROM access_audit_events
+            WHERE action_type = 'authorization_denied'
+                AND outcome = 'denied'
+                AND actor_principal_id = @principal_id
+                AND resource_type = 'legal_hold'
+                AND resource_id = @hold_id
+                AND reason_code = 'legal_hold_release_forbidden';
+            """,
+            connection);
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("hold_id", holdId.ToString("D"));
+
+        return (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Legal hold release denied audit count was not returned."));
     }
 
     private static async Task<string> ReadEventRetentionClassAsync(string connectionString, Guid eventId)

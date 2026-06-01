@@ -26,7 +26,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
                      "Release gate passed with Memory Lift `+1.575`, Contract Lift `+2.025`",
                      "restored into a fresh rollback database",
                      "`pgvector` extension validation passed",
-                     "Start `EA-01`: add the identity-binding schema"
+                     "Next: `EA-06` adds admin access-management UI"
                  })
         {
             Assert.Contains(evidence, report, StringComparison.Ordinal);
@@ -57,6 +57,6 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("[Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)", platformPlan, StringComparison.Ordinal);
         Assert.Contains("PI-08 records the first isolated platform rehearsal", terraformReadme, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
-        Assert.Contains("should be `EA-01`: add the identity-binding schema", productPlan, StringComparison.Ordinal);
+        Assert.Contains("should be `EA-06`: add the admin access-management UI", productPlan, StringComparison.Ordinal);
     }
 }

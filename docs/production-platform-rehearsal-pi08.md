@@ -122,18 +122,28 @@ enterprise access implementation track.
 
 ## Next Move
 
-Start `EA-01`: add the identity-binding schema. That is the next highest-value
-pilot blocker because the platform can now rehearse deployment and rollback,
-but external pilot users still need governed identity mapping before OIDC or SSO
-can be enabled.
+EA-01 followed this rehearsal and added the identity-binding schema plus the
+active-binding lookup path. EA-02 then introduced shared principal resolution,
+so API keys and future OIDC identity bindings converge on one internal
+authenticated-principal result before OIDC or SSO can be enabled safely. EA-03
+added payload-safe access audit events for auth, denials, access-management,
+service credential, and export evidence. EA-04 added generic OIDC
+authentication with issuer, audience, JWKS, HTTPS metadata, lifetime, and
+identity-binding checks. EA-05 added service-account lifecycle metadata,
+credential review/expiry posture, rotation and disable paths, narrow namespace
+grants, and audit records. The next highest-value pilot blocker is now `EA-06`:
+add the admin access-management UI.
 
 Recommended sequence:
 
-1. `EA-01`: add identity-binding schema, uniqueness/status constraints, lookup
-   repository, and migration tests.
-2. `EA-02`: introduce shared principal resolution so API keys and future OIDC
-   produce the same internal result.
-3. `EA-03`: add payload-safe access audit events before enabling new auth
+1. Done: `EA-01` added identity-binding schema, uniqueness/status constraints,
+   lookup repository, and migration tests.
+2. Done: `EA-02` introduces shared principal resolution so API keys and future
+   OIDC produce the same internal result.
+3. Done: `EA-03` adds payload-safe access audit events before enabling new auth
    methods.
-4. Keep `DM-06` as a cleanup slice after the enterprise access foundation is
+4. Done: `EA-04` adds generic OIDC authentication.
+5. Done: `EA-05` adds service-account lifecycle.
+6. Next: `EA-06` adds admin access-management UI.
+7. Keep `DM-06` as a cleanup slice after the enterprise access foundation is
    stable.

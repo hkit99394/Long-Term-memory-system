@@ -1,6 +1,7 @@
 using MemorySystem.Application.Access;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.Access;
+using MemorySystem.Infrastructure.AccessAuditing;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -136,5 +137,73 @@ public sealed class MemoryAccessReferenceStoreTests
         {
             await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
         }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task MemoryAccessAuthorizer_records_audit_event_for_application_level_denial()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_access_denial_audit_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+        var namespacePrefix = $"/project/{ProjectId}/decisions";
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(databaseConnectionString, OrgId, ProjectId);
+            await ApiDatabaseTestSupport.InsertProjectMembershipAsync(
+                databaseConnectionString,
+                ProjectId,
+                PrincipalId,
+                "reader");
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var referenceStore = new PostgresMemoryAccessReferenceStore(dataSource);
+            var auditStore = new PostgresAccessAuditEventStore(dataSource);
+            var authorizer = new MemoryAccessAuthorizer(referenceStore, auditStore);
+
+            var decision = await authorizer.AuthorizeAsync(new MemoryAccessRequest(
+                PrincipalId,
+                MemoryAccessPermissions.Read,
+                new MemoryScopeResolution("project", ProjectId.ToString(), OrgId: OrgId, ProjectId: ProjectId),
+                namespacePrefix));
+
+            Assert.False(decision.Allowed);
+            Assert.Equal(
+                1L,
+                await CountAuthorizationDeniedAuditEventsAsync(dataSource, namespacePrefix));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    private static async Task<long> CountAuthorizationDeniedAuditEventsAsync(
+        NpgsqlDataSource dataSource,
+        string namespacePrefix)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT count(*)
+            FROM access_audit_events
+            WHERE action_type = 'authorization_denied'
+                AND outcome = 'denied'
+                AND actor_principal_id = @principal_id
+                AND scope_type = 'project'
+                AND scope_id = @project_id
+                AND namespace_prefix = @namespace_prefix
+                AND permission = @permission
+                AND reason_code = 'memory_access_denied';
+            """);
+        command.Parameters.AddWithValue("principal_id", PrincipalId);
+        command.Parameters.AddWithValue("project_id", ProjectId.ToString());
+        command.Parameters.AddWithValue("namespace_prefix", namespacePrefix);
+        command.Parameters.AddWithValue("permission", MemoryAccessPermissions.Read);
+
+        return (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Authorization denied audit count was not returned."));
     }
 }

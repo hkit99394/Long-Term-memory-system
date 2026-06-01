@@ -51,6 +51,13 @@ verify_vector_extension() {
 echo "Starting PostgreSQL..."
 docker compose up -d --wait postgres
 
+SOURCE_CONNECTION_STRING="Host=127.0.0.1;Port=$POSTGRES_PORT;Database=$POSTGRES_DB;Username=$POSTGRES_USER;Password=$POSTGRES_PASSWORD"
+
+echo "Running migrations against source database..."
+dotnet run --project src/MemorySystem.Migrator --configuration Release -- \
+  --connection-string "$SOURCE_CONNECTION_STRING" \
+  --migrations-directory migrations >/dev/null
+
 mkdir -p "$BACKUP_DIR"
 
 echo "Creating logical backup: $BACKUP_FILE"

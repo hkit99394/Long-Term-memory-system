@@ -10,6 +10,7 @@ using MemorySystem.Api.MemoryReviews;
 using MemorySystem.Api.Operations;
 using MemorySystem.Api.Scopes;
 using MemorySystem.Api.VaultExports;
+using MemorySystem.Application.Authentication;
 using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Health;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
@@ -121,7 +122,14 @@ if (app.Environment.IsEnvironment("Testing"))
         authenticated = context.User.Identity?.IsAuthenticated == true,
         scheme = context.User.Identity?.AuthenticationType,
         nameIdentifier = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-        name = context.User.FindFirst(ClaimTypes.Name)?.Value
+        name = context.User.FindFirst(ClaimTypes.Name)?.Value,
+        principalId = context.User.FindFirst(MemorySystemClaimTypes.PrincipalId)?.Value,
+        principalType = context.User.FindFirst(MemorySystemClaimTypes.PrincipalType)?.Value,
+        authMethod = context.User.FindFirst(MemorySystemClaimTypes.AuthMethod)?.Value,
+        credentialId = context.User.FindFirst(MemorySystemClaimTypes.CredentialId)?.Value,
+        externalIssuer = context.User.FindFirst(MemorySystemClaimTypes.ExternalIssuer)?.Value,
+        externalSubject = context.User.FindFirst(MemorySystemClaimTypes.ExternalSubject)?.Value,
+        apiKeyId = context.User.FindFirst(ApiKeyAuthenticationDefaults.ApiKeyIdClaimType)?.Value
     })).ExcludeFromDescription();
 
     app.MapPost(

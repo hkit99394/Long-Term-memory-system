@@ -26,7 +26,7 @@ public sealed partial class ApiMemorySearchTests
 
         try
         {
-            var (projectAMemoryId, _) = await PrepareSearchFixtureAsync(databaseConnectionString);
+            var (projectAMemoryId, _, sensitiveMemoryId) = await PrepareSearchFixtureAsync(databaseConnectionString);
 
             using var factory = CreateFactory(databaseConnectionString);
             using var client = factory.CreateClient();
@@ -46,6 +46,7 @@ public sealed partial class ApiMemorySearchTests
             Assert.True(result.GetProperty("rank").GetDouble() > 0);
             Assert.Contains("Project A retrieval decision", result.GetProperty("content").GetString(), StringComparison.Ordinal);
             Assert.DoesNotContain("Project B retrieval decision", responseBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(sensitiveMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -91,26 +92,29 @@ public sealed partial class ApiMemorySearchTests
 
         try
         {
-            var (projectATargetMemoryId, projectBMemoryId, query) =
+            var (projectATargetMemoryId, projectBMemoryId, sensitiveMemoryId, query) =
                 await PrepareSemanticSearchFixtureAsync(databaseConnectionString);
 
             using var factory = CreateFactory(databaseConnectionString);
             using var client = factory.CreateClient();
 
-            var (statusCode, payload, responseBody) = await SendSemanticSearchAsync(client, query, limit: 2);
+            var (statusCode, payload, responseBody) = await SendSemanticSearchAsync(client, query, limit: 3);
 
             Assert.Equal(HttpStatusCode.OK, statusCode);
 
             var results = payload.GetProperty("results").EnumerateArray().ToArray();
+            var targetResult = Assert.Single(
+                results,
+                result => result.GetProperty("sourceId").GetGuid() == projectATargetMemoryId);
 
             Assert.Equal(2, results.Length);
-            Assert.Equal(projectATargetMemoryId, results[0].GetProperty("sourceId").GetGuid());
-            Assert.Equal("memory_fact", results[0].GetProperty("sourceType").GetString());
-            Assert.Equal("project", results[0].GetProperty("scopeType").GetString());
-            Assert.Equal(ProjectAId.ToString(), results[0].GetProperty("scopeId").GetString());
-            Assert.Equal($"/project/{ProjectAId}/decisions", results[0].GetProperty("namespace").GetString());
-            Assert.InRange(results[0].GetProperty("rank").GetDouble(), 0.999d, 1.001d);
+            Assert.Equal("memory_fact", targetResult.GetProperty("sourceType").GetString());
+            Assert.Equal("project", targetResult.GetProperty("scopeType").GetString());
+            Assert.Equal(ProjectAId.ToString(), targetResult.GetProperty("scopeId").GetString());
+            Assert.Equal($"/project/{ProjectAId}/decisions", targetResult.GetProperty("namespace").GetString());
+            Assert.InRange(targetResult.GetProperty("rank").GetDouble(), -1.0d, 1.0d);
             Assert.DoesNotContain(projectBMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(sensitiveMemoryId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

@@ -57,6 +57,12 @@ public sealed class ApiAuthorizationTests
         Assert.True(payload.GetProperty("authenticated").GetBoolean());
         Assert.Equal("ApiKey", payload.GetProperty("scheme").GetString());
         Assert.Equal(TestPrincipalId, payload.GetProperty("nameIdentifier").GetString());
+        Assert.Equal("Test API caller", payload.GetProperty("name").GetString());
+        Assert.Equal(TestPrincipalId, payload.GetProperty("principalId").GetString());
+        Assert.Equal("human", payload.GetProperty("principalType").GetString());
+        Assert.Equal(AuthenticationMethods.ApiKey, payload.GetProperty("authMethod").GetString());
+        Assert.Equal("test-key", payload.GetProperty("credentialId").GetString());
+        Assert.Equal("test-key", payload.GetProperty("apiKeyId").GetString());
     }
 
     [Fact]
@@ -87,9 +93,9 @@ public sealed class ApiAuthorizationTests
     }
 
     [Fact]
-    public async Task Fallback_authorization_policy_surfaces_principal_validator_failures()
+    public async Task Fallback_authorization_policy_surfaces_principal_resolver_failures()
     {
-        using var factory = CreateFactory(new ThrowingApiKeyPrincipalValidator());
+        using var factory = CreateFactory(new ThrowingPrincipalResolver());
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", TestApiKey);
 
@@ -108,16 +114,63 @@ public sealed class ApiAuthorizationTests
         var databaseName = $"memorysystem_api_active_principal_test_{Guid.NewGuid():N}";
         var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
         var principalId = Guid.NewGuid();
+        var serviceCredentialId = Guid.NewGuid();
 
         try
         {
             await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
             await InsertPrincipalAsync(databaseConnectionString, principalId, status: "active");
+            await InsertServiceAccountCredentialAsync(databaseConnectionString, principalId, serviceCredentialId);
 
-            using var factory = CreateDatabaseBackedFactory(databaseConnectionString, principalId);
+            using var factory = CreateDatabaseBackedFactory(databaseConnectionString, principalId, serviceCredentialId);
             var payload = await GetFallbackAuthPayloadAsync(factory, TestApiKey);
 
             Assert.Equal(principalId.ToString(), payload.GetProperty("nameIdentifier").GetString());
+            Assert.Equal("Database API caller", payload.GetProperty("name").GetString());
+            Assert.Equal(principalId.ToString(), payload.GetProperty("principalId").GetString());
+            Assert.Equal("service", payload.GetProperty("principalType").GetString());
+            Assert.Equal(AuthenticationMethods.ApiKey, payload.GetProperty("authMethod").GetString());
+            Assert.Equal(serviceCredentialId.ToString(), payload.GetProperty("credentialId").GetString());
+            Assert.Equal("test-key", payload.GetProperty("apiKeyId").GetString());
+            Assert.True(await ServiceCredentialWasUsedAsync(databaseConnectionString, serviceCredentialId));
+            Assert.Equal(
+                1L,
+                await CountAuthenticationAuditEventsAsync(databaseConnectionString, principalId, outcome: "succeeded"));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Fallback_authorization_policy_rejects_api_key_for_disabled_service_credential()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+
+        var databaseName = $"memorysystem_api_disabled_service_credential_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+        var principalId = Guid.NewGuid();
+        var serviceCredentialId = Guid.NewGuid();
+
+        try
+        {
+            await SqlMigrationRunner.ApplyAsync(databaseConnectionString, MigrationTestPaths.FindMigrationsDirectory());
+            await InsertPrincipalAsync(databaseConnectionString, principalId, status: "active");
+            await InsertServiceAccountCredentialAsync(
+                databaseConnectionString,
+                principalId,
+                serviceCredentialId,
+                credentialStatus: "disabled");
+
+            using var factory = CreateDatabaseBackedFactory(databaseConnectionString, principalId, serviceCredentialId);
+            var client = factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-Api-Key", TestApiKey);
+
+            using var response = await client.GetAsync("/__test/auth/fallback");
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
         finally
         {
@@ -257,13 +310,13 @@ public sealed class ApiAuthorizationTests
     private static WebApplicationFactory<Program> CreateFactory(IEnumerable<string>? activePrincipalIds = null)
     {
         return CreateFactory(
-            new TestApiKeyPrincipalValidator(
+            new TestPrincipalResolver(
                 activePrincipalIds is null
                     ? new HashSet<Guid> { Guid.Parse(TestPrincipalId), Guid.Parse(SecondPrincipalId) }
                     : activePrincipalIds.Select(Guid.Parse).ToHashSet()));
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(IApiKeyPrincipalValidator principalValidator)
+    private static WebApplicationFactory<Program> CreateFactory(IPrincipalResolver principalResolver)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -275,14 +328,15 @@ public sealed class ApiAuthorizationTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    services.AddSingleton(principalValidator);
+                    services.AddSingleton(principalResolver);
                 });
             });
     }
 
     private static WebApplicationFactory<Program> CreateDatabaseBackedFactory(
         string postgresConnectionString,
-        Guid principalId)
+        Guid principalId,
+        Guid? serviceCredentialId = null)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -293,6 +347,7 @@ public sealed class ApiAuthorizationTests
                     var configuration = CreateApiKeyConfiguration(
                         principalId.ToString(),
                         displayName: "Database API caller",
+                        credentialId: serviceCredentialId?.ToString("D"),
                         includeSecondKey: false);
                     configuration["ConnectionStrings:Postgres"] = postgresConnectionString;
 
@@ -329,6 +384,131 @@ public sealed class ApiAuthorizationTests
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task InsertServiceAccountCredentialAsync(
+        string connectionString,
+        Guid principalId,
+        Guid serviceCredentialId,
+        string credentialStatus = "active")
+    {
+        var orgId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        var isActive = string.Equals(credentialStatus, "active", StringComparison.Ordinal);
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO organizations (id, name)
+            VALUES (@org_id, 'API Auth Test Org');
+
+            INSERT INTO projects (id, org_id, name, status)
+            VALUES (@project_id, @org_id, 'API Auth Test Project', 'active');
+
+            INSERT INTO service_accounts (
+                principal_id,
+                owner_project_id,
+                admin_contact,
+                allowed_auth_method,
+                expires_at,
+                created_by_principal_id
+            )
+            VALUES (
+                @principal_id,
+                @project_id,
+                'api-auth-owner@example.test',
+                'api_key',
+                now() + interval '90 days',
+                @principal_id
+            );
+
+            INSERT INTO service_account_credentials (
+                id,
+                service_principal_id,
+                credential_label,
+                auth_method,
+                credential_fingerprint,
+                status,
+                expires_at,
+                created_by_principal_id,
+                disabled_by_principal_id,
+                disabled_at,
+                disable_reason
+            )
+            VALUES (
+                @service_credential_id,
+                @principal_id,
+                'configured-api-key',
+                'api_key',
+                'sha256:configured-api-key',
+                @credential_status,
+                now() + interval '90 days',
+                @principal_id,
+                @disabled_by_principal_id,
+                @disabled_at,
+                @disable_reason
+            );
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("org_id", orgId);
+        command.Parameters.AddWithValue("project_id", projectId);
+        command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("service_credential_id", serviceCredentialId);
+        command.Parameters.AddWithValue("credential_status", credentialStatus);
+        command.Parameters.Add("disabled_by_principal_id", NpgsqlTypes.NpgsqlDbType.Uuid).Value =
+            isActive ? DBNull.Value : principalId;
+        command.Parameters.Add("disabled_at", NpgsqlTypes.NpgsqlDbType.TimestampTz).Value =
+            isActive ? DBNull.Value : DateTimeOffset.UtcNow;
+        command.Parameters.Add("disable_reason", NpgsqlTypes.NpgsqlDbType.Text).Value =
+            isActive ? DBNull.Value : "test disabled credential";
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<bool> ServiceCredentialWasUsedAsync(
+        string connectionString,
+        Guid serviceCredentialId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT last_used_at IS NOT NULL
+            FROM service_account_credentials
+            WHERE id = @service_credential_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("service_credential_id", serviceCredentialId);
+
+        return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<long> CountAuthenticationAuditEventsAsync(
+        string connectionString,
+        Guid principalId,
+        string outcome)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT count(*)
+            FROM access_audit_events
+            WHERE action_type = 'authentication'
+                AND outcome = @outcome
+                AND actor_principal_id = @principal_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("outcome", outcome);
+        command.Parameters.AddWithValue("principal_id", principalId);
+
+        return (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Authentication audit count was not returned."));
+    }
+
     private static WebApplicationFactory<Program> CreateProductionFactory(
         Dictionary<string, string?>? apiKeyConfiguration = null)
     {
@@ -363,6 +543,7 @@ public sealed class ApiAuthorizationTests
     private static Dictionary<string, string?> CreateApiKeyConfiguration(
         string principalId = TestPrincipalId,
         string displayName = "Test API caller",
+        string? credentialId = null,
         bool includeSecondKey = true)
     {
         var configuration = new Dictionary<string, string?>
@@ -371,6 +552,11 @@ public sealed class ApiAuthorizationTests
             ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = principalId,
             ["Authentication:ApiKey:Keys:test-key:DisplayName"] = displayName
         };
+
+        if (!string.IsNullOrWhiteSpace(credentialId))
+        {
+            configuration["Authentication:ApiKey:Keys:test-key:CredentialId"] = credentialId;
+        }
 
         if (includeSecondKey)
         {
@@ -382,18 +568,46 @@ public sealed class ApiAuthorizationTests
         return configuration;
     }
 
-    private sealed class TestApiKeyPrincipalValidator(IReadOnlySet<Guid> activePrincipalIds)
-        : IApiKeyPrincipalValidator
+    private sealed class TestPrincipalResolver(IReadOnlySet<Guid> activePrincipalIds)
+        : IPrincipalResolver
     {
-        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        public Task<AuthenticatedPrincipal?> ResolveApiKeyAsync(
+            ApiKeyPrincipalResolutionRequest request,
+            CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(activePrincipalIds.Contains(principalId));
+            return Task.FromResult<AuthenticatedPrincipal?>(
+                activePrincipalIds.Contains(request.PrincipalId)
+                    ? new AuthenticatedPrincipal(
+                        request.PrincipalId,
+                        "human",
+                        request.DisplayName,
+                        AuthenticationMethods.ApiKey,
+                        request.ApiKeyId)
+                    : null);
+        }
+
+        public Task<AuthenticatedPrincipal?> ResolveIdentityBindingAsync(
+            IdentityBindingLookup lookup,
+            string authMethod = AuthenticationMethods.Oidc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<AuthenticatedPrincipal?>(null);
         }
     }
 
-    private sealed class ThrowingApiKeyPrincipalValidator : IApiKeyPrincipalValidator
+    private sealed class ThrowingPrincipalResolver : IPrincipalResolver
     {
-        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        public Task<AuthenticatedPrincipal?> ResolveApiKeyAsync(
+            ApiKeyPrincipalResolutionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("principal store unavailable");
+        }
+
+        public Task<AuthenticatedPrincipal?> ResolveIdentityBindingAsync(
+            IdentityBindingLookup lookup,
+            string authMethod = AuthenticationMethods.Oidc,
+            CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("principal store unavailable");
         }

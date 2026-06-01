@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MemorySystem.Api.Authentication;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Admin;
@@ -51,12 +52,19 @@ public static class AdminGovernanceEndpointExtensions
                 Guid id,
                 HttpContext context,
                 ApiIdempotencyHttpService idempotency,
-                IAdminGovernanceStore store) =>
+                IAdminGovernanceStore store,
+                IAuthenticationAuditRecorder authenticationAuditRecorder) =>
                 await idempotency.ExecuteAsync(
                     context,
                     "POST /api/admin/governance/legal-holds/release",
                     async (idempotencyContext, cancellationToken) =>
-                        await ReleaseLegalHoldAsync(id, context, store, idempotencyContext, cancellationToken)))
+                        await ReleaseLegalHoldAsync(
+                            id,
+                            context,
+                            store,
+                            authenticationAuditRecorder,
+                            idempotencyContext,
+                            cancellationToken)))
             .RequireAuthorization();
 
         endpoints.MapPost(
@@ -145,6 +153,7 @@ public static class AdminGovernanceEndpointExtensions
         Guid holdId,
         HttpContext context,
         IAdminGovernanceStore store,
+        IAuthenticationAuditRecorder authenticationAuditRecorder,
         ApiIdempotencyExecutionContext idempotency,
         CancellationToken cancellationToken)
     {
@@ -191,6 +200,16 @@ public static class AdminGovernanceEndpointExtensions
         if (!result.Succeeded)
         {
             activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, result.FailureStatusCode.ToString());
+            if (result.FailureStatusCode == StatusCodes.Status403Forbidden)
+            {
+                await authenticationAuditRecorder.RecordAuthorizationDeniedAsync(
+                    context,
+                    "legal_hold_release_forbidden",
+                    cancellationToken,
+                    "legal_hold",
+                    holdId.ToString("D"));
+            }
+
             return ApiRequestHelpers.Problem(
                 result.FailureStatusCode,
                 "Legal hold release request is invalid.",

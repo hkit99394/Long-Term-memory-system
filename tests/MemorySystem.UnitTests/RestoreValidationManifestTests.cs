@@ -32,7 +32,9 @@ public sealed partial class RestoreValidationManifestTests
         Assert.Equal(manifestTables.Length, manifestTables.Distinct(StringComparer.Ordinal).Count());
 
         Assert.Contains("restore-validation-tables.sh", File.ReadAllText(backupSmokePath), StringComparison.Ordinal);
-        Assert.Contains("load_restore_validation_tables", File.ReadAllText(backupSmokePath), StringComparison.Ordinal);
+        var backupSmoke = File.ReadAllText(backupSmokePath);
+        Assert.Contains("load_restore_validation_tables", backupSmoke, StringComparison.Ordinal);
+        Assert.Contains("Running migrations against source database", backupSmoke, StringComparison.Ordinal);
         Assert.Contains("restore-validation-tables.sh", File.ReadAllText(deploymentSmokePath), StringComparison.Ordinal);
         Assert.Contains("load_restore_validation_tables", File.ReadAllText(deploymentSmokePath), StringComparison.Ordinal);
     }

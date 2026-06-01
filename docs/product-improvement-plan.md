@@ -295,8 +295,19 @@ production. PI-07 adds environment-specific release checklists for local, CI,
 pilot, and production migration, health, metrics, benchmark, backup/restore,
 rollback, alert-routing, and audit evidence. PI-08 records the first isolated
 platform rehearsal across migrator, API, worker, health, metrics,
-backup/restore, rollback, benchmark, and alert-routing evidence. The next move
-should be `EA-01`: add the identity-binding schema while keeping `DM-06` as a
-later cleanup slice. Before inviting an external pilot user, rerun the benchmark
-release gate with the intended pilot model, fresh scorecards, and a fresh live
-smoke artifact from the target environment.
+backup/restore, rollback, benchmark, and alert-routing evidence. EA-01 adds the
+identity-binding schema, active-subject uniqueness constraints, and active
+binding lookup path. EA-02 adds shared principal resolution so API keys and
+future OIDC bindings produce the same principal contract before any new
+authentication surface is enabled. EA-03 adds payload-safe access audit events
+for authentication, denial, membership, grant, service credential, and export
+activity. EA-04 adds generic OIDC authentication on top of the shared resolver
+and audit model with issuer, audience, JWKS, HTTPS metadata, lifetime, and
+identity-binding checks. EA-05 now adds service-account lifecycle metadata,
+credential posture, review dates, owners, credential creation/rotation/disable
+paths, narrow namespace grants, and audit evidence.
+The next move should be `EA-06`: add the admin access-management UI for
+memberships, role assignments, namespace grants, effective-access previews, and
+audited operator changes. Before inviting an external pilot user, rerun the
+benchmark release gate with the intended pilot model, fresh scorecards, and a
+fresh live smoke artifact from the target environment.

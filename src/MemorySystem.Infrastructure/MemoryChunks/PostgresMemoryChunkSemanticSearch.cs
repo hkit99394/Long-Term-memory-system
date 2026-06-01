@@ -88,6 +88,8 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                     ELSE NULL
                 END
                 AND project.status = 'active'
+            INNER JOIN events AS source_event
+                ON source_event.id = chunk.source_event_id
             LEFT JOIN memory_facts AS fact
                 ON chunk.source_type = 'memory_fact'
                 AND fact.id = chunk.source_id
@@ -102,6 +104,9 @@ public sealed class PostgresMemoryChunkSemanticSearch(
                     lens.role_id) AS required_role_id
             ) AS role_requirement ON TRUE
             WHERE chunk.redacted_at IS NULL
+                AND source_event.retention_class <> 'erasure_requested'
+                AND source_event.redaction_status = 'none'
+                AND source_event.sensitivity NOT IN ('secret', 'regulated')
                 AND (
                     (
                         chunk.source_type = 'memory_fact'

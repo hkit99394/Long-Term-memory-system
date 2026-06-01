@@ -136,9 +136,16 @@ and worker roles, and PI-06 connects alert routing, runbook links, silence
 policy, and per-environment route tests. PI-07 adds environment-specific
 release checklists for local, CI, pilot, and production evidence. PI-08 runs
 the first isolated platform rehearsal and records the migration, health,
-metrics, benchmark, backup/restore, rollback, and audit evidence. The next
-focus is `EA-01`: add the identity-binding schema while keeping `DM-06` as a
-later cleanup slice.
+metrics, benchmark, backup/restore, rollback, and audit evidence. EA-01 adds
+the identity-binding schema and active-binding lookup path. EA-02 adds shared
+principal resolution for API keys and future OIDC bindings. EA-03 adds a
+payload-safe access audit event model for auth, denials, access-management,
+service credential, and export evidence. EA-04 adds generic OIDC authentication
+with issuer, audience, JWKS, HTTPS metadata, lifetime, and identity-binding
+checks. EA-05 adds service-account lifecycle metadata, credential posture,
+review or expiry dates, rotation and disable paths, least-privilege namespace
+grants, and audit records. The next focus is `EA-06`: add the admin
+access-management UI while keeping `DM-06` as a later cleanup slice.
 
 ## Middle Run Production Pilot
 
@@ -207,11 +214,11 @@ later cleanup slice.
 
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
-| EA-01 | P0 | Todo | Add identity-binding schema. | Migrations add provider, issuer, subject, principal, status, display metadata, timestamps, and uniqueness constraints; disabled bindings fail lookup; migration tests cover duplicate and deleted-binding behavior. |
-| EA-02 | P0 | Todo | Introduce shared principal resolution. | API key authentication and future OIDC authentication both produce one principal-resolution result containing principal id, type, auth method, and credential or binding id; current API-key tests remain unchanged. |
-| EA-03 | P0 | Todo | Add access audit event model. | Authentication, authorization denial, membership change, role assignment change, namespace grant change, service credential change, and audit export records can be written without storing raw memory payloads. |
-| EA-04 | P0 | Todo | Add generic OIDC authentication. | Configured issuer, audience, JWKS, HTTPS metadata, lifetime validation, and identity binding lookup authenticate human principals; unbound, disabled, or ambiguous identities fail closed. |
-| EA-05 | P0 | Todo | Add service-account lifecycle. | Service principals have owner metadata, allowed auth method, credential review or expiry date, rotation/disable path, and least-privilege namespace grants. |
+| EA-01 | P0 | Done | Add identity-binding schema. | `026_identity_bindings.sql` adds provider, issuer, subject, principal, status, display metadata, timestamps, and active-subject uniqueness constraints; disabled bindings fail lookup through `PostgresIdentityBindingStore`; migration tests cover duplicate active subjects, deleted-binding replacement, and invalid statuses. |
+| EA-02 | P0 | Done | Introduce shared principal resolution. | API key authentication now uses `IPrincipalResolver` and emits one resolved-principal result with principal id, principal type, auth method, and credential id claims; the resolver also maps active identity bindings for future OIDC without changing current API-key behavior. |
+| EA-03 | P0 | Done | Add access audit event model. | `027_access_audit_events.sql` adds payload-safe `access_audit_events` with constrained action, outcome, scope, auth, resource, and metadata fields; `IAccessAuditEventStore` can write authentication, authorization denial, membership, role assignment, namespace grant, service credential, and audit export records while rejecting raw payload-like metadata. |
+| EA-04 | P0 | Done | Add generic OIDC authentication. | `OidcAuthenticationHandler` validates RS256 bearer tokens against configured issuer, audience, JWKS, HTTPS metadata policy, and token lifetime, then maps the subject through active `identity_bindings`; unbound subjects, disabled bindings, non-human principals, wrong audiences, and expired tokens fail closed while API-key authentication remains available. |
+| EA-05 | P0 | Done | Add service-account lifecycle. | `028_service_account_lifecycle.sql` adds service account profiles and credential posture; `IServiceAccountLifecycleStore` records owner scope/contact, allowed auth method, credential review or expiry, credential rotation/disable operations, least-privilege namespace grants, and access audit events. |
 | EA-06 | P0 | Todo | Add admin access-management UI. | Authorized operators can manage memberships, role assignments, and namespace grants with effective-access preview, authorizer-backed explanations, and audited changes. |
 | EA-07 | P0 | Todo | Add audit export. | Operators can export access-management and auth audit records for a time window and scope as newline-delimited JSON with manifest hash and payload-safe fields. |
 | EA-08 | P0 | Todo | Add migration and rollback smoke. | A smoke script proves API-key-only, OIDC-only, dual-auth, service-account, and OIDC-disabled rollback modes without weakening namespace grants. |

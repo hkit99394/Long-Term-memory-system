@@ -41,6 +41,16 @@ public sealed class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
                 || Guid.TryParse(credential.PrincipalId, out _));
     }
 
+    public static bool HasValidServiceCredentialIds(ApiKeyAuthenticationOptions options)
+    {
+        var keys = options.Keys;
+
+        return keys is not null
+            && keys.Values.All(credential =>
+                string.IsNullOrWhiteSpace(credential?.CredentialId)
+                || Guid.TryParse(credential.CredentialId, out _));
+    }
+
     public static bool HasDistinctKeyValues(ApiKeyAuthenticationOptions options)
     {
         var keys = options.Keys;
@@ -88,4 +98,6 @@ public sealed class ApiKeyCredentialOptions
     public string? PrincipalId { get; set; }
 
     public string? DisplayName { get; set; }
+
+    public string? CredentialId { get; set; }
 }

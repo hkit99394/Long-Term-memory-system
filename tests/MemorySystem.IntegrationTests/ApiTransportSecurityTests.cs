@@ -228,7 +228,7 @@ public sealed class ApiTransportSecurityTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    services.AddSingleton<IApiKeyPrincipalValidator>(new AlwaysActiveApiKeyPrincipalValidator());
+                    services.AddSingleton<IPrincipalResolver>(new AlwaysActivePrincipalResolver());
                 });
             });
 
@@ -283,7 +283,7 @@ public sealed class ApiTransportSecurityTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    services.AddSingleton<IApiKeyPrincipalValidator>(new AlwaysActiveApiKeyPrincipalValidator());
+                    services.AddSingleton<IPrincipalResolver>(new AlwaysActivePrincipalResolver());
                     services.AddSingleton<IMemoryChunkSemanticSearch, EmptySemanticSearch>();
                     services.AddSingleton<IMemoryChunkHybridSearch, EmptyHybridSearch>();
                     services.AddSingleton<IContextPacketBuilder, EmptyContextPacketBuilder>();
@@ -317,11 +317,27 @@ public sealed class ApiTransportSecurityTests
         }
     }
 
-    private sealed class AlwaysActiveApiKeyPrincipalValidator : IApiKeyPrincipalValidator
+    private sealed class AlwaysActivePrincipalResolver : IPrincipalResolver
     {
-        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        public Task<AuthenticatedPrincipal?> ResolveApiKeyAsync(
+            ApiKeyPrincipalResolutionRequest request,
+            CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(true);
+            return Task.FromResult<AuthenticatedPrincipal?>(
+                new AuthenticatedPrincipal(
+                    request.PrincipalId,
+                    "service",
+                    request.DisplayName,
+                    AuthenticationMethods.ApiKey,
+                    request.ApiKeyId));
+        }
+
+        public Task<AuthenticatedPrincipal?> ResolveIdentityBindingAsync(
+            IdentityBindingLookup lookup,
+            string authMethod = AuthenticationMethods.Oidc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<AuthenticatedPrincipal?>(null);
         }
     }
 

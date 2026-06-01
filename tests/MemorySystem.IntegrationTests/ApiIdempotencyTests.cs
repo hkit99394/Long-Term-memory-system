@@ -438,7 +438,7 @@ public sealed class ApiIdempotencyTests
             await ApiDatabaseTestSupport.InsertPrincipalAsync(
                 connectionString,
                 principalId,
-                principalType: "service",
+                principalType: "human",
                 displayName: "API Principal");
         }
     }
@@ -527,7 +527,7 @@ public sealed class ApiIdempotencyTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    services.AddSingleton<IApiKeyPrincipalValidator>(new AlwaysActiveApiKeyPrincipalValidator());
+                    services.AddSingleton<IPrincipalResolver>(new AlwaysActivePrincipalResolver());
                 });
             });
     }
@@ -714,11 +714,27 @@ public sealed class ApiIdempotencyTests
         hash.AppendData([0]);
     }
 
-    private sealed class AlwaysActiveApiKeyPrincipalValidator : IApiKeyPrincipalValidator
+    private sealed class AlwaysActivePrincipalResolver : IPrincipalResolver
     {
-        public Task<bool> IsActiveAsync(Guid principalId, CancellationToken cancellationToken = default)
+        public Task<AuthenticatedPrincipal?> ResolveApiKeyAsync(
+            ApiKeyPrincipalResolutionRequest request,
+            CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(true);
+            return Task.FromResult<AuthenticatedPrincipal?>(
+                new AuthenticatedPrincipal(
+                    request.PrincipalId,
+                    "service",
+                    request.DisplayName,
+                    AuthenticationMethods.ApiKey,
+                    request.ApiKeyId));
+        }
+
+        public Task<AuthenticatedPrincipal?> ResolveIdentityBindingAsync(
+            IdentityBindingLookup lookup,
+            string authMethod = AuthenticationMethods.Oidc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<AuthenticatedPrincipal?>(null);
         }
     }
 }

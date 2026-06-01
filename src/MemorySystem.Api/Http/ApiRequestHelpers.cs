@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Text.Json;
 using MemorySystem.Api.Idempotency;
+using MemorySystem.Application.Authentication;
 using MemorySystem.Application.Scopes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,9 @@ internal static class ApiRequestHelpers
 {
     public static bool TryGetPrincipalId(HttpContext context, out Guid principalId)
     {
-        var principalIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var principalIdValue =
+            context.User.FindFirstValue(MemorySystemClaimTypes.PrincipalId)
+            ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return Guid.TryParse(principalIdValue, out principalId);
     }

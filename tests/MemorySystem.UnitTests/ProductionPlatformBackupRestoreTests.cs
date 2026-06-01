@@ -72,7 +72,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
     }
 
     [Fact]
-    public void Backlog_marks_platform_slices_done_and_names_ea01_next()
+    public void Backlog_marks_platform_slices_done_and_names_ea05_next()
     {
         var root = FindRepositoryRoot();
         var backlog = File.ReadAllText(Path.Combine(root, "docs", "backlog.md"));
@@ -83,8 +83,8 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("| PI-06 | P1 | Done | Connect alert routing and runbook links.", backlog, StringComparison.Ordinal);
         Assert.Contains("| PI-07 | P1 | Done | Add environment-specific release checklists.", backlog, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
-        Assert.Contains("focus is `EA-01`: add the identity-binding schema", backlog, StringComparison.Ordinal);
-        Assert.Contains("should be `EA-01`: add the identity-binding schema", productPlan, StringComparison.Ordinal);
-        Assert.Contains("keeping `DM-06` as a", productPlan, StringComparison.Ordinal);
+        Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", backlog, StringComparison.Ordinal);
+        Assert.Contains("should be `EA-06`: add the admin access-management UI", productPlan, StringComparison.Ordinal);
+        Assert.Contains("`DM-06` as a later cleanup slice", backlog, StringComparison.Ordinal);
     }
 }

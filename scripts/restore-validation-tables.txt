@@ -2,6 +2,10 @@
 # Keep this file in lockstep with migrations that create tables.
 schema_migrations
 principals
+identity_bindings
+access_audit_events
+service_accounts
+service_account_credentials
 organizations
 projects
 organization_memberships

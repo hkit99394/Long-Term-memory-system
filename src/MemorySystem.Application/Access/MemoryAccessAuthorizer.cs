@@ -1,8 +1,11 @@
+using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Scopes;
 
 namespace MemorySystem.Application.Access;
 
-public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore referenceStore) : IMemoryAccessAuthorizer
+public sealed class MemoryAccessAuthorizer(
+    IMemoryAccessReferenceStore referenceStore,
+    IAccessAuditEventStore? accessAuditEventStore = null) : IMemoryAccessAuthorizer
 {
     public async Task<MemoryAccessDecision> AuthorizeAsync(
         MemoryAccessRequest request,
@@ -11,6 +14,19 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Scope);
 
+        var decision = await EvaluateAsync(request, cancellationToken);
+        if (!decision.Allowed)
+        {
+            await RecordDeniedAsync(request, decision, cancellationToken);
+        }
+
+        return decision;
+    }
+
+    private async Task<MemoryAccessDecision> EvaluateAsync(
+        MemoryAccessRequest request,
+        CancellationToken cancellationToken)
+    {
         if (!MemoryAccessPermissions.All.Contains(request.Permission))
         {
             return MemoryAccessDecision.Deny($"Permission '{request.Permission}' is not supported.");
@@ -49,6 +65,47 @@ public sealed class MemoryAccessAuthorizer(IMemoryAccessReferenceStore reference
             ? MemoryAccessDecision.Allow()
             : MemoryAccessDecision.Deny(
                 $"Principal {request.PrincipalId} does not have {request.Permission} access to namespace '{request.Namespace}'.");
+    }
+
+    private async Task RecordDeniedAsync(
+        MemoryAccessRequest request,
+        MemoryAccessDecision decision,
+        CancellationToken cancellationToken)
+    {
+        if (accessAuditEventStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await accessAuditEventStore.RecordAsync(
+                new AccessAuditEventCommand(
+                    AccessAuditActionTypes.AuthorizationDenied,
+                    AccessAuditOutcomes.Denied,
+                    ActorPrincipalId: request.PrincipalId,
+                    ScopeType: request.Scope.ScopeType,
+                    ScopeId: request.Scope.ScopeId,
+                    RoleId: request.Scope.ScopeRoleId,
+                    NamespacePrefix: request.Namespace,
+                    Permission: request.Permission,
+                    ReasonCode: "memory_access_denied",
+                    Metadata: new Dictionary<string, string?>
+                    {
+                        ["reason"] = decision.Reason
+                    }),
+                cancellationToken);
+        }
+        catch (Exception exception) when (ShouldSuppressAuditException(exception, cancellationToken))
+        {
+        }
+    }
+
+    private static bool ShouldSuppressAuditException(
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        return exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested;
     }
 
     private async Task<MemoryAccessDecision> HasScopeAccessAsync(

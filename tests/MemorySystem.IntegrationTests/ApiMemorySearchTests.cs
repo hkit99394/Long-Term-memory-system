@@ -27,7 +27,7 @@ public sealed partial class ApiMemorySearchTests
     private static readonly Guid ProjectAEventId = Guid.Parse("66666666-6666-4666-8666-666666666666");
     private static readonly Guid ProjectBEventId = Guid.Parse("77777777-7777-4777-8777-777777777777");
 
-    private static async Task<(Guid ProjectAMemoryId, Guid ProjectBMemoryId)> PrepareSearchFixtureAsync(
+    private static async Task<(Guid ProjectAMemoryId, Guid ProjectBMemoryId, Guid SensitiveMemoryId)> PrepareSearchFixtureAsync(
         string connectionString)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
@@ -60,6 +60,16 @@ public sealed partial class ApiMemorySearchTests
             ProjectBId.ToString(),
             scopeOrgId: OrgBId,
             scopeProjectId: ProjectBId);
+        var sensitiveEventId = Guid.NewGuid();
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sensitiveEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            sensitivity: "secret");
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         var repository = new PostgresMemoryFactRepository(dataSource);
@@ -85,11 +95,22 @@ public sealed partial class ApiMemorySearchTests
             0.950m,
             ProjectBEventId,
             PrincipalId));
+        var sensitiveMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            "Project A sensitive retrieval decision",
+            "uses",
+            "postgres audit retrieval",
+            0.990m,
+            sensitiveEventId,
+            PrincipalId));
 
-        return (projectAMemory.Id, projectBMemory.Id);
+        return (projectAMemory.Id, projectBMemory.Id, sensitiveMemory.Id);
     }
 
-    private static async Task<(Guid ProjectATargetMemoryId, Guid ProjectBMemoryId, string Query)>
+    private static async Task<(Guid ProjectATargetMemoryId, Guid ProjectBMemoryId, Guid SensitiveMemoryId, string Query)>
         PrepareSemanticSearchFixtureAsync(string connectionString)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
@@ -122,6 +143,16 @@ public sealed partial class ApiMemorySearchTests
             ProjectBId.ToString(),
             scopeOrgId: OrgBId,
             scopeProjectId: ProjectBId);
+        var sensitiveEventId = Guid.NewGuid();
+        await ApiDatabaseTestSupport.InsertSourceEventAsync(
+            connectionString,
+            sensitiveEventId,
+            PrincipalId,
+            "project",
+            ProjectAId.ToString(),
+            scopeOrgId: OrgAId,
+            scopeProjectId: ProjectAId,
+            sensitivity: "secret");
 
         const string targetSubject = "semantic retrieval target";
         const string targetObject = "pgvector cosine recall";
@@ -162,10 +193,21 @@ public sealed partial class ApiMemorySearchTests
             0.950m,
             ProjectAEventId,
             PrincipalId));
+        var sensitiveMemory = await repository.StoreAsync(new MemoryFactWriteCommand(
+            new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
+            $"/project/{ProjectAId}/decisions",
+            "decision",
+            "project_shared",
+            $"{targetSubject} secret",
+            "uses",
+            targetObject,
+            0.990m,
+            sensitiveEventId,
+            PrincipalId));
 
         await EmbedMemoryChunksAsync(dataSource);
 
-        return (projectATargetMemory.Id, projectBMemory.Id, exactQuery);
+        return (projectATargetMemory.Id, projectBMemory.Id, sensitiveMemory.Id, exactQuery);
     }
 
     private static async Task PrepareSessionSearchFixtureAsync(string connectionString)
