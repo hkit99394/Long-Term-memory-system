@@ -30,11 +30,44 @@ locals {
     "memorysystem_backup_age_seconds",
     "memorysystem_backup_export_timestamp_seconds",
     "memorysystem_backup_export_bytes",
+    "memorysystem_erasure_replay_ledger_export_success",
+    "memorysystem_erasure_replay_ledger_records",
+    "memorysystem_erasure_replay_ledger_bytes",
+    "memorysystem_erasure_replay_ledger_timestamp_seconds",
     "memorysystem_restore_validation_success",
     "memorysystem_restore_validation_age_seconds",
     "memorysystem_restore_validation_timestamp_seconds",
     "memorysystem_restore_validation_vector_extension_count",
-    "memorysystem_restore_validation_table_rows"
+    "memorysystem_restore_validation_table_rows",
+    "memorysystem_restore_erasure_replay_validation_success",
+    "memorysystem_restore_erasure_replay_configured",
+    "memorysystem_restore_erasure_replay_required",
+    "memorysystem_restore_erasure_replay_actions",
+    "memorysystem_restore_erasure_replay_failures"
+  ]
+
+  governance_retention_metrics = [
+    "memorysystem_retention_minimization_success",
+    "memorysystem_retention_minimization_candidates",
+    "memorysystem_retention_minimization_minimized_events",
+    "memorysystem_retention_minimization_review_notes_cleared",
+    "memorysystem_retention_minimization_legal_hold_skipped",
+    "memorysystem_retention_minimization_external_payload_skipped",
+    "memorysystem_retention_minimization_failures",
+    "memorysystem_retention_minimization_timestamp_seconds",
+    "memorysystem_external_payload_retention_check_success",
+    "memorysystem_external_payload_retention_check_targets",
+    "memorysystem_external_payload_retention_expected_present",
+    "memorysystem_external_payload_retention_expected_absent",
+    "memorysystem_external_payload_retention_verified_present",
+    "memorysystem_external_payload_retention_verified_absent",
+    "memorysystem_external_payload_retention_unverified_targets",
+    "memorysystem_external_payload_retention_policy_violations",
+    "memorysystem_external_payload_retention_unsupported_scheme",
+    "memorysystem_external_payload_retention_mismatches",
+    "memorysystem_external_payload_retention_probe_failures",
+    "memorysystem_external_payload_retention_failures",
+    "memorysystem_external_payload_retention_timestamp_seconds"
   ]
 
   release_checklist_gates = [
@@ -86,6 +119,14 @@ locals {
     MEMORYSYSTEM_RELEASE_EVIDENCE_BUCKET = coalesce(var.release_evidence_bucket, "")
   }
 
+  erasure_replay_ledger_environment = {
+    MEMORYSYSTEM_ENVIRONMENT                  = var.environment_name
+    MEMORYSYSTEM_ERASURE_REPLAY_EVIDENCE_DIR  = "/tmp/memorysystem-backup-evidence"
+    MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE   = "/tmp/memorysystem-backup-evidence/erasure-replay-ledger.csv"
+    MEMORYSYSTEM_ERASURE_REPLAY_METRICS_FILE  = "/tmp/memorysystem-backup-evidence/erasure-replay-ledger-metrics.prom"
+    MEMORYSYSTEM_ERASURE_REPLAY_EVIDENCE_FILE = "/tmp/memorysystem-backup-evidence/erasure-replay-ledger-evidence.json"
+  }
+
   restore_validation_environment = {
     MEMORYSYSTEM_ENVIRONMENT                      = var.environment_name
     MEMORYSYSTEM_RESTORE_DATABASE                 = var.restore_validation_database
@@ -95,6 +136,32 @@ locals {
     MEMORYSYSTEM_RESTORE_VALIDATION_TABLES_FILE   = "/app/scripts/restore-validation-tables.txt"
     MEMORYSYSTEM_MIGRATOR_DLL                     = "/app/migrator/MemorySystem.Migrator.dll"
     MEMORYSYSTEM_MIGRATIONS_DIR                   = "/app/migrations"
+    MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE       = "/tmp/memorysystem-backup-evidence/erasure-replay-ledger.csv"
+  }
+
+  retention_minimization_environment = {
+    MEMORYSYSTEM_ENVIRONMENT                          = var.environment_name
+    MEMORYSYSTEM_RETENTION_MINIMIZATION_MODE          = "dry-run"
+    MEMORYSYSTEM_RETENTION_STANDARD_MAX_AGE_DAYS      = "90"
+    MEMORYSYSTEM_RETENTION_AUDIT_MAX_AGE_DAYS         = "365"
+    MEMORYSYSTEM_RETENTION_MINIMIZATION_BATCH_SIZE    = "500"
+    MEMORYSYSTEM_RETENTION_MINIMIZATION_EVIDENCE_DIR  = "/tmp/memorysystem-governance-evidence"
+    MEMORYSYSTEM_RETENTION_MINIMIZATION_METRICS_FILE  = "/tmp/memorysystem-governance-evidence/retention-minimization-metrics.prom"
+    MEMORYSYSTEM_RETENTION_MINIMIZATION_EVIDENCE_FILE = "/tmp/memorysystem-governance-evidence/retention-minimization-evidence.json"
+  }
+
+  external_payload_retention_environment = {
+    MEMORYSYSTEM_ENVIRONMENT                             = var.environment_name
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_CHECK_MODE             = "audit-only"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_POLICY_MODE            = "disabled"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_ALLOWED_SCHEMES        = ""
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_EPHEMERAL_MAX_AGE_DAYS = "7"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_STANDARD_MAX_AGE_DAYS  = "90"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_AUDIT_MAX_AGE_DAYS     = "365"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_CHECK_BATCH_SIZE       = "500"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_EVIDENCE_DIR           = "/tmp/memorysystem-governance-evidence"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_METRICS_FILE           = "/tmp/memorysystem-governance-evidence/external-payload-retention-metrics.prom"
+    MEMORYSYSTEM_EXTERNAL_PAYLOAD_EVIDENCE_FILE          = "/tmp/memorysystem-governance-evidence/external-payload-retention-evidence.json"
   }
 
   roles = {
@@ -144,9 +211,25 @@ locals {
       emitted_metrics      = local.backup_restore_metrics
     }
 
+    erasure_replay_ledger_export = {
+      kind                 = "run-task"
+      target_slice         = "GC-03"
+      cpu                  = var.job_task_cpu
+      memory               = var.job_task_memory
+      command              = ["/app/scripts/platform-erasure-replay-ledger-export.sh"]
+      port                 = null
+      health_path          = null
+      environment          = local.erasure_replay_ledger_environment
+      required_secret_refs = ["postgres"]
+      required_runtime_env = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"]
+      evidence_files       = [local.erasure_replay_ledger_environment["MEMORYSYSTEM_ERASURE_REPLAY_EVIDENCE_FILE"]]
+      metrics_files        = [local.erasure_replay_ledger_environment["MEMORYSYSTEM_ERASURE_REPLAY_METRICS_FILE"]]
+      emitted_metrics      = local.backup_restore_metrics
+    }
+
     restore_validation = {
       kind                 = "run-task"
-      target_slice         = "PI-04"
+      target_slice         = "GC-03"
       cpu                  = var.job_task_cpu
       memory               = var.job_task_memory
       command              = ["/app/scripts/platform-restore-validation.sh"]
@@ -154,10 +237,42 @@ locals {
       health_path          = null
       environment          = local.restore_validation_environment
       required_secret_refs = ["postgres", "restore_validation"]
-      required_runtime_env = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE", "MEMORYSYSTEM_BACKUP_FILE", "MEMORYSYSTEM_RESTORE_CONNECTION_STRING"]
+      required_runtime_env = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE", "MEMORYSYSTEM_BACKUP_FILE", "MEMORYSYSTEM_RESTORE_CONNECTION_STRING", "MEMORYSYSTEM_BACKUP_CREATED_AT_UTC", "MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE"]
       evidence_files       = [local.restore_validation_environment["MEMORYSYSTEM_RESTORE_VALIDATION_EVIDENCE_FILE"]]
       metrics_files        = [local.restore_validation_environment["MEMORYSYSTEM_RESTORE_VALIDATION_METRICS_FILE"]]
       emitted_metrics      = local.backup_restore_metrics
+    }
+
+    retention_minimization = {
+      kind                 = "run-task"
+      target_slice         = "GC-04"
+      cpu                  = var.job_task_cpu
+      memory               = var.job_task_memory
+      command              = ["/app/scripts/platform-retention-minimization.sh"]
+      port                 = null
+      health_path          = null
+      environment          = local.retention_minimization_environment
+      required_secret_refs = ["postgres"]
+      required_runtime_env = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"]
+      evidence_files       = [local.retention_minimization_environment["MEMORYSYSTEM_RETENTION_MINIMIZATION_EVIDENCE_FILE"]]
+      metrics_files        = [local.retention_minimization_environment["MEMORYSYSTEM_RETENTION_MINIMIZATION_METRICS_FILE"]]
+      emitted_metrics      = local.governance_retention_metrics
+    }
+
+    external_payload_retention_check = {
+      kind                 = "run-task"
+      target_slice         = "GC-05"
+      cpu                  = var.job_task_cpu
+      memory               = var.job_task_memory
+      command              = ["/app/scripts/platform-external-payload-retention-check.sh"]
+      port                 = null
+      health_path          = null
+      environment          = local.external_payload_retention_environment
+      required_secret_refs = ["postgres"]
+      required_runtime_env = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"]
+      evidence_files       = [local.external_payload_retention_environment["MEMORYSYSTEM_EXTERNAL_PAYLOAD_EVIDENCE_FILE"]]
+      metrics_files        = [local.external_payload_retention_environment["MEMORYSYSTEM_EXTERNAL_PAYLOAD_METRICS_FILE"]]
+      emitted_metrics      = local.governance_retention_metrics
     }
 
     demo_seeder = {
@@ -204,10 +319,11 @@ locals {
       resource_attributes      = local.open_telemetry_environment["OTEL_RESOURCE_ATTRIBUTES"]
       trace_coverage_manifest  = "observability/tracing/memorysystem-pilot-trace-coverage.json"
     }
-    backup_restore_metrics = local.backup_restore_metrics
-    release_checklist      = local.release_checklist
-    platform_rehearsal     = local.platform_rehearsal
-    roles                  = local.roles
-    future_jobs            = local.future_jobs
+    backup_restore_metrics       = local.backup_restore_metrics
+    governance_retention_metrics = local.governance_retention_metrics
+    release_checklist            = local.release_checklist
+    platform_rehearsal           = local.platform_rehearsal
+    roles                        = local.roles
+    future_jobs                  = local.future_jobs
   }
 }

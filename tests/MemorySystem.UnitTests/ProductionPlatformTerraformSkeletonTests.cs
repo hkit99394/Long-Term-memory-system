@@ -31,6 +31,9 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("MemorySystem.DemoSeeder.csproj", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("postgresql-client", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("platform-backup-export.sh", dockerfileText, StringComparison.Ordinal);
+        Assert.Contains("platform-erasure-replay-ledger-export.sh", dockerfileText, StringComparison.Ordinal);
+        Assert.Contains("platform-external-payload-retention-check.sh", dockerfileText, StringComparison.Ordinal);
+        Assert.Contains("platform-retention-minimization.sh", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("platform-restore-validation.sh", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("COPY migrations/ migrations/", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("ENTRYPOINT [\"dotnet\", \"/app/api/MemorySystem.Api.dll\"]", dockerfileText, StringComparison.Ordinal);

@@ -37,8 +37,8 @@ The governance and compliance track will:
 - add permission-drift reporting without making reports an authorization path
 - keep evidence packages payload-safe by default with ids, counts, hashes,
   timestamps, statuses, and links instead of raw content
-- treat external payload-store support as incomplete until existence, deletion,
-  and evidence checks exist
+- keep external payload-store support disabled until environment policy allows
+  explicit schemes and verify-mode existence, deletion, and evidence checks pass
 - implement follow-on `GC-*` slices without hidden schema, endpoint, or runtime
   churn in the planning slice
 

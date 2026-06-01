@@ -210,6 +210,16 @@ The LR-05 planning output creates the `PI-*` implementation backlog:
 - `PI-04`: add backup exporter and restore validation automation. Done with
   `scripts/platform-backup-export.sh`,
   `scripts/platform-restore-validation.sh`, and runtime job contracts.
+- `GC-03`: extend restore validation with payload-safe erasure replay. Done
+  with `scripts/platform-erasure-replay-ledger-export.sh`, restore-time replay
+  evidence, and replay metrics in the platform observability contract.
+- `GC-04`: add standard/audit retention minimization. Done with
+  `scripts/platform-retention-minimization.sh`, dry-run/execute evidence, and
+  governance retention metrics in the platform observability contract.
+- `GC-05`: add external payload-store retention checks. Done with
+  `scripts/platform-external-payload-retention-check.sh`, provider-state
+  verification evidence, and governance retention metrics in the platform
+  observability contract.
 - `PI-05`: wire runtime OpenTelemetry exporters. Done through shared
   telemetry wiring and the runtime OpenTelemetry Terraform contract.
 - `PI-06`: connect alert routing and runbook links. Done through checked-in

@@ -125,12 +125,19 @@ Implemented:
 - Authenticated retention reports through
   `/api/admin/governance/retention-report` group authorized events by
   namespace, retention class, sensitivity, and age bucket.
+- `scripts/platform-retention-minimization.sh` supports dry-run and execute
+  modes for `standard` and `audit` source-event payload minimization, skips
+  active legal holds, leaves `external_payload_uri` rows for GC-05 checks, preserves
+  durable facts/chunks/embeddings/exports, clears review-note payload copies,
+  and emits payload-safe evidence plus metrics.
+- `scripts/platform-external-payload-retention-check.sh` inspects
+  `external_payload_uri` rows, classifies expected external object state from
+  PostgreSQL lifecycle state, rejects disabled-policy pointers, probes
+  supported providers in verify mode, and emits payload-safe evidence without
+  raw URIs, credentials, or payload bytes.
 
 Not yet automated:
 
-- payload minimization for events that are still referenced by durable memory, review, redaction, or export records
-- payload minimization for `standard` and `audit` retention windows
-- external payload store retention checks for `external_payload_uri`
 - backup pruning or selective restore procedures for erased payloads
 
 Until the remaining workers and storage checks exist, advanced retention actions beyond the authenticated governance endpoints still require controlled operational execution.

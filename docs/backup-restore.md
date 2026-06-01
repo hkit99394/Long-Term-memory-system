@@ -150,10 +150,12 @@ Then point the API and worker at the restored connection string and verify readi
 ## Platform Automation
 
 PI-04 adds two checked-in platform job scripts for pilot and production
-environments:
+environments, and GC-03 adds a payload-safe erasure replay ledger export for
+restore validation:
 
 ```bash
 /app/scripts/platform-backup-export.sh
+/app/scripts/platform-erasure-replay-ledger-export.sh
 /app/scripts/platform-restore-validation.sh
 ```
 
@@ -176,6 +178,29 @@ validation evidence JSON, and emits metrics including:
 - `memorysystem_restore_validation_timestamp_seconds`
 - `memorysystem_restore_validation_vector_extension_count`
 - `memorysystem_restore_validation_table_rows`
+
+`platform-erasure-replay-ledger-export.sh` exports a payload-safe CSV ledger
+from `memory_redactions` with redaction timestamps, target ids, target types,
+redaction audit ids, requester principal ids, and redaction type. It omits raw
+event payloads, memory bodies, chunk content, review notes, and erasure reason
+text. The ledger export writes evidence JSON plus metrics including:
+
+- `memorysystem_erasure_replay_ledger_export_success`
+- `memorysystem_erasure_replay_ledger_records`
+- `memorysystem_erasure_replay_ledger_bytes`
+- `memorysystem_erasure_replay_ledger_timestamp_seconds`
+
+When `MEMORYSYSTEM_BACKUP_CREATED_AT_UTC` and
+`MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE` are provided,
+`platform-restore-validation.sh` imports the ledger, filters erasure and
+redaction actions newer than the selected backup, replays or verifies those
+actions in the restored database, and proves that source events, memory facts,
+role lenses, chunks, embeddings, review notes, and vault exports no longer
+expose erased payloads. Set
+`MEMORYSYSTEM_RESTORE_VALIDATION_REQUIRE_ERASURE_REPLAY=true` for pilot and
+production restore validation so a missing ledger or backup timestamp fails the
+job. The restore evidence includes an `erasureReplay` section with replay
+counts, legal-hold skips, validation failures, ledger hash, and target-set hash.
 
 In the multi-role container image these scripts live under `/app/scripts/` and
 use PostgreSQL client tools from the runtime image. The platform secret layer
@@ -204,7 +229,7 @@ Rules:
 - encrypt backups at rest in production
 - restrict restore permissions to operators who are allowed to see raw event payloads
 - track which backups predate an erasure action
-- do not restore an old backup over production without replaying later redaction and erasure actions
+- do not restore an old backup over production without replaying later redaction and erasure actions through [GC-03 Backup Erasure Replay Validation](backup-erasure-replay-validation-gc03.md)
 - respect `legal_hold` before deleting backups that may be the required preserved copy
 - document backup deletion separately from database row deletion
 

@@ -266,7 +266,12 @@ observability module contracts. PI-03 turns the PostgreSQL module into managed
 RDS resources with private network access, backup/PITR settings, and pgvector
 validation metadata. PI-04 adds backup/export and restore-validation commands
 to the runtime contract while keeping the central validation table manifest
-under `scripts/`. PI-05 wires runtime telemetry exporters, and PI-06 makes
+under `scripts/`; GC-03 adds the payload-safe erasure replay ledger export and
+restore-time replay validation path under the same script boundary. GC-04 adds
+the standard/audit retention minimization operator job under `scripts/`, and
+GC-05 adds the external payload-store retention check under the same boundary.
+PI-05 wires
+runtime telemetry exporters, and PI-06 makes
 alert routing, owners, silencing, and environment route tests explicit in the
 observability contract. PI-07 adds
 `docs/production-release-checklists-pi07.md` as the release evidence contract
@@ -349,6 +354,9 @@ Rules:
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
 | `docs/permission-drift-report-gc02.md` | GC-02 payload-safe permission-drift report contract. |
+| `docs/backup-erasure-replay-validation-gc03.md` | GC-03 payload-safe erasure replay ledger and restore-validation contract. |
+| `docs/standard-audit-retention-minimization-gc04.md` | GC-04 standard/audit retention minimization operator-job contract. |
+| `docs/external-payload-retention-check-gc05.md` | GC-05 external payload-store retention check contract. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

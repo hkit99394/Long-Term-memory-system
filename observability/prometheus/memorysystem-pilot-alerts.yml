@@ -406,7 +406,7 @@ groups:
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
 
       - alert: MemorySystemBackupExporterMetricsMissing
-        expr: absent(memorysystem_backup_export_success) or absent(memorysystem_backup_age_seconds) or absent(memorysystem_backup_export_timestamp_seconds) or absent(memorysystem_backup_export_bytes) or absent(memorysystem_restore_validation_success) or absent(memorysystem_restore_validation_age_seconds) or absent(memorysystem_restore_validation_timestamp_seconds) or absent(memorysystem_restore_validation_vector_extension_count) or absent(memorysystem_restore_validation_table_rows)
+        expr: absent(memorysystem_backup_export_success) or absent(memorysystem_backup_age_seconds) or absent(memorysystem_backup_export_timestamp_seconds) or absent(memorysystem_backup_export_bytes) or absent(memorysystem_erasure_replay_ledger_export_success) or absent(memorysystem_erasure_replay_ledger_records) or absent(memorysystem_erasure_replay_ledger_bytes) or absent(memorysystem_erasure_replay_ledger_timestamp_seconds) or absent(memorysystem_restore_validation_success) or absent(memorysystem_restore_validation_age_seconds) or absent(memorysystem_restore_validation_timestamp_seconds) or absent(memorysystem_restore_validation_vector_extension_count) or absent(memorysystem_restore_validation_table_rows) or absent(memorysystem_restore_erasure_replay_validation_success) or absent(memorysystem_restore_erasure_replay_configured) or absent(memorysystem_restore_erasure_replay_required) or absent(memorysystem_restore_erasure_replay_actions) or absent(memorysystem_restore_erasure_replay_failures)
         for: 15m
         labels:
           severity: page
@@ -460,6 +460,76 @@ groups:
           summary: Memory System restore validation failed.
           description: Latest restore-validation job did not complete successfully.
           runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemRestoreErasureReplayFailed
+        expr: max(memorysystem_restore_erasure_replay_required) == 1 and max(memorysystem_restore_erasure_replay_validation_success) == 0
+        for: 15m
+        labels:
+          severity: page
+          route: page
+          owner: memorysystem-oncall
+          area: backup
+          signal: erasure_replay
+        annotations:
+          summary: Memory System restore erasure replay validation failed.
+          description: Latest restore-validation job required erasure replay but did not prove erased payloads stayed hidden.
+          runbook_url: docs/production-observability.md#database-backup-or-restore-risk
+
+      - alert: MemorySystemRetentionMinimizationMetricsMissing
+        expr: absent(memorysystem_retention_minimization_success) or absent(memorysystem_retention_minimization_candidates) or absent(memorysystem_retention_minimization_minimized_events) or absent(memorysystem_retention_minimization_review_notes_cleared) or absent(memorysystem_retention_minimization_legal_hold_skipped) or absent(memorysystem_retention_minimization_external_payload_skipped) or absent(memorysystem_retention_minimization_failures) or absent(memorysystem_retention_minimization_timestamp_seconds)
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: retention_minimization_missing
+        annotations:
+          summary: Memory System retention minimization metrics are missing.
+          description: The standard/audit retention minimization job has not emitted the required evidence metrics.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemRetentionMinimizationFailed
+        expr: max(memorysystem_retention_minimization_success{mode="execute"}) == 0 or max(memorysystem_retention_minimization_failures{mode="execute"}) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: retention_minimization
+        annotations:
+          summary: Memory System retention minimization failed.
+          description: Latest execute-mode standard/audit retention minimization failed or left validation failures.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemExternalPayloadRetentionMetricsMissing
+        expr: absent(memorysystem_external_payload_retention_check_success) or absent(memorysystem_external_payload_retention_check_targets) or absent(memorysystem_external_payload_retention_expected_present) or absent(memorysystem_external_payload_retention_expected_absent) or absent(memorysystem_external_payload_retention_verified_present) or absent(memorysystem_external_payload_retention_verified_absent) or absent(memorysystem_external_payload_retention_unverified_targets) or absent(memorysystem_external_payload_retention_policy_violations) or absent(memorysystem_external_payload_retention_unsupported_scheme) or absent(memorysystem_external_payload_retention_mismatches) or absent(memorysystem_external_payload_retention_probe_failures) or absent(memorysystem_external_payload_retention_failures) or absent(memorysystem_external_payload_retention_timestamp_seconds)
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: external_payload_retention_missing
+        annotations:
+          summary: Memory System external payload retention metrics are missing.
+          description: The external payload-store retention check has not emitted the required evidence metrics.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemExternalPayloadRetentionCheckFailed
+        expr: max(memorysystem_external_payload_retention_check_success{mode="verify"}) == 0 or max(memorysystem_external_payload_retention_failures{mode="verify"}) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: external_payload_retention
+        annotations:
+          summary: Memory System external payload retention check failed.
+          description: Latest verify-mode external payload-store retention check failed or found provider state mismatches.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
 
       - alert: MemorySystemBenchmarkGateMetricMissing
         expr: absent(memorysystem_benchmark_agent_contract_success)

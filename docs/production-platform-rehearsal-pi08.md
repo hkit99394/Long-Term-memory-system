@@ -145,8 +145,10 @@ must remain provisioning-only. DM-06 now completes the stable-concept cleanup by
 removing duplicate normalization helpers behind Domain-backed facades. LR-06 now
 scopes the governance and compliance gate. GC-01 now defines the environment
 governance policy contract. GC-02 now adds the payload-safe permission-drift
-report. The next implementation slice is `GC-03`, backup erasure replay
-validation.
+report. GC-03 now adds payload-safe backup erasure replay validation. GC-04 now
+adds standard and audit retention minimization. GC-05 now adds external
+payload-store retention checks. The next implementation slice is `GC-06`,
+compliance evidence package generation.
 
 Recommended sequence:
 
@@ -171,4 +173,7 @@ Recommended sequence:
     compliance evidence packages.
 13. Done: `GC-01` defines the environment governance policy contract.
 14. Done: `GC-02` adds the payload-safe permission-drift report.
-15. Next: `GC-03` adds backup erasure replay validation.
+15. Done: `GC-03` adds backup erasure replay validation.
+16. Done: `GC-04` implements standard and audit retention minimization.
+17. Done: `GC-05` checks external payload-store retention.
+18. Next: `GC-06` generates the compliance evidence package.

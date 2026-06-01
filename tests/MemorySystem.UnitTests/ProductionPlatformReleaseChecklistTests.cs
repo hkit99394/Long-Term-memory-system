@@ -86,7 +86,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("release_evidence_bucket       = var.release_evidence_bucket", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("rollback_owner_required       = true", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("alert_route_test_metric       = \"memorysystem_alert_route_test\"", runtimeMain, StringComparison.Ordinal);
-        Assert.Contains("release_checklist      = local.release_checklist", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("release_checklist            = local.release_checklist", runtimeMain, StringComparison.Ordinal);
 
         foreach (var requiredGate in new[]
                  {
@@ -109,7 +109,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("| PI-07 | P1 | Done | Add environment-specific release checklists.", backlog, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-03`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
         Assert.Contains("| DM-06 | P2 | Done | Remove duplicate string normalization helpers.", backlog, StringComparison.Ordinal);
     }
 

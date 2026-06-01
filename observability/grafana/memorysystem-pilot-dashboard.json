@@ -186,11 +186,20 @@
         { "refId": "B", "expr": "memorysystem_backup_age_seconds" },
         { "refId": "C", "expr": "memorysystem_backup_export_timestamp_seconds" },
         { "refId": "D", "expr": "memorysystem_backup_export_bytes" },
-        { "refId": "E", "expr": "memorysystem_restore_validation_success" },
-        { "refId": "F", "expr": "memorysystem_restore_validation_age_seconds" },
-        { "refId": "G", "expr": "memorysystem_restore_validation_timestamp_seconds" },
-        { "refId": "H", "expr": "memorysystem_restore_validation_vector_extension_count" },
-        { "refId": "I", "expr": "memorysystem_restore_validation_table_rows" }
+        { "refId": "E", "expr": "memorysystem_erasure_replay_ledger_export_success" },
+        { "refId": "F", "expr": "memorysystem_erasure_replay_ledger_records" },
+        { "refId": "G", "expr": "memorysystem_erasure_replay_ledger_bytes" },
+        { "refId": "H", "expr": "memorysystem_erasure_replay_ledger_timestamp_seconds" },
+        { "refId": "I", "expr": "memorysystem_restore_validation_success" },
+        { "refId": "J", "expr": "memorysystem_restore_validation_age_seconds" },
+        { "refId": "K", "expr": "memorysystem_restore_validation_timestamp_seconds" },
+        { "refId": "L", "expr": "memorysystem_restore_validation_vector_extension_count" },
+        { "refId": "M", "expr": "memorysystem_restore_validation_table_rows" },
+        { "refId": "N", "expr": "memorysystem_restore_erasure_replay_validation_success" },
+        { "refId": "O", "expr": "memorysystem_restore_erasure_replay_configured" },
+        { "refId": "P", "expr": "memorysystem_restore_erasure_replay_required" },
+        { "refId": "Q", "expr": "memorysystem_restore_erasure_replay_actions" },
+        { "refId": "R", "expr": "memorysystem_restore_erasure_replay_failures" }
       ]
     },
     {
@@ -202,7 +211,28 @@
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "refId": "A", "expr": "sum by (route, status_code) (rate(memorysystem_api_requests_total{route=~\"/api/admin/governance/.*\"}[5m]))" },
-        { "refId": "B", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total{route=~\"/api/admin/governance/.*\"}[5m]))" }
+        { "refId": "B", "expr": "sum by (route) (rate(memorysystem_api_request_failures_total{route=~\"/api/admin/governance/.*\"}[5m]))" },
+        { "refId": "C", "expr": "memorysystem_retention_minimization_success" },
+        { "refId": "D", "expr": "memorysystem_retention_minimization_candidates" },
+        { "refId": "E", "expr": "memorysystem_retention_minimization_minimized_events" },
+        { "refId": "F", "expr": "memorysystem_retention_minimization_review_notes_cleared" },
+        { "refId": "G", "expr": "memorysystem_retention_minimization_legal_hold_skipped" },
+        { "refId": "H", "expr": "memorysystem_retention_minimization_external_payload_skipped" },
+        { "refId": "I", "expr": "memorysystem_retention_minimization_failures" },
+        { "refId": "J", "expr": "memorysystem_retention_minimization_timestamp_seconds" },
+        { "refId": "K", "expr": "memorysystem_external_payload_retention_check_success" },
+        { "refId": "L", "expr": "memorysystem_external_payload_retention_check_targets" },
+        { "refId": "M", "expr": "memorysystem_external_payload_retention_expected_present" },
+        { "refId": "N", "expr": "memorysystem_external_payload_retention_expected_absent" },
+        { "refId": "O", "expr": "memorysystem_external_payload_retention_verified_present" },
+        { "refId": "P", "expr": "memorysystem_external_payload_retention_verified_absent" },
+        { "refId": "Q", "expr": "memorysystem_external_payload_retention_unverified_targets" },
+        { "refId": "R", "expr": "memorysystem_external_payload_retention_policy_violations" },
+        { "refId": "S", "expr": "memorysystem_external_payload_retention_unsupported_scheme" },
+        { "refId": "T", "expr": "memorysystem_external_payload_retention_mismatches" },
+        { "refId": "U", "expr": "memorysystem_external_payload_retention_probe_failures" },
+        { "refId": "V", "expr": "memorysystem_external_payload_retention_failures" },
+        { "refId": "W", "expr": "memorysystem_external_payload_retention_timestamp_seconds" }
       ]
     },
     {

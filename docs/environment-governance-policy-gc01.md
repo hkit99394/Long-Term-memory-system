@@ -112,8 +112,9 @@ when an environment uses stricter windows for sensitive content.
 | `audit_only` | External payload references may be recorded only for auditing or migration analysis. |
 | `allowed` | External payload stores are allowed only when deletion evidence is required. |
 
-The first pilot policy should keep external payload stores `disabled` until
-GC-05 adds provider-specific existence, deletion, and evidence checks.
+The first pilot policy should keep external payload stores `disabled` until a
+policy owner explicitly changes the mode, lists allowed schemes, and verifies
+GC-05 provider-specific existence, deletion, and evidence checks.
 
 ## Exception Records
 

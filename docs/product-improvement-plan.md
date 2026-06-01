@@ -326,9 +326,13 @@ residency, backup erasure replay, permission-drift reporting,
 environment-specific retention policy, external payload-store checks, and
 compliance evidence packages. GC-01 now defines the environment governance
 policy contract and validator without changing runtime authorization. GC-02 now
-adds the payload-safe permission-drift report over local access records.
-The next move should be `GC-03`: add backup erasure replay validation before
-retention minimization or evidence-package automation.
+adds the payload-safe permission-drift report over local access records. GC-03
+now adds payload-safe backup erasure replay validation for restored databases.
+GC-04 now adds standard/audit retention minimization with dry-run, execute,
+legal-hold skips, derived-copy handling, and payload-safe evidence. GC-05 now
+adds external payload-store retention checks for pointer rows with policy
+violations, provider probes, expected-present or expected-absent state, and
+payload-safe evidence. The next move should be `GC-06`: generate the compliance evidence package.
 Before inviting an external pilot user, rerun the
 benchmark release gate with the intended pilot model, fresh scorecards, and a
 fresh live smoke artifact from the target environment.

@@ -10,15 +10,26 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         var runtimeVariables = File.ReadAllText(Path.Combine(root, "infra", "terraform", "modules", "memorysystem-runtime", "variables.tf"));
 
         Assert.Contains("backup_export = {", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("erasure_replay_ledger_export = {", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("restore_validation = {", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("retention_minimization = {", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("target_slice         = \"PI-04\"", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("target_slice         = \"GC-03\"", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("target_slice         = \"GC-04\"", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("[\"/app/scripts/platform-backup-export.sh\"]", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("[\"/app/scripts/platform-erasure-replay-ledger-export.sh\"]", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("[\"/app/scripts/platform-retention-minimization.sh\"]", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("[\"/app/scripts/platform-restore-validation.sh\"]", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_BACKUP_EVIDENCE_FILE", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_RETENTION_MINIMIZATION_EVIDENCE_FILE", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_RESTORE_VALIDATION_EVIDENCE_FILE", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("memorysystem_backup_export_success", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("memorysystem_backup_age_seconds", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_erasure_replay_ledger_export_success", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_retention_minimization_success", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("memorysystem_restore_validation_success", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_restore_erasure_replay_validation_success", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("memorysystem_restore_validation_table_rows", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("required_secret_refs = [\"postgres\", \"restore_validation\"]", runtimeMain, StringComparison.Ordinal);
 
@@ -46,6 +57,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
     {
         var root = FindRepositoryRoot();
         var backupScript = File.ReadAllText(Path.Combine(root, "scripts", "platform-backup-export.sh"));
+        var ledgerScript = File.ReadAllText(Path.Combine(root, "scripts", "platform-erasure-replay-ledger-export.sh"));
         var restoreScript = File.ReadAllText(Path.Combine(root, "scripts", "platform-restore-validation.sh"));
         var backupRunbook = File.ReadAllText(Path.Combine(root, "docs", "backup-restore.md"));
         var externalMetrics = File.ReadAllText(Path.Combine(root, "observability", "alert-inputs", "external-pilot-metrics.txt"));
@@ -56,6 +68,10 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("memorysystem_backup_export_success", backupScript, StringComparison.Ordinal);
         Assert.Contains("memorysystem_backup_age_seconds", backupScript, StringComparison.Ordinal);
 
+        Assert.Contains("memorysystem.erasure_replay_ledger_export", ledgerScript, StringComparison.Ordinal);
+        Assert.Contains("FROM memory_redactions AS redaction", ledgerScript, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_erasure_replay_ledger_export_success", ledgerScript, StringComparison.Ordinal);
+
         Assert.Contains("createdb", restoreScript, StringComparison.Ordinal);
         Assert.Contains("pg_restore", restoreScript, StringComparison.Ordinal);
         Assert.Contains("MemorySystem.Migrator", restoreScript, StringComparison.Ordinal);
@@ -64,11 +80,15 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("\"kind\": \"memorysystem.restore_validation\"", restoreScript, StringComparison.Ordinal);
         Assert.Contains("memorysystem_restore_validation_success", restoreScript, StringComparison.Ordinal);
         Assert.Contains("memorysystem_restore_validation_table_rows", restoreScript, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_restore_erasure_replay_validation_success", restoreScript, StringComparison.Ordinal);
 
         Assert.Contains("/app/scripts/platform-backup-export.sh", backupRunbook, StringComparison.Ordinal);
+        Assert.Contains("/app/scripts/platform-erasure-replay-ledger-export.sh", backupRunbook, StringComparison.Ordinal);
         Assert.Contains("/app/scripts/platform-restore-validation.sh", backupRunbook, StringComparison.Ordinal);
         Assert.Contains("memorysystem_backup_export_success", externalMetrics, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_erasure_replay_ledger_export_success", externalMetrics, StringComparison.Ordinal);
         Assert.Contains("memorysystem_restore_validation_success", externalMetrics, StringComparison.Ordinal);
+        Assert.Contains("memorysystem_restore_erasure_replay_validation_success", externalMetrics, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,7 +104,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("| PI-07 | P1 | Done | Add environment-specific release checklists.", backlog, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-03`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
         Assert.Contains("| DM-06 | P2 | Done | Remove duplicate string normalization helpers.", backlog, StringComparison.Ordinal);
     }
 }

@@ -58,8 +58,10 @@ Terraform does not own:
 ## Artifact Contract
 
 The root `Dockerfile` builds a single multi-role OCI image containing published
-outputs for API, worker, migrator, demo seeder, and the PI-04 backup/restore
-scripts. Runtime roles choose the entrypoint command in ECS task definitions:
+outputs for API, worker, migrator, demo seeder, the PI-04 backup/restore
+scripts, the GC-03 erasure replay ledger exporter, and the GC-04 retention
+minimization job. Runtime roles choose the entrypoint command in ECS task
+definitions:
 
 | Role | Command |
 | --- | --- |
@@ -67,13 +69,24 @@ scripts. Runtime roles choose the entrypoint command in ECS task definitions:
 | Worker | `dotnet /app/worker/MemorySystem.Worker.dll` |
 | Migrator | `dotnet /app/migrator/MemorySystem.Migrator.dll --migrations-directory /app/migrations` |
 | Backup export | `/app/scripts/platform-backup-export.sh` |
+| Erasure replay ledger export | `/app/scripts/platform-erasure-replay-ledger-export.sh` |
 | Restore validation | `/app/scripts/platform-restore-validation.sh` |
+| Retention minimization | `/app/scripts/platform-retention-minimization.sh` |
+| External payload retention check | `/app/scripts/platform-external-payload-retention-check.sh` |
 | Demo seeder | `dotnet /app/seeder/MemorySystem.DemoSeeder.dll --migrations-directory /app/migrations` |
 
 The backup and restore scripts expect libpq-compatible PostgreSQL environment
 variables such as `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`
-from the platform secret injection layer. Restore validation also expects
-`MEMORYSYSTEM_BACKUP_FILE` and `MEMORYSYSTEM_RESTORE_CONNECTION_STRING`.
+from the platform secret injection layer. Erasure replay ledger export writes a
+payload-safe CSV plus evidence/metrics under `/tmp/memorysystem-backup-evidence`.
+Restore validation also expects `MEMORYSYSTEM_BACKUP_FILE`,
+`MEMORYSYSTEM_RESTORE_CONNECTION_STRING`, `MEMORYSYSTEM_BACKUP_CREATED_AT_UTC`,
+and `MEMORYSYSTEM_ERASURE_REPLAY_LEDGER_FILE`.
+Retention minimization defaults to dry-run mode and writes payload-safe
+governance evidence/metrics under `/tmp/memorysystem-governance-evidence`.
+External payload retention check defaults to audit-only disabled-policy mode and
+writes payload-safe pointer-state evidence/metrics under the same governance
+evidence directory.
 Benchmark-gate and platform-smoke jobs remain future job contracts for later
 slices, but their commands are referenced by the PI-07 release checklist
 contract so release records can point at one stable evidence path.

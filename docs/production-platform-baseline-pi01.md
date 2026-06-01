@@ -200,3 +200,14 @@ PI-04 deliverables:
   validation jobs
 - pilot and production overlay schedule inputs plus updated observability
   metric manifests, dashboard references, and missing-series alert coverage
+
+GC-03 extends this recovery shape with
+`platform-erasure-replay-ledger-export.sh` and restore-time erasure replay
+validation metrics/evidence so restored databases can prove post-backup
+erasures still hide source payloads and derived projections before promotion.
+GC-04 adds `platform-retention-minimization.sh` as a governance operator job
+with dry-run/execute modes, legal-hold skips, external-payload skips, and
+payload-safe retention evidence.
+GC-05 adds `platform-external-payload-retention-check.sh` as the companion
+governance operator job for external payload pointer inventory, provider-state
+checks, disabled-policy violations, and payload-safe evidence.

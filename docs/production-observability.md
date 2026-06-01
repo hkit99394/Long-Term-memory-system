@@ -169,7 +169,7 @@ Minimum database metrics:
 - transaction rate
 - lock waits and long-running queries
 - backup export success, backup age, and backup export size
-- restore-validation success, age, pgvector verification, and table-row checks
+- restore-validation success, age, pgvector verification, table-row checks, and erasure replay validation
 - point-in-time recovery status when supported
 - replication lag when replicas exist
 - extension availability for `vector`
@@ -190,13 +190,21 @@ Minimum governance metrics:
 - stale vault export count
 - redaction action count
 - delete, expire, supersede, approve, reject, and edit review action counts
-- retention minimization count and failure count
+- standard/audit retention minimization success, candidate count, minimized
+  event count, review notes cleared, legal-hold skips, external-payload skips,
+  and failure count
+- external payload retention check success, target count, expected-present and
+  expected-absent counts, verified present/absent counts, unverified targets,
+  policy violations, unsupported schemes, state mismatches, probe failures, and
+  failure count
 
 Initial alert signals:
 
 - oldest pending review age exceeds the product policy threshold
 - stale vault export count remains nonzero after export repair workflow
-- retention minimization fails repeatedly
+- retention minimization metrics are missing or execute-mode validation fails
+- external payload retention metrics are missing or verify-mode provider checks
+  fail
 - redaction or delete workflow fails after an operator action
 
 ## Tracing Contract
@@ -217,6 +225,7 @@ When distributed tracing is added, the pilot should include spans for:
 - outbox job handler
 - embedding provider call
 - retention minimization batch
+- external payload retention check
 
 Trace attributes must avoid raw memory content, raw query text, raw event
 payloads, proposal notes, review notes, and embedding input text. Prefer ids,
@@ -306,12 +315,14 @@ First checks:
 
 1. Confirm latest backup age and provider backup status.
 2. Run restore validation in a separate database if the alert is persistent.
-3. Check storage pressure and replication or point-in-time recovery status.
+3. Confirm erasure replay ledger export, backup timestamp, replay status, and validation failures when the restore predates an erasure.
+4. Check storage pressure and replication or point-in-time recovery status.
 
 Initial actions:
 
 - delay migrations until backup status is known
 - restore to a new validation database before any production restore decision
+- require erasure replay validation before promoting a backup that may predate erasure actions
 - record backup id, operator, validation result, and data-loss window
 
 ### Alert Routing Test
@@ -378,7 +389,7 @@ The first production-pilot dashboard should show:
 - retrieval feedback by type over the last 24 hours
 - embedding provider failures
 - latest benchmark smoke status
-- latest backup age and restore validation status
+- latest backup age, restore validation status, and erasure replay status
 
 MR-11 implements this dashboard minimum as
 `observability/grafana/memorysystem-pilot-dashboard.json`. The dashboard is
@@ -393,8 +404,8 @@ MR-11 makes the observability design executable through checked-in artifacts:
 - `observability/alert-inputs/api-metrics.txt` defines local API metrics that
   must be emitted by `/api/operations/metrics`.
 - `observability/alert-inputs/external-pilot-metrics.txt` defines platform,
-  PostgreSQL, backup, restore-validation, and benchmark-gate metrics expected
-  in a pilot deployment.
+  PostgreSQL, backup, restore-validation, erasure replay, governance retention,
+  and benchmark-gate metrics expected in a pilot deployment.
 - `observability/prometheus/memorysystem-pilot-alerts.yml` defines alert rules
   for API, worker, PostgreSQL, retrieval, review, vault export, backup, and
   governance signals.

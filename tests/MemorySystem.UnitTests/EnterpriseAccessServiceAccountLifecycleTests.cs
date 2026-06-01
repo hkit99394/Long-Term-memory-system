@@ -53,6 +53,6 @@ public sealed partial class EnterpriseAccessImplementationTests
 
         Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-05 | P0 | Done | Add service-account lifecycle.", enterpriseGate, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-03`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
     }
 }

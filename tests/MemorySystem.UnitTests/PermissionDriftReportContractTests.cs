@@ -24,10 +24,10 @@ public sealed class PermissionDriftReportContractTests
         Assert.Contains("The report is diagnostic evidence. It must not become an authorization path.", contract, StringComparison.Ordinal);
 
         Assert.Contains("| GC-02 | P0 | Done | Add permission-drift report.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-03 | P0 | Todo | Add backup erasure replay validation.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-03 | P0 | Done | Add backup erasure replay validation.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Permission-Drift Report GC-02](permission-drift-report-gc02.md)", index, StringComparison.Ordinal);
         Assert.Contains("permission-drift-report-gc02.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-03`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
 
         Assert.Contains("/api/admin/access/permission-drift", endpoint, StringComparison.Ordinal);
         Assert.Contains("AuthorizeOperatorAsync", endpoint, StringComparison.Ordinal);
