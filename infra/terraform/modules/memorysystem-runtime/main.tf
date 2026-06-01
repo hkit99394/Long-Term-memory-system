@@ -1,9 +1,22 @@
 locals {
-  task_environment = {
+  open_telemetry_environment = {
+    OpenTelemetry__Enabled         = tostring(var.open_telemetry_enabled)
+    OpenTelemetry__Exporter        = var.open_telemetry_exporter
+    OpenTelemetry__ServiceName     = var.service_name
+    OpenTelemetry__ServiceVersion  = var.image_digest
+    OpenTelemetry__EnvironmentName = var.environment_name
+    OTEL_SERVICE_NAME              = var.service_name
+    OTEL_SERVICE_VERSION           = var.image_digest
+    OTEL_DEPLOYMENT_ENVIRONMENT    = var.environment_name
+    OTEL_EXPORTER_OTLP_ENDPOINT    = coalesce(var.open_telemetry_otlp_endpoint, "")
+    OTEL_RESOURCE_ATTRIBUTES       = "service.namespace=memorysystem,deployment.environment=${var.environment_name}"
+  }
+
+  task_environment = merge({
     ASPNETCORE_ENVIRONMENT = title(var.environment_name)
     DOTNET_ENVIRONMENT     = title(var.environment_name)
     ASPNETCORE_URLS        = "http://+:${var.api_container_port}"
-  }
+  }, local.open_telemetry_environment)
 
   secret_contract = {
     authentication     = var.application_secret_arns["authentication"]
@@ -23,6 +36,47 @@ locals {
     "memorysystem_restore_validation_vector_extension_count",
     "memorysystem_restore_validation_table_rows"
   ]
+
+  release_checklist_gates = [
+    "migration",
+    "health",
+    "metrics",
+    "benchmark_gate",
+    "backup_restore",
+    "rollback_owner",
+    "alert_routing",
+    "audit_evidence"
+  ]
+
+  release_checklist = {
+    target_slice                  = "PI-07"
+    document                      = "docs/production-release-checklists-pi07.md"
+    environments                  = ["local", "ci", "pilot", "production"]
+    required_gates                = local.release_checklist_gates
+    release_evidence_bucket       = var.release_evidence_bucket
+    rollback_owner_required       = true
+    alert_route_test_metric       = "memorysystem_alert_route_test"
+    observability_artifact_smoke  = "scripts/observability-artifacts-smoke.sh"
+    operations_metrics_smoke      = "scripts/operations-metrics-smoke.sh"
+    backup_restore_smoke          = "scripts/backup-restore-smoke.sh"
+    benchmark_gate                = "scripts/benchmark-release-gate.sh"
+    platform_deployment_smoke     = "scripts/production-pilot-deployment-smoke.sh"
+    terraform_pilot_validation    = "terraform -chdir=infra/terraform/environments/pilot validate"
+    terraform_production_validate = "terraform -chdir=infra/terraform/environments/production validate"
+  }
+
+  platform_rehearsal = {
+    target_slice             = "PI-08"
+    report                   = "docs/production-platform-rehearsal-pi08.md"
+    command                  = "scripts/production-pilot-deployment-smoke.sh"
+    scenario                 = "0001"
+    required_roles           = ["migrator", "api", "worker"]
+    required_checks          = ["migration", "health", "authenticated_smoke", "metrics", "backup_restore", "rollback_rehearsal"]
+    benchmark_gate           = "scripts/benchmark-release-gate.sh"
+    alert_routing_smoke      = "scripts/observability-artifacts-smoke.sh"
+    release_evidence_bucket  = var.release_evidence_bucket
+    external_rehearsal_owner = "platform-release-owner"
+  }
 
   backup_export_environment = {
     MEMORYSYSTEM_ENVIRONMENT             = var.environment_name
@@ -140,8 +194,20 @@ locals {
     log_retention_days       = var.log_retention_days
     release_evidence_bucket  = var.release_evidence_bucket
     alert_route_destinations = var.alert_route_destinations
-    backup_restore_metrics   = local.backup_restore_metrics
-    roles                    = local.roles
-    future_jobs              = local.future_jobs
+    open_telemetry = {
+      enabled                  = var.open_telemetry_enabled
+      exporter                 = var.open_telemetry_exporter
+      otlp_endpoint_configured = var.open_telemetry_otlp_endpoint != null
+      service_name             = var.service_name
+      service_version          = var.image_digest
+      environment_name         = var.environment_name
+      resource_attributes      = local.open_telemetry_environment["OTEL_RESOURCE_ATTRIBUTES"]
+      trace_coverage_manifest  = "observability/tracing/memorysystem-pilot-trace-coverage.json"
+    }
+    backup_restore_metrics = local.backup_restore_metrics
+    release_checklist      = local.release_checklist
+    platform_rehearsal     = local.platform_rehearsal
+    roles                  = local.roles
+    future_jobs            = local.future_jobs
   }
 }

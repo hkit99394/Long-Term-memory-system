@@ -72,15 +72,19 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
     }
 
     [Fact]
-    public void Backlog_marks_pi04_done_and_names_pi05_next()
+    public void Backlog_marks_platform_slices_done_and_names_ea01_next()
     {
         var root = FindRepositoryRoot();
         var backlog = File.ReadAllText(Path.Combine(root, "docs", "backlog.md"));
         var productPlan = File.ReadAllText(Path.Combine(root, "docs", "product-improvement-plan.md"));
 
         Assert.Contains("| PI-04 | P0 | Done | Add backup exporter and restore validation automation.", backlog, StringComparison.Ordinal);
-        Assert.Contains("next focus is implementing `PI-05` runtime OpenTelemetry exporters", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `PI-05`: wire runtime", productPlan, StringComparison.Ordinal);
-        Assert.Contains("OpenTelemetry exporters", productPlan, StringComparison.Ordinal);
+        Assert.Contains("| PI-05 | P0 | Done | Wire runtime OpenTelemetry exporters.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| PI-06 | P1 | Done | Connect alert routing and runbook links.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| PI-07 | P1 | Done | Add environment-specific release checklists.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
+        Assert.Contains("focus is `EA-01`: add the identity-binding schema", backlog, StringComparison.Ordinal);
+        Assert.Contains("should be `EA-01`: add the identity-binding schema", productPlan, StringComparison.Ordinal);
+        Assert.Contains("keeping `DM-06` as a", productPlan, StringComparison.Ordinal);
     }
 }

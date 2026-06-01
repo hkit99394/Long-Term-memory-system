@@ -29,6 +29,8 @@ postgres_max_allocated_storage_gib = 100
 postgres_multi_az                  = false
 backup_export_schedule_expression  = "rate(6 hours)"
 release_evidence_bucket            = "memorysystem-pilot-release-evidence"
+trace_export_enabled                = false
+open_telemetry_otlp_endpoint        = null
 
 api_ingress_cidr_blocks = [
   "203.0.113.0/24"
@@ -39,3 +41,11 @@ alert_route_destinations = {
   ticket = "memorysystem-pilot-ticket"
   info   = "memorysystem-pilot-info"
 }
+
+alert_route_owners = {
+  page   = "memorysystem-pilot-oncall"
+  ticket = "memorysystem-pilot-platform-maintainers"
+  info   = "memorysystem-pilot-release-owner"
+}
+
+alert_route_test_enabled = true

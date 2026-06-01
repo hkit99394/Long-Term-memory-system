@@ -247,8 +247,9 @@ Rules:
 
 `observability/` contains versioned production-pilot observability artifacts:
 Prometheus-compatible alert rules, a Grafana-compatible dashboard, trace
-coverage, and metric input manifests. Use `scripts/observability-artifacts-smoke.sh`
-after changing these files.
+coverage, metric input manifests, and the page/ticket/info alert-routing
+contract. Use `scripts/observability-artifacts-smoke.sh` after changing these
+files.
 
 ## Production Platform
 
@@ -265,9 +266,15 @@ observability module contracts. PI-03 turns the PostgreSQL module into managed
 RDS resources with private network access, backup/PITR settings, and pgvector
 validation metadata. PI-04 adds backup/export and restore-validation commands
 to the runtime contract while keeping the central validation table manifest
-under `scripts/`. That folder should own deployment resources and environment
-overlays, while SQL schema history remains in `migrations/` and application
-behavior remains in `src/`.
+under `scripts/`. PI-05 wires runtime telemetry exporters, and PI-06 makes
+alert routing, owners, silencing, and environment route tests explicit in the
+observability contract. PI-07 adds
+`docs/production-release-checklists-pi07.md` as the release evidence contract
+for local, CI, pilot, and production. That folder should own deployment
+resources and environment overlays, while SQL schema history remains in
+`migrations/` and application behavior remains in `src/`. PI-08 adds
+`docs/production-platform-rehearsal-pi08.md` as the written evidence from the
+first isolated platform rehearsal.
 
 ## Benchmarks
 

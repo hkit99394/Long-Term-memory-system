@@ -7,11 +7,14 @@ controlled ingress, backup/PITR settings, RDS-managed master credential, and a
 pgvector validation contract tied to the checked-in SQL migrations.
 PI-04 adds executable backup/export and restore-validation job contracts that
 produce evidence JSON and Prometheus-compatible metrics for the existing
-observability alerts.
+observability alerts. PI-07 adds the release checklist contract that ties
+runtime evidence to the local, CI, pilot, and production release gates. PI-08
+records the first isolated platform rehearsal and keeps the same command/report
+contract visible in runtime outputs.
 
-This is still a staged platform baseline. Runtime ECS resources, telemetry
-exporters, alert routing, and platform rehearsal automation are completed by
-later `PI-*` slices.
+This is still a staged platform baseline. Runtime ECS resources and managed
+collector/receiver resources remain future platform work, but the first local
+platform rehearsal path is now documented and smoke-tested.
 
 ## Layout
 
@@ -37,7 +40,12 @@ Terraform owns:
   files
 - networking, ingress, TLS, and task resource assumptions
 - secret references by name or ARN
-- observability exporter and alert-routing contracts
+- observability exporter, alert-routing, owner, silence-policy, and route-test
+  contracts
+- release checklist metadata for migration, health, metrics, benchmark,
+  backup/restore, rollback owner, alert routing, and audit evidence
+- platform rehearsal report and smoke command metadata for the PI-08
+  migrator/API/worker rehearsal
 
 Terraform does not own:
 
@@ -67,7 +75,8 @@ variables such as `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`
 from the platform secret injection layer. Restore validation also expects
 `MEMORYSYSTEM_BACKUP_FILE` and `MEMORYSYSTEM_RESTORE_CONNECTION_STRING`.
 Benchmark-gate and platform-smoke jobs remain future job contracts for later
-slices.
+slices, but their commands are referenced by the PI-07 release checklist
+contract so release records can point at one stable evidence path.
 
 Deploy by immutable image digest, for example:
 
@@ -111,6 +120,38 @@ The scripts write evidence and metrics under `/tmp/memorysystem-backup-evidence`
 by default. The task definition or wrapper that runs these jobs should upload
 those files to the configured release evidence bucket or scrape/push the metrics
 according to the target platform's observability setup.
+
+## Release Checklist Contract
+
+PI-07 adds `release_checklist` to the runtime module contract. It points to
+`docs/production-release-checklists-pi07.md` and records the required local, CI,
+pilot, and production gates:
+
+- migration
+- health
+- metrics
+- benchmark gate
+- backup/restore
+- rollback owner
+- alert routing
+- audit evidence
+
+The contract also names the checked-in commands for
+`scripts/observability-artifacts-smoke.sh`, `scripts/operations-metrics-smoke.sh`,
+`scripts/backup-restore-smoke.sh`, `scripts/benchmark-release-gate.sh`, and
+`scripts/production-pilot-deployment-smoke.sh`. Pilot and production evidence
+should be uploaded to `release_evidence_bucket` or an equivalent controlled
+audit store.
+
+## Platform Rehearsal Contract
+
+PI-08 records the first isolated platform rehearsal in
+`docs/production-platform-rehearsal-pi08.md`. The runtime module exposes
+`platform_rehearsal` with the `scripts/production-pilot-deployment-smoke.sh`
+command, Scenario 0001, required migrator/API/worker roles, backup/restore and
+rollback checks, benchmark gate, alert-routing smoke, and evidence bucket. This
+keeps the local rehearsal shape aligned with the future ECS run-task/service
+implementation.
 
 ## Local Checks
 

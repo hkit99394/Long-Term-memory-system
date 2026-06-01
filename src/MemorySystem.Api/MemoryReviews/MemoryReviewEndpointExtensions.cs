@@ -4,6 +4,7 @@ using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryEvaluations;
 using MemorySystem.Application.MemoryReviews;
 using MemorySystem.Application.Operations;
+using MemorySystem.Infrastructure.Observability;
 
 namespace MemorySystem.Api.MemoryReviews;
 
@@ -232,22 +233,41 @@ public static class MemoryReviewEndpointExtensions
         }
 
         var request = requestResult.Value!;
-        var result = await workflow.CompleteAsync(
-            new MemoryReviewActionCommand(
-                idempotency.PrincipalId,
-                idempotency.RecordId,
-                idempotency.RequestHash,
-                id,
-                action,
-                request.SourceEventId,
-                request.Notes,
-                request.Subject,
-                request.Predicate,
-                request.Object),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.ReviewActionSpanName);
+        activity?.SetTag("memorysystem.review_action", action);
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, "unknown");
+        activity?.SetTag("memorysystem.lifecycle_status", "unknown");
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
+
+        MemoryReviewWorkflowResult result;
+
+        try
+        {
+            result = await workflow.CompleteAsync(
+                new MemoryReviewActionCommand(
+                    idempotency.PrincipalId,
+                    idempotency.RecordId,
+                    idempotency.RequestHash,
+                    id,
+                    action,
+                    request.SourceEventId,
+                    request.Notes,
+                    request.Subject,
+                    request.Predicate,
+                    request.Object),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "review_action_failed");
+            throw;
+        }
 
         if (!result.Succeeded)
         {
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, result.FailureStatusCode.ToString());
             logger.LogWarning(
                 "Memory review action {Action} failed for review {ReviewId}. PrincipalId={PrincipalId} FailureStatusCode={FailureStatusCode}",
                 action,
@@ -262,6 +282,10 @@ public static class MemoryReviewEndpointExtensions
         }
 
         LogReviewActionCompleted(logger, id, action, idempotency.PrincipalId, request.SourceEventId, result);
+        var review = result.Review!;
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, review.MemoryFact.ScopeType);
+        activity?.SetTag("memorysystem.lifecycle_status", review.MemoryFact.Status);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return new ApiIdempotencyResponse(
             StatusCodes.Status200OK,

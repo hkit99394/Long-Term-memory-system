@@ -13,7 +13,9 @@ for the Long-Term Memory System.
   platform, PostgreSQL provider, backup/restore jobs, or release-gate runner.
 - `prometheus/memorysystem-pilot-alerts.yml`: Prometheus-compatible pilot alert
   rules for API, worker, PostgreSQL, retrieval, review, vault export, backup,
-  and governance signals.
+  and governance signals, including route, owner, and runbook metadata.
+- `alert-routing/memorysystem-alert-routing.json`: page, ticket, info,
+  silencing, and per-environment route-test contract.
 - `grafana/memorysystem-pilot-dashboard.json`: Grafana-compatible dashboard
   definition covering the pilot dashboard minimum.
 - `tracing/memorysystem-pilot-trace-coverage.json`: versioned trace coverage
@@ -42,3 +44,11 @@ MEMORYSYSTEM_OBSERVABILITY_VALIDATE_LIVE_METRICS=true \
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 \
   ./scripts/observability-artifacts-smoke.sh
 ```
+
+## Release Evidence
+
+PI-07 release checklists require observability evidence for every environment.
+Use [Production Release Checklists PI-07](../docs/production-release-checklists-pi07.md)
+to attach route-test output, metrics snapshots, alert owner validation, silence
+policy confirmation, and audit evidence to local, CI, pilot, and production
+release records.

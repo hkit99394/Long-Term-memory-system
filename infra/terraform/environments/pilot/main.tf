@@ -94,6 +94,9 @@ module "runtime" {
   release_evidence_bucket           = var.release_evidence_bucket
   backup_export_schedule_expression = var.backup_export_schedule_expression
   alert_route_destinations          = var.alert_route_destinations
+  open_telemetry_enabled            = true
+  open_telemetry_exporter           = var.trace_export_enabled ? "otlp" : "none"
+  open_telemetry_otlp_endpoint      = var.open_telemetry_otlp_endpoint
 }
 
 module "observability" {
@@ -103,6 +106,9 @@ module "observability" {
   environment_name         = local.environment_name
   aws_region               = var.aws_region
   alert_route_destinations = var.alert_route_destinations
+  alert_route_owners       = var.alert_route_owners
+  alert_silence_policy     = var.alert_silence_policy
+  alert_route_test_enabled = var.alert_route_test_enabled
   dashboard_enabled        = var.dashboard_enabled
   trace_export_enabled     = var.trace_export_enabled
   external_metric_names    = var.external_metric_names

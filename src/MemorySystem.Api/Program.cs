@@ -13,6 +13,7 @@ using MemorySystem.Api.VaultExports;
 using MemorySystem.Infrastructure.Configuration;
 using MemorySystem.Infrastructure.Health;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
+using MemorySystem.Infrastructure.Observability;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -20,6 +21,11 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddMemorySystemTelemetry(
+    builder.Configuration,
+    builder.Environment,
+    "api",
+    includeAspNetCoreInstrumentation: true);
 builder.Services.AddMemorySystemPostgresDataSource(builder.Configuration, builder.Environment);
 builder.Services.AddMemorySystemEmbeddings(builder.Configuration);
 builder.Services.AddMemorySystemApiAuthentication(builder.Configuration, builder.Environment);
@@ -70,6 +76,7 @@ if (RequiresTransportSecurity(app.Environment))
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseMiddleware<TelemetryCorrelationMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<ApiRequestMetricsMiddleware>();
 app.UseAuthorization();

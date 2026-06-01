@@ -143,3 +143,26 @@ variable "alert_route_destinations" {
   description = "Alert route destinations by severity or area."
   default     = {}
 }
+
+variable "open_telemetry_enabled" {
+  type        = bool
+  description = "Whether runtime OpenTelemetry providers are enabled."
+  default     = true
+}
+
+variable "open_telemetry_exporter" {
+  type        = string
+  description = "Runtime OpenTelemetry exporter selector. Use none for local/no collector or otlp for platform export."
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "otlp"], var.open_telemetry_exporter)
+    error_message = "open_telemetry_exporter must be either none or otlp."
+  }
+}
+
+variable "open_telemetry_otlp_endpoint" {
+  type        = string
+  description = "Optional OTLP collector endpoint for runtime traces, metrics, and logs."
+  default     = null
+}

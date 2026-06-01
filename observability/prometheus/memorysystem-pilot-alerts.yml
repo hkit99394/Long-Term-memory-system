@@ -6,6 +6,8 @@ groups:
         for: 5m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: api
           signal: readiness
         annotations:
@@ -18,6 +20,8 @@ groups:
         for: 5m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: api
           signal: readiness_check
         annotations:
@@ -30,6 +34,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: api
           signal: request_errors
         annotations:
@@ -42,6 +48,8 @@ groups:
         for: 15m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: api
           signal: latency
         annotations:
@@ -56,6 +64,8 @@ groups:
         for: 2m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: heartbeat
         annotations:
@@ -68,6 +78,8 @@ groups:
         for: 2m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: heartbeat
         annotations:
@@ -80,6 +92,8 @@ groups:
         for: 2m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: worker
           signal: status
         annotations:
@@ -94,6 +108,8 @@ groups:
         for: 5m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: outbox_age
         annotations:
@@ -106,6 +122,8 @@ groups:
         for: 5m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: worker
           signal: outbox_backlog
         annotations:
@@ -118,6 +136,8 @@ groups:
         for: 1m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: outbox_dead_letter
         annotations:
@@ -130,6 +150,8 @@ groups:
         for: 5m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: worker
           signal: outbox_leases
         annotations:
@@ -142,6 +164,8 @@ groups:
         for: 10m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: worker
           signal: outbox_retries
         annotations:
@@ -156,6 +180,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: retrieval
           signal: request_errors
         annotations:
@@ -168,6 +194,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: retrieval
           signal: source_evidence
         annotations:
@@ -180,6 +208,8 @@ groups:
         for: 30m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: retrieval
           signal: feedback_quality
         annotations:
@@ -192,6 +222,8 @@ groups:
         for: 24h
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: retrieval
           signal: feedback_hygiene
         annotations:
@@ -206,6 +238,8 @@ groups:
         for: 5m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: embedding_provider
         annotations:
@@ -218,6 +252,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: worker
           signal: embedding_index
         annotations:
@@ -232,6 +268,8 @@ groups:
         for: 1h
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: review
           signal: pending_reviews
         annotations:
@@ -244,6 +282,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: review
           signal: action_failures
         annotations:
@@ -256,6 +296,8 @@ groups:
         for: 30m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: vault_export
           signal: stale_exports
         annotations:
@@ -268,6 +310,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: vault_export
           signal: export_failures
         annotations:
@@ -280,6 +324,8 @@ groups:
         for: 10m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: governance
           signal: workflow_failures
         annotations:
@@ -294,6 +340,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: postgresql
           signal: exporter_missing
         annotations:
@@ -306,6 +354,8 @@ groups:
         for: 5m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: postgresql
           signal: availability
         annotations:
@@ -318,6 +368,8 @@ groups:
         for: 10m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: postgresql
           signal: storage
         annotations:
@@ -330,6 +382,8 @@ groups:
         for: 10m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: postgresql
           signal: connections
         annotations:
@@ -342,6 +396,8 @@ groups:
         for: 10m
         labels:
           severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
           area: postgresql
           signal: query_runtime
         annotations:
@@ -354,6 +410,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: backup
           signal: exporter_missing
         annotations:
@@ -366,6 +424,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: backup
           signal: backup_export
         annotations:
@@ -378,6 +438,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: backup
           signal: backup_age
         annotations:
@@ -390,6 +452,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: backup
           signal: restore_validation
         annotations:
@@ -402,6 +466,8 @@ groups:
         for: 15m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: retrieval
           signal: benchmark_gate_missing
         annotations:
@@ -414,9 +480,43 @@ groups:
         for: 1m
         labels:
           severity: page
+          route: page
+          owner: memorysystem-oncall
           area: retrieval
           signal: benchmark_gate
         annotations:
           summary: Memory System agent-contract benchmark failed.
           description: The latest agent-contract release-gate smoke reported failure.
           runbook_url: docs/production-observability.md#retrieval-quality-regression
+
+  - name: memorysystem-alert-routing-tests
+    rules:
+      - alert: MemorySystemPilotAlertRouteTest
+        expr: max(memorysystem_alert_route_test{environment="pilot"}) == 1
+        for: 0m
+        labels:
+          severity: info
+          route: info
+          owner: memorysystem-release-owner
+          area: platform
+          signal: alert_route_test
+          environment: pilot
+        annotations:
+          summary: Memory System pilot alert route test fired.
+          description: Synthetic pilot route-test metric reached 1; confirm the info destination received this alert, then reset the metric.
+          runbook_url: docs/production-observability.md#alert-routing-test
+
+      - alert: MemorySystemProductionAlertRouteTest
+        expr: max(memorysystem_alert_route_test{environment="production"}) == 1
+        for: 0m
+        labels:
+          severity: info
+          route: info
+          owner: memorysystem-release-owner
+          area: platform
+          signal: alert_route_test
+          environment: production
+        annotations:
+          summary: Memory System production alert route test fired.
+          description: Synthetic production route-test metric reached 1; confirm the info destination received this alert, then reset the metric.
+          runbook_url: docs/production-observability.md#alert-routing-test

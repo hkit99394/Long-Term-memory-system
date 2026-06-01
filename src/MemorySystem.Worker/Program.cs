@@ -1,9 +1,22 @@
-using MemorySystem.Worker;
+using MemorySystem.Infrastructure.Observability;
 using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
+namespace MemorySystem.Worker;
 
-builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
-builder.Services.AddMemorySystemEphemeralEventRetentionWorker(builder.Configuration, builder.Environment);
+public static class Program
+{
+    public static async Task Main(string[] args)
+    {
+        var builder = Host.CreateApplicationBuilder(args);
 
-await builder.Build().RunAsync();
+        builder.Services.AddMemorySystemTelemetry(
+            builder.Configuration,
+            builder.Environment,
+            "worker",
+            includeAspNetCoreInstrumentation: false);
+        builder.Services.AddMemorySystemOutboxWorker(builder.Configuration, builder.Environment);
+        builder.Services.AddMemorySystemEphemeralEventRetentionWorker(builder.Configuration, builder.Environment);
+
+        await builder.Build().RunAsync();
+    }
+}

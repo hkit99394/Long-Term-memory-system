@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Admin;
 using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.Observability;
 
 namespace MemorySystem.Api.Admin;
 
@@ -108,9 +110,29 @@ public static class AdminGovernanceEndpointExtensions
                 error!);
         }
 
-        var result = await store.CreateLegalHoldAsync(
-            new AdminLegalHoldCreateCommand(idempotency.PrincipalId, reason, selector),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.GovernanceLegalHoldSpanName);
+        activity?.SetTag("memorysystem.action", "create");
+        TagGovernanceSelector(activity, selector);
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        AdminLegalHoldResult result;
+
+        try
+        {
+            result = await store.CreateLegalHoldAsync(
+                new AdminLegalHoldCreateCommand(idempotency.PrincipalId, reason, selector),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "legal_hold_create_failed");
+            throw;
+        }
+
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, result.MatchedEvents);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return new ApiIdempotencyResponse(
             StatusCodes.Status201Created,
@@ -144,17 +166,39 @@ public static class AdminGovernanceEndpointExtensions
                 error!);
         }
 
-        var result = await store.ReleaseLegalHoldAsync(
-            new AdminLegalHoldReleaseCommand(idempotency.PrincipalId, holdId, reason),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.GovernanceLegalHoldSpanName);
+        activity?.SetTag("memorysystem.action", "release");
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, "unknown");
+        activity?.SetTag("memorysystem.namespace", "unknown");
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        AdminLegalHoldReleaseResult result;
+
+        try
+        {
+            result = await store.ReleaseLegalHoldAsync(
+                new AdminLegalHoldReleaseCommand(idempotency.PrincipalId, holdId, reason),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "legal_hold_release_failed");
+            throw;
+        }
 
         if (!result.Succeeded)
         {
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, result.FailureStatusCode.ToString());
             return ApiRequestHelpers.Problem(
                 result.FailureStatusCode,
                 "Legal hold release request is invalid.",
                 result.Error!);
         }
+
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, result.ReleasedEvents + result.RestoredEvents);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return new ApiIdempotencyResponse(
             StatusCodes.Status200OK,
@@ -194,9 +238,30 @@ public static class AdminGovernanceEndpointExtensions
                 error!);
         }
 
-        var result = await store.ExecuteErasureAsync(
-            new AdminErasureExecutionCommand(idempotency.PrincipalId, reason, selector),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.GovernanceErasureSpanName);
+        TagGovernanceSelector(activity, selector);
+        activity?.SetTag("memorysystem.events_redacted", 0);
+        activity?.SetTag("memorysystem.derived_records_cleared", 0);
+
+        AdminErasureExecutionResult result;
+
+        try
+        {
+            result = await store.ExecuteErasureAsync(
+                new AdminErasureExecutionCommand(idempotency.PrincipalId, reason, selector),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "erasure_failed");
+            throw;
+        }
+
+        activity?.SetTag("memorysystem.events_redacted", result.ErasedEvents);
+        activity?.SetTag("memorysystem.derived_records_cleared", CountDerivedRecordsCleared(result));
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return new ApiIdempotencyResponse(
             StatusCodes.Status200OK,
@@ -266,9 +331,31 @@ public static class AdminGovernanceEndpointExtensions
                 detail: error);
         }
 
-        var records = await store.ReadRetentionReportAsync(
-            new AdminRetentionReportQuery(principalId, limit, scopeType, scopeId, namespacePrefix),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.GovernanceRetentionReportSpanName);
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, scopeType ?? "all");
+        activity?.SetTag("memorysystem.namespace", namespacePrefix ?? "all");
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        IReadOnlyList<AdminRetentionReportRecord> records;
+
+        try
+        {
+            records = await store.ReadRetentionReportAsync(
+                new AdminRetentionReportQuery(principalId, limit, scopeType, scopeId, namespacePrefix),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "retention_report_failed");
+            throw;
+        }
+
+        activity?.SetTag("memorysystem.retention_class", SummarizeValue(records.Select(record => record.RetentionClass)));
+        activity?.SetTag("memorysystem.sensitivity", SummarizeValue(records.Select(record => record.Sensitivity)));
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, records.Count);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return Results.Ok(new AdminRetentionReportResponse(records.Select(ToResponse).ToArray()));
     }
@@ -510,6 +597,41 @@ public static class AdminGovernanceEndpointExtensions
         return string.IsNullOrWhiteSpace(normalized) || string.Equals(normalized, "all", StringComparison.OrdinalIgnoreCase)
             ? null
             : normalized;
+    }
+
+    private static void TagGovernanceSelector(Activity? activity, AdminGovernanceEventSelector selector)
+    {
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, selector.ScopeType ?? "all");
+        activity?.SetTag("memorysystem.namespace", selector.NamespacePrefix ?? "all");
+        activity?.SetTag("memorysystem.retention_class", selector.RetentionClass ?? "all");
+        activity?.SetTag("memorysystem.sensitivity", selector.Sensitivity ?? "all");
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
+    }
+
+    private static int CountDerivedRecordsCleared(AdminErasureExecutionResult result)
+    {
+        return result.RedactedFacts
+            + result.RedactedRoleLenses
+            + result.RedactedChunks
+            + result.StaleVaultExports
+            + result.ClearedReviewNotes
+            + result.RedactionRecords;
+    }
+
+    private static string SummarizeValue(IEnumerable<string> values)
+    {
+        var distinctValues = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .Take(2)
+            .ToArray();
+
+        return distinctValues.Length switch
+        {
+            0 => "none",
+            1 => distinctValues[0],
+            _ => "mixed"
+        };
     }
 
     private static AdminLegalHoldCreateResponse ToResponse(AdminLegalHoldResult result)

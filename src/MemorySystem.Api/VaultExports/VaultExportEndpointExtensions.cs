@@ -1,5 +1,6 @@
 using MemorySystem.Api.Http;
 using MemorySystem.Application.VaultExports;
+using MemorySystem.Infrastructure.Observability;
 
 namespace MemorySystem.Api.VaultExports;
 
@@ -47,9 +48,31 @@ public static class VaultExportEndpointExtensions
                 detail: error);
         }
 
-        var export = await exportService.ExportAsync(
-            new ObsidianExportQuery(principalId, scopeType, scopeId, limit),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.VaultExportRenderSpanName);
+        activity?.SetTag("memorysystem.export_type", "obsidian");
+        activity?.SetTag("memorysystem.export_status", "started");
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        ObsidianExportBundle export;
+
+        try
+        {
+            export = await exportService.ExportAsync(
+                new ObsidianExportQuery(principalId, scopeType, scopeId, limit),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            activity?.SetTag("memorysystem.export_status", "failed");
+            throw;
+        }
+
+        activity?.SetTag("memorysystem.export_status", "success");
+        activity?.SetTag(
+            MemorySystemTelemetry.ResultCountAttribute,
+            export.Documents.Count + export.StaleDocuments.Count);
 
         return Results.Ok(new ObsidianExportResponse(
             export.GeneratedAt,
@@ -76,9 +99,29 @@ public static class VaultExportEndpointExtensions
                 detail: error);
         }
 
-        var export = await exportService.ExportArchiveAsync(
-            new ObsidianExportQuery(principalId, scopeType, scopeId, limit),
-            cancellationToken);
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.VaultExportRenderSpanName);
+        activity?.SetTag("memorysystem.export_type", "obsidian_archive");
+        activity?.SetTag("memorysystem.export_status", "started");
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        ObsidianArchiveExportBundle export;
+
+        try
+        {
+            export = await exportService.ExportArchiveAsync(
+                new ObsidianExportQuery(principalId, scopeType, scopeId, limit),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            activity?.SetTag("memorysystem.export_status", "failed");
+            throw;
+        }
+
+        activity?.SetTag("memorysystem.export_status", "success");
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, export.Documents.Count);
 
         return Results.Ok(new ObsidianArchiveExportResponse(
             export.GeneratedAt,

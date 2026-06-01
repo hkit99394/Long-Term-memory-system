@@ -23,9 +23,11 @@ public sealed class ObservabilityArtifactTests
         var apiMetrics = ReadMetricList(root, "observability/alert-inputs/api-metrics.txt");
         var externalMetrics = ReadMetricList(root, "observability/alert-inputs/external-pilot-metrics.txt");
         var alertRules = File.ReadAllText(Path.Combine(root, "observability/prometheus/memorysystem-pilot-alerts.yml"));
+        var alertRoutingJson = File.ReadAllText(Path.Combine(root, "observability/alert-routing/memorysystem-alert-routing.json"));
         var dashboardJson = File.ReadAllText(Path.Combine(root, "observability/grafana/memorysystem-pilot-dashboard.json"));
         var tracingJson = File.ReadAllText(Path.Combine(root, "observability/tracing/memorysystem-pilot-trace-coverage.json"));
 
+        using var alertRouting = JsonDocument.Parse(alertRoutingJson);
         using var dashboard = JsonDocument.Parse(dashboardJson);
         using var tracing = JsonDocument.Parse(tracingJson);
 
@@ -49,6 +51,39 @@ public sealed class ObservabilityArtifactTests
             Assert.Contains($"area: {area}", alertRules, StringComparison.Ordinal);
             Assert.Contains($"area:{area}", dashboardJson, StringComparison.Ordinal);
         }
+
+        foreach (var severity in new[] { "page", "ticket", "info" })
+        {
+            Assert.Contains($"severity: {severity}", alertRules, StringComparison.Ordinal);
+            Assert.Contains($"route: {severity}", alertRules, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("owner: memorysystem-oncall", alertRules, StringComparison.Ordinal);
+        Assert.Contains("owner: memorysystem-platform-maintainers", alertRules, StringComparison.Ordinal);
+        Assert.Contains("owner: memorysystem-release-owner", alertRules, StringComparison.Ordinal);
+        Assert.Contains("runbook_url: docs/production-observability.md#", alertRules, StringComparison.Ordinal);
+        Assert.Contains("MemorySystemPilotAlertRouteTest", alertRules, StringComparison.Ordinal);
+        Assert.Contains("MemorySystemProductionAlertRouteTest", alertRules, StringComparison.Ordinal);
+
+        var alertRoutes = alertRouting.RootElement
+            .GetProperty("routes")
+            .EnumerateArray()
+            .Select(route => route.GetProperty("severity").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("page", alertRoutes);
+        Assert.Contains("ticket", alertRoutes);
+        Assert.Contains("info", alertRoutes);
+        Assert.True(alertRouting.RootElement.GetProperty("silencingPolicy").GetProperty("requiresOwnerApproval").GetBoolean());
+
+        var testRouteEnvironments = alertRouting.RootElement
+            .GetProperty("environmentTestRoutes")
+            .EnumerateArray()
+            .Select(route => route.GetProperty("environment").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("pilot", testRouteEnvironments);
+        Assert.Contains("production", testRouteEnvironments);
 
         var traceRequiredAreas = tracing.RootElement
             .GetProperty("requiredAreas")

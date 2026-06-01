@@ -29,6 +29,8 @@ postgres_max_allocated_storage_gib = 500
 postgres_multi_az                  = true
 backup_export_schedule_expression  = "rate(6 hours)"
 release_evidence_bucket            = "memorysystem-production-release-evidence"
+trace_export_enabled                = false
+open_telemetry_otlp_endpoint        = null
 
 api_ingress_cidr_blocks = [
   "198.51.100.0/24"
@@ -39,3 +41,11 @@ alert_route_destinations = {
   ticket = "memorysystem-production-ticket"
   info   = "memorysystem-production-info"
 }
+
+alert_route_owners = {
+  page   = "memorysystem-production-oncall"
+  ticket = "memorysystem-production-platform-maintainers"
+  info   = "memorysystem-production-release-owner"
+}
+
+alert_route_test_enabled = true

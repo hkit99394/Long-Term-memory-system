@@ -190,6 +190,7 @@ Long Run should be executed as gates, not as a parallel wishlist. Each gate shou
    - Done: [Production Platform Integration LR-05](production-platform-integration-lr05.md) and [Decision 0045](decisions/0045-production-platform-integration.md) define the platform boundary and `PI-*` implementation backlog.
    - Done: [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) and [Decision 0046](decisions/0046-production-platform-and-iac-baseline.md) select AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, Amazon ECR, Terraform, and immutable multi-role OCI image digests for the first platform target.
    - Done: `infra/terraform` defines pilot and production environment overlays plus runtime, PostgreSQL, and observability module contracts; the root `Dockerfile` defines the multi-role OCI artifact.
+   - Done: [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) records the first isolated platform rehearsal across migrator, API, worker, health, metrics, backup/restore, rollback, benchmark, and alert-routing evidence.
 
 6. Memory intelligence gate.
    - Entry criteria: human review outcomes and benchmark results are available as calibration signals.
@@ -285,10 +286,17 @@ the context productization gate, LR-03 has captured the first local benchmark
 release-gate baseline, LR-04 scopes Domain model extraction, LR-05 scopes
 production platform integration, PI-01 selects the AWS/Terraform/container
 baseline, PI-02 adds the Terraform skeleton, PI-03 provisions managed
-PostgreSQL with pgvector validation, and PI-04 adds backup/export plus
-restore-validation automation. The next move should be `PI-05`: wire runtime
-OpenTelemetry exporters while continuing small `DM-*` cleanup and `EA-*`
-enterprise access slices. Before inviting an
-external pilot user, rerun the benchmark release gate with the intended pilot
-model, fresh scorecards, and a fresh live smoke artifact from the target
-environment.
+PostgreSQL with pgvector validation, PI-04 adds backup/export plus
+restore-validation automation, and PI-05 wires runtime OpenTelemetry providers,
+payload-safe spans/metrics/logs, and OTLP exporter selection for API and worker
+roles. PI-06 connects alert routing and runbook links with named page, ticket,
+and info owners, a silence policy, and synthetic route tests for pilot and
+production. PI-07 adds environment-specific release checklists for local, CI,
+pilot, and production migration, health, metrics, benchmark, backup/restore,
+rollback, alert-routing, and audit evidence. PI-08 records the first isolated
+platform rehearsal across migrator, API, worker, health, metrics,
+backup/restore, rollback, benchmark, and alert-routing evidence. The next move
+should be `EA-01`: add the identity-binding schema while keeping `DM-06` as a
+later cleanup slice. Before inviting an external pilot user, rerun the benchmark
+release gate with the intended pilot model, fresh scorecards, and a fresh live
+smoke artifact from the target environment.

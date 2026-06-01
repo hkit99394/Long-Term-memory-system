@@ -9,6 +9,7 @@ using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Operations;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Infrastructure.MemoryEmbeddings;
+using MemorySystem.Infrastructure.Observability;
 using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.MemoryFacts;
@@ -295,15 +296,34 @@ public static class MemoryFactEndpointExtensions
                 detail: error);
         }
 
-        var packet = await contextPacketBuilder.BuildAsync(
-            new MemoryContextPacketQuery(
-                principalId,
-                query,
-                limit,
-                targetScopeType,
-                targetScopeId,
-                string.IsNullOrWhiteSpace(roleId) ? null : roleId),
-            cancellationToken);
+        var normalizedRoleId = string.IsNullOrWhiteSpace(roleId) ? null : roleId;
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.RetrievalContextPacketSpanName);
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, targetScopeType ?? "all");
+        activity?.SetTag(MemorySystemTelemetry.RoleIdAttribute, normalizedRoleId ?? "none");
+        activity?.SetTag(MemorySystemTelemetry.QueryHashAttribute, ComputeSha256(query));
+        activity?.SetTag(MemorySystemTelemetry.ResultCountAttribute, 0);
+
+        MemoryContextPacket packet;
+
+        try
+        {
+            packet = await contextPacketBuilder.BuildAsync(
+                new MemoryContextPacketQuery(
+                    principalId,
+                    query,
+                    limit,
+                    targetScopeType,
+                    targetScopeId,
+                    normalizedRoleId),
+                cancellationToken);
+        }
+        catch
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "context_packet_failed");
+            throw;
+        }
 
         logger.LogInformation(
             "Memory retrieval completed for {RetrievalMode}. PrincipalId={PrincipalId} QueryLength={QueryLength} Limit={Limit} TargetScopeType={TargetScopeType} TargetScopeId={TargetScopeId} RoleId={RoleId} UserPreferenceCount={UserPreferenceCount} ProjectMemoryCount={ProjectMemoryCount} RoleMemoryCount={RoleMemoryCount} RelevantDecisionCount={RelevantDecisionCount} SourceEventCount={SourceEventCount}",
@@ -313,7 +333,7 @@ public static class MemoryFactEndpointExtensions
             limit,
             targetScopeType,
             targetScopeId,
-            string.IsNullOrWhiteSpace(roleId) ? null : roleId,
+            normalizedRoleId,
             packet.UserPreferences.Count,
             packet.ProjectMemory.Count,
             packet.RoleMemory.Count,
@@ -336,6 +356,13 @@ public static class MemoryFactEndpointExtensions
             cancellationToken);
 
         contextProductMetrics.RecordContextPacket(packet);
+        activity?.SetTag(
+            MemorySystemTelemetry.ResultCountAttribute,
+            response.UserPreferences.Count
+                + response.ProjectMemory.Count
+                + response.RoleMemory.Count
+                + response.RelevantDecisions.Count);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         return Results.Ok(response);
     }
@@ -462,6 +489,15 @@ public static class MemoryFactEndpointExtensions
             request.Limit ?? 0);
 
         MemoryFactFindingResult result;
+        using var activity = MemorySystemTelemetry.ActivitySource.StartActivity(
+            MemorySystemTelemetry.RetrievalQueryFactsSpanName);
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, request.TargetScope?.ScopeType ?? "all");
+        activity?.SetTag(MemorySystemTelemetry.RoleIdAttribute, request.RoleId ?? "none");
+        activity?.SetTag(MemorySystemTelemetry.QueryHashAttribute, ComputeSha256(query.Query));
+        activity?.SetTag("memorysystem.fact_count", 0);
+        activity?.SetTag("memorysystem.contradiction_count", 0);
+        activity?.SetTag("memorysystem.exclusion_count", 0);
+        activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "none");
 
         try
         {
@@ -469,10 +505,17 @@ public static class MemoryFactEndpointExtensions
         }
         catch (ArgumentException exception)
         {
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "invalid_query");
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Memory fact query is invalid.",
                 detail: exception.Message);
+        }
+        catch
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            activity?.SetTag(MemorySystemTelemetry.FailureStatusAttribute, "query_facts_failed");
+            throw;
         }
 
         logger.LogInformation(
@@ -486,6 +529,12 @@ public static class MemoryFactEndpointExtensions
             result.Facts.Count,
             result.Contradictions.Count,
             result.Warnings.Count);
+
+        activity?.SetTag(MemorySystemTelemetry.ScopeTypeAttribute, result.TargetScope?.ScopeType ?? "all");
+        activity?.SetTag(MemorySystemTelemetry.RoleIdAttribute, result.RoleId ?? "none");
+        activity?.SetTag("memorysystem.fact_count", result.Facts.Count);
+        activity?.SetTag("memorysystem.contradiction_count", result.Contradictions.Count);
+        activity?.SetTag("memorysystem.exclusion_count", result.Excluded.Count);
 
         return Results.Ok(ToQueryFactsResponse(result));
     }

@@ -153,6 +153,12 @@ route procedure, and escalation fallback before it is considered release-ready.
 
 ## Environment Release Checklists
 
+[Production Release Checklists PI-07](production-release-checklists-pi07.md)
+turns this LR-05 release gate into the concrete local, CI, pilot, and
+production checklist artifact. Each environment must capture migration, health,
+metrics, benchmark gate, backup/restore, rollback owner, alert routing, and
+audit evidence before the release record is complete.
+
 ### Local And CI
 
 - `dotnet build MemorySystem.sln --no-restore`
@@ -204,10 +210,17 @@ The LR-05 planning output creates the `PI-*` implementation backlog:
 - `PI-04`: add backup exporter and restore validation automation. Done with
   `scripts/platform-backup-export.sh`,
   `scripts/platform-restore-validation.sh`, and runtime job contracts.
-- `PI-05`: wire runtime OpenTelemetry exporters
-- `PI-06`: connect alert routing and runbook links
-- `PI-07`: add environment-specific release checklists
-- `PI-08`: run first platform rehearsal
+- `PI-05`: wire runtime OpenTelemetry exporters. Done through shared
+  telemetry wiring and the runtime OpenTelemetry Terraform contract.
+- `PI-06`: connect alert routing and runbook links. Done through checked-in
+  alert routing, route owners, silence policy, and per-environment route tests.
+- `PI-07`: add environment-specific release checklists. Done in
+  [Production Release Checklists PI-07](production-release-checklists-pi07.md)
+  and exposed through the runtime checklist contract.
+- `PI-08`: run first platform rehearsal. Done in
+  [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)
+  with isolated migrator/API/worker, health, metrics, backup/restore,
+  rollback, benchmark, and alert-routing evidence.
 
 Each slice should keep API contracts, SQL schema history, and benchmark gates
 stable unless a separate decision explicitly changes them.

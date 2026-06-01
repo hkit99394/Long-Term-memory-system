@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using MemorySystem.Infrastructure.Observability;
 using Microsoft.AspNetCore.Routing;
 
 namespace MemorySystem.Api.Operations;
@@ -31,11 +33,22 @@ public sealed class ApiRequestMetricsMiddleware(
         finally
         {
             stopwatch.Stop();
+            var route = GetRoute(context);
             metrics.Record(
                 context.Request.Method,
-                GetRoute(context),
+                route,
                 statusCode,
                 stopwatch.Elapsed);
+
+            var tags = new TagList
+            {
+                { "http.request.method", context.Request.Method },
+                { "http.route", route },
+                { "http.response.status_code", statusCode }
+            };
+
+            MemorySystemTelemetry.ApiRequestCounter.Add(1, tags);
+            MemorySystemTelemetry.ApiRequestDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tags);
         }
     }
 

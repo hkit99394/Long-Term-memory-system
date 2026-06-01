@@ -1,6 +1,6 @@
 # Production Observability and Alerting
 
-Last updated: 2026-05-30
+Last updated: 2026-06-01
 
 ## Purpose
 
@@ -35,7 +35,10 @@ The current service already exposes:
   the first alert inputs are observable from a running API. The checked inputs
   now come from `observability/alert-inputs/api-metrics.txt`.
 - `observability/prometheus/memorysystem-pilot-alerts.yml` for
-  Prometheus-compatible pilot alert rules.
+  Prometheus-compatible pilot alert rules with severity, route, owner, signal,
+  and runbook labels or annotations.
+- `observability/alert-routing/memorysystem-alert-routing.json` for the
+  versioned page, ticket, info, silencing, and environment route-test contract.
 - `observability/grafana/memorysystem-pilot-dashboard.json` for a
   Grafana-compatible pilot dashboard definition.
 - `observability/tracing/memorysystem-pilot-trace-coverage.json` for the
@@ -43,8 +46,9 @@ The current service already exposes:
 - `scripts/observability-artifacts-smoke.sh` for local validation of alert,
   dashboard, trace coverage, and metric input artifacts.
 
-The current service does not yet ship runtime OpenTelemetry wiring,
-platform-specific exporters, or managed PostgreSQL and backup exporters.
+The current service now ships runtime OpenTelemetry wiring and exporter
+selection. Platform-specific collector, receiver, and managed PostgreSQL metric
+resources remain owned by the deployment platform.
 
 ## Signal Ownership
 
@@ -310,6 +314,56 @@ Initial actions:
 - restore to a new validation database before any production restore decision
 - record backup id, operator, validation result, and data-loss window
 
+### Alert Routing Test
+
+First checks:
+
+1. Confirm the environment has `page`, `ticket`, and `info` destinations in the
+   observability contract.
+2. Emit the synthetic `memorysystem_alert_route_test` metric with
+   `environment="pilot"` or `environment="production"` and value `1`.
+3. Confirm the corresponding `MemorySystemPilotAlertRouteTest` or
+   `MemorySystemProductionAlertRouteTest` alert reaches the info destination.
+4. Attach the alert delivery evidence to the release evidence record and reset
+   the synthetic metric.
+
+Initial actions:
+
+- do not continue a pilot or production release if the test alert does not
+  arrive at the configured destination
+- fix receiver credentials or route matchers before retrying the test
+- page the release owner if the test route fails during a production release
+
+## Alert Routing and Silencing
+
+PI-06 makes alert routing explicit through
+`observability/alert-routing/memorysystem-alert-routing.json` and matching
+labels in `observability/prometheus/memorysystem-pilot-alerts.yml`.
+
+Routing contract:
+
+| Severity | Route | Owner | Destination reference | Expected handling |
+| --- | --- | --- | --- | --- |
+| Page | `page` | `memorysystem-oncall` | `page` | Immediate incident response for readiness, worker, database, backup, and benchmark-gate failures. |
+| Ticket | `ticket` | `memorysystem-platform-maintainers` | `ticket` | Triage queue for degraded but non-immediate conditions such as latency, storage pressure, or backlog growth. |
+| Info | `info` | `memorysystem-release-owner` | `info` | Release evidence and route-test notifications. |
+
+Every alert rule must include:
+
+- `severity`, `route`, `owner`, `area`, and `signal` labels
+- `summary`, `description`, and `runbook_url` annotations
+- a `runbook_url` that points to this document
+
+Silencing policy:
+
+- page silences last at most 1 hour by default
+- non-page silences last at most 4 hours by default
+- every silence requires owner approval, reason, expiry, and follow-up
+- backup, restore-validation, and benchmark-gate alerts must not be silenced
+  during release or migration decisions without explicit incident commander
+  approval
+- silence evidence belongs in the release evidence record
+
 ## Dashboard Minimum
 
 The first production-pilot dashboard should show:
@@ -344,6 +398,8 @@ MR-11 makes the observability design executable through checked-in artifacts:
 - `observability/prometheus/memorysystem-pilot-alerts.yml` defines alert rules
   for API, worker, PostgreSQL, retrieval, review, vault export, backup, and
   governance signals.
+- `observability/alert-routing/memorysystem-alert-routing.json` defines page,
+  ticket, info, silencing, and per-environment route-test requirements.
 - `observability/grafana/memorysystem-pilot-dashboard.json` defines the first
   production-pilot dashboard.
 - `observability/tracing/memorysystem-pilot-trace-coverage.json` defines
@@ -385,27 +441,38 @@ MR-11 adds the first executable observability artifact path:
 - Prometheus-compatible alert rules cover API, worker/outbox, retrieval,
   embedding, review, vault export, governance, PostgreSQL, backup/restore, and
   benchmark-gate signals.
+- PI-06 adds explicit `route` and `owner` labels to every alert, synthetic route
+  test alerts for pilot and production, and a checked-in alert routing contract
+  for page, ticket, info, and silencing behavior.
+- PI-07 adds environment-specific release checklists that require route-test
+  evidence alongside migration, health, metrics, benchmark, backup/restore,
+  rollback, and audit evidence.
 - External PostgreSQL, backup, restore-validation, and benchmark-gate metrics
   also have missing-series alerts so absent platform exporters fail closed
   instead of making recovery alerts silently disappear.
 - The dashboard references every API metric input and every external pilot
   metric input so missing platform integrations are visible during pilot setup.
-- Trace coverage is represented as a versioned manifest until runtime
-  OpenTelemetry wiring is added.
+- Runtime OpenTelemetry wiring now attaches service name, environment, image
+  digest version, instance id fallback, safe correlation ids, route/status
+  fields, hashed query values, counts, and lifecycle/status labels to API and
+  worker traces, metrics, and logs.
+- OTLP export is selected through environment configuration so local runs can
+  keep the exporter disabled while pilot/prod can send traces, metrics, and
+  logs to the platform collector.
 - `scripts/production-pilot-deployment-smoke.sh` now runs the live operations
   metrics smoke while API and worker roles are active.
 
 Recommended follow-on order:
 
-1. Add OpenTelemetry package wiring for ASP.NET Core, Npgsql, and runtime
-   metrics.
-2. Add application counters and histograms for memory proposals, context
-   packets, query-facts, source reads, review actions, outbox jobs, and
-   retrieval feedback.
-3. Add a platform-specific exporter only after metrics names are stable.
+1. Done: run the first platform rehearsal with the PI-07 pilot checklist
+   attached; see [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md).
+2. Add dashboard annotations for runbook links where the target platform
+   supports them.
+3. Add application counters and histograms for memory proposals, source reads,
+   and retrieval feedback after the first exporter smoke is stable.
 4. Add alert definitions for readiness, worker heartbeat, outbox age, dead
    letters, embedding failures, and benchmark smoke failure.
-5. Add dashboard panels using the same metrics.
+5. Add dashboard panels using the same metrics and trace labels.
 
 ## Pilot Acceptance
 
@@ -435,3 +502,11 @@ MR-11 is complete when:
   the checked-in metric input manifest
 - the production-pilot deployment smoke verifies live alert inputs while API
   and worker roles are running
+
+PI-06 is complete when:
+
+- every alert has severity, route, owner, signal, and runbook metadata
+- page, ticket, and info routes have named owners and destination references
+- the silence policy is versioned and requires owner approval
+- pilot and production have synthetic route-test alerts and Terraform contract
+  outputs for release evidence

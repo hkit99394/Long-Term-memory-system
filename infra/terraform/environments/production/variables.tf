@@ -283,6 +283,40 @@ variable "alert_route_destinations" {
   default     = {}
 }
 
+variable "alert_route_owners" {
+  type        = map(string)
+  description = "Named alert owners by route. Values are owner identifiers, not secret destinations."
+  default = {
+    page   = "memorysystem-oncall"
+    ticket = "memorysystem-platform-maintainers"
+    info   = "memorysystem-release-owner"
+  }
+}
+
+variable "alert_silence_policy" {
+  type = object({
+    default_max_duration     = string
+    page_max_duration        = string
+    requires_owner_approval  = bool
+    audit_destination        = string
+    migration_silence_policy = string
+  })
+  description = "Environment silencing policy for routed alerts."
+  default = {
+    default_max_duration     = "4h"
+    page_max_duration        = "1h"
+    requires_owner_approval  = true
+    audit_destination        = "release evidence record"
+    migration_silence_policy = "Do not silence backup or restore-validation alerts during migrations."
+  }
+}
+
+variable "alert_route_test_enabled" {
+  type        = bool
+  description = "Whether the production environment must run the synthetic alert route test before release."
+  default     = true
+}
+
 variable "dashboard_enabled" {
   type        = bool
   description = "Whether dashboard provisioning is enabled for this environment."
@@ -293,6 +327,12 @@ variable "trace_export_enabled" {
   type        = bool
   description = "Whether runtime trace exporter wiring is enabled."
   default     = false
+}
+
+variable "open_telemetry_otlp_endpoint" {
+  type        = string
+  description = "Optional OTLP collector endpoint for runtime traces, metrics, and logs."
+  default     = null
 }
 
 variable "external_metric_names" {

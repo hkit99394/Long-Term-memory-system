@@ -21,6 +21,7 @@ const files = {
   apiMetrics: "observability/alert-inputs/api-metrics.txt",
   externalMetrics: "observability/alert-inputs/external-pilot-metrics.txt",
   alerts: "observability/prometheus/memorysystem-pilot-alerts.yml",
+  alertRouting: "observability/alert-routing/memorysystem-alert-routing.json",
   dashboard: "observability/grafana/memorysystem-pilot-dashboard.json",
   tracing: "observability/tracing/memorysystem-pilot-trace-coverage.json"
 };
@@ -51,6 +52,7 @@ function assert(condition, message) {
 const apiMetrics = readMetricList(files.apiMetrics);
 const externalMetrics = readMetricList(files.externalMetrics);
 const alertRules = readText(files.alerts);
+const alertRouting = JSON.parse(readText(files.alertRouting));
 const dashboard = JSON.parse(readText(files.dashboard));
 const tracing = JSON.parse(readText(files.tracing));
 const dashboardText = JSON.stringify(dashboard);
@@ -79,6 +81,43 @@ for (const metricName of externalMetrics) {
 const alertNames = [...alertRules.matchAll(/^\s*-\s*alert:\s*([A-Za-z0-9_]+)/gmu)]
   .map((match) => match[1]);
 assert(alertNames.length >= 16, "Expected at least 16 pilot alert rules.");
+
+const alertBlocks = alertRules
+  .split(/\n\s*-\s*alert:\s*/u)
+  .slice(1)
+  .map((block) => `alert: ${block}`);
+
+for (const alertBlock of alertBlocks) {
+  const name = alertBlock.match(/^alert:\s*([A-Za-z0-9_]+)/u)?.[1] ?? "unknown";
+  const severity = alertBlock.match(/\n\s*severity:\s*([a-z_]+)/u)?.[1];
+  const route = alertBlock.match(/\n\s*route:\s*([a-z_]+)/u)?.[1];
+
+  assert(severity, `Alert '${name}' is missing a severity label.`);
+  assert(route, `Alert '${name}' is missing a route label.`);
+  assert(route === severity, `Alert '${name}' route '${route}' does not match severity '${severity}'.`);
+  assert(/\n\s*owner:\s*[A-Za-z0-9_.-]+/u.test(alertBlock), `Alert '${name}' is missing an owner label.`);
+  assert(/\n\s*runbook_url:\s*docs\/production-observability.md#[a-z0-9-]+/u.test(alertBlock), `Alert '${name}' is missing a production observability runbook link.`);
+}
+
+assert(Array.isArray(alertRouting.routes), "Alert routing contract must define routes.");
+assert(Array.isArray(alertRouting.environmentTestRoutes), "Alert routing contract must define environmentTestRoutes.");
+assert(alertRouting.silencingPolicy?.requiresOwnerApproval === true, "Alert routing silencing policy must require owner approval.");
+
+for (const severity of ["page", "ticket", "info"]) {
+  const route = alertRouting.routes.find((candidate) => candidate.severity === severity);
+  assert(route, `Alert routing contract is missing severity '${severity}'.`);
+  assert(route.route === severity, `Alert routing severity '${severity}' must route to '${severity}'.`);
+  assert(typeof route.owner === "string" && route.owner.length > 0, `Alert routing severity '${severity}' must define an owner.`);
+  assert(typeof route.destinationRef === "string" && route.destinationRef.length > 0, `Alert routing severity '${severity}' must define a destinationRef.`);
+  assert(alertRules.includes(`severity: ${severity}`), `Alert rules are missing severity '${severity}'.`);
+}
+
+for (const environmentName of ["pilot", "production"]) {
+  const testRoute = alertRouting.environmentTestRoutes.find((candidate) => candidate.environment === environmentName);
+  assert(testRoute, `Alert routing contract is missing test route for '${environmentName}'.`);
+  assert(alertNames.includes(testRoute.testAlert), `Alert rules are missing test alert '${testRoute.testAlert}'.`);
+  assert(alertRules.includes(`environment: ${environmentName}`), `Alert route test is missing environment '${environmentName}'.`);
+}
 
 for (const area of requiredAreas) {
   const alertAreaPattern = new RegExp(`area:\\s*${area}\\b`, "u");
@@ -133,5 +172,6 @@ console.log("Observability artifacts smoke passed.");
 console.log(`  API metric inputs: ${apiMetrics.length}`);
 console.log(`  External metric inputs: ${externalMetrics.length}`);
 console.log(`  Alert rules: ${alertNames.length}`);
+console.log(`  Alert routes: ${alertRouting.routes.length}`);
 console.log(`  Dashboard panels: ${dashboard.panels.length}`);
 console.log(`  Trace spans: ${tracing.spans.length}`);

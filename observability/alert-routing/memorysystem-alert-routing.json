@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-06-01",
+  "serviceName": "MemorySystem",
+  "purpose": "Production-pilot alert routing contract for page, ticket, and info alerts before platform-specific receiver resources are provisioned.",
+  "requiredAlertLabels": [
+    "severity",
+    "route",
+    "owner",
+    "area",
+    "signal"
+  ],
+  "requiredAlertAnnotations": [
+    "summary",
+    "description",
+    "runbook_url"
+  ],
+  "routes": [
+    {
+      "severity": "page",
+      "route": "page",
+      "owner": "memorysystem-oncall",
+      "destinationRef": "page",
+      "receiverName": "memorysystem-page",
+      "triageSla": "15 minutes",
+      "escalationFallback": "memorysystem-release-owner"
+    },
+    {
+      "severity": "ticket",
+      "route": "ticket",
+      "owner": "memorysystem-platform-maintainers",
+      "destinationRef": "ticket",
+      "receiverName": "memorysystem-ticket",
+      "triageSla": "1 business day",
+      "escalationFallback": "memorysystem-release-owner"
+    },
+    {
+      "severity": "info",
+      "route": "info",
+      "owner": "memorysystem-release-owner",
+      "destinationRef": "info",
+      "receiverName": "memorysystem-info",
+      "triageSla": "release record",
+      "escalationFallback": "memorysystem-oncall"
+    }
+  ],
+  "silencingPolicy": {
+    "defaultMaxDuration": "4h",
+    "pageMaxDuration": "1h",
+    "requiresOwnerApproval": true,
+    "requiredFields": [
+      "owner",
+      "reason",
+      "expiresAt",
+      "followUp"
+    ],
+    "forbiddenSilences": [
+      "all page alerts without incident commander approval",
+      "backup or restore-validation alerts during migrations",
+      "benchmark gate failure before a pilot or production release"
+    ],
+    "auditDestination": "release evidence record"
+  },
+  "environmentTestRoutes": [
+    {
+      "environment": "pilot",
+      "testAlert": "MemorySystemPilotAlertRouteTest",
+      "triggerMetric": "memorysystem_alert_route_test",
+      "metricLabels": {
+        "environment": "pilot"
+      },
+      "severity": "info",
+      "route": "info",
+      "owner": "memorysystem-release-owner",
+      "destinationRef": "info",
+      "successCriteria": "The pilot info destination receives the synthetic alert and the result is attached to release evidence."
+    },
+    {
+      "environment": "production",
+      "testAlert": "MemorySystemProductionAlertRouteTest",
+      "triggerMetric": "memorysystem_alert_route_test",
+      "metricLabels": {
+        "environment": "production"
+      },
+      "severity": "info",
+      "route": "info",
+      "owner": "memorysystem-release-owner",
+      "destinationRef": "info",
+      "successCriteria": "The production info destination receives the synthetic alert and the result is attached to release evidence."
+    }
+  ]
+}
