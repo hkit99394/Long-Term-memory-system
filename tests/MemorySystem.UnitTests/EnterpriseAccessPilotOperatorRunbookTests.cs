@@ -68,7 +68,7 @@ public sealed partial class EnterpriseAccessImplementationTests
         Assert.Contains("EA-09 adds the pilot operator", productPlan, StringComparison.Ordinal);
         Assert.Contains("runbook for OIDC provider setup", productPlan, StringComparison.Ordinal);
         Assert.Contains("EA-10 evaluates directory sync", productPlan, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
         Assert.Contains("Authentication:ApiKey:Keys:{keyId}:CredentialId", productionSecrets, StringComparison.Ordinal);
     }
 }

@@ -139,6 +139,7 @@ Pilot or production may allow external payload stores only when:
 
 GC-06 now generates the compliance evidence package that links this evidence
 with audit export, retention, erasure replay, backup/restore, release checklist,
-benchmark, alert-route, and permission-drift evidence. GC-07 should add a
+benchmark, alert-route, and permission-drift evidence. GC-07 now adds the
 governance/compliance admin console view over the package and related status
-artifacts.
+artifacts. GC-08 should add the release smoke that exercises the full evidence
+chain.

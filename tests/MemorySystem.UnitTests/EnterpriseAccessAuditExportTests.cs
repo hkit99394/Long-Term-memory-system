@@ -46,6 +46,6 @@ public sealed partial class EnterpriseAccessImplementationTests
 
         Assert.Contains("| EA-07 | P0 | Done | Add audit export.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-07 | P0 | Done | Add audit export.", enterpriseGate, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
     }
 }

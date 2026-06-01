@@ -48,7 +48,7 @@ public sealed class GovernanceComplianceGateTests
         Assert.Contains("[Decision 0048](decisions/0048-governance-compliance-gate.md)", roadmap, StringComparison.Ordinal);
 
         var productPlan = File.ReadAllText(productPlanPath);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

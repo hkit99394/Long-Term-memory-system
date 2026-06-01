@@ -88,6 +88,38 @@ interface AdminSourceEventReference {
   label: string | null;
 }
 
+interface AdminComplianceStatusResponse {
+  generatedAt: string;
+  payloadSafe: boolean;
+  rawSourcePayloadsIncluded: boolean;
+  items: AdminComplianceStatusItem[];
+}
+
+interface AdminComplianceStatusItem {
+  id: string;
+  title: string;
+  status: string;
+  evidenceKind: string;
+  summary: string;
+  count: number | null;
+  payloadSafe: boolean;
+  rawSourcePayloadsIncluded: boolean;
+  links: AdminComplianceStatusLink[];
+  metrics: AdminComplianceStatusMetric[];
+}
+
+interface AdminComplianceStatusLink {
+  label: string;
+  href: string;
+  kind: string;
+  method: string;
+}
+
+interface AdminComplianceStatusMetric {
+  name: string;
+  description: string;
+}
+
 interface SourceEventResponse {
   id: string;
   eventType: string;
@@ -114,11 +146,13 @@ interface TextFetchResult {
 }
 
 interface AdminConsoleState {
-  mode: "memory" | "events" | "access";
+  mode: "memory" | "events" | "access" | "compliance";
   facts: AdminMemoryFact[];
   events: AdminSourceEvent[];
+  complianceStatus: AdminComplianceStatusResponse | null;
   selectedFactId: string | null;
   selectedEventId: string | null;
+  selectedComplianceId: string | null;
   selectedSource: SourceEventResponse | null;
   accessResult: AdminAccessResult | null;
   busy: boolean;
@@ -128,8 +162,10 @@ const state: AdminConsoleState = {
   mode: "memory",
   facts: [],
   events: [],
+  complianceStatus: null,
   selectedFactId: null,
   selectedEventId: null,
+  selectedComplianceId: null,
   selectedSource: null,
   accessResult: null,
   busy: false
@@ -169,11 +205,7 @@ elements.query.addEventListener("keydown", event => {
 });
 elements.statusFilter.addEventListener("change", () => void loadFacts());
 elements.modeFilter.addEventListener("change", () => {
-  state.mode = elements.modeFilter.value === "events"
-    ? "events"
-    : elements.modeFilter.value === "access"
-      ? "access"
-      : "memory";
+  state.mode = readMode();
   state.selectedSource = null;
   updateFilterVisibility();
   render();
@@ -213,9 +245,30 @@ function byId<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+function readMode(): AdminConsoleState["mode"] {
+  if (elements.modeFilter.value === "events") {
+    return "events";
+  }
+
+  if (elements.modeFilter.value === "access") {
+    return "access";
+  }
+
+  if (elements.modeFilter.value === "compliance") {
+    return "compliance";
+  }
+
+  return "memory";
+}
+
 async function loadCurrentMode(): Promise<void> {
   if (state.mode === "events") {
     await loadEvents();
+    return;
+  }
+
+  if (state.mode === "compliance") {
+    await loadCompliance();
     return;
   }
 
@@ -281,6 +334,28 @@ async function loadEvents(): Promise<void> {
     setStatus("Error");
     state.events = [];
     state.selectedEventId = null;
+    state.selectedSource = null;
+    elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+async function loadCompliance(): Promise<void> {
+  setBusy(true);
+  setStatus("Loading");
+  state.selectedSource = null;
+
+  try {
+    const response = await apiFetch<AdminComplianceStatusResponse>("/api/admin/compliance/status");
+    state.complianceStatus = response;
+    state.selectedComplianceId = response.items[0]?.id ?? null;
+    setStatus(`${response.items.length} checks`);
+  } catch (error) {
+    setStatus("Error");
+    state.complianceStatus = null;
+    state.selectedComplianceId = null;
     state.selectedSource = null;
     elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
   } finally {
@@ -364,11 +439,15 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 function render(): void {
   elements.listTitle.textContent = state.mode === "events"
     ? "Source Events"
+    : state.mode === "compliance"
+      ? "Compliance"
     : state.mode === "access"
       ? "Access Actions"
       : "Memory Facts";
   elements.sourceTitle.textContent = state.mode === "events"
     ? "Payload"
+    : state.mode === "compliance"
+      ? "Evidence Links"
     : state.mode === "access"
       ? "Result"
       : "Source Evidence";
@@ -382,6 +461,11 @@ function renderResultList(): void {
 
   if (state.mode === "events") {
     renderEventList();
+    return;
+  }
+
+  if (state.mode === "compliance") {
+    renderComplianceList();
     return;
   }
 
@@ -406,6 +490,33 @@ function renderAccessList(): void {
     row.className = "memory-row";
     row.append(line(action, "memory-title"));
     elements.resultList.append(row);
+  }
+}
+
+function renderComplianceList(): void {
+  const items = state.complianceStatus?.items ?? [];
+
+  if (items.length === 0) {
+    elements.resultList.append(emptyPanel("No compliance status"));
+    return;
+  }
+
+  for (const item of items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = item.id === state.selectedComplianceId ? "memory-row selected" : "memory-row";
+    button.addEventListener("click", () => {
+      state.selectedComplianceId = item.id;
+      state.selectedSource = null;
+      render();
+    });
+
+    button.append(
+      line(item.title, "memory-title"),
+      pillRow([item.status, item.evidenceKind]),
+      line(item.summary, "memory-meta"),
+      line(item.count === null ? "Linked evidence" : `${item.count} visible`, "memory-date"));
+    elements.resultList.append(button);
   }
 }
 
@@ -464,6 +575,11 @@ function renderDetail(): void {
 
   if (state.mode === "events") {
     renderEventDetail();
+    return;
+  }
+
+  if (state.mode === "compliance") {
+    renderComplianceDetail();
     return;
   }
 
@@ -588,6 +704,32 @@ function renderAccessDetail(): void {
   elements.detail.append(panel);
 }
 
+function renderComplianceDetail(): void {
+  const status = state.complianceStatus;
+  const item = selectedComplianceItem();
+
+  if (!status || !item) {
+    elements.detail.append(emptyPanel("Select a compliance check"));
+    return;
+  }
+
+  const rows: [string, string][] = [
+    ["Check", item.id],
+    ["Status", item.status],
+    ["Evidence kind", item.evidenceKind],
+    ["Count", item.count === null ? "" : item.count.toString()],
+    ["Payload safe", item.payloadSafe ? "yes" : "no"],
+    ["Raw source payloads", item.rawSourcePayloadsIncluded ? "included" : "not included"],
+    ["Generated", shortDate(status.generatedAt)]
+  ];
+
+  elements.detail.append(
+    heading(item.title),
+    paragraph(item.summary, "memory-object"),
+    detailGrid(rows),
+    metricList(item.metrics));
+}
+
 function renderMemoryDetail(): void {
   const fact = selectedFact();
 
@@ -679,6 +821,17 @@ function renderEventDetail(): void {
 
 function renderSourceDetail(): void {
   elements.sourceDetail.replaceChildren();
+
+  if (state.mode === "compliance") {
+    const item = selectedComplianceItem();
+    if (!item) {
+      elements.sourceDetail.append(emptyPanel("No compliance check selected"));
+      return;
+    }
+
+    elements.sourceDetail.append(linkList(item.links));
+    return;
+  }
 
   if (state.mode === "access") {
     if (!state.accessResult) {
@@ -941,6 +1094,74 @@ function downloadText(fileName: string, text: string, type: string): void {
   URL.revokeObjectURL(url);
 }
 
+function metricList(metrics: AdminComplianceStatusMetric[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Metrics"));
+
+  if (metrics.length === 0) {
+    section.append(emptyPanel("No dedicated metric names"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const metric of metrics) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(metric.name, "memory-title"),
+      line(metric.description, "memory-meta"));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function linkList(links: AdminComplianceStatusLink[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Links"));
+
+  if (links.length === 0) {
+    section.append(emptyPanel("No evidence links"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const link of links) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+
+    const target = document.createElement(link.kind === "api" && link.method === "GET" ? "a" : "span");
+    target.className = "memory-meta";
+    target.textContent = link.href;
+
+    if (target instanceof HTMLAnchorElement) {
+      target.href = apiUrl(link.href);
+      target.target = "_blank";
+      target.rel = "noreferrer";
+    }
+
+    row.append(
+      line(link.label, "memory-title"),
+      pillRow([link.method, link.kind]),
+      target);
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function apiUrl(path: string): string {
+  return `${elements.apiBase.value.trim().replace(/\/$/, "")}${path}`;
+}
+
 function referenceList(references: AdminSourceEventReference[]): HTMLElement {
   const section = document.createElement("section");
   section.className = "audit-section";
@@ -975,6 +1196,10 @@ function selectedFact(): AdminMemoryFact | null {
 
 function selectedEvent(): AdminSourceEvent | null {
   return state.events.find(sourceEvent => sourceEvent.id === state.selectedEventId) ?? null;
+}
+
+function selectedComplianceItem(): AdminComplianceStatusItem | null {
+  return state.complianceStatus?.items.find(item => item.id === state.selectedComplianceId) ?? null;
 }
 
 function setBusy(busy: boolean): void {
@@ -1080,7 +1305,7 @@ function updateFilterVisibility(): void {
   }
 
   elements.statusFilter.closest("label")!.hidden = state.mode !== "memory";
-  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access";
-  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access";
-  elements.query.closest("label")!.hidden = state.mode === "access";
+  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
+  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
+  elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
 }

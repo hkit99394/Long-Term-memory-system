@@ -52,6 +52,6 @@ public sealed partial class EnterpriseAccessImplementationTests
         Assert.Contains("| EA-10 | P1 | Done | Evaluate directory sync.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-10 | P1 | Done | Evaluate directory sync.", enterpriseGate, StringComparison.Ordinal);
         Assert.Contains("| DM-06 | P2 | Done | Remove duplicate string normalization helpers.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
     }
 }

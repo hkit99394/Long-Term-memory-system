@@ -30,11 +30,11 @@ public sealed class ExternalPayloadRetentionCheckContractTests
         Assert.Contains("scripts/platform-external-payload-retention-check.sh", retentionPolicy, StringComparison.Ordinal);
         Assert.Contains("| GC-05 | P1 | Done | Check external payload-store retention.", backlog, StringComparison.Ordinal);
         Assert.Contains("| GC-06 | P1 | Done | Generate compliance evidence package.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-07 | P1 | Todo | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[External Payload Retention Check GC-05](external-payload-retention-check-gc05.md)", index, StringComparison.Ordinal);
         Assert.Contains("external-payload-retention-check-gc05.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-07`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.external_payload_retention_check\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_EXTERNAL_PAYLOAD_CHECK_MODE", script, StringComparison.Ordinal);

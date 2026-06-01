@@ -148,8 +148,8 @@ governance policy contract. GC-02 now adds the payload-safe permission-drift
 report. GC-03 now adds payload-safe backup erasure replay validation. GC-04 now
 adds standard and audit retention minimization. GC-05 now adds external
 payload-store retention checks. GC-06 now adds compliance evidence package
-generation. The next implementation slice is `GC-07`, the governance/compliance
-admin console view.
+generation. GC-07 now adds the governance/compliance admin console view. The
+next implementation slice is `GC-08`, the governance/compliance release smoke.
 
 Recommended sequence:
 
@@ -178,4 +178,5 @@ Recommended sequence:
 16. Done: `GC-04` implements standard and audit retention minimization.
 17. Done: `GC-05` checks external payload-store retention.
 18. Done: `GC-06` generates the compliance evidence package.
-19. Next: `GC-07` adds the governance/compliance admin console view.
+19. Done: `GC-07` adds the governance/compliance admin console view.
+20. Next: `GC-08` adds the governance/compliance release smoke.

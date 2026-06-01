@@ -3,7 +3,7 @@ namespace MemorySystem.UnitTests;
 public sealed class ComplianceEvidencePackageContractTests
 {
     [Fact]
-    public void Gc06_compliance_evidence_package_is_documented_scripted_observable_and_next_slice_is_gc07()
+    public void Gc06_compliance_evidence_package_is_documented_scripted_observable_and_gc07_is_closed()
     {
         var root = FindRepositoryRoot();
         var contract = File.ReadAllText(Path.Combine(root, "docs", "compliance-evidence-package-gc06.md"));
@@ -27,11 +27,11 @@ public sealed class ComplianceEvidencePackageContractTests
         Assert.Contains("memorysystem_compliance_evidence_package_success", contract, StringComparison.Ordinal);
 
         Assert.Contains("| GC-06 | P1 | Done | Generate compliance evidence package.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-07 | P1 | Todo | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md)", index, StringComparison.Ordinal);
         Assert.Contains("compliance-evidence-package-gc06.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-07`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.compliance_evidence_package\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_COMPLIANCE_EVIDENCE_PACKAGE_MODE", script, StringComparison.Ordinal);

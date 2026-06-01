@@ -13,6 +13,8 @@ public static class AdminConsoleEndpointExtensions
 {
     private const int MaxMemoryFactLimit = 100;
     private const int MaxSourceEventLimit = 100;
+    private const int ComplianceLegalHoldLimit = 100;
+    private const int ComplianceRetentionReportLimit = 200;
 
     private static readonly IReadOnlySet<string> EventTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -54,6 +56,15 @@ public static class AdminConsoleEndpointExtensions
                 ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
                 await ListSourceEventsAsync(context, store, sourceEventLinks, cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/admin/compliance/status",
+            async (
+                HttpContext context,
+                IAdminGovernanceStore governanceStore,
+                CancellationToken cancellationToken) =>
+                await ReadComplianceStatusAsync(context, governanceStore, cancellationToken))
             .RequireAuthorization();
 
         return endpoints;
@@ -107,6 +118,39 @@ public static class AdminConsoleEndpointExtensions
 
         return Results.Ok(new AdminSourceEventsResponse(
             records.Select(record => ToSourceEventResponse(record, sourceEventLinks)).ToArray()));
+    }
+
+    private static async Task<IResult> ReadComplianceStatusAsync(
+        HttpContext context,
+        IAdminGovernanceStore governanceStore,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var principalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var activeLegalHolds = await governanceStore.ListLegalHoldsAsync(
+            new AdminLegalHoldListQuery(principalId, ComplianceLegalHoldLimit, "active"),
+            cancellationToken);
+        var retentionRows = await governanceStore.ReadRetentionReportAsync(
+            new AdminRetentionReportQuery(principalId, ComplianceRetentionReportLimit),
+            cancellationToken);
+
+        var items = new[]
+        {
+            RetentionReportItem(retentionRows.Count),
+            LegalHoldItem(activeLegalHolds.Sum(hold => hold.ActiveEventCount), activeLegalHolds.Count),
+            ErasureReplayItem(),
+            PermissionDriftItem(),
+            ComplianceEvidencePackageItem()
+        };
+
+        return Results.Ok(new AdminComplianceStatusResponse(
+            DateTimeOffset.UtcNow,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            items));
     }
 
     private static bool TryCreateQuery(
@@ -294,6 +338,138 @@ public static class AdminConsoleEndpointExtensions
 
         value = parsed;
         return true;
+    }
+
+    private static AdminComplianceStatusItemResponse RetentionReportItem(int visibleRowCount)
+    {
+        return new AdminComplianceStatusItemResponse(
+            "retention_report",
+            "Retention Report",
+            visibleRowCount > 0 ? "available" : "empty",
+            "retention_report",
+            visibleRowCount > 0
+                ? $"{visibleRowCount} authorized retention groups are visible to the operator."
+                : "No authorized retention groups are visible to the operator.",
+            visibleRowCount,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            Links:
+            [
+                Link("Retention report API", "/api/admin/governance/retention-report", "api", "GET"),
+                Link("Retention policy", "docs/retention-policy.md", "documentation", "DOC"),
+                Link("Retention minimization job", "scripts/platform-retention-minimization.sh", "script", "SCRIPT")
+            ],
+            Metrics:
+            [
+                Metric("memorysystem_retention_minimization_success", "Latest standard/audit minimization job outcome."),
+                Metric("memorysystem_retention_minimization_candidates", "Candidate source-event rows considered by minimization.")
+            ]);
+    }
+
+    private static AdminComplianceStatusItemResponse LegalHoldItem(int activeEventCount, int visibleHoldCount)
+    {
+        return new AdminComplianceStatusItemResponse(
+            "legal_hold",
+            "Legal Hold",
+            activeEventCount > 0 ? "active" : "clear",
+            "legal_hold_summary",
+            activeEventCount > 0
+                ? $"{activeEventCount} held events are visible across {visibleHoldCount} active holds."
+                : "No active held events are visible to the operator.",
+            activeEventCount,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            Links:
+            [
+                Link("Legal holds API", "/api/admin/governance/legal-holds?status=active", "api", "GET"),
+                Link("Create legal hold API", "/api/admin/governance/legal-holds", "api", "POST"),
+                Link("Retention policy legal hold rules", "docs/retention-policy.md", "documentation", "DOC")
+            ],
+            Metrics: []);
+    }
+
+    private static AdminComplianceStatusItemResponse ErasureReplayItem()
+    {
+        return new AdminComplianceStatusItemResponse(
+            "erasure_replay",
+            "Erasure Replay",
+            "configured",
+            "erasure_replay",
+            "Restore validation imports the payload-safe redaction ledger and verifies post-backup erasure actions before promotion.",
+            null,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            Links:
+            [
+                Link("Erasure execution API", "/api/admin/governance/erasures", "api", "POST"),
+                Link("Erasure replay ledger", "scripts/platform-erasure-replay-ledger-export.sh", "script", "SCRIPT"),
+                Link("Restore validation job", "scripts/platform-restore-validation.sh", "script", "SCRIPT"),
+                Link("GC-03 replay contract", "docs/backup-erasure-replay-validation-gc03.md", "documentation", "DOC")
+            ],
+            Metrics:
+            [
+                Metric("memorysystem_restore_erasure_replay_validation_success", "Latest restore-time erasure replay validation outcome."),
+                Metric("memorysystem_restore_erasure_replay_failures", "Rows that still exposed erased projections after replay validation.")
+            ]);
+    }
+
+    private static AdminComplianceStatusItemResponse PermissionDriftItem()
+    {
+        return new AdminComplianceStatusItemResponse(
+            "permission_drift",
+            "Permission Drift",
+            "available",
+            "permission_drift_report",
+            "The permission-drift report compares local access records and effective-access previews without exposing memory payloads.",
+            null,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            Links:
+            [
+                Link("Permission drift API", "/api/admin/access/permission-drift", "api", "POST"),
+                Link("GC-02 drift contract", "docs/permission-drift-report-gc02.md", "documentation", "DOC")
+            ],
+            Metrics: []);
+    }
+
+    private static AdminComplianceStatusItemResponse ComplianceEvidencePackageItem()
+    {
+        return new AdminComplianceStatusItemResponse(
+            "compliance_evidence_package",
+            "Evidence Package",
+            "configured",
+            "compliance_evidence_package",
+            "The package command links audit export, retention, legal hold, drift, replay, backup, release, benchmark, and alert-route evidence by ids, counts, and hashes.",
+            null,
+            PayloadSafe: true,
+            RawSourcePayloadsIncluded: false,
+            Links:
+            [
+                Link("Evidence package job", "scripts/platform-compliance-evidence-package.sh", "script", "SCRIPT"),
+                Link("GC-06 evidence contract", "docs/compliance-evidence-package-gc06.md", "documentation", "DOC"),
+                Link("Audit export API", "/api/admin/audit-exports", "api", "POST")
+            ],
+            Metrics:
+            [
+                Metric("memorysystem_compliance_evidence_package_success", "Latest compliance package generation outcome."),
+                Metric("memorysystem_compliance_evidence_package_missing_required_artifacts", "Required evidence artifacts missing from the latest package.")
+            ]);
+    }
+
+    private static AdminComplianceStatusLinkResponse Link(
+        string label,
+        string href,
+        string kind,
+        string method)
+    {
+        return new AdminComplianceStatusLinkResponse(label, href, kind, method);
+    }
+
+    private static AdminComplianceStatusMetricResponse Metric(
+        string name,
+        string description)
+    {
+        return new AdminComplianceStatusMetricResponse(name, description);
     }
 
     private static AdminMemoryFactResponse ToResponse(

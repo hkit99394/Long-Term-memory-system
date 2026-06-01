@@ -165,8 +165,9 @@ payload-safe permission-drift report over local access records. GC-03 adds
 payload-safe backup erasure replay validation for restored databases. GC-04
 adds standard/audit retention minimization with dry-run and execute evidence.
 GC-05 adds payload-safe external payload-store retention checks for pointer
-rows. GC-06 adds the payload-safe compliance evidence package. The next focus
-is `GC-07`: add the governance/compliance admin console view.
+rows. GC-06 adds the payload-safe compliance evidence package. GC-07 adds the
+payload-safe governance/compliance admin console view. The next focus is
+`GC-08`: add the governance/compliance release smoke.
 
 ## Middle Run Production Pilot
 
@@ -242,7 +243,7 @@ is `GC-07`: add the governance/compliance admin console view.
 | GC-04 | P0 | Done | Implement standard and audit retention minimization. | [Standard And Audit Retention Minimization GC-04](standard-audit-retention-minimization-gc04.md), `scripts/platform-retention-minimization.sh`, and the platform runtime contract support dry-run and execute modes for non-ephemeral minimization, respect legal holds, leave external payload pointers for GC-05 checks, clear review-note payload copies, preserve durable memory projections, and emit metrics plus payload-safe audit evidence. |
 | GC-05 | P1 | Done | Check external payload-store retention. | [External Payload Retention Check GC-05](external-payload-retention-check-gc05.md), `scripts/platform-external-payload-retention-check.sh`, and the platform runtime contract inspect `external_payload_uri` rows, classify expected provider object state from PostgreSQL lifecycle state, probe supported providers in verify mode, reject disabled-policy pointers, and emit payload-safe evidence and metrics without logging URI content, payload bytes, or secret material. |
 | GC-06 | P1 | Done | Generate compliance evidence package. | [Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md), `scripts/platform-compliance-evidence-package.sh`, and the platform runtime contract create a payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, and metrics that link audit export, retention report, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, external payload, and permission-drift evidence without embedding raw payloads. |
-| GC-07 | P1 | Todo | Add governance/compliance admin console view. | `/admin/` surfaces retention, erasure replay, legal hold, permission drift, and evidence package status with links to existing payload-safe reports and no raw source payloads in lists. |
+| GC-07 | P1 | Done | Add governance/compliance admin console view. | [Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md) adds `/api/admin/compliance/status` and a `/admin/` Compliance view that surfaces retention, erasure replay, legal hold, permission drift, and evidence package status with links to existing payload-safe reports and no raw source payloads in lists. |
 | GC-08 | P1 | Todo | Add governance/compliance release smoke. | A repeatable smoke command verifies policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and evidence manifest creation against an isolated database. |
 
 ## Long Run Enterprise Access Implementation Backlog

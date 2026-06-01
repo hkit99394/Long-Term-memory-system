@@ -334,7 +334,10 @@ adds external payload-store retention checks for pointer rows with policy
 violations, provider probes, expected-present or expected-absent state, and
 payload-safe evidence. GC-06 now adds the compliance evidence package with a
 payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, strict mode, and
-metrics. The next move should be `GC-07`: add the governance/compliance admin console view.
+metrics. GC-07 now adds the governance/compliance admin console view with a
+payload-safe status endpoint and links to retention, legal hold, erasure replay,
+permission drift, and evidence package surfaces. The next move should be `GC-08`:
+add the governance/compliance release smoke.
 Before inviting an external pilot user, rerun the
 benchmark release gate with the intended pilot model, fresh scorecards, and a
 fresh live smoke artifact from the target environment.

@@ -45,12 +45,15 @@ public sealed class ApiAdminMemoryConsoleTests
             Assert.Contains("/api/admin/access/project-memberships", script, StringComparison.Ordinal);
             Assert.Contains("/api/admin/access/effective-preview", script, StringComparison.Ordinal);
             Assert.Contains("/api/admin/audit-exports", script, StringComparison.Ordinal);
+            Assert.Contains("/api/admin/compliance/status", script, StringComparison.Ordinal);
             Assert.Contains("Audit export", script, StringComparison.Ordinal);
+            Assert.Contains("Evidence Links", script, StringComparison.Ordinal);
             Assert.Contains("sourceLink", script, StringComparison.Ordinal);
             Assert.Contains("sourceRetentionClass", script, StringComparison.Ordinal);
             Assert.Contains("contentVisibilityReason", script, StringComparison.Ordinal);
             Assert.Contains("referenceType", script, StringComparison.Ordinal);
             Assert.Contains("""<option value="access">Access</option>""", html, StringComparison.Ordinal);
+            Assert.Contains("""<option value="compliance">Compliance</option>""", html, StringComparison.Ordinal);
         }
         finally
         {
@@ -101,6 +104,67 @@ public sealed class ApiAdminMemoryConsoleTests
             using var response = await client.GetAsync("/api/admin/source-events");
 
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_admin_compliance_status_lists_payload_safe_governance_links()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_compliance_status_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareAdminMemoryFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var request = CreateAuthenticatedRequest(HttpMethod.Get, "/api/admin/compliance/status");
+
+            using var response = await client.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            using var payload = JsonDocument.Parse(body);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(payload.RootElement.GetProperty("payloadSafe").GetBoolean());
+            Assert.False(payload.RootElement.GetProperty("rawSourcePayloadsIncluded").GetBoolean());
+            Assert.DoesNotContain(AuthorizedSourcePayload, body, StringComparison.Ordinal);
+            Assert.DoesNotContain(RedactedMemoryPayload, body, StringComparison.Ordinal);
+            Assert.DoesNotContain(fixture.ActiveSourceEventId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+
+            var items = payload.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .ToDictionary(item => item.GetProperty("id").GetString()!);
+
+            Assert.True(items.ContainsKey("retention_report"));
+            Assert.True(items.ContainsKey("legal_hold"));
+            Assert.True(items.ContainsKey("erasure_replay"));
+            Assert.True(items.ContainsKey("permission_drift"));
+            Assert.True(items.ContainsKey("compliance_evidence_package"));
+
+            Assert.Contains(
+                items["retention_report"].GetProperty("links").EnumerateArray(),
+                link => link.GetProperty("href").GetString() == "/api/admin/governance/retention-report"
+                    && link.GetProperty("method").GetString() == "GET");
+            Assert.Contains(
+                items["permission_drift"].GetProperty("links").EnumerateArray(),
+                link => link.GetProperty("href").GetString() == "/api/admin/access/permission-drift"
+                    && link.GetProperty("method").GetString() == "POST");
+            Assert.Contains(
+                items["compliance_evidence_package"].GetProperty("metrics").EnumerateArray(),
+                metric => metric.GetProperty("name").GetString() == "memorysystem_compliance_evidence_package_success");
+
+            foreach (var item in items.Values)
+            {
+                Assert.True(item.GetProperty("payloadSafe").GetBoolean());
+                Assert.False(item.GetProperty("rawSourcePayloadsIncluded").GetBoolean());
+            }
         }
         finally
         {

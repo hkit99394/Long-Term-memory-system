@@ -133,6 +133,8 @@ and metrics file with the release evidence.
 
 ## Remaining Work
 
-GC-07 should add a governance/compliance admin console view that links to the
+GC-07 now adds a governance/compliance admin console view that links to the
 payload-safe evidence package, retention, erasure replay, legal hold,
-permission-drift, and external payload check status.
+permission-drift, and external payload check status. GC-08 should add a
+repeatable release smoke that creates or verifies those evidence inputs against
+an isolated database.

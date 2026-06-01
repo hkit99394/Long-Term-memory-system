@@ -81,3 +81,31 @@ public sealed record AdminSourceEventReferenceResponse(
     string? TargetType,
     Guid? TargetId,
     string? Label);
+
+public sealed record AdminComplianceStatusResponse(
+    DateTimeOffset GeneratedAt,
+    bool PayloadSafe,
+    bool RawSourcePayloadsIncluded,
+    IReadOnlyList<AdminComplianceStatusItemResponse> Items);
+
+public sealed record AdminComplianceStatusItemResponse(
+    string Id,
+    string Title,
+    string Status,
+    string EvidenceKind,
+    string Summary,
+    int? Count,
+    bool PayloadSafe,
+    bool RawSourcePayloadsIncluded,
+    IReadOnlyList<AdminComplianceStatusLinkResponse> Links,
+    IReadOnlyList<AdminComplianceStatusMetricResponse> Metrics);
+
+public sealed record AdminComplianceStatusLinkResponse(
+    string Label,
+    string Href,
+    string Kind,
+    string Method);
+
+public sealed record AdminComplianceStatusMetricResponse(
+    string Name,
+    string Description);
