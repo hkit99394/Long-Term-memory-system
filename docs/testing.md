@@ -102,6 +102,7 @@ When platform backup or restore job scripts change, run shell syntax checks:
 
 ```bash
 bash -n scripts/platform-backup-export.sh
+bash -n scripts/platform-compliance-evidence-package.sh
 bash -n scripts/platform-erasure-replay-ledger-export.sh
 bash -n scripts/platform-external-payload-retention-check.sh
 bash -n scripts/platform-retention-minimization.sh

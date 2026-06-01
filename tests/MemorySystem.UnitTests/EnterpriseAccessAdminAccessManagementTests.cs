@@ -52,6 +52,6 @@ public sealed partial class EnterpriseAccessImplementationTests
 
         Assert.Contains("| EA-06 | P0 | Done | Add admin access-management UI.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-06 | P0 | Done | Add admin access-management UI.", enterpriseGate, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
     }
 }

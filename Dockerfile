@@ -34,6 +34,7 @@ COPY --from=build /out/migrator/ /app/migrator/
 COPY --from=build /out/seeder/ /app/seeder/
 COPY --from=build /src/migrations/ /app/migrations/
 COPY scripts/platform-backup-export.sh /app/scripts/platform-backup-export.sh
+COPY scripts/platform-compliance-evidence-package.sh /app/scripts/platform-compliance-evidence-package.sh
 COPY scripts/platform-erasure-replay-ledger-export.sh /app/scripts/platform-erasure-replay-ledger-export.sh
 COPY scripts/platform-external-payload-retention-check.sh /app/scripts/platform-external-payload-retention-check.sh
 COPY scripts/platform-retention-minimization.sh /app/scripts/platform-retention-minimization.sh
@@ -41,7 +42,7 @@ COPY scripts/platform-restore-validation.sh /app/scripts/platform-restore-valida
 COPY scripts/restore-validation-tables.sh /app/scripts/restore-validation-tables.sh
 COPY scripts/restore-validation-tables.txt /app/scripts/restore-validation-tables.txt
 
-RUN chmod +x /app/scripts/platform-backup-export.sh /app/scripts/platform-erasure-replay-ledger-export.sh /app/scripts/platform-external-payload-retention-check.sh /app/scripts/platform-retention-minimization.sh /app/scripts/platform-restore-validation.sh
+RUN chmod +x /app/scripts/platform-backup-export.sh /app/scripts/platform-compliance-evidence-package.sh /app/scripts/platform-erasure-replay-ledger-export.sh /app/scripts/platform-external-payload-retention-check.sh /app/scripts/platform-retention-minimization.sh /app/scripts/platform-restore-validation.sh
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080

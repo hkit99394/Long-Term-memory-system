@@ -270,6 +270,7 @@ under `scripts/`; GC-03 adds the payload-safe erasure replay ledger export and
 restore-time replay validation path under the same script boundary. GC-04 adds
 the standard/audit retention minimization operator job under `scripts/`, and
 GC-05 adds the external payload-store retention check under the same boundary.
+GC-06 adds the compliance evidence package command under `scripts/`.
 PI-05 wires
 runtime telemetry exporters, and PI-06 makes
 alert routing, owners, silencing, and environment route tests explicit in the
@@ -357,6 +358,7 @@ Rules:
 | `docs/backup-erasure-replay-validation-gc03.md` | GC-03 payload-safe erasure replay ledger and restore-validation contract. |
 | `docs/standard-audit-retention-minimization-gc04.md` | GC-04 standard/audit retention minimization operator-job contract. |
 | `docs/external-payload-retention-check-gc05.md` | GC-05 external payload-store retention check contract. |
+| `docs/compliance-evidence-package-gc06.md` | GC-06 compliance evidence package manifest contract. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

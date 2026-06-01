@@ -332,7 +332,9 @@ GC-04 now adds standard/audit retention minimization with dry-run, execute,
 legal-hold skips, derived-copy handling, and payload-safe evidence. GC-05 now
 adds external payload-store retention checks for pointer rows with policy
 violations, provider probes, expected-present or expected-absent state, and
-payload-safe evidence. The next move should be `GC-06`: generate the compliance evidence package.
+payload-safe evidence. GC-06 now adds the compliance evidence package with a
+payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, strict mode, and
+metrics. The next move should be `GC-07`: add the governance/compliance admin console view.
 Before inviting an external pilot user, rerun the
 benchmark release gate with the intended pilot model, fresh scorecards, and a
 fresh live smoke artifact from the target environment.

@@ -54,12 +54,12 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("required_roles           = [\"migrator\", \"api\", \"worker\"]", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("benchmark_gate           = \"scripts/benchmark-release-gate.sh\"", runtimeMain, StringComparison.Ordinal);
         Assert.Contains("alert_routing_smoke      = \"scripts/observability-artifacts-smoke.sh\"", runtimeMain, StringComparison.Ordinal);
-        Assert.Contains("platform_rehearsal           = local.platform_rehearsal", runtimeMain, StringComparison.Ordinal);
+        Assert.Contains("platform_rehearsal            = local.platform_rehearsal", runtimeMain, StringComparison.Ordinal);
 
         Assert.Contains("[Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)", docsIndex, StringComparison.Ordinal);
         Assert.Contains("[Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)", platformPlan, StringComparison.Ordinal);
         Assert.Contains("PI-08 records the first isolated platform rehearsal", terraformReadme, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
     }
 }

@@ -70,6 +70,16 @@ locals {
     "memorysystem_external_payload_retention_timestamp_seconds"
   ]
 
+  governance_compliance_metrics = [
+    "memorysystem_compliance_evidence_package_success",
+    "memorysystem_compliance_evidence_package_artifacts",
+    "memorysystem_compliance_evidence_package_present_artifacts",
+    "memorysystem_compliance_evidence_package_missing_artifacts",
+    "memorysystem_compliance_evidence_package_missing_required_artifacts",
+    "memorysystem_compliance_evidence_package_manifest_bytes",
+    "memorysystem_compliance_evidence_package_timestamp_seconds"
+  ]
+
   release_checklist_gates = [
     "migration",
     "health",
@@ -162,6 +172,32 @@ locals {
     MEMORYSYSTEM_EXTERNAL_PAYLOAD_EVIDENCE_DIR           = "/tmp/memorysystem-governance-evidence"
     MEMORYSYSTEM_EXTERNAL_PAYLOAD_METRICS_FILE           = "/tmp/memorysystem-governance-evidence/external-payload-retention-metrics.prom"
     MEMORYSYSTEM_EXTERNAL_PAYLOAD_EVIDENCE_FILE          = "/tmp/memorysystem-governance-evidence/external-payload-retention-evidence.json"
+  }
+
+  compliance_evidence_package_environment = {
+    MEMORYSYSTEM_ENVIRONMENT                                = var.environment_name
+    MEMORYSYSTEM_COMPLIANCE_EVIDENCE_PACKAGE_MODE           = "draft"
+    MEMORYSYSTEM_COMPLIANCE_OPERATOR_ID                     = "platform-release-owner"
+    MEMORYSYSTEM_COMPLIANCE_GOVERNANCE_EVIDENCE_DIR         = "/tmp/memorysystem-governance-evidence"
+    MEMORYSYSTEM_COMPLIANCE_BACKUP_EVIDENCE_DIR             = "/tmp/memorysystem-backup-evidence"
+    MEMORYSYSTEM_COMPLIANCE_RELEASE_EVIDENCE_DIR            = "/tmp/memorysystem-release-evidence"
+    MEMORYSYSTEM_COMPLIANCE_EVIDENCE_DIR                    = "/tmp/memorysystem-compliance-evidence"
+    MEMORYSYSTEM_COMPLIANCE_PACKAGE_FILE                    = "/tmp/memorysystem-compliance-evidence/compliance-evidence-package.json"
+    MEMORYSYSTEM_COMPLIANCE_ARTIFACT_INDEX_FILE             = "/tmp/memorysystem-compliance-evidence/compliance-evidence-package-artifacts.ndjson"
+    MEMORYSYSTEM_COMPLIANCE_PACKAGE_HASH_FILE               = "/tmp/memorysystem-compliance-evidence/compliance-evidence-package.json.sha256"
+    MEMORYSYSTEM_COMPLIANCE_METRICS_FILE                    = "/tmp/memorysystem-compliance-evidence/compliance-evidence-package-metrics.prom"
+    MEMORYSYSTEM_COMPLIANCE_AUDIT_EXPORT_FILE               = "/tmp/memorysystem-governance-evidence/audit-export.ndjson"
+    MEMORYSYSTEM_COMPLIANCE_RETENTION_REPORT_FILE           = "/tmp/memorysystem-governance-evidence/retention-report.json"
+    MEMORYSYSTEM_COMPLIANCE_LEGAL_HOLD_SUMMARY_FILE         = "/tmp/memorysystem-governance-evidence/legal-hold-summary.json"
+    MEMORYSYSTEM_COMPLIANCE_PERMISSION_DRIFT_FILE           = "/tmp/memorysystem-governance-evidence/permission-drift-report.json"
+    MEMORYSYSTEM_COMPLIANCE_RETENTION_MINIMIZATION_FILE     = "/tmp/memorysystem-governance-evidence/retention-minimization-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_EXTERNAL_PAYLOAD_RETENTION_FILE = "/tmp/memorysystem-governance-evidence/external-payload-retention-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_ERASURE_REPLAY_FILE             = "/tmp/memorysystem-backup-evidence/erasure-replay-ledger-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_BACKUP_EXPORT_FILE              = "/tmp/memorysystem-backup-evidence/backup-export-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_RESTORE_VALIDATION_FILE         = "/tmp/memorysystem-backup-evidence/restore-validation-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_RELEASE_CHECKLIST_FILE          = "/tmp/memorysystem-release-evidence/release-checklist-evidence.json"
+    MEMORYSYSTEM_COMPLIANCE_BENCHMARK_GATE_FILE             = "/tmp/memorysystem-release-evidence/benchmark-release-gate.json"
+    MEMORYSYSTEM_COMPLIANCE_ALERT_ROUTE_FILE                = "/tmp/memorysystem-release-evidence/alert-route-smoke.json"
   }
 
   roles = {
@@ -275,6 +311,22 @@ locals {
       emitted_metrics      = local.governance_retention_metrics
     }
 
+    compliance_evidence_package = {
+      kind                 = "run-task"
+      target_slice         = "GC-06"
+      cpu                  = var.job_task_cpu
+      memory               = var.job_task_memory
+      command              = ["/app/scripts/platform-compliance-evidence-package.sh"]
+      port                 = null
+      health_path          = null
+      environment          = local.compliance_evidence_package_environment
+      required_secret_refs = []
+      required_runtime_env = ["MEMORYSYSTEM_COMPLIANCE_EVIDENCE_PACKAGE_MODE", "MEMORYSYSTEM_COMPLIANCE_PACKAGE_FILE", "MEMORYSYSTEM_COMPLIANCE_ARTIFACT_INDEX_FILE", "MEMORYSYSTEM_COMPLIANCE_PACKAGE_HASH_FILE"]
+      evidence_files       = [local.compliance_evidence_package_environment["MEMORYSYSTEM_COMPLIANCE_PACKAGE_FILE"], local.compliance_evidence_package_environment["MEMORYSYSTEM_COMPLIANCE_ARTIFACT_INDEX_FILE"], local.compliance_evidence_package_environment["MEMORYSYSTEM_COMPLIANCE_PACKAGE_HASH_FILE"]]
+      metrics_files        = [local.compliance_evidence_package_environment["MEMORYSYSTEM_COMPLIANCE_METRICS_FILE"]]
+      emitted_metrics      = local.governance_compliance_metrics
+    }
+
     demo_seeder = {
       kind        = "run-task"
       cpu         = var.job_task_cpu
@@ -319,11 +371,12 @@ locals {
       resource_attributes      = local.open_telemetry_environment["OTEL_RESOURCE_ATTRIBUTES"]
       trace_coverage_manifest  = "observability/tracing/memorysystem-pilot-trace-coverage.json"
     }
-    backup_restore_metrics       = local.backup_restore_metrics
-    governance_retention_metrics = local.governance_retention_metrics
-    release_checklist            = local.release_checklist
-    platform_rehearsal           = local.platform_rehearsal
-    roles                        = local.roles
-    future_jobs                  = local.future_jobs
+    backup_restore_metrics        = local.backup_restore_metrics
+    governance_retention_metrics  = local.governance_retention_metrics
+    governance_compliance_metrics = local.governance_compliance_metrics
+    release_checklist             = local.release_checklist
+    platform_rehearsal            = local.platform_rehearsal
+    roles                         = local.roles
+    future_jobs                   = local.future_jobs
   }
 }

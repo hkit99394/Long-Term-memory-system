@@ -125,6 +125,7 @@ the reviewed dry-run target set or an operator records why the set changed.
 ## Remaining Work
 
 GC-05 now adds external payload-store retention checks for events skipped by
-this job because they still have `external_payload_uri`. GC-06 should link the
+this job because they still have `external_payload_uri`. GC-06 now links the
 retention, erasure replay, external payload, audit export, release, benchmark,
 alert-route, and permission-drift evidence into a compliance evidence package.
+GC-07 should surface that package in the governance/compliance admin console.

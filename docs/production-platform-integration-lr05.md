@@ -220,6 +220,10 @@ The LR-05 planning output creates the `PI-*` implementation backlog:
   `scripts/platform-external-payload-retention-check.sh`, provider-state
   verification evidence, and governance retention metrics in the platform
   observability contract.
+- `GC-06`: generate compliance evidence packages. Done with
+  `scripts/platform-compliance-evidence-package.sh`, payload-safe manifest
+  evidence, and governance compliance metrics in the platform observability
+  contract.
 - `PI-05`: wire runtime OpenTelemetry exporters. Done through shared
   telemetry wiring and the runtime OpenTelemetry Terraform contract.
 - `PI-06`: connect alert routing and runbook links. Done through checked-in

@@ -147,8 +147,9 @@ scopes the governance and compliance gate. GC-01 now defines the environment
 governance policy contract. GC-02 now adds the payload-safe permission-drift
 report. GC-03 now adds payload-safe backup erasure replay validation. GC-04 now
 adds standard and audit retention minimization. GC-05 now adds external
-payload-store retention checks. The next implementation slice is `GC-06`,
-compliance evidence package generation.
+payload-store retention checks. GC-06 now adds compliance evidence package
+generation. The next implementation slice is `GC-07`, the governance/compliance
+admin console view.
 
 Recommended sequence:
 
@@ -176,4 +177,5 @@ Recommended sequence:
 15. Done: `GC-03` adds backup erasure replay validation.
 16. Done: `GC-04` implements standard and audit retention minimization.
 17. Done: `GC-05` checks external payload-store retention.
-18. Next: `GC-06` generates the compliance evidence package.
+18. Done: `GC-06` generates the compliance evidence package.
+19. Next: `GC-07` adds the governance/compliance admin console view.

@@ -112,5 +112,5 @@ The report is diagnostic evidence. It must not become an authorization path.
 
 GC-03 pairs permission-drift evidence with backup erasure replay validation, and
 GC-04 adds standard/audit retention minimization evidence. GC-05 adds external
-payload-store retention checks. GC-06 can include this report in the compliance
+payload-store retention checks. GC-06 includes this report in the compliance
 evidence package without changing the response payload-safety rules.

@@ -211,3 +211,6 @@ payload-safe retention evidence.
 GC-05 adds `platform-external-payload-retention-check.sh` as the companion
 governance operator job for external payload pointer inventory, provider-state
 checks, disabled-policy violations, and payload-safe evidence.
+GC-06 adds `platform-compliance-evidence-package.sh` as the package job that
+links governance, backup/restore, release, benchmark, alert-route, and
+permission-drift evidence into a payload-safe manifest and artifact index.

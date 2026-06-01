@@ -70,7 +70,7 @@ public sealed partial class EnterpriseAccessImplementationTests
         Assert.Contains("| EA-01 | P0 | Done | Add identity-binding schema.", enterpriseGate, StringComparison.Ordinal);
         Assert.Contains("| EA-03 | P0 | Done | Add access audit event model.", enterpriseGate, StringComparison.Ordinal);
         Assert.Contains("| EA-04 | P0 | Done | Add generic OIDC authentication.", enterpriseGate, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
 
         Assert.Contains("IPrincipalResolver", principalResolver, StringComparison.Ordinal);
         Assert.Contains("ResolveApiKeyAsync", principalResolver, StringComparison.Ordinal);

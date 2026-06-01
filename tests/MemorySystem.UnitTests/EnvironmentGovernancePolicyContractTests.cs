@@ -177,7 +177,7 @@ public sealed class EnvironmentGovernancePolicyContractTests
             index,
             StringComparison.Ordinal);
         Assert.Contains("environment-governance-policy-gc01.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
     }
 
     private static EnvironmentGovernancePolicy CreatePolicy(string environment)

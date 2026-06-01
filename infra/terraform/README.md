@@ -73,6 +73,7 @@ definitions:
 | Restore validation | `/app/scripts/platform-restore-validation.sh` |
 | Retention minimization | `/app/scripts/platform-retention-minimization.sh` |
 | External payload retention check | `/app/scripts/platform-external-payload-retention-check.sh` |
+| Compliance evidence package | `/app/scripts/platform-compliance-evidence-package.sh` |
 | Demo seeder | `dotnet /app/seeder/MemorySystem.DemoSeeder.dll --migrations-directory /app/migrations` |
 
 The backup and restore scripts expect libpq-compatible PostgreSQL environment
@@ -87,6 +88,9 @@ governance evidence/metrics under `/tmp/memorysystem-governance-evidence`.
 External payload retention check defaults to audit-only disabled-policy mode and
 writes payload-safe pointer-state evidence/metrics under the same governance
 evidence directory.
+Compliance evidence package defaults to draft mode and writes a payload-safe
+manifest, artifact index, hash sidecar, and metrics under
+`/tmp/memorysystem-compliance-evidence`.
 Benchmark-gate and platform-smoke jobs remain future job contracts for later
 slices, but their commands are referenced by the PI-07 release checklist
 contract so release records can point at one stable evidence path.

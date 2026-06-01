@@ -531,6 +531,34 @@ groups:
           description: Latest verify-mode external payload-store retention check failed or found provider state mismatches.
           runbook_url: docs/production-observability.md#governance-and-human-workflow
 
+      - alert: MemorySystemComplianceEvidencePackageMetricsMissing
+        expr: absent(memorysystem_compliance_evidence_package_success) or absent(memorysystem_compliance_evidence_package_artifacts) or absent(memorysystem_compliance_evidence_package_present_artifacts) or absent(memorysystem_compliance_evidence_package_missing_artifacts) or absent(memorysystem_compliance_evidence_package_missing_required_artifacts) or absent(memorysystem_compliance_evidence_package_manifest_bytes) or absent(memorysystem_compliance_evidence_package_timestamp_seconds)
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: compliance_evidence_package_missing
+        annotations:
+          summary: Memory System compliance evidence package metrics are missing.
+          description: The compliance evidence package job has not emitted the required evidence metrics.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
+      - alert: MemorySystemComplianceEvidencePackageFailed
+        expr: max(memorysystem_compliance_evidence_package_success{mode="strict"}) == 0 or max(memorysystem_compliance_evidence_package_missing_required_artifacts{mode="strict"}) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          route: ticket
+          owner: memorysystem-platform-maintainers
+          area: governance
+          signal: compliance_evidence_package
+        annotations:
+          summary: Memory System compliance evidence package failed.
+          description: Latest strict-mode compliance evidence package failed or missed required evidence artifacts.
+          runbook_url: docs/production-observability.md#governance-and-human-workflow
+
       - alert: MemorySystemBenchmarkGateMetricMissing
         expr: absent(memorysystem_benchmark_agent_contract_success)
         for: 15m

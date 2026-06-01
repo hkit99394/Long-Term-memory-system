@@ -36,6 +36,6 @@ public sealed partial class EnterpriseAccessImplementationTests
         Assert.Contains("./scripts/enterprise-access-migration-rollback-smoke.sh", enterpriseGate, StringComparison.Ordinal);
         Assert.Contains("| EA-09 | P1 | Done | Document pilot operator runbook.", backlog, StringComparison.Ordinal);
         Assert.Contains("| EA-10 | P1 | Done | Evaluate directory sync.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
     }
 }

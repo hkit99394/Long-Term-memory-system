@@ -197,6 +197,8 @@ Minimum governance metrics:
   expected-absent counts, verified present/absent counts, unverified targets,
   policy violations, unsupported schemes, state mismatches, probe failures, and
   failure count
+- compliance evidence package success, artifact count, present/missing artifact
+  counts, missing required artifact count, manifest byte size, and timestamp
 
 Initial alert signals:
 
@@ -205,6 +207,8 @@ Initial alert signals:
 - retention minimization metrics are missing or execute-mode validation fails
 - external payload retention metrics are missing or verify-mode provider checks
   fail
+- compliance evidence package metrics are missing or strict-mode package
+  generation misses required artifacts
 - redaction or delete workflow fails after an operator action
 
 ## Tracing Contract
@@ -226,6 +230,7 @@ When distributed tracing is added, the pilot should include spans for:
 - embedding provider call
 - retention minimization batch
 - external payload retention check
+- compliance evidence package generation
 
 Trace attributes must avoid raw memory content, raw query text, raw event
 payloads, proposal notes, review notes, and embedding input text. Prefer ids,

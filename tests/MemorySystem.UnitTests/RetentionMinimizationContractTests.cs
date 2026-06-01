@@ -28,11 +28,12 @@ public sealed class RetentionMinimizationContractTests
         Assert.Contains("scripts/platform-retention-minimization.sh", retentionPolicy, StringComparison.Ordinal);
         Assert.Contains("| GC-04 | P0 | Done | Implement standard and audit retention minimization.", backlog, StringComparison.Ordinal);
         Assert.Contains("| GC-05 | P1 | Done | Check external payload-store retention.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-06 | P1 | Todo | Generate compliance evidence package.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-06 | P1 | Done | Generate compliance evidence package.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-07 | P1 | Todo | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Standard And Audit Retention Minimization GC-04](standard-audit-retention-minimization-gc04.md)", index, StringComparison.Ordinal);
         Assert.Contains("standard-audit-retention-minimization-gc04.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-06`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-06`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("The next move should be `GC-07`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to `GC-07`", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.retention_minimization\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_RETENTION_MINIMIZATION_MODE", script, StringComparison.Ordinal);

@@ -131,6 +131,6 @@ project memory.
 ## Follow-On Work
 
 GC-04 now builds on this by adding standard and audit retention minimization.
-GC-05 now adds external payload-store retention checks. GC-06 can link erasure
+GC-05 now adds external payload-store retention checks. GC-06 links erasure
 replay and external payload evidence into a compliance evidence package without
 changing the payload-safety boundary.

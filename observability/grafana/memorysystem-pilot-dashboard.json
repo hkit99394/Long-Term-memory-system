@@ -232,7 +232,14 @@
         { "refId": "T", "expr": "memorysystem_external_payload_retention_mismatches" },
         { "refId": "U", "expr": "memorysystem_external_payload_retention_probe_failures" },
         { "refId": "V", "expr": "memorysystem_external_payload_retention_failures" },
-        { "refId": "W", "expr": "memorysystem_external_payload_retention_timestamp_seconds" }
+        { "refId": "W", "expr": "memorysystem_external_payload_retention_timestamp_seconds" },
+        { "refId": "X", "expr": "memorysystem_compliance_evidence_package_success" },
+        { "refId": "Y", "expr": "memorysystem_compliance_evidence_package_artifacts" },
+        { "refId": "Z", "expr": "memorysystem_compliance_evidence_package_present_artifacts" },
+        { "refId": "AA", "expr": "memorysystem_compliance_evidence_package_missing_artifacts" },
+        { "refId": "AB", "expr": "memorysystem_compliance_evidence_package_missing_required_artifacts" },
+        { "refId": "AC", "expr": "memorysystem_compliance_evidence_package_manifest_bytes" },
+        { "refId": "AD", "expr": "memorysystem_compliance_evidence_package_timestamp_seconds" }
       ]
     },
     {

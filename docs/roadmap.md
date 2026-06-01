@@ -12,7 +12,7 @@ Long Run gate scoping is active.
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
 Next milestone: governance and compliance implementation, continuing with the
-compliance evidence package.
+governance/compliance admin console view.
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -29,8 +29,9 @@ Terraform platform layout, managed PostgreSQL/pgvector resources,
 backup/restore automation, governance/compliance scope, the first environment
 governance policy contract, permission-drift reporting, backup erasure replay
 validation, standard/audit retention minimization, and external payload-store
-retention checks for enterprise access, context productization, Domain
-extraction, production platform integration, and compliance evidence.
+retention checks, and compliance evidence packages for enterprise access,
+context productization, Domain extraction, production platform integration, and
+compliance evidence.
 
 ## Milestones
 
