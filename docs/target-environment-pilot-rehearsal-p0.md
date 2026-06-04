@@ -2,7 +2,7 @@
 
 Date created: 2026-06-04
 
-Status: planned; execution is pending the intended pilot environment.
+Status: local pilot-equivalent evidence attached; external go/no-go is NO-GO.
 
 ## Purpose
 
@@ -106,8 +106,39 @@ Release owner signature:
 Rollback owner signature:
 ```
 
+## Evidence Attached
+
+[Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md)
+records the 2026-06-04 local pilot-equivalent evidence for EPR-02 and EPR-03:
+
+- `scripts/production-pilot-deployment-smoke.sh` passed with separate migrator,
+  API, worker, backup/restore, pgvector, metrics, authenticated read/write, and
+  rollback validation.
+- `scripts/benchmark-release-gate.sh` passed with Memory Lift `+1.500`,
+  Contract Lift `+2.000`, zero scoped-safety leaks, zero stale-memory usage, and
+  source-link coverage `1.000`.
+- `benchmarks/agent-contract-usefulness-v1/run_smoke.py` passed all `8` live
+  LMSS v1 tool-response tasks, including ACU-003 contradiction-overlay handling.
+- `scripts/governance-compliance-release-smoke.sh` passed the strict
+  governance/compliance evidence smoke.
+- `scripts/observability-artifacts-smoke.sh` passed artifact validation for
+  metric inputs, alert rules, alert routes, dashboard panels, and trace spans.
+
+This evidence is payload-safe and local. The raw smoke responses, generated
+benchmark outputs, and backup dump are local or ignored artifacts; they are not
+committed.
+
+## Go/No-Go Attached
+
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+records the current external-pilot decision as NO-GO. The decision is blocked by
+missing target-environment evidence upload, real alert receiver acknowledgement,
+rollback boundary, communication route, and release-owner/rollback-owner
+signatures.
+
 ## Current P0 State
 
-This runbook completes the repo-side planning artifact for P0. The external
-pilot invite remains blocked until the checklist is executed against the
-intended pilot environment and the go/no-go record is signed.
+EPR-02 and EPR-03 have local pilot-equivalent evidence attached. EPR-04 has a
+formal NO-GO record. The external pilot invite remains blocked until that record
+is replaced by a signed GO record with the controlled evidence prefix, real alert
+receiver acknowledgement, rollback boundary, and communication route.

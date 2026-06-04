@@ -110,6 +110,22 @@ External invite can move to go when all of these are true:
    equivalent controlled audit store.
 7. A named rollback owner signs the pilot go/no-go record.
 
+## 2026-06-04 EPR Update
+
+[Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md)
+adds fresh local pilot-equivalent evidence for EPR-02 and EPR-03: deployment
+smoke, benchmark release gate, live eight-task agent-contract smoke,
+governance/compliance smoke, backup/restore validation, and alert artifact
+validation all passed.
+
+This update narrows the remaining external-pilot blocker to EPR-04: controlled
+evidence-prefix confirmation, real alert receiver acknowledgement, rollback
+boundary, communication route, and release-owner/rollback-owner signatures.
+
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+now records that blocker as a formal NO-GO decision. The first external pilot
+user must not be invited until a signed GO replacement record is attached.
+
 ## Next Move
 
 Run a target-environment pilot rehearsal. Use the

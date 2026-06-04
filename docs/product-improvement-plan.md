@@ -347,3 +347,11 @@ rerun the benchmark release gate with the intended pilot model and fresh
 scorecards, rerun the governance/compliance release smoke or platform
 equivalent, upload the evidence bundle, verify alert receiver acknowledgement,
 and get rollback-owner signoff.
+
+2026-06-04 update: EPR-02 and EPR-03 now have local pilot-equivalent evidence
+attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md).
+The remaining P0 blocker is EPR-04 signoff with the controlled evidence prefix,
+real alert receiver acknowledgement, rollback boundary, communication route, and
+release-owner/rollback-owner signatures.
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+records the current decision as NO-GO until those inputs are attached.

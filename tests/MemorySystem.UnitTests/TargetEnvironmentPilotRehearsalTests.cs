@@ -12,26 +12,52 @@ public sealed class TargetEnvironmentPilotRehearsalTests
         var roadmap = File.ReadAllText(Path.Combine(root, "docs", "roadmap.md"));
         var readinessReview = File.ReadAllText(Path.Combine(root, "docs", "pilot-readiness-evidence-review-2026-06-01.md"));
         var releaseChecklist = File.ReadAllText(Path.Combine(root, "docs", "production-release-checklists-pi07.md"));
+        var evidence = File.ReadAllText(Path.Combine(root, "docs", "pilot-release-evidence-epr03-2026-06-04.md"));
+        var goNoGo = File.ReadAllText(Path.Combine(root, "docs", "external-pilot-go-no-go-epr04-2026-06-04.md"));
 
         Assert.Contains("# Target-Environment Pilot Rehearsal P0", rehearsal, StringComparison.Ordinal);
-        Assert.Contains("Status: planned; execution is pending the intended pilot environment.", rehearsal, StringComparison.Ordinal);
+        Assert.Contains("Status: local pilot-equivalent evidence attached; external go/no-go is NO-GO.", rehearsal, StringComparison.Ordinal);
         Assert.Contains("release_evidence_bucket", rehearsal, StringComparison.Ordinal);
         Assert.Contains("scripts/production-pilot-deployment-smoke.sh", rehearsal, StringComparison.Ordinal);
         Assert.Contains("scripts/benchmark-release-gate.sh", rehearsal, StringComparison.Ordinal);
         Assert.Contains("scripts/governance-compliance-release-smoke.sh", rehearsal, StringComparison.Ordinal);
         Assert.Contains("Alert receiver acknowledgement", rehearsal, StringComparison.Ordinal);
+        Assert.Contains("Pilot Release Evidence EPR-03", rehearsal, StringComparison.Ordinal);
+        Assert.Contains("External Pilot Go/No-Go EPR-04", rehearsal, StringComparison.Ordinal);
         Assert.Contains("Release owner signature", rehearsal, StringComparison.Ordinal);
         Assert.Contains("Rollback owner signature", rehearsal, StringComparison.Ordinal);
 
         Assert.Contains("[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md)", index, StringComparison.Ordinal);
+        Assert.Contains("[Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md)", index, StringComparison.Ordinal);
+        Assert.Contains("[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)", index, StringComparison.Ordinal);
         Assert.Contains("## External Pilot Readiness P0", backlog, StringComparison.Ordinal);
         Assert.Contains("| EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| EPR-02 | P0 | Todo | Run target-environment deployment smoke.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| EPR-03 | P0 | Todo | Attach fresh pilot release evidence.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| EPR-04 | P0 | Todo | Sign the external-pilot go/no-go record.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| EPR-02 | P0 | Done | Run target-environment deployment smoke.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| EPR-03 | P0 | Done | Attach fresh pilot release evidence.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| EPR-04 | P0 | Blocked | Sign the external-pilot go/no-go record.", backlog, StringComparison.Ordinal);
         Assert.Contains("Target-Environment Pilot Rehearsal P0", roadmap, StringComparison.Ordinal);
+        Assert.Contains("External Pilot Go/No-Go EPR-04", roadmap, StringComparison.Ordinal);
         Assert.Contains("Target-Environment Pilot Rehearsal P0", readinessReview, StringComparison.Ordinal);
+        Assert.Contains("Pilot Release Evidence EPR-03", readinessReview, StringComparison.Ordinal);
+        Assert.Contains("External Pilot Go/No-Go EPR-04", readinessReview, StringComparison.Ordinal);
         Assert.Contains("Target-Environment Pilot Rehearsal P0", releaseChecklist, StringComparison.Ordinal);
+
+        Assert.Contains("# Pilot Release Evidence EPR-03", evidence, StringComparison.Ordinal);
+        Assert.Contains("EPR-02 and EPR-03 local pilot-equivalent evidence attached", evidence, StringComparison.Ordinal);
+        Assert.Contains("scripts/production-pilot-deployment-smoke.sh", evidence, StringComparison.Ordinal);
+        Assert.Contains("benchmarks/outputs/epr03-pilot-release/latest.json", evidence, StringComparison.Ordinal);
+        Assert.Contains("agent-contract-live-smoke.run.json", evidence, StringComparison.Ordinal);
+        Assert.Contains("Fresh live agent-contract smoke | Passed, `8` tasks passed and `0` failed", evidence, StringComparison.Ordinal);
+        Assert.Contains("real receiver acknowledgement is not available in this workspace", evidence, StringComparison.Ordinal);
+        Assert.Contains("EPR-04 remains the external-pilot blocker", evidence, StringComparison.Ordinal);
+
+        Assert.Contains("# External Pilot Go/No-Go EPR-04", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Status: NO-GO recorded; external pilot invite remains blocked.", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Decision: NO-GO", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Release owner signature: Not signed", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Rollback owner signature: Not signed", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Required To Flip To GO", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("Recommended Next Work", goNoGo, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

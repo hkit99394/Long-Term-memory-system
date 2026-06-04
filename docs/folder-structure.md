@@ -367,6 +367,8 @@ Rules:
 | `docs/governance-compliance-release-smoke-gc08.md` | GC-08 governance/compliance release smoke contract. |
 | `docs/pilot-readiness-evidence-review-2026-06-01.md` | Pilot readiness evidence review and external invite go/no-go decision. |
 | `docs/target-environment-pilot-rehearsal-p0.md` | P0 target-environment pilot rehearsal runbook, evidence checklist, and go/no-go template. |
+| `docs/pilot-release-evidence-epr03-2026-06-04.md` | Payload-safe EPR-02/EPR-03 local pilot-equivalent release evidence record. |
+| `docs/external-pilot-go-no-go-epr04-2026-06-04.md` | EPR-04 external-pilot NO-GO decision record and GO replacement requirements. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

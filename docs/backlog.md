@@ -177,9 +177,9 @@ produced. The next focus is the P0 target-environment pilot rehearsal defined in
 | ID | Priority | Status | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- |
 | EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook. | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) names required inputs, gates, evidence, owners, pass/fail criteria, and the go/no-go template. |
-| EPR-02 | P0 | Todo | Run target-environment deployment smoke. | The migrator, API, and worker roles run against the intended pilot account/database; health, authenticated read/write smoke, worker heartbeat, metrics, and rollback rehearsal evidence are uploaded to the controlled evidence location. |
-| EPR-03 | P0 | Todo | Attach fresh pilot release evidence. | Fresh pilot-model benchmark scorecards, agent-contract smoke, governance/compliance release smoke or platform equivalent, backup/PITR or backup/export plus restore validation, and alert receiver acknowledgement are attached under `release_evidence_bucket` or equivalent. |
-| EPR-04 | P0 | Todo | Sign the external-pilot go/no-go record. | The release owner and named rollback owner sign a final decision record with evidence prefix, rollback boundary, communication route, and invite decision before any external pilot user is invited. |
+| EPR-02 | P0 | Done | Run target-environment deployment smoke. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) records the local pilot-equivalent deployment smoke: migrator, API, worker, health, authenticated read/write smoke, worker heartbeat, metrics, backup/restore, pgvector, and rollback rehearsal all passed. |
+| EPR-03 | P0 | Done | Attach fresh pilot release evidence. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) attaches payload-safe release evidence for the benchmark gate, fresh live agent-contract smoke, governance/compliance release smoke, backup/restore validation, and alert artifact validation; real receiver acknowledgement and controlled audit-store upload remain EPR-04 sign-off inputs. |
+| EPR-04 | P0 | Blocked | Sign the external-pilot go/no-go record. | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) records a formal NO-GO because the controlled evidence prefix, real alert receiver acknowledgement, rollback boundary, communication route, and release-owner/rollback-owner signatures are not available in the workspace. |
 
 ## Middle Run Production Pilot
 

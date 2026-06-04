@@ -40,6 +40,14 @@ The target-environment pilot rehearsal is now tracked as `EPR-*` P0 work in the
 backlog. It is the bridge from local production-pilot credibility to an external
 pilot invite decision.
 
+As of 2026-06-04, EPR-02 and EPR-03 have local pilot-equivalent evidence
+attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md).
+EPR-04 remains the external-pilot gate: controlled evidence-prefix confirmation,
+real alert receiver acknowledgement, rollback boundary, communication route,
+and owner signatures.
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+records the current decision as NO-GO until those inputs are attached.
+
 ## Milestones
 
 | Milestone | Theme | Outcome | Exit Criteria |
