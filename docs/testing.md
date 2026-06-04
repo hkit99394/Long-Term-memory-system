@@ -107,6 +107,19 @@ bash -n scripts/platform-erasure-replay-ledger-export.sh
 bash -n scripts/platform-external-payload-retention-check.sh
 bash -n scripts/platform-retention-minimization.sh
 bash -n scripts/platform-restore-validation.sh
+bash -n scripts/governance-compliance-release-smoke.sh
+```
+
+## Governance/Compliance Release Smoke
+
+Use this before pilot readiness review or after changing governance policy,
+permission drift, audit export, retention minimization, erasure replay, or
+compliance evidence packaging. The command creates an isolated database fixture,
+generates payload-safe evidence, and requires the strict GC-06 evidence package
+to include every required artifact.
+
+```bash
+./scripts/governance-compliance-release-smoke.sh
 ```
 
 ## Operations Metrics Smoke

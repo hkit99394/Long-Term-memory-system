@@ -35,7 +35,7 @@ public sealed class GovernanceComplianceGateTests
         var backlog = File.ReadAllText(backlogPath);
         Assert.Contains("| LR-06 | P1 | Done | Scope governance and compliance gate.", backlog, StringComparison.Ordinal);
         Assert.Contains("| GC-01 | P0 | Done | Define environment governance policy contract.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-08 | P1 | Todo | Add governance/compliance release smoke.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-08 | P1 | Done | Add governance/compliance release smoke.", backlog, StringComparison.Ordinal);
 
         var index = File.ReadAllText(indexPath);
         Assert.Contains("[Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)", index, StringComparison.Ordinal);
@@ -48,7 +48,7 @@ public sealed class GovernanceComplianceGateTests
         Assert.Contains("[Decision 0048](decisions/0048-governance-compliance-gate.md)", roadmap, StringComparison.Ordinal);
 
         var productPlan = File.ReadAllText(productPlanPath);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

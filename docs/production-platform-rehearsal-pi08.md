@@ -149,7 +149,10 @@ report. GC-03 now adds payload-safe backup erasure replay validation. GC-04 now
 adds standard and audit retention minimization. GC-05 now adds external
 payload-store retention checks. GC-06 now adds compliance evidence package
 generation. GC-07 now adds the governance/compliance admin console view. The
-next implementation slice is `GC-08`, the governance/compliance release smoke.
+GC-08 release smoke now verifies the governance/compliance evidence chain. The
+pilot readiness evidence review now records a no-go for external invite until
+target-environment evidence is produced. The next implementation move is a
+target-environment pilot rehearsal.
 
 Recommended sequence:
 
@@ -179,4 +182,7 @@ Recommended sequence:
 17. Done: `GC-05` checks external payload-store retention.
 18. Done: `GC-06` generates the compliance evidence package.
 19. Done: `GC-07` adds the governance/compliance admin console view.
-20. Next: `GC-08` adds the governance/compliance release smoke.
+20. Done: `GC-08` adds the governance/compliance release smoke.
+21. Done: run the pilot readiness evidence review.
+22. Next: run a target-environment pilot rehearsal before inviting the first
+    external pilot user.

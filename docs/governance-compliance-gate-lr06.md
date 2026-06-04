@@ -210,7 +210,7 @@ Outputs:
 | GC-05 | P1 | Done | Check external payload-store retention. | [External Payload Retention Check GC-05](external-payload-retention-check-gc05.md), `scripts/platform-external-payload-retention-check.sh`, and the platform runtime contract inspect `external_payload_uri` rows, classify expected provider object state from PostgreSQL lifecycle state, probe supported providers in verify mode, reject disabled-policy pointers, and emit payload-safe evidence and metrics without logging URI content, payload bytes, or secret material. |
 | GC-06 | P1 | Done | Generate compliance evidence package. | [Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md), `scripts/platform-compliance-evidence-package.sh`, and the platform runtime contract create a payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, and metrics that link audit export, retention report, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, external payload, and permission-drift evidence without embedding raw payloads. |
 | GC-07 | P1 | Done | Add governance/compliance admin console view. | [Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md) adds `/api/admin/compliance/status` and a `/admin/` Compliance view that surfaces retention, erasure replay, legal hold, permission drift, and evidence package status with links to existing payload-safe reports and no raw source payloads in lists. |
-| GC-08 | P1 | Todo | Add governance/compliance release smoke. | A repeatable smoke command verifies policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and evidence manifest creation against an isolated database. |
+| GC-08 | P1 | Done | Add governance/compliance release smoke. | [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md) and `scripts/governance-compliance-release-smoke.sh` verify policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and strict compliance evidence manifest creation against an isolated database. |
 
 ## Risk Register
 
@@ -230,6 +230,7 @@ LR-06 is complete when:
 - this plan exists and is linked from the documentation index
 - Decision 0048 accepts the governance and compliance gate boundary
 - `docs/backlog.md` marks LR-06 done and adds `GC-*` follow-on work
-- product planning points to `GC-08` as the next implementation slice
+- product planning points to a target-environment pilot rehearsal before
+  inviting the first external pilot user
 - a doc guard test verifies the plan, decision, backlog, and index links
 - no schema, endpoint, or runtime behavior changes are introduced by the slice

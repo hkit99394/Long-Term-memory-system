@@ -24,6 +24,7 @@ fields:
 | Health | `/health/live`, `/health/ready`, worker heartbeat when a worker is running, and authenticated smoke result when an API is running. |
 | Metrics | Metrics snapshot, OpenTelemetry exporter status when configured, and operations metrics smoke result. |
 | Benchmark gate | `scripts/benchmark-release-gate.sh` output or a dry-run report that explains why the gate was not required for the environment. |
+| Governance/compliance smoke | `scripts/governance-compliance-release-smoke.sh` output or target-environment equivalent when the release touches policy, authorization, retention, erasure replay, audit export, or evidence packaging. |
 | Backup/restore | Backup freshness, restore validation result, or local `scripts/backup-restore-smoke.sh` result. |
 | Rollback owner | Human owner, contact route, rollback decision point, and rollback command or procedure link. |
 | Alert routing | Alert owner, route destination, silence policy, runbook link, and route-test evidence such as `memorysystem_alert_route_test`. |
@@ -43,6 +44,7 @@ observe, benchmark, back up, and restore the system.
 | Health | Start the API locally and verify `/health/live` and `/health/ready`, or use `scripts/production-pilot-deployment-smoke.sh`. | HTTP status output and API log path. |
 | Metrics | Run `scripts/operations-metrics-smoke.sh` against the local API and `scripts/observability-artifacts-smoke.sh` for checked-in alert, dashboard, trace, and routing artifacts. | Metrics snapshot and observability smoke output. |
 | Benchmark gate | Run `scripts/benchmark-release-gate.sh` with filled local scorecards, or record a dry run when the release has no retrieval, ranking, policy, or contract impact. | Release-gate report path. |
+| Governance/compliance smoke | Run `scripts/governance-compliance-release-smoke.sh` when the release touches policy, authorization, retention, erasure replay, audit export, or evidence packaging. | Smoke output and evidence manifest path. |
 | Backup/restore | Run `scripts/backup-restore-smoke.sh` against the local Docker PostgreSQL database. | Backup file name, restore validation database, and table-count output. |
 | Rollback owner | Name the person who will revert the local branch, stop local processes, or restore the local database if smoke tests fail. | Rollback owner and rollback note in the local release manifest. |
 | Alert routing | Run `scripts/observability-artifacts-smoke.sh` and confirm the checked-in pilot and production route tests include `memorysystem_alert_route_test`. | Alert routing smoke output. |
@@ -58,6 +60,7 @@ dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.cs
 scripts/observability-artifacts-smoke.sh
 scripts/backup-restore-smoke.sh
 scripts/benchmark-release-gate.sh
+scripts/governance-compliance-release-smoke.sh
 ```
 
 ## CI Release Checklist
@@ -72,6 +75,7 @@ reason when database-backed migration or backup/restore checks are skipped.
 | Health | Run build and non-database integration tests; for container jobs, verify API health through the production-pilot smoke script. | Build/test logs and health output when a container is started. |
 | Metrics | Run `scripts/observability-artifacts-smoke.sh`; when CI starts the API, set `MEMORYSYSTEM_OBSERVABILITY_VALIDATE_LIVE_METRICS=true` so `scripts/operations-metrics-smoke.sh` also runs. | Observability artifact smoke output and optional metrics snapshot. |
 | Benchmark gate | Run `scripts/benchmark-release-gate.sh` for release branches, or attach the latest benchmark artifact check for ordinary pull requests. | Benchmark report or explicit skip reason. |
+| Governance/compliance smoke | Run `scripts/governance-compliance-release-smoke.sh` when PostgreSQL is available, or attach an explicit skip reason plus the latest DB-backed governance test report. | Smoke output, test report, or skip record. |
 | Backup/restore | Run `scripts/backup-restore-smoke.sh` when Docker PostgreSQL is available; otherwise attach the backup/restore test report and skip reason. | Restore smoke output or skip record. |
 | Rollback owner | Assign the release engineer or merge-train owner who can revert the change and pause deployment. | CI release manifest field. |
 | Alert routing | Validate alert route labels, owners, runbook links, silence policy, and `memorysystem_alert_route_test` through `scripts/observability-artifacts-smoke.sh`. | Alert routing validation output. |
@@ -102,6 +106,7 @@ back up, restore, and roll back the service with real platform wiring.
 | Health | Verify API `/health/live`, API `/health/ready`, worker heartbeat freshness, authenticated read smoke, and write-path smoke when the release touches writes, broker policy, context, indexing, review, export, or governance. | Health response, worker heartbeat timestamp, and smoke output. |
 | Metrics | Verify `/api/operations/summary`, `/api/operations/metrics`, OpenTelemetry exporter health, and alert input freshness through `scripts/operations-metrics-smoke.sh` or the platform equivalent. | Metrics snapshot and exporter status. |
 | Benchmark gate | Attach a fresh `scripts/benchmark-release-gate.sh` report for the pilot target model and fixture set. | Benchmark report with Memory Lift, Contract Lift, scoped-safety leaks, stale-memory usage, source-link coverage, and agent-contract smoke. |
+| Governance/compliance smoke | Run the governance/compliance release smoke or platform equivalent against the pilot database/evidence target before inviting users. | Strict evidence package manifest, artifact index, policy evidence, and smoke output. |
 | Backup/restore | Confirm backup freshness before migration and run restore-to-new-database validation after deployment. | Backup evidence JSON, restore validation evidence JSON, and backup/restore metrics. |
 | Rollback owner | Record the pilot rollback owner, decision deadline, previous image digest, rollback command, database restore boundary, and communication route. | Release manifest and rollback note. |
 | Alert routing | Fire or simulate the pilot route test with `memorysystem_alert_route_test{environment="pilot"} == 1`, verify owner, destination, silence policy, and runbook link. | Alert route-test result and receiver acknowledgement. |
@@ -127,6 +132,7 @@ evidence.
 | Health | Verify API `/health/live`, API `/health/ready`, worker heartbeat freshness, authenticated read smoke, write-path smoke when applicable, and no elevated 5xx or readiness failures after rollout. | Health output, smoke output, dashboard snapshot, and incident channel note. |
 | Metrics | Confirm OpenTelemetry exporter health, `/api/operations/metrics`, PostgreSQL health, outbox age, dead-letter count, retrieval feedback metrics, review/vault/governance metrics, and backup/restore metrics. | Metrics snapshot and dashboard link. |
 | Benchmark gate | Attach the final `scripts/benchmark-release-gate.sh` report for the production-intended model and fixtures. The release fails on unauthorized leaks, stale-memory usage, missing source-link coverage, or failed agent-contract smoke. | Final benchmark report and go/no-go summary. |
+| Governance/compliance smoke | Attach the final governance/compliance release smoke or platform equivalent, including strict evidence package artifacts and policy evidence for the target environment. | Compliance evidence package manifest, artifact index, SHA-256 sidecar, and go/no-go summary. |
 | Backup/restore | Attach managed PostgreSQL backup/PITR status, latest backup export evidence, latest restore-to-new-database validation result, restore rehearsal window, and known data-loss window. | Backup/restore evidence and recovery-point note. |
 | Rollback owner | Record the named rollback owner, escalation fallback, previous image digest, rollback command, database restore boundary, and the exact decision time after deployment. | Signed release manifest. |
 | Alert routing | Verify page, ticket, and info alert routes, current on-call owner, escalation fallback, silence policy, runbook links, and `memorysystem_alert_route_test{environment="production"} == 1`. | Alert route-test evidence and receiver acknowledgement. |
@@ -161,5 +167,7 @@ these conditions hold:
 PI-08 used this checklist as the rehearsal script for an isolated pilot
 environment. See [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)
 for the completed pilot checklist, local evidence notes, and rollback decision.
-Future external pilot rehearsals should attach the release evidence object
-prefix and every rollback decision made during the run.
+Future external pilot rehearsals should use
+[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md),
+then attach the release evidence object prefix and every rollback decision made
+during the run.

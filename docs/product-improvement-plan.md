@@ -336,8 +336,14 @@ payload-safe evidence. GC-06 now adds the compliance evidence package with a
 payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, strict mode, and
 metrics. GC-07 now adds the governance/compliance admin console view with a
 payload-safe status endpoint and links to retention, legal hold, erasure replay,
-permission drift, and evidence package surfaces. The next move should be `GC-08`:
-add the governance/compliance release smoke.
-Before inviting an external pilot user, rerun the
-benchmark release gate with the intended pilot model, fresh scorecards, and a
-fresh live smoke artifact from the target environment.
+permission drift, and evidence package surfaces. GC-08 now adds the repeatable
+governance/compliance release smoke for policy config, permission drift, audit
+export, retention dry run, erasure replay, and strict evidence packaging. The
+pilot readiness evidence review ran on 2026-06-01 and recorded a no-go for
+inviting the first external pilot user until target-environment evidence is
+produced. The next move should be a target-environment pilot rehearsal using
+[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md):
+rerun the benchmark release gate with the intended pilot model and fresh
+scorecards, rerun the governance/compliance release smoke or platform
+equivalent, upload the evidence bundle, verify alert receiver acknowledgement,
+and get rollback-owner signoff.

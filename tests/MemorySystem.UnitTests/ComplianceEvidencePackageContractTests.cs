@@ -30,8 +30,8 @@ public sealed class ComplianceEvidencePackageContractTests
         Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md)", index, StringComparison.Ordinal);
         Assert.Contains("compliance-evidence-package-gc06.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to a target-environment pilot rehearsal", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.compliance_evidence_package\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_COMPLIANCE_EVIDENCE_PACKAGE_MODE", script, StringComparison.Ordinal);

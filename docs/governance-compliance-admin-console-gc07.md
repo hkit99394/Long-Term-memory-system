@@ -37,8 +37,8 @@ counts, status names, paths, evidence kinds, and metric names only.
 | `compliance_evidence_package` | `scripts/platform-compliance-evidence-package.sh` | Reports `configured` and links the GC-06 package contract, audit export API, and package metrics. |
 
 The live counts intentionally stay limited to already-authorized legal-hold and
-retention queries. Platform job freshness remains a GC-08 smoke concern rather
-than a fake in-process status.
+retention queries. Platform job freshness remains a GC-08 release smoke concern
+rather than a fake in-process status.
 
 ## Payload Safety
 
@@ -79,7 +79,6 @@ MEMORYSYSTEM_TEST_POSTGRES_CONNECTION_STRING="Host=127.0.0.1;Port=55432;Database
 
 ## Next Slice
 
-GC-08 should turn this status map into a repeatable release smoke. The smoke
-should create or verify isolated evidence for policy config, permission drift,
-erasure replay, retention dry run, audit export, and the compliance evidence
-manifest.
+GC-08 turns this status map into a repeatable release smoke. The smoke creates
+or verifies isolated evidence for policy config, permission drift, erasure
+replay, retention dry run, audit export, and the compliance evidence manifest.

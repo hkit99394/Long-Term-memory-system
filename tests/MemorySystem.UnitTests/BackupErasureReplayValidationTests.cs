@@ -32,8 +32,8 @@ public sealed class BackupErasureReplayValidationTests
         Assert.Contains("| GC-04 | P0 | Done | Implement standard and audit retention minimization.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Backup Erasure Replay Validation GC-03](backup-erasure-replay-validation-gc03.md)", index, StringComparison.Ordinal);
         Assert.Contains("backup-erasure-replay-validation-gc03.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to a target-environment pilot rehearsal", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.erasure_replay_ledger_export\"", ledgerScript, StringComparison.Ordinal);
         Assert.Contains("COPY (", ledgerScript, StringComparison.Ordinal);

@@ -166,8 +166,20 @@ payload-safe backup erasure replay validation for restored databases. GC-04
 adds standard/audit retention minimization with dry-run and execute evidence.
 GC-05 adds payload-safe external payload-store retention checks for pointer
 rows. GC-06 adds the payload-safe compliance evidence package. GC-07 adds the
-payload-safe governance/compliance admin console view. The next focus is
-`GC-08`: add the governance/compliance release smoke.
+payload-safe governance/compliance admin console view. GC-08 adds the
+repeatable governance/compliance release smoke. The pilot readiness evidence
+review records a no-go for external invite until target-environment evidence is
+produced. The next focus is the P0 target-environment pilot rehearsal defined in
+[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md).
+
+## External Pilot Readiness P0
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook. | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) names required inputs, gates, evidence, owners, pass/fail criteria, and the go/no-go template. |
+| EPR-02 | P0 | Todo | Run target-environment deployment smoke. | The migrator, API, and worker roles run against the intended pilot account/database; health, authenticated read/write smoke, worker heartbeat, metrics, and rollback rehearsal evidence are uploaded to the controlled evidence location. |
+| EPR-03 | P0 | Todo | Attach fresh pilot release evidence. | Fresh pilot-model benchmark scorecards, agent-contract smoke, governance/compliance release smoke or platform equivalent, backup/PITR or backup/export plus restore validation, and alert receiver acknowledgement are attached under `release_evidence_bucket` or equivalent. |
+| EPR-04 | P0 | Todo | Sign the external-pilot go/no-go record. | The release owner and named rollback owner sign a final decision record with evidence prefix, rollback boundary, communication route, and invite decision before any external pilot user is invited. |
 
 ## Middle Run Production Pilot
 
@@ -244,7 +256,7 @@ payload-safe governance/compliance admin console view. The next focus is
 | GC-05 | P1 | Done | Check external payload-store retention. | [External Payload Retention Check GC-05](external-payload-retention-check-gc05.md), `scripts/platform-external-payload-retention-check.sh`, and the platform runtime contract inspect `external_payload_uri` rows, classify expected provider object state from PostgreSQL lifecycle state, probe supported providers in verify mode, reject disabled-policy pointers, and emit payload-safe evidence and metrics without logging URI content, payload bytes, or secret material. |
 | GC-06 | P1 | Done | Generate compliance evidence package. | [Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md), `scripts/platform-compliance-evidence-package.sh`, and the platform runtime contract create a payload-safe manifest, NDJSON artifact index, SHA-256 sidecar, and metrics that link audit export, retention report, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, external payload, and permission-drift evidence without embedding raw payloads. |
 | GC-07 | P1 | Done | Add governance/compliance admin console view. | [Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md) adds `/api/admin/compliance/status` and a `/admin/` Compliance view that surfaces retention, erasure replay, legal hold, permission drift, and evidence package status with links to existing payload-safe reports and no raw source payloads in lists. |
-| GC-08 | P1 | Todo | Add governance/compliance release smoke. | A repeatable smoke command verifies policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and evidence manifest creation against an isolated database. |
+| GC-08 | P1 | Done | Add governance/compliance release smoke. | [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md) and `scripts/governance-compliance-release-smoke.sh` verify policy config, permission-drift report generation, erasure replay evidence, retention dry run, audit export, and strict compliance evidence manifest creation against an isolated database. |
 
 ## Long Run Enterprise Access Implementation Backlog
 

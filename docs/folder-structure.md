@@ -273,6 +273,8 @@ GC-05 adds the external payload-store retention check under the same boundary.
 GC-06 adds the compliance evidence package command under `scripts/`. GC-07 adds
 the governance/compliance admin console contract under `docs/` and the
 payload-safe `/admin/` status surface under the existing API static assets.
+GC-08 adds the governance/compliance release smoke command under `scripts/` and
+its release-smoke contract under `docs/`.
 PI-05 wires
 runtime telemetry exporters, and PI-06 makes
 alert routing, owners, silencing, and environment route tests explicit in the
@@ -362,6 +364,9 @@ Rules:
 | `docs/external-payload-retention-check-gc05.md` | GC-05 external payload-store retention check contract. |
 | `docs/compliance-evidence-package-gc06.md` | GC-06 compliance evidence package manifest contract. |
 | `docs/governance-compliance-admin-console-gc07.md` | GC-07 governance/compliance admin console status contract. |
+| `docs/governance-compliance-release-smoke-gc08.md` | GC-08 governance/compliance release smoke contract. |
+| `docs/pilot-readiness-evidence-review-2026-06-01.md` | Pilot readiness evidence review and external invite go/no-go decision. |
+| `docs/target-environment-pilot-rehearsal-p0.md` | P0 target-environment pilot rehearsal runbook, evidence checklist, and go/no-go template. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

@@ -7,12 +7,14 @@ This roadmap turns the architecture plan into delivery milestones. The milestone
 ## Current Track
 
 Current milestone: Middle Run production-pilot hardening baseline is complete;
-Long Run gate scoping is active.
+Long Run implementation gates are closed through governance/compliance release
+smoke.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: governance and compliance implementation, continuing with the
-governance/compliance admin console view.
+Next milestone: target-environment pilot rehearsal before inviting the first
+external pilot user. Execute it with
+[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md).
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
 
@@ -29,9 +31,14 @@ Terraform platform layout, managed PostgreSQL/pgvector resources,
 backup/restore automation, governance/compliance scope, the first environment
 governance policy contract, permission-drift reporting, backup erasure replay
 validation, standard/audit retention minimization, and external payload-store
-retention checks, and compliance evidence packages for enterprise access,
+retention checks, compliance evidence packages, the governance/compliance admin
+console, and the governance/compliance release smoke for enterprise access,
 context productization, Domain extraction, production platform integration, and
 compliance evidence.
+
+The target-environment pilot rehearsal is now tracked as `EPR-*` P0 work in the
+backlog. It is the bridge from local production-pilot credibility to an external
+pilot invite decision.
 
 ## Milestones
 

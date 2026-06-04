@@ -32,8 +32,8 @@ public sealed class RetentionMinimizationContractTests
         Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Standard And Audit Retention Minimization GC-04](standard-audit-retention-minimization-gc04.md)", index, StringComparison.Ordinal);
         Assert.Contains("standard-audit-retention-minimization-gc04.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to a target-environment pilot rehearsal", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.retention_minimization\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_RETENTION_MINIMIZATION_MODE", script, StringComparison.Ordinal);

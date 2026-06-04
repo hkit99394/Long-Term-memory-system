@@ -27,11 +27,11 @@ public sealed class GovernanceComplianceAdminConsoleContractTests
         Assert.Contains("raw source payloads are not included", contract, StringComparison.Ordinal);
 
         Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
-        Assert.Contains("| GC-08 | P1 | Todo | Add governance/compliance release smoke.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| GC-08 | P1 | Done | Add governance/compliance release smoke.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md)", index, StringComparison.Ordinal);
         Assert.Contains("governance-compliance-admin-console-gc07.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to a target-environment pilot rehearsal", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"/api/admin/compliance/status\"", endpoint, StringComparison.Ordinal);
         Assert.Contains("ReadComplianceStatusAsync", endpoint, StringComparison.Ordinal);

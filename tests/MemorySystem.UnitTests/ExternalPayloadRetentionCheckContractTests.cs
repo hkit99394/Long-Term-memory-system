@@ -33,8 +33,8 @@ public sealed class ExternalPayloadRetentionCheckContractTests
         Assert.Contains("| GC-07 | P1 | Done | Add governance/compliance admin console view.", backlog, StringComparison.Ordinal);
         Assert.Contains("[External Payload Retention Check GC-05](external-payload-retention-check-gc05.md)", index, StringComparison.Ordinal);
         Assert.Contains("external-payload-retention-check-gc05.md", folderStructure, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
-        Assert.Contains("product planning points to `GC-08`", governancePlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
+        Assert.Contains("product planning points to a target-environment pilot rehearsal", governancePlan, StringComparison.Ordinal);
 
         Assert.Contains("\"kind\": \"memorysystem.external_payload_retention_check\"", script, StringComparison.Ordinal);
         Assert.Contains("MEMORYSYSTEM_EXTERNAL_PAYLOAD_CHECK_MODE", script, StringComparison.Ordinal);

@@ -60,6 +60,6 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("[Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md)", platformPlan, StringComparison.Ordinal);
         Assert.Contains("PI-08 records the first isolated platform rehearsal", terraformReadme, StringComparison.Ordinal);
         Assert.Contains("| PI-08 | P1 | Done | Run first platform rehearsal.", backlog, StringComparison.Ordinal);
-        Assert.Contains("The next move should be `GC-08`", productPlan, StringComparison.Ordinal);
+        Assert.Contains("next move should be a target-environment pilot rehearsal", productPlan, StringComparison.Ordinal);
     }
 }

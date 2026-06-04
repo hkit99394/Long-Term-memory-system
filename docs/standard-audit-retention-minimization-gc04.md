@@ -129,4 +129,4 @@ this job because they still have `external_payload_uri`. GC-06 now links the
 retention, erasure replay, external payload, audit export, release, benchmark,
 alert-route, and permission-drift evidence into a compliance evidence package.
 GC-07 now surfaces that package in the governance/compliance admin console.
-GC-08 should add the release smoke that runs the compliance evidence chain.
+GC-08 now adds the release smoke that runs the compliance evidence chain.
