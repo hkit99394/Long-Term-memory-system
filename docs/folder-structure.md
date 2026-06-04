@@ -369,6 +369,10 @@ Rules:
 | `docs/target-environment-pilot-rehearsal-p0.md` | P0 target-environment pilot rehearsal runbook, evidence checklist, and go/no-go template. |
 | `docs/pilot-release-evidence-epr03-2026-06-04.md` | Payload-safe EPR-02/EPR-03 local pilot-equivalent release evidence record. |
 | `docs/external-pilot-go-no-go-epr04-2026-06-04.md` | EPR-04 external-pilot NO-GO decision record and GO replacement requirements. |
+| `docs/documentation-truth-cleanup-p1-2026-06-04.md` | P1 documentation reconciliation record for external-pilot readiness state. |
+| `docs/release-readiness-status-contract-p2.md` | P2 machine-readable release-readiness status contract notes. |
+| `docs/external-pilot-readiness-status.json` | Canonical current external-pilot readiness status for EPR gates and blockers. |
+| `docs/external-pilot-readiness-status.schema.json` | JSON Schema for the external-pilot readiness status contract. |
 | `docs/production-platform-baseline-pi01.md` | PI-01 selected platform, IaC, artifact, state/secrets, environment, and ownership baseline. |
 | `docs/decisions/` | Accepted architecture and implementation decisions. |
 | `docs/scenarios/` | End-to-end implementation scenarios with sample data and milestone expectations. |

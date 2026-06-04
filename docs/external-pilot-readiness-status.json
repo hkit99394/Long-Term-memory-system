@@ -1,0 +1,125 @@
+{
+  "$schema": "./external-pilot-readiness-status.schema.json",
+  "schemaVersion": 1,
+  "statusId": "external-pilot-readiness-2026-06-04",
+  "generatedAt": "2026-06-04",
+  "scope": "external-pilot",
+  "environment": {
+    "target": "pilot",
+    "evidenceMode": "local_pilot_equivalent",
+    "externalInvite": "blocked"
+  },
+  "decision": {
+    "status": "no_go",
+    "externalInviteApproved": false,
+    "record": "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+    "reason": "EPR-02 and EPR-03 have local pilot-equivalent evidence, but controlled target evidence, real alert acknowledgement, rollback boundary, communication route, and owner signatures are missing."
+  },
+  "canonicalDocuments": {
+    "runbook": "docs/target-environment-pilot-rehearsal-p0.md",
+    "localEvidence": "docs/pilot-release-evidence-epr03-2026-06-04.md",
+    "goNoGo": "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+    "truthCleanup": "docs/documentation-truth-cleanup-p1-2026-06-04.md",
+    "statusContract": "docs/release-readiness-status-contract-p2.md",
+    "backlog": "docs/backlog.md"
+  },
+  "gates": [
+    {
+      "id": "EPR-01",
+      "priority": "P0",
+      "status": "done",
+      "title": "Define the target-environment pilot rehearsal runbook.",
+      "summary": "Runbook names required inputs, gates, evidence, owners, pass/fail criteria, and go/no-go template.",
+      "evidence": [
+        "docs/target-environment-pilot-rehearsal-p0.md"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
+    },
+    {
+      "id": "EPR-02",
+      "priority": "P0",
+      "status": "done",
+      "title": "Run target-environment deployment smoke.",
+      "summary": "Local pilot-equivalent deployment smoke passed for migrator, API, worker, health, authenticated read/write, metrics, backup/restore, pgvector, and rollback validation.",
+      "evidence": [
+        "docs/pilot-release-evidence-epr03-2026-06-04.md"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
+    },
+    {
+      "id": "EPR-03",
+      "priority": "P0",
+      "status": "done",
+      "title": "Attach fresh pilot release evidence.",
+      "summary": "Payload-safe local release evidence is attached for benchmark gate, live agent-contract smoke, governance/compliance smoke, backup/restore validation, and alert artifact validation.",
+      "evidence": [
+        "docs/pilot-release-evidence-epr03-2026-06-04.md"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
+    },
+    {
+      "id": "EPR-04",
+      "priority": "P0",
+      "status": "blocked",
+      "title": "Sign the external-pilot go/no-go record.",
+      "summary": "Formal NO-GO is recorded because required target-environment evidence and owner signoff are not available in the workspace.",
+      "evidence": [
+        "docs/external-pilot-go-no-go-epr04-2026-06-04.md"
+      ],
+      "blocksExternalInvite": true,
+      "missingInputs": [
+        "controlled evidence prefix",
+        "real alert receiver acknowledgement",
+        "rollback boundary",
+        "communication route",
+        "release owner signature",
+        "rollback owner signature"
+      ]
+    },
+    {
+      "id": "EPR-05",
+      "priority": "P1",
+      "status": "done",
+      "title": "Reconcile external-pilot documentation truth.",
+      "summary": "Docs now agree that EPR-02/EPR-03 local evidence exists, EPR-04 is NO-GO, and external invite remains blocked until signed target evidence exists.",
+      "evidence": [
+        "docs/documentation-truth-cleanup-p1-2026-06-04.md"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
+    },
+    {
+      "id": "EPR-06",
+      "priority": "P2",
+      "status": "done",
+      "title": "Extract release-readiness status contract.",
+      "summary": "Machine-readable readiness status and schema now centralize EPR gate names, statuses, evidence links, blockers, and next recommended work.",
+      "evidence": [
+        "docs/external-pilot-readiness-status.json",
+        "docs/external-pilot-readiness-status.schema.json",
+        "docs/release-readiness-status-contract-p2.md"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
+    }
+  ],
+  "requiredToFlipToGo": [
+    "controlled evidence prefix under release_evidence_bucket or equivalent immutable audit store",
+    "target-environment deployment smoke or platform equivalent",
+    "fresh benchmark scorecards for the intended pilot model and fixture set",
+    "governance/compliance smoke or platform equivalent against target database and evidence store",
+    "real alert receiver acknowledgement for the pilot route",
+    "signed rollback boundary and communication route",
+    "release owner and rollback owner signatures"
+  ],
+  "nextRecommendedWork": [
+    {
+      "id": "P3-01",
+      "title": "Pilot operator cockpit",
+      "uses": "docs/external-pilot-readiness-status.json"
+    }
+  ]
+}

@@ -234,3 +234,9 @@ LR-06 is complete when:
   inviting the first external pilot user
 - a doc guard test verifies the plan, decision, backlog, and index links
 - no schema, endpoint, or runtime behavior changes are introduced by the slice
+
+2026-06-04 truth update: the target-environment rehearsal chain now has local
+pilot-equivalent EPR-02/EPR-03 evidence, and
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+records the current external-pilot decision as NO-GO until controlled evidence
+and owner signatures are attached.

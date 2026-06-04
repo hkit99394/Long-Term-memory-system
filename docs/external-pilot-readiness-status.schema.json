@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memorysystem.local/schemas/external-pilot-readiness-status.schema.json",
+  "title": "External Pilot Readiness Status",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "statusId",
+    "generatedAt",
+    "scope",
+    "decision",
+    "canonicalDocuments",
+    "gates",
+    "requiredToFlipToGo",
+    "nextRecommendedWork"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "statusId": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "const": "external-pilot"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "status",
+        "externalInviteApproved",
+        "record",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "go",
+            "no_go"
+          ]
+        },
+        "externalInviteApproved": {
+          "type": "boolean"
+        },
+        "record": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "canonicalDocuments": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "priority",
+          "status",
+          "title",
+          "summary",
+          "evidence",
+          "blocksExternalInvite",
+          "missingInputs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "pattern": "^P[0-9]$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "blocked",
+              "todo"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocksExternalInvite": {
+            "type": "boolean"
+          },
+          "missingInputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "requiredToFlipToGo": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nextRecommendedWork": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "uses"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "uses": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

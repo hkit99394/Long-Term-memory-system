@@ -47,6 +47,8 @@ real alert receiver acknowledgement, rollback boundary, communication route,
 and owner signatures.
 [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
 records the current decision as NO-GO until those inputs are attached.
+[Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
+now provides the machine-readable status for the EPR gates and current blockers.
 
 ## Milestones
 

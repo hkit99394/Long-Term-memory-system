@@ -64,6 +64,8 @@ report. A fresh live smoke run was attempted in the local sandbox, but the API
 did not become healthy during that session, so this report uses the existing
 full eight-task smoke artifact.
 
-Before inviting an external pilot user, rerun the same gate with the intended
-pilot model, freshly filled scorecards, and a fresh live agent-contract smoke
-artifact from the target environment.
+2026-06-04 update: EPR-03 reran the live agent-contract smoke and passed all
+eight tasks, including contradiction-overlay handling. Before inviting an
+external pilot user, rerun the same gate with the intended pilot model, freshly
+filled scorecards, target-environment evidence, and a signed EPR-04 GO
+replacement record.

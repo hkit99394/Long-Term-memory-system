@@ -135,3 +135,8 @@ to the intended pilot environment, rerun the benchmark gate with fresh
 pilot-model scorecards, rerun GC-08 or its platform equivalent, upload the
 evidence bundle, verify alert receiver acknowledgement, and then make the
 external-user go/no-go decision.
+
+2026-06-04 P1 truth update: EPR-02 and EPR-03 now attach local pilot-equivalent
+evidence, and EPR-04 records the current external-pilot decision as NO-GO. The
+next action is not another local proof run; it is attaching controlled target
+evidence and owner signatures to replace EPR-04 with a signed GO record.

@@ -106,13 +106,12 @@ NO-GO.
 
 ## Recommended Next Work
 
-1. P1 docs truth cleanup: reconcile every roadmap, backlog, release checklist,
-   and readiness page around the current state: local pilot-equivalent evidence
-   exists, EPR-04 is NO-GO, and external invite is blocked until signed target
-   evidence exists.
-2. P2 refactoring: extract a single release-readiness/evidence status contract
-   that can feed docs, tests, admin UI, and future CI checks without duplicating
-   gate names, statuses, and caveats across files.
+1. P1 docs truth cleanup completed: [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
+   reconciles the roadmap, backlog, release checklist, and readiness pages around
+   the current state.
+2. P2 release-readiness status contract completed: [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
+   and `external-pilot-readiness-status.json` centralize gate names, statuses,
+   evidence links, blockers, missing GO inputs, and next recommended work.
 3. P3 pilot operator cockpit: add an authenticated admin view that surfaces the
    EPR gates, evidence links, current NO-GO reason, owner fields, alert
    acknowledgement, and signed GO replacement checklist in one place.

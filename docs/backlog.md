@@ -167,10 +167,11 @@ adds standard/audit retention minimization with dry-run and execute evidence.
 GC-05 adds payload-safe external payload-store retention checks for pointer
 rows. GC-06 adds the payload-safe compliance evidence package. GC-07 adds the
 payload-safe governance/compliance admin console view. GC-08 adds the
-repeatable governance/compliance release smoke. The pilot readiness evidence
-review records a no-go for external invite until target-environment evidence is
-produced. The next focus is the P0 target-environment pilot rehearsal defined in
-[Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md).
+repeatable governance/compliance release smoke. EPR-02 and EPR-03 now attach
+local pilot-equivalent evidence, and EPR-04 records a formal NO-GO for external
+invite. The next focus is replacing the EPR-04 NO-GO with a signed GO record
+only after controlled evidence, real alert acknowledgement, rollback boundary,
+communication route, and owner signatures exist.
 
 ## External Pilot Readiness P0
 
@@ -180,6 +181,8 @@ produced. The next focus is the P0 target-environment pilot rehearsal defined in
 | EPR-02 | P0 | Done | Run target-environment deployment smoke. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) records the local pilot-equivalent deployment smoke: migrator, API, worker, health, authenticated read/write smoke, worker heartbeat, metrics, backup/restore, pgvector, and rollback rehearsal all passed. |
 | EPR-03 | P0 | Done | Attach fresh pilot release evidence. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) attaches payload-safe release evidence for the benchmark gate, fresh live agent-contract smoke, governance/compliance release smoke, backup/restore validation, and alert artifact validation; real receiver acknowledgement and controlled audit-store upload remain EPR-04 sign-off inputs. |
 | EPR-04 | P0 | Blocked | Sign the external-pilot go/no-go record. | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) records a formal NO-GO because the controlled evidence prefix, real alert receiver acknowledgement, rollback boundary, communication route, and release-owner/rollback-owner signatures are not available in the workspace. |
+| EPR-05 | P1 | Done | Reconcile external-pilot documentation truth. | [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) aligns the roadmap, backlog, readiness review, PI-08, GC-08, LR-03, release checklist, and documentation index around the current state: EPR-02/EPR-03 local evidence exists, EPR-04 is NO-GO, and external invite remains blocked until a signed GO replacement record exists. |
+| EPR-06 | P2 | Done | Extract release-readiness status contract. | [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md), `external-pilot-readiness-status.json`, and `external-pilot-readiness-status.schema.json` centralize EPR gate names, statuses, evidence links, blockers, missing GO inputs, and next recommended work for docs, tests, future CI, and the P3 operator cockpit. |
 
 ## Middle Run Production Pilot
 
@@ -216,7 +219,7 @@ produced. The next focus is the P0 target-environment pilot rehearsal defined in
 | --- | --- | --- | --- | --- |
 | LR-01 | P0 | Done | Scope enterprise access gate. | [Decision 0042](decisions/0042-enterprise-access-gate.md) and [Enterprise Access Gate](enterprise-access-gate.md) define OIDC or SSO, service accounts, role assignment UI, audit export, migration from API-key-only operation, and pilot acceptance checks without weakening existing namespace grants. |
 | LR-02 | P0 | Done | Scope context productization gate. | [Decision 0043](decisions/0043-context-productization-gate.md) and [Context Productization Gate](context-productization-gate.md) define context-packet inclusion explanations, safe exclusion summaries, reviewer feedback actions for useful/stale/wrong/sensitive/over-broad/missing context, and how those signals feed benchmark-visible ranking improvements. |
-| LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; the generated ignored report records Memory Lift, Contract Lift, scoped-safety leak count, stale-memory usage, and source-link coverage. A fresh live smoke rerun remains required before external pilot release. |
+| LR-03 | P0 | Done | Capture first benchmark release-gate report. | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) records the local baseline from filled LLM outcome and agent-contract scorecards plus the existing full eight-task agent-contract smoke output; EPR-03 later adds a fresh live eight-task agent-contract smoke rerun. Fresh pilot-model scorecards and signed EPR-04 GO evidence remain required before external pilot release. |
 | LR-04 | P1 | Done | Define Domain model extraction slice. | [Decision 0044](decisions/0044-domain-model-extraction-slice.md) and [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) inventory stable concepts such as memory scope, namespace, trust level, lifecycle status, retention class, sensitivity, source evidence, and feedback type, then split staged extraction into compatibility-tested `DM-*` implementation slices without schema or endpoint churn. |
 | LR-05 | P1 | Done | Scope production platform integration. | [Decision 0045](decisions/0045-production-platform-integration.md) and [Production Platform Integration LR-05](production-platform-integration-lr05.md) define infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry/exporter wiring, alert routing, and environment-specific release checklists. |
 | LR-06 | P1 | Done | Scope governance and compliance gate. | [Decision 0048](decisions/0048-governance-compliance-gate.md) and [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) define the implementation boundary for data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages while preserving existing erasure, legal hold, retention report, audit export, and namespace access guarantees. |

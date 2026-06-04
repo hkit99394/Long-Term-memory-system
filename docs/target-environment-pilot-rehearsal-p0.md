@@ -136,6 +136,13 @@ missing target-environment evidence upload, real alert receiver acknowledgement,
 rollback boundary, communication route, and release-owner/rollback-owner
 signatures.
 
+## Machine-Readable Status
+
+[Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
+and `external-pilot-readiness-status.json` centralize the current EPR gate
+statuses, evidence links, blockers, missing GO inputs, and next recommended work
+for tests, future CI, and the P3 operator cockpit.
+
 ## Current P0 State
 
 EPR-02 and EPR-03 have local pilot-equivalent evidence attached. EPR-04 has a
