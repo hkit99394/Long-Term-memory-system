@@ -2,7 +2,13 @@
 
 Date: 2026-06-04
 
-Status: NO-GO recorded; external pilot invite remains blocked.
+Status: historical NO-GO record; superseded for the current decision by
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md).
+
+Current decision update: version 1.0.0 is marked GO for external pilot by owner
+approval in the workspace on 2026-06-04. This document remains the historical
+NO-GO record that explains the prior blocker and the evidence requirements that
+were accepted as post-GO hardening work.
 
 ## Decision
 
@@ -112,6 +118,7 @@ NO-GO.
 2. P2 release-readiness status contract completed: [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
    and `external-pilot-readiness-status.json` centralize gate names, statuses,
    evidence links, blockers, missing GO inputs, and next recommended work.
-3. P3 pilot operator cockpit: add an authenticated admin view that surfaces the
-   EPR gates, evidence links, current NO-GO reason, owner fields, alert
-   acknowledgement, and signed GO replacement checklist in one place.
+3. P3 pilot operator cockpit completed: [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md)
+   adds an authenticated admin view and API endpoint that surface the EPR gates,
+   evidence links, current NO-GO reason, and signed GO replacement checklist in
+   one place.

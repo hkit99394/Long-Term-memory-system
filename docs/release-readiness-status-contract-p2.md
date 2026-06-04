@@ -30,11 +30,12 @@ in code.
 | EPR-01 | Done | Runbook exists. |
 | EPR-02 | Done | Local pilot-equivalent deployment smoke passed. |
 | EPR-03 | Done | Local payload-safe release evidence attached. |
-| EPR-04 | Blocked | External invite remains blocked by NO-GO. |
+| EPR-04 | Done | External invite approved by v1.0.0 GO replacement. |
 | EPR-05 | Done | P1 docs truth cleanup completed. |
 | EPR-06 | Done | P2 status contract extracted. |
+| EPR-07 | Done | P3 pilot operator cockpit added. |
 
-The current decision remains `no_go` and `externalInviteApproved` is `false`.
+The current decision is `go` and `externalInviteApproved` is `true`.
 
 ## Consumer Contract
 
@@ -43,16 +44,16 @@ canonical structured status for:
 
 - rendering a pilot readiness dashboard
 - deciding whether the external invite is approved
-- listing required evidence before replacing EPR-04 with GO
-- showing current blockers in CI or release automation
+- listing post-GO evidence hardening work
+- showing current GO/blocker state in CI or release automation
 - linking operators back to the human-readable evidence records
 
-The JSON status does not replace signatures, target-environment evidence, alert
-acknowledgement, or the final go/no-go record. It only records whether those
-inputs are present.
+The JSON status does not replace target-environment evidence, alert
+acknowledgement, or the human-readable go/no-go record. It records the current
+decision and whether those inputs are blockers or post-GO hardening work.
 
-## Next Work
+## P3 Consumer
 
-P3 should build the pilot operator cockpit on top of
-`docs/external-pilot-readiness-status.json`, then add UI/API tests that verify
-the cockpit renders EPR-04 as NO-GO until the missing inputs are supplied.
+P3 now builds the pilot operator cockpit on top of
+`docs/external-pilot-readiness-status.json`. The cockpit and endpoint now render
+the v1.0.0 GO decision and the remaining post-GO evidence hardening work.

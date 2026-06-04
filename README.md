@@ -6,8 +6,9 @@ The system stores long-lived memory in PostgreSQL, uses pgvector for semantic
 recall, preserves source events as evidence, and keeps memory writes and reads
 behind explicit governance boundaries.
 
-Private Alpha 0.1 is complete. See the
-[release notes](docs/private-alpha-0.1-release.md) and the
+Version 1.0.0 is marked GO for external pilot. See the
+[1.0.0 GO record](docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md), the
+[release readiness status](docs/external-pilot-readiness-status.json), and the
 [product improvement plan](docs/product-improvement-plan.md) for the current
 status and next milestones.
 

@@ -9,6 +9,8 @@
     "generatedAt",
     "scope",
     "decision",
+    "payloadSafe",
+    "rawSourcePayloadsIncluded",
     "canonicalDocuments",
     "gates",
     "requiredToFlipToGo",
@@ -65,6 +67,14 @@
         }
       },
       "additionalProperties": false
+    },
+    "payloadSafe": {
+      "type": "boolean",
+      "const": true
+    },
+    "rawSourcePayloadsIncluded": {
+      "type": "boolean",
+      "const": false
     },
     "canonicalDocuments": {
       "type": "object",

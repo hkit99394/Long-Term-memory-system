@@ -23,7 +23,7 @@ public sealed class ReleaseReadinessStatusContractP2Tests
 
         var schema = File.ReadAllText(schemaPath);
         Assert.Contains("\"External Pilot Readiness Status\"", schema, StringComparison.Ordinal);
-        Assert.Contains("\"no_go\"", schema, StringComparison.Ordinal);
+        Assert.Contains("\"go\"", schema, StringComparison.Ordinal);
         Assert.Contains("\"blocksExternalInvite\"", schema, StringComparison.Ordinal);
 
         using var document = JsonDocument.Parse(File.ReadAllText(statusPath));
@@ -34,10 +34,10 @@ public sealed class ReleaseReadinessStatusContractP2Tests
         Assert.Equal("external-pilot", status.GetProperty("scope").GetString());
 
         var decision = status.GetProperty("decision");
-        Assert.Equal("no_go", decision.GetProperty("status").GetString());
-        Assert.False(decision.GetProperty("externalInviteApproved").GetBoolean());
+        Assert.Equal("go", decision.GetProperty("status").GetString());
+        Assert.True(decision.GetProperty("externalInviteApproved").GetBoolean());
         Assert.Equal(
-            "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+            "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
             decision.GetProperty("record").GetString());
 
         var gates = status.GetProperty("gates")
@@ -50,8 +50,8 @@ public sealed class ReleaseReadinessStatusContractP2Tests
         Assert.Equal("done", gates["EPR-01"].GetProperty("status").GetString());
         Assert.Equal("done", gates["EPR-02"].GetProperty("status").GetString());
         Assert.Equal("done", gates["EPR-03"].GetProperty("status").GetString());
-        Assert.Equal("blocked", gates["EPR-04"].GetProperty("status").GetString());
-        Assert.True(gates["EPR-04"].GetProperty("blocksExternalInvite").GetBoolean());
+        Assert.Equal("done", gates["EPR-04"].GetProperty("status").GetString());
+        Assert.False(gates["EPR-04"].GetProperty("blocksExternalInvite").GetBoolean());
         Assert.Equal("done", gates["EPR-05"].GetProperty("status").GetString());
         Assert.Equal("done", gates["EPR-06"].GetProperty("status").GetString());
 
@@ -61,27 +61,23 @@ public sealed class ReleaseReadinessStatusContractP2Tests
             .Select(input => input.GetString())
             .ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains("controlled evidence prefix", missingInputs);
-        Assert.Contains("real alert receiver acknowledgement", missingInputs);
-        Assert.Contains("release owner signature", missingInputs);
-        Assert.Contains("rollback owner signature", missingInputs);
+        Assert.Empty(missingInputs);
 
         var requiredToGo = status.GetProperty("requiredToFlipToGo")
             .EnumerateArray()
             .Select(input => input.GetString())
             .ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains(
-            "release owner and rollback owner signatures",
-            requiredToGo);
+        Assert.Empty(requiredToGo);
 
         Assert.Contains("# Release Readiness Status Contract P2", contract, StringComparison.Ordinal);
         Assert.Contains("docs/external-pilot-readiness-status.json", contract, StringComparison.Ordinal);
         Assert.Contains("| EPR-06 | P2 | Done | Extract release-readiness status contract.", backlog, StringComparison.Ordinal);
+        Assert.Contains("| EPR-04 | P0 | Done | Sign the external-pilot go/no-go record.", backlog, StringComparison.Ordinal);
         Assert.Contains("[Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)", index, StringComparison.Ordinal);
         Assert.Contains("external-pilot-readiness-status.json", folderStructure, StringComparison.Ordinal);
         Assert.Contains("external-pilot-readiness-status.json", runbook, StringComparison.Ordinal);
-        Assert.Contains("P2 release-readiness status contract completed", goNoGo, StringComparison.Ordinal);
+        Assert.Contains("superseded for the current decision", goNoGo, StringComparison.Ordinal);
         Assert.Contains("external-pilot-readiness-status.json", releaseChecklist, StringComparison.Ordinal);
     }
 

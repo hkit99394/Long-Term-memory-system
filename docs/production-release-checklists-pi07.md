@@ -171,9 +171,12 @@ Future external pilot rehearsals should use
 [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md),
 then attach the release evidence object prefix and every rollback decision made
 during the run.
-The current EPR-04 record is
-[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md):
-NO-GO until controlled evidence, real alert acknowledgement, rollback boundary,
-communication route, and owner signatures are attached.
+The current EPR-04 decision is
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md).
+The historical
+[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
+record remains the prior NO-GO audit trail. Controlled evidence, real alert
+acknowledgement, rollback boundary, and communication route should be attached
+as post-GO hardening evidence.
 Automation and the P3 cockpit should read the structured status from
 `docs/external-pilot-readiness-status.json`.

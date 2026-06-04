@@ -5,7 +5,9 @@ using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Domain.Evidence;
+using Microsoft.AspNetCore.Hosting;
 using System.Globalization;
+using System.Text.Json;
 
 namespace MemorySystem.Api.Admin;
 
@@ -15,6 +17,9 @@ public static class AdminConsoleEndpointExtensions
     private const int MaxSourceEventLimit = 100;
     private const int ComplianceLegalHoldLimit = 100;
     private const int ComplianceRetentionReportLimit = 200;
+    private static readonly string PilotReadinessStatusRelativePath = Path.Combine(
+        "docs",
+        "external-pilot-readiness-status.json");
 
     private static readonly IReadOnlySet<string> EventTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -65,6 +70,15 @@ public static class AdminConsoleEndpointExtensions
                 IAdminGovernanceStore governanceStore,
                 CancellationToken cancellationToken) =>
                 await ReadComplianceStatusAsync(context, governanceStore, cancellationToken))
+            .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/admin/pilot/readiness",
+            async (
+                HttpContext context,
+                IWebHostEnvironment environment,
+                CancellationToken cancellationToken) =>
+                await ReadPilotReadinessAsync(context, environment, cancellationToken))
             .RequireAuthorization();
 
         return endpoints;
@@ -151,6 +165,71 @@ public static class AdminConsoleEndpointExtensions
             PayloadSafe: true,
             RawSourcePayloadsIncluded: false,
             items));
+    }
+
+    private static async Task<IResult> ReadPilotReadinessAsync(
+        HttpContext context,
+        IWebHostEnvironment environment,
+        CancellationToken cancellationToken)
+    {
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out _, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var statusPath = TryFindPilotReadinessStatusPath(environment);
+        if (statusPath is null)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Admin pilot readiness status is unavailable.",
+                detail: $"{PilotReadinessStatusRelativePath} could not be found.");
+        }
+
+        try
+        {
+            await using var stream = File.OpenRead(statusPath);
+            using var document = await JsonDocument.ParseAsync(
+                stream,
+                cancellationToken: cancellationToken);
+
+            return Results.Json(document.RootElement.Clone());
+        }
+        catch (JsonException exception)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Admin pilot readiness status is invalid.",
+                detail: exception.Message);
+        }
+    }
+
+    private static string? TryFindPilotReadinessStatusPath(IWebHostEnvironment environment)
+    {
+        foreach (var root in EnumerateCandidateRoots(environment))
+        {
+            var candidate = Path.Combine(root, PilotReadinessStatusRelativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateCandidateRoots(IWebHostEnvironment environment)
+    {
+        foreach (var root in new[] { environment.ContentRootPath, AppContext.BaseDirectory })
+        {
+            var directory = new DirectoryInfo(root);
+
+            while (directory is not null)
+            {
+                yield return directory.FullName;
+                directory = directory.Parent;
+            }
+        }
     }
 
     private static bool TryCreateQuery(

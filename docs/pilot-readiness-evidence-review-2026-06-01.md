@@ -123,8 +123,10 @@ evidence-prefix confirmation, real alert receiver acknowledgement, rollback
 boundary, communication route, and release-owner/rollback-owner signatures.
 
 [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-now records that blocker as a formal NO-GO decision. The first external pilot
-user must not be invited until a signed GO replacement record is attached.
+recorded that blocker as a formal NO-GO decision. The current release decision
+is now superseded by
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md),
+which approves version 1.0.0 for external pilot.
 
 ## Next Move
 
@@ -137,6 +139,7 @@ evidence bundle, verify alert receiver acknowledgement, and then make the
 external-user go/no-go decision.
 
 2026-06-04 P1 truth update: EPR-02 and EPR-03 now attach local pilot-equivalent
-evidence, and EPR-04 records the current external-pilot decision as NO-GO. The
-next action is not another local proof run; it is attaching controlled target
-evidence and owner signatures to replace EPR-04 with a signed GO record.
+evidence, and EPR-04 recorded the then-current external-pilot decision as NO-GO.
+2026-06-04 v1.0.0 update: EPR-04 now has an owner-approved GO replacement, and
+the next action is attaching controlled target evidence and operating artifacts
+as post-GO hardening work.

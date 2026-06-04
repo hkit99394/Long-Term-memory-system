@@ -2,16 +2,16 @@
 
 Date created: 2026-06-04
 
-Status: local pilot-equivalent evidence attached; external go/no-go is NO-GO.
+Status: local pilot-equivalent evidence accepted for version 1.0.0 GO; target
+evidence remains post-GO hardening.
 
 ## Purpose
 
-This runbook turns the pilot readiness no-go into an executable P0 release
-gate. The technical MVP and local production-pilot rehearsal are complete, but
-the first external pilot invite remains blocked until target-environment
-evidence proves the migrator, API, worker, benchmark, governance/compliance,
-backup/restore, alert routing, audit evidence, and rollback paths in the real
-pilot environment.
+This runbook turns pilot readiness into an executable P0 release gate. The
+technical MVP and local production-pilot rehearsal are complete, and version
+1.0.0 is owner-approved for external pilot. Target-environment evidence for the
+migrator, API, worker, benchmark, governance/compliance, backup/restore, alert
+routing, audit evidence, and rollback paths remains post-GO hardening work.
 
 This document is the acceptance record for that target-environment rehearsal. It
 must be filled during the run and linked from the final go/no-go record before
@@ -130,22 +130,21 @@ committed.
 
 ## Go/No-Go Attached
 
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records the current external-pilot decision as GO. The historical
 [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-records the current external-pilot decision as NO-GO. The decision is blocked by
-missing target-environment evidence upload, real alert receiver acknowledgement,
-rollback boundary, communication route, and release-owner/rollback-owner
-signatures.
+record remains the prior NO-GO audit trail.
 
 ## Machine-Readable Status
 
 [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
 and `external-pilot-readiness-status.json` centralize the current EPR gate
-statuses, evidence links, blockers, missing GO inputs, and next recommended work
-for tests, future CI, and the P3 operator cockpit.
+statuses, evidence links, current GO decision, payload-safety state, and next
+recommended work for tests, future CI, and the P3 operator cockpit.
 
 ## Current P0 State
 
-EPR-02 and EPR-03 have local pilot-equivalent evidence attached. EPR-04 has a
-formal NO-GO record. The external pilot invite remains blocked until that record
-is replaced by a signed GO record with the controlled evidence prefix, real alert
-receiver acknowledgement, rollback boundary, and communication route.
+EPR-02 and EPR-03 have local pilot-equivalent evidence attached. EPR-04 now has
+an owner-approved version 1.0.0 GO replacement. Controlled target evidence, real
+alert receiver acknowledgement, rollback boundary, and communication route
+remain post-GO hardening work.

@@ -120,6 +120,45 @@ interface AdminComplianceStatusMetric {
   description: string;
 }
 
+interface AdminPilotReadinessStatusResponse {
+  schemaVersion: number;
+  statusId: string;
+  generatedAt: string;
+  scope: string;
+  environment: Record<string, string>;
+  decision: AdminPilotReadinessDecision;
+  payloadSafe: boolean;
+  rawSourcePayloadsIncluded: boolean;
+  canonicalDocuments: Record<string, string>;
+  gates: AdminPilotReadinessGate[];
+  requiredToFlipToGo: string[];
+  nextRecommendedWork: AdminPilotReadinessNextWork[];
+}
+
+interface AdminPilotReadinessDecision {
+  status: string;
+  externalInviteApproved: boolean;
+  record: string;
+  reason: string;
+}
+
+interface AdminPilotReadinessGate {
+  id: string;
+  priority: string;
+  status: string;
+  title: string;
+  summary: string;
+  evidence: string[];
+  blocksExternalInvite: boolean;
+  missingInputs: string[];
+}
+
+interface AdminPilotReadinessNextWork {
+  id: string;
+  title: string;
+  uses: string;
+}
+
 interface SourceEventResponse {
   id: string;
   eventType: string;
@@ -146,13 +185,15 @@ interface TextFetchResult {
 }
 
 interface AdminConsoleState {
-  mode: "memory" | "events" | "access" | "compliance";
+  mode: "memory" | "events" | "access" | "compliance" | "pilot";
   facts: AdminMemoryFact[];
   events: AdminSourceEvent[];
   complianceStatus: AdminComplianceStatusResponse | null;
+  pilotReadiness: AdminPilotReadinessStatusResponse | null;
   selectedFactId: string | null;
   selectedEventId: string | null;
   selectedComplianceId: string | null;
+  selectedPilotGateId: string | null;
   selectedSource: SourceEventResponse | null;
   accessResult: AdminAccessResult | null;
   busy: boolean;
@@ -163,9 +204,11 @@ const state: AdminConsoleState = {
   facts: [],
   events: [],
   complianceStatus: null,
+  pilotReadiness: null,
   selectedFactId: null,
   selectedEventId: null,
   selectedComplianceId: null,
+  selectedPilotGateId: null,
   selectedSource: null,
   accessResult: null,
   busy: false
@@ -258,6 +301,10 @@ function readMode(): AdminConsoleState["mode"] {
     return "compliance";
   }
 
+  if (elements.modeFilter.value === "pilot") {
+    return "pilot";
+  }
+
   return "memory";
 }
 
@@ -269,6 +316,11 @@ async function loadCurrentMode(): Promise<void> {
 
   if (state.mode === "compliance") {
     await loadCompliance();
+    return;
+  }
+
+  if (state.mode === "pilot") {
+    await loadPilotReadiness();
     return;
   }
 
@@ -364,6 +416,28 @@ async function loadCompliance(): Promise<void> {
   }
 }
 
+async function loadPilotReadiness(): Promise<void> {
+  setBusy(true);
+  setStatus("Loading");
+  state.selectedSource = null;
+
+  try {
+    const response = await apiFetch<AdminPilotReadinessStatusResponse>("/api/admin/pilot/readiness");
+    state.pilotReadiness = response;
+    state.selectedPilotGateId = response.gates[0]?.id ?? null;
+    setStatus(response.decision.externalInviteApproved ? "Pilot GO" : "Pilot NO-GO");
+  } catch (error) {
+    setStatus("Error");
+    state.pilotReadiness = null;
+    state.selectedPilotGateId = null;
+    state.selectedSource = null;
+    elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
 function commonParams(): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -439,6 +513,8 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 function render(): void {
   elements.listTitle.textContent = state.mode === "events"
     ? "Source Events"
+    : state.mode === "pilot"
+      ? "Pilot Gates"
     : state.mode === "compliance"
       ? "Compliance"
     : state.mode === "access"
@@ -446,6 +522,8 @@ function render(): void {
       : "Memory Facts";
   elements.sourceTitle.textContent = state.mode === "events"
     ? "Payload"
+    : state.mode === "pilot"
+      ? "Pilot Work"
     : state.mode === "compliance"
       ? "Evidence Links"
     : state.mode === "access"
@@ -466,6 +544,11 @@ function renderResultList(): void {
 
   if (state.mode === "compliance") {
     renderComplianceList();
+    return;
+  }
+
+  if (state.mode === "pilot") {
+    renderPilotList();
     return;
   }
 
@@ -490,6 +573,34 @@ function renderAccessList(): void {
     row.className = "memory-row";
     row.append(line(action, "memory-title"));
     elements.resultList.append(row);
+  }
+}
+
+function renderPilotList(): void {
+  const status = state.pilotReadiness;
+  const gates = status?.gates ?? [];
+
+  if (!status || gates.length === 0) {
+    elements.resultList.append(emptyPanel("No pilot readiness status"));
+    return;
+  }
+
+  for (const gate of gates) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = gate.id === state.selectedPilotGateId ? "memory-row selected" : "memory-row";
+    button.addEventListener("click", () => {
+      state.selectedPilotGateId = gate.id;
+      state.selectedSource = null;
+      render();
+    });
+
+    button.append(
+      line(`${gate.id} ${gate.title}`, "memory-title"),
+      pillRow([gate.priority, gate.status, gate.blocksExternalInvite ? "blocks_invite" : "not_blocking"]),
+      line(gate.summary, "memory-meta"),
+      line(`${gate.evidence.length} evidence link${gate.evidence.length === 1 ? "" : "s"}`, "memory-date"));
+    elements.resultList.append(button);
   }
 }
 
@@ -583,12 +694,48 @@ function renderDetail(): void {
     return;
   }
 
+  if (state.mode === "pilot") {
+    renderPilotDetail();
+    return;
+  }
+
   if (state.mode === "access") {
     renderAccessDetail();
     return;
   }
 
   renderMemoryDetail();
+}
+
+function renderPilotDetail(): void {
+  const status = state.pilotReadiness;
+  const gate = selectedPilotGate();
+
+  if (!status || !gate) {
+    elements.detail.append(emptyPanel("Select a pilot gate"));
+    return;
+  }
+
+  const rows: [string, string][] = [
+    ["Decision", status.decision.status],
+    ["External invite", status.decision.externalInviteApproved ? "approved" : "blocked"],
+    ["Gate", gate.id],
+    ["Priority", gate.priority],
+    ["Status", gate.status],
+    ["Blocks invite", gate.blocksExternalInvite ? "yes" : "no"],
+    ["Payload safe", status.payloadSafe ? "yes" : "no"],
+    ["Raw source payloads", status.rawSourcePayloadsIncluded ? "included" : "not included"],
+    ["Status id", status.statusId],
+    ["Generated", status.generatedAt]
+  ];
+
+  elements.detail.append(
+    heading(`${gate.id} ${gate.title}`),
+    paragraph(status.decision.reason, status.decision.externalInviteApproved ? "memory-object" : "memory-object hidden-content"),
+    paragraph(gate.summary, "memory-object"),
+    detailGrid(rows),
+    evidenceList(gate.evidence, "Evidence"),
+    missingInputList(gate.missingInputs));
 }
 
 function renderAccessDetail(): void {
@@ -833,6 +980,20 @@ function renderSourceDetail(): void {
     return;
   }
 
+  if (state.mode === "pilot") {
+    const status = state.pilotReadiness;
+    if (!status) {
+      elements.sourceDetail.append(emptyPanel("No pilot readiness status"));
+      return;
+    }
+
+    elements.sourceDetail.append(
+      requiredGoInputList(status.requiredToFlipToGo),
+      evidenceList(Object.values(status.canonicalDocuments), "Canonical Docs"),
+      nextWorkList(status.nextRecommendedWork));
+    return;
+  }
+
   if (state.mode === "access") {
     if (!state.accessResult) {
       elements.sourceDetail.append(emptyPanel("No access result"));
@@ -871,6 +1032,110 @@ function renderSourceDetail(): void {
     heading("Source event"),
     detailGrid(rows),
     json);
+}
+
+function evidenceList(paths: string[], title: string): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading(title));
+
+  if (paths.length === 0) {
+    section.append(emptyPanel("No evidence links"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const path of paths) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(path, "memory-title"),
+      pillRow([path.endsWith(".md") ? "doc" : path.endsWith(".json") ? "json" : "code"]));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function missingInputList(inputs: string[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Missing Inputs"));
+
+  if (inputs.length === 0) {
+    section.append(emptyPanel("No missing inputs"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const input of inputs) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(input, "memory-title"),
+      pillRow(["required"]));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function requiredGoInputList(inputs: string[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Required To GO"));
+
+  if (inputs.length === 0) {
+    section.append(emptyPanel("No required GO inputs"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const input of inputs) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(input, "memory-title"),
+      pillRow(["go_input"]));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function nextWorkList(items: AdminPilotReadinessNextWork[]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Next Work"));
+
+  if (items.length === 0) {
+    section.append(emptyPanel("No next work recorded"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(`${item.id} ${item.title}`, "memory-title"),
+      line(item.uses, "memory-meta"));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
 }
 
 function accessForm(
@@ -1202,6 +1467,10 @@ function selectedComplianceItem(): AdminComplianceStatusItem | null {
   return state.complianceStatus?.items.find(item => item.id === state.selectedComplianceId) ?? null;
 }
 
+function selectedPilotGate(): AdminPilotReadinessGate | null {
+  return state.pilotReadiness?.gates.find(gate => gate.id === state.selectedPilotGateId) ?? null;
+}
+
 function setBusy(busy: boolean): void {
   state.busy = busy;
   elements.refresh.disabled = busy;
@@ -1305,7 +1574,7 @@ function updateFilterVisibility(): void {
   }
 
   elements.statusFilter.closest("label")!.hidden = state.mode !== "memory";
-  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
-  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
-  elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance";
+  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
+  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
+  elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
 }

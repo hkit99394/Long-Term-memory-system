@@ -74,7 +74,7 @@ including ACU-003 contradiction-overlay handling.
 | Governance/compliance release smoke | Passed `GovernanceComplianceReleaseSmokeTests` in Release configuration. |
 | Evidence package coverage | Policy config, permission drift, audit export, retention, legal hold, erasure replay, external payload checks, and strict compliance evidence packaging were exercised by the release smoke. |
 | Observability artifact smoke | Passed with `43` API metric inputs, `51` external metric inputs, `43` alert rules, `3` alert routes, `13` dashboard panels, and `13` trace spans. |
-| Alert receiver acknowledgement | Artifact route validation passed; real receiver acknowledgement is not available in this workspace and remains an EPR-04 go/no-go input. |
+| Alert receiver acknowledgement | Artifact route validation passed; real receiver acknowledgement remains post-GO evidence hardening after the v1.0.0 GO decision. |
 
 ## Artifact Hashes
 
@@ -95,7 +95,8 @@ EPR-03 is complete for local payload-safe release evidence: benchmark gate,
 fresh live agent-contract smoke, governance/compliance release smoke,
 backup/restore evidence, and alert artifact validation are attached here.
 
-EPR-04 remains the external-pilot blocker. Before inviting an external user, the
-release owner and rollback owner must sign the final go/no-go record with the
-controlled evidence prefix, real alert receiver acknowledgement, rollback
-boundary, and communication route.
+EPR-04 is no longer the current external-pilot blocker. The
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+record accepts this local pilot-equivalent evidence bundle for external pilot,
+while controlled target-environment artifacts remain post-GO evidence hardening
+work.

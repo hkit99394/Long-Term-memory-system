@@ -258,7 +258,11 @@ textarea {
 .pill.erased,
 .pill.secret,
 .pill.regulated,
-.pill.erasure_requested {
+.pill.erasure_requested,
+.pill.blocked,
+.pill.no_go,
+.pill.blocks_invite,
+.pill.required {
   background: var(--danger-quiet);
   color: var(--danger);
 }
@@ -266,7 +270,8 @@ textarea {
 .pill.personal,
 .pill.legal_hold,
 .pill.audit,
-.pill.pending {
+.pill.pending,
+.pill.go_input {
   background: #fff6db;
   color: var(--warn);
 }
@@ -275,7 +280,10 @@ textarea {
 .pill.none,
 .pill.human_approved,
 .pill.system_trusted,
-.pill.user_scoped {
+.pill.user_scoped,
+.pill.done,
+.pill.go,
+.pill.not_blocking {
   background: #e8f7ef;
   color: var(--good);
 }

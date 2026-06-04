@@ -11,6 +11,7 @@ public sealed class DocumentationTruthCleanupP1Tests
         var index = File.ReadAllText(Path.Combine(root, "docs", "README.md"));
         var folderStructure = File.ReadAllText(Path.Combine(root, "docs", "folder-structure.md"));
         var epr04 = File.ReadAllText(Path.Combine(root, "docs", "external-pilot-go-no-go-epr04-2026-06-04.md"));
+        var go = File.ReadAllText(Path.Combine(root, "docs", "external-pilot-go-epr04-v1.0.0-2026-06-04.md"));
         var pi08 = File.ReadAllText(Path.Combine(root, "docs", "production-platform-rehearsal-pi08.md"));
         var gc08 = File.ReadAllText(Path.Combine(root, "docs", "governance-compliance-release-smoke-gc08.md"));
         var governanceGate = File.ReadAllText(Path.Combine(root, "docs", "governance-compliance-gate-lr06.md"));
@@ -20,7 +21,8 @@ public sealed class DocumentationTruthCleanupP1Tests
 
         Assert.Contains("# Documentation Truth Cleanup P1", cleanup, StringComparison.Ordinal);
         Assert.Contains("Status: first pass complete for external-pilot readiness docs.", cleanup, StringComparison.Ordinal);
-        Assert.Contains("EPR-04 is blocked with a formal NO-GO record.", cleanup, StringComparison.Ordinal);
+        Assert.Contains("At the time of the P1 pass", cleanup, StringComparison.Ordinal);
+        Assert.Contains("2026-06-04 v1.0.0 update", cleanup, StringComparison.Ordinal);
         Assert.Contains("Canonical Source Of Truth", cleanup, StringComparison.Ordinal);
 
         Assert.Contains(
@@ -37,12 +39,14 @@ public sealed class DocumentationTruthCleanupP1Tests
             StringComparison.Ordinal);
 
         Assert.Contains("P1 docs truth cleanup completed", epr04, StringComparison.Ordinal);
-        Assert.Contains("External Pilot Go/No-Go EPR-04", pi08, StringComparison.Ordinal);
-        Assert.Contains("external-pilot decision as NO-GO", gc08, StringComparison.Ordinal);
+        Assert.Contains("Decision: GO", go, StringComparison.Ordinal);
+        Assert.Contains("External Pilot GO EPR-04 v1.0.0", pi08, StringComparison.Ordinal);
+        Assert.Contains("current external-pilot decision as GO", gc08, StringComparison.Ordinal);
         Assert.Contains("2026-06-04 truth update", governanceGate, StringComparison.Ordinal);
         Assert.Contains("EPR-03 reran the live agent-contract smoke and passed all", lr03, StringComparison.Ordinal);
         Assert.Contains("External Pilot Go/No-Go EPR-04", releaseChecklist, StringComparison.Ordinal);
         Assert.Contains("2026-06-04 P1 truth update", readinessReview, StringComparison.Ordinal);
+        Assert.Contains("owner-approved GO replacement", readinessReview, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

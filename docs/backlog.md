@@ -167,11 +167,11 @@ adds standard/audit retention minimization with dry-run and execute evidence.
 GC-05 adds payload-safe external payload-store retention checks for pointer
 rows. GC-06 adds the payload-safe compliance evidence package. GC-07 adds the
 payload-safe governance/compliance admin console view. GC-08 adds the
-repeatable governance/compliance release smoke. EPR-02 and EPR-03 now attach
-local pilot-equivalent evidence, and EPR-04 records a formal NO-GO for external
-invite. The next focus is replacing the EPR-04 NO-GO with a signed GO record
-only after controlled evidence, real alert acknowledgement, rollback boundary,
-communication route, and owner signatures exist.
+repeatable governance/compliance release smoke. EPR-02 and EPR-03 attach local
+pilot-equivalent evidence, P1/P2/P3 add the truth cleanup, status contract, and
+operator cockpit, and EPR-04 now has an owner-approved version 1.0.0 GO
+replacement. The next focus is attaching post-GO target-environment evidence
+under the controlled evidence trail.
 
 ## External Pilot Readiness P0
 
@@ -180,9 +180,10 @@ communication route, and owner signatures exist.
 | EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook. | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) names required inputs, gates, evidence, owners, pass/fail criteria, and the go/no-go template. |
 | EPR-02 | P0 | Done | Run target-environment deployment smoke. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) records the local pilot-equivalent deployment smoke: migrator, API, worker, health, authenticated read/write smoke, worker heartbeat, metrics, backup/restore, pgvector, and rollback rehearsal all passed. |
 | EPR-03 | P0 | Done | Attach fresh pilot release evidence. | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) attaches payload-safe release evidence for the benchmark gate, fresh live agent-contract smoke, governance/compliance release smoke, backup/restore validation, and alert artifact validation; real receiver acknowledgement and controlled audit-store upload remain EPR-04 sign-off inputs. |
-| EPR-04 | P0 | Blocked | Sign the external-pilot go/no-go record. | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) records a formal NO-GO because the controlled evidence prefix, real alert receiver acknowledgement, rollback boundary, communication route, and release-owner/rollback-owner signatures are not available in the workspace. |
-| EPR-05 | P1 | Done | Reconcile external-pilot documentation truth. | [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) aligns the roadmap, backlog, readiness review, PI-08, GC-08, LR-03, release checklist, and documentation index around the current state: EPR-02/EPR-03 local evidence exists, EPR-04 is NO-GO, and external invite remains blocked until a signed GO replacement record exists. |
+| EPR-04 | P0 | Done | Sign the external-pilot go/no-go record. | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) records the owner-approved GO replacement for version 1.0.0, superseding the historical [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) NO-GO record. |
+| EPR-05 | P1 | Done | Reconcile external-pilot documentation truth. | [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) aligned the roadmap, backlog, readiness review, PI-08, GC-08, LR-03, release checklist, and documentation index around the prior EPR-04 state; current release decisions now point at the v1.0.0 GO replacement. |
 | EPR-06 | P2 | Done | Extract release-readiness status contract. | [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md), `external-pilot-readiness-status.json`, and `external-pilot-readiness-status.schema.json` centralize EPR gate names, statuses, evidence links, blockers, missing GO inputs, and next recommended work for docs, tests, future CI, and the P3 operator cockpit. |
+| EPR-07 | P3 | Done | Add pilot operator cockpit. | [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md), `GET /api/admin/pilot/readiness`, and the `/admin/` Pilot view render the P2 readiness status contract with EPR gates, current GO decision, evidence links, payload-safety state, and post-GO hardening work without exposing raw source payloads. |
 
 ## Middle Run Production Pilot
 

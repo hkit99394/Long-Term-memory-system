@@ -350,11 +350,12 @@ and get rollback-owner signoff.
 
 2026-06-04 update: EPR-02 and EPR-03 now have local pilot-equivalent evidence
 attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md).
-The remaining P0 blocker is EPR-04 signoff with the controlled evidence prefix,
-real alert receiver acknowledgement, rollback boundary, communication route, and
-release-owner/rollback-owner signatures.
-[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-records the current decision as NO-GO until those inputs are attached.
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records owner approval to mark version 1.0.0 GO for external pilot. The
+controlled evidence prefix, real alert receiver acknowledgement, rollback
+boundary, and communication route remain post-GO target-environment evidence
+hardening work.
 [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
 now provides a machine-readable status file for the EPR gates and current
-blockers, which should feed the P3 pilot operator cockpit.
+blockers. [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md) now renders
+that status through the authenticated admin Pilot view and readiness endpoint.

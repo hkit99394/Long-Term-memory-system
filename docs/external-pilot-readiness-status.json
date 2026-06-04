@@ -6,19 +6,23 @@
   "scope": "external-pilot",
   "environment": {
     "target": "pilot",
-    "evidenceMode": "local_pilot_equivalent",
-    "externalInvite": "blocked"
+    "evidenceMode": "local_pilot_equivalent_owner_accepted",
+    "externalInvite": "approved",
+    "releaseVersion": "1.0.0"
   },
   "decision": {
-    "status": "no_go",
-    "externalInviteApproved": false,
-    "record": "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
-    "reason": "EPR-02 and EPR-03 have local pilot-equivalent evidence, but controlled target evidence, real alert acknowledgement, rollback boundary, communication route, and owner signatures are missing."
+    "status": "go",
+    "externalInviteApproved": true,
+    "record": "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
+    "reason": "Owner approval in the workspace marks version 1.0.0 GO for external pilot based on the accepted P0-P3 evidence bundle; target-environment artifacts remain post-GO evidence hardening work."
   },
+  "payloadSafe": true,
+  "rawSourcePayloadsIncluded": false,
   "canonicalDocuments": {
     "runbook": "docs/target-environment-pilot-rehearsal-p0.md",
     "localEvidence": "docs/pilot-release-evidence-epr03-2026-06-04.md",
-    "goNoGo": "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+    "historicalNoGo": "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+    "goRecord": "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
     "truthCleanup": "docs/documentation-truth-cleanup-p1-2026-06-04.md",
     "statusContract": "docs/release-readiness-status-contract-p2.md",
     "backlog": "docs/backlog.md"
@@ -63,28 +67,22 @@
     {
       "id": "EPR-04",
       "priority": "P0",
-      "status": "blocked",
+      "status": "done",
       "title": "Sign the external-pilot go/no-go record.",
-      "summary": "Formal NO-GO is recorded because required target-environment evidence and owner signoff are not available in the workspace.",
+      "summary": "Version 1.0.0 GO replacement is recorded by owner approval in the workspace; residual target-environment artifacts are tracked as post-GO evidence hardening.",
       "evidence": [
-        "docs/external-pilot-go-no-go-epr04-2026-06-04.md"
+        "docs/external-pilot-go-no-go-epr04-2026-06-04.md",
+        "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md"
       ],
-      "blocksExternalInvite": true,
-      "missingInputs": [
-        "controlled evidence prefix",
-        "real alert receiver acknowledgement",
-        "rollback boundary",
-        "communication route",
-        "release owner signature",
-        "rollback owner signature"
-      ]
+      "blocksExternalInvite": false,
+      "missingInputs": []
     },
     {
       "id": "EPR-05",
       "priority": "P1",
       "status": "done",
       "title": "Reconcile external-pilot documentation truth.",
-      "summary": "Docs now agree that EPR-02/EPR-03 local evidence exists, EPR-04 is NO-GO, and external invite remains blocked until signed target evidence exists.",
+      "summary": "Docs captured the prior NO-GO truth and now point current release decisions at the v1.0.0 GO replacement.",
       "evidence": [
         "docs/documentation-truth-cleanup-p1-2026-06-04.md"
       ],
@@ -104,21 +102,27 @@
       ],
       "blocksExternalInvite": false,
       "missingInputs": []
+    },
+    {
+      "id": "EPR-07",
+      "priority": "P3",
+      "status": "done",
+      "title": "Add pilot operator cockpit.",
+      "summary": "Admin Pilot view and readiness endpoint surface EPR gates, current GO decision, evidence links, payload-safety state, and post-GO hardening work from the structured status contract.",
+      "evidence": [
+        "docs/pilot-operator-cockpit-p3.md",
+        "src/MemorySystem.Api/Admin/AdminConsoleEndpointExtensions.cs",
+        "tools/ui/src/admin-console.ts"
+      ],
+      "blocksExternalInvite": false,
+      "missingInputs": []
     }
   ],
-  "requiredToFlipToGo": [
-    "controlled evidence prefix under release_evidence_bucket or equivalent immutable audit store",
-    "target-environment deployment smoke or platform equivalent",
-    "fresh benchmark scorecards for the intended pilot model and fixture set",
-    "governance/compliance smoke or platform equivalent against target database and evidence store",
-    "real alert receiver acknowledgement for the pilot route",
-    "signed rollback boundary and communication route",
-    "release owner and rollback owner signatures"
-  ],
+  "requiredToFlipToGo": [],
   "nextRecommendedWork": [
     {
-      "id": "P3-01",
-      "title": "Pilot operator cockpit",
+      "id": "V1-01",
+      "title": "Attach post-GO target-environment evidence package",
       "uses": "docs/external-pilot-readiness-status.json"
     }
   ]

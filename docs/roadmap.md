@@ -12,8 +12,8 @@ smoke.
 
 Completed milestones: M0 Planning Baseline through M8 Operational Readiness.
 
-Next milestone: target-environment pilot rehearsal before inviting the first
-external pilot user. Execute it with
+Next milestone: version 1.0.0 external pilot execution and post-GO target
+evidence hardening. The rehearsal template remains
 [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md).
 
 The first production-shaped win is in place: a local API and database can accept an event, broker a memory proposal, persist memory with provenance, enforce scoped reads, and return authorized hybrid context packets.
@@ -41,14 +41,15 @@ backlog. It is the bridge from local production-pilot credibility to an external
 pilot invite decision.
 
 As of 2026-06-04, EPR-02 and EPR-03 have local pilot-equivalent evidence
-attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md).
-EPR-04 remains the external-pilot gate: controlled evidence-prefix confirmation,
-real alert receiver acknowledgement, rollback boundary, communication route,
-and owner signatures.
+attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md),
+and [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records the owner-approved GO decision for external pilot. The historical
 [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-records the current decision as NO-GO until those inputs are attached.
+record remains as the prior NO-GO audit trail.
 [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md)
 now provides the machine-readable status for the EPR gates and current blockers.
+[Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md) now exposes that
+GO status through the authenticated admin Pilot view.
 
 ## Milestones
 

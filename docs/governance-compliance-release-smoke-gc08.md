@@ -63,9 +63,10 @@ bash -n scripts/governance-compliance-release-smoke.sh
 
 With GC-08 complete, the governance/compliance gate has executable local proof
 for policy, drift, retention, erasure replay, audit export, and strict evidence
-packaging. The 2026-06-01 pilot readiness evidence review records a no-go for
-external invite until target-environment evidence is produced. EPR-02 and
-EPR-03 now attach local pilot-equivalent evidence, and EPR-04 records the current
-external-pilot decision as NO-GO until controlled evidence, real alert
-acknowledgement, rollback boundary, communication route, and owner signatures
-are attached.
+packaging. The 2026-06-01 pilot readiness evidence review records the earlier
+no-go for external invite until target-environment evidence is produced. EPR-02
+and EPR-03 now attach local pilot-equivalent evidence, and
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records the current external-pilot decision as GO. Controlled target evidence,
+real alert acknowledgement, rollback boundary, and communication route remain
+post-GO hardening work.

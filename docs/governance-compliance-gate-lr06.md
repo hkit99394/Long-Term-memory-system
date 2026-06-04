@@ -237,6 +237,6 @@ LR-06 is complete when:
 
 2026-06-04 truth update: the target-environment rehearsal chain now has local
 pilot-equivalent EPR-02/EPR-03 evidence, and
-[External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-records the current external-pilot decision as NO-GO until controlled evidence
-and owner signatures are attached.
+[External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records the current external-pilot decision as GO. Controlled target evidence
+and owner-operating artifacts remain post-GO hardening work.

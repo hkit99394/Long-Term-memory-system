@@ -150,12 +150,12 @@ adds standard and audit retention minimization. GC-05 now adds external
 payload-store retention checks. GC-06 now adds compliance evidence package
 generation. GC-07 now adds the governance/compliance admin console view. The
 GC-08 release smoke now verifies the governance/compliance evidence chain. The
-pilot readiness evidence review recorded a no-go for external invite until
-target-environment evidence is produced. EPR-02 and EPR-03 now attach local
-pilot-equivalent evidence in
+pilot readiness evidence review recorded the earlier no-go for external invite
+until target-environment evidence is produced. EPR-02 and EPR-03 now attach
+local pilot-equivalent evidence in
 [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md),
-and [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md)
-records the current decision as NO-GO until signed target evidence exists.
+and [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+records the current GO decision for version 1.0.0.
 
 Recommended sequence:
 
@@ -189,6 +189,6 @@ Recommended sequence:
 21. Done: run the pilot readiness evidence review.
 22. Done locally: EPR-02/EPR-03 attach pilot-equivalent deployment and release
     evidence.
-23. Blocked externally: EPR-04 records NO-GO until controlled target evidence,
-    alert acknowledgement, rollback boundary, communication route, and owner
-    signatures are attached.
+23. Done by owner decision: EPR-04 records version 1.0.0 GO; controlled target
+    evidence, alert acknowledgement, rollback boundary, and communication route
+    remain post-GO hardening work.
