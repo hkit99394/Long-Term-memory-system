@@ -11,8 +11,12 @@ namespace MemorySystem.Application.Events;
 public sealed class EventAppendWorkflow(
     IEventStore eventStore,
     IMemoryScopeResolver scopeResolver,
-    IMemoryAccessAuthorizer accessAuthorizer) : IEventAppendWorkflow
+    IMemoryAccessAuthorizer accessAuthorizer,
+    ExternalPayloadUriPolicy? externalPayloadUriPolicy = null) : IEventAppendWorkflow
 {
+    private readonly ExternalPayloadUriPolicy externalPayloadUriPolicy =
+        externalPayloadUriPolicy ?? ExternalPayloadUriPolicy.Disabled;
+
     private static readonly IReadOnlySet<string> EventTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "user_message",
@@ -82,7 +86,7 @@ public sealed class EventAppendWorkflow(
         }
     }
 
-    private static bool TryMap(
+    private bool TryMap(
         EventAppendWorkflowRequest request,
         MemoryScopeResolution resolvedScope,
         out AppendEventCommand command,
@@ -118,6 +122,15 @@ public sealed class EventAppendWorkflow(
             return false;
         }
 
+        if (!externalPayloadUriPolicy.TryNormalize(
+            request.ExternalPayloadUri,
+            out var externalPayloadUri,
+            out error))
+        {
+            failure = EventAppendWorkflowResult.InvalidRequest(error!);
+            return false;
+        }
+
         var contentJson = request.Payload.GetRawText();
         var contentHash = ComputeSha256(contentJson);
 
@@ -129,7 +142,7 @@ public sealed class EventAppendWorkflow(
             eventType,
             contentJson,
             contentHash,
-            string.IsNullOrWhiteSpace(request.ExternalPayloadUri) ? null : request.ExternalPayloadUri.Trim(),
+            externalPayloadUri,
             retentionClass,
             sensitivity,
             trustLevel,

@@ -113,7 +113,8 @@ gate and a restore rehearsal.
 MR-10 adds a repeatable local smoke command for the deployment shape:
 
 ```bash
-./scripts/production-pilot-deployment-smoke.sh
+MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY="$(openssl rand -hex 32)" \
+  ./scripts/production-pilot-deployment-smoke.sh
 ```
 
 The smoke uses the local Docker Compose PostgreSQL service as a production-like
@@ -132,6 +133,25 @@ can execute locally without external provider credentials or HTTPS ingress. It
 does not replace a real pilot deployment rehearsal with managed PostgreSQL,
 secret-store injection, TLS, and production embedding credentials. It does
 prove the repo's operator steps and runtime role boundaries are executable.
+
+## Single-Machine Docker Tool
+
+Version 1.0.0 also ships a single-machine Docker Compose tool for production
+pilot hosts that are not yet on ECS/Fargate:
+
+- `docker-compose.production.yml` runs PostgreSQL, API, worker, and a one-shot
+  migrator profile from the same immutable image.
+- `docker-compose.production.tls.yml` can add a Caddy TLS terminator on the
+  same host when the deployment is not using an external load balancer or
+  reverse proxy.
+- `scripts/production-container.sh` wraps build, migration, startup, status,
+  host preflight, logs, and health checks as repeatable operator commands.
+- `.env.production.example` documents the required host configuration without
+  committing real secret values.
+
+This tool is intentionally a bridge, not a new architecture. It preserves the
+same migrator/API/worker role split, production secret guardrails, forwarded
+HTTPS requirement, PostgreSQL authority, and rollback rules described above.
 
 ## Rollback Procedure
 

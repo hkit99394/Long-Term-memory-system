@@ -25,7 +25,8 @@ public static class MemoryProposalEndpointExtensions
                             loggerFactory.CreateLogger("MemorySystem.Api.MemoryProposals"),
                             idempotencyContext,
                             cancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Mutation);
 
         return endpoints;
     }

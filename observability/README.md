@@ -37,6 +37,10 @@ pilot environment:
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
 ```
 
+The loopback form uses the local demo key and prints that choice. Set
+`MEMORYSYSTEM_API_KEY` for pilot or production URLs; the smoke refuses the
+public local demo key for non-loopback targets.
+
 Or ask the artifact smoke to run the live metrics check too:
 
 ```bash

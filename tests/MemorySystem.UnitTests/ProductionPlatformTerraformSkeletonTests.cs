@@ -37,7 +37,8 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
         Assert.Contains("platform-retention-minimization.sh", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("platform-restore-validation.sh", dockerfileText, StringComparison.Ordinal);
         Assert.Contains("COPY migrations/ migrations/", dockerfileText, StringComparison.Ordinal);
-        Assert.Contains("ENTRYPOINT [\"dotnet\", \"/app/api/MemorySystem.Api.dll\"]", dockerfileText, StringComparison.Ordinal);
+        Assert.Contains("CMD [\"dotnet\", \"/app/api/MemorySystem.Api.dll\"]", dockerfileText, StringComparison.Ordinal);
+        Assert.DoesNotContain("ENTRYPOINT [\"dotnet\", \"/app/api/MemorySystem.Api.dll\"]", dockerfileText, StringComparison.Ordinal);
 
         var allTerraformText = string.Join(
             "\n",

@@ -133,8 +133,9 @@ present.
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
 ```
 
-Set `MEMORYSYSTEM_API_KEY` when the running API uses a key other than
-`private-alpha-local-key`.
+For loopback URLs only, the script uses the local demo key and prints that
+choice. Set `MEMORYSYSTEM_API_KEY` for every non-loopback API, and do not use
+`private-alpha-local-key` outside local demo traffic.
 
 ## Observability Artifact Smoke
 
@@ -190,11 +191,13 @@ alert inputs, read, and write paths; restores a backup into a fresh database;
 then re-points API and worker at the restored database.
 
 ```bash
-./scripts/production-pilot-deployment-smoke.sh
+MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY="$(openssl rand -hex 32)" \
+  ./scripts/production-pilot-deployment-smoke.sh
 ```
 
 Useful overrides:
 
 - `MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_PORT=5199`
+- `MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY=<throwaway-smoke-api-key>`
 - `MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_KEEP_DATABASES=true`
 - `MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_KEEP_WORK_DIR=true`

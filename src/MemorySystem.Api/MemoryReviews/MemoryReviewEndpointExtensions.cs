@@ -33,7 +33,8 @@ public static class MemoryReviewEndpointExtensions
                 ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
                 await ListContextObservationsAsync(context, observationStore, sourceEventLinks, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Expensive);
 
         endpoints.MapPost(
             "/api/reviews/context-observations/{id:guid}/review",
@@ -59,7 +60,8 @@ public static class MemoryReviewEndpointExtensions
                             loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
                             idempotencyContext,
                             operationCancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Mutation);
 
         MapReviewActionEndpoint(endpoints, MemoryReviewActions.Approve);
         MapReviewActionEndpoint(endpoints, MemoryReviewActions.Reject);
@@ -96,7 +98,8 @@ public static class MemoryReviewEndpointExtensions
                             loggerFactory.CreateLogger("MemorySystem.Api.MemoryReviews"),
                             idempotencyContext,
                             operationCancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Mutation);
     }
 
     private static async Task<IResult> ListPendingAsync(

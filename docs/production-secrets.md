@@ -14,6 +14,7 @@ Runtime checks enforce these rules:
 
 - API key authentication requires at least one configured key outside `Development` and `Testing`.
 - Production-shaped API key values must be non-placeholder secrets with at least 16 characters.
+- Repo-known local/demo API keys, including `private-alpha-local-key`, are rejected outside `Development` and `Testing`.
 - API key principal ids must be valid GUIDs, and duplicate API key values are rejected.
 - PostgreSQL local Docker Compose defaults are allowed only in `Development` and `Testing`.
 - PostgreSQL configuration outside `Development` and `Testing` must use a connection string or complete host, port, database, username, and password parts.
@@ -22,6 +23,7 @@ Runtime checks enforce these rules:
 - OpenAI API keys outside `Development` and `Testing` must be non-placeholder secrets with at least 16 characters.
 - The outbox worker refuses deterministic embeddings outside `Development` and `Testing`; API semantic routes return unavailable and readiness reports unhealthy until a production embedding provider is configured.
 - The API rejects plain HTTP outside `Development` and `Testing`. Forwarded headers are trusted only when explicitly enabled and restricted to configured proxies or networks.
+- JSON API request body reads are capped by `ApiIdempotency:MaxBodyBytes`, which defaults to 1 MiB and also protects idempotency hashing.
 
 These guardrails are not a replacement for a managed secret store. They catch accidental local, test, or placeholder values before production traffic depends on them.
 
@@ -150,6 +152,31 @@ ForwardedHeaders:KnownNetworks:0=<proxy-cidr>
 ```
 
 Configure either `KnownProxies` or `KnownNetworks`. Values can be provided as indexed configuration entries or as comma/semicolon-delimited strings. Do not enable forwarded headers without a trusted proxy or network allowlist; startup validation rejects that shape outside `Development` and `Testing`.
+
+For container production, prefer an exact proxy `/32` or a narrow dedicated
+Compose subnet. Do not use broad private ranges such as `10.0.0.0/8`,
+`172.16.0.0/12`, or `192.168.0.0/16`; `scripts/production-container.sh
+preflight` rejects those ranges unless
+`MEMORYSYSTEM_ALLOW_UNSAFE_BROAD_FORWARD_PROXY_NETWORK=true` is set for a
+reviewed exception.
+
+## External Event Payloads
+
+`AppendEventRequest.externalPayloadUri` is rejected unless
+`Events:ExternalPayloadUri:AllowedSchemes` or
+`Events:ExternalPayloadUri:AllowedPrefixes` is configured. Prefer exact
+object-store prefixes over broad schemes. `file://` payload URIs are allowed
+only in development/testing or an explicit local-only mode, and still must match
+the configured scheme or prefix.
+
+## Rate Limits
+
+The API applies fixed-window rate limits before authorization on protected
+routes. Limits are partitioned by API key id when available, then principal id,
+then remote IP for invalid-key or unauthenticated attempts. Tune
+`RateLimiting:Default`, `RateLimiting:Expensive`, `RateLimiting:Mutation`, and
+`RateLimiting:Admin` for the deployment envelope; rejected requests return
+HTTP 429.
 
 ## Operator Checklist
 

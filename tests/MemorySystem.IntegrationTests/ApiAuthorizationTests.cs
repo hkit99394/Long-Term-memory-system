@@ -247,12 +247,14 @@ public sealed class ApiAuthorizationTests
         Assert.Contains("PrincipalId must be a valid GUID", exception.Message);
     }
 
-    [Fact]
-    public void Production_host_rejects_placeholder_api_key_values()
+    [Theory]
+    [InlineData(TestApiKey)]
+    [InlineData("private-alpha-local-key")]
+    public void Production_host_rejects_placeholder_api_key_values(string unsafeApiKey)
     {
         using var factory = CreateProductionFactory(new Dictionary<string, string?>
         {
-            ["Authentication:ApiKey:Keys:test-key:Key"] = TestApiKey,
+            ["Authentication:ApiKey:Keys:test-key:Key"] = unsafeApiKey,
             ["Authentication:ApiKey:Keys:test-key:PrincipalId"] = TestPrincipalId
         });
 

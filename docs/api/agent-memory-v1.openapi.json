@@ -583,7 +583,9 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "format": "uri",
+            "description": "Optional absolute URI for externally stored payload content. Append validation accepts only configured allowed schemes or prefixes; file:// is local/testing only."
           },
           "payload": {
             "type": "object",

@@ -1,7 +1,11 @@
 .git
 .github
+.env
+.env.*
+!.env.production.example
 **/bin/
 **/obj/
+**/node_modules/
 benchmarks/outputs/
 vault/
 memory_system/

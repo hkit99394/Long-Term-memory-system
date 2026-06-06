@@ -10,7 +10,8 @@ POSTGRES_USER="${MEMORYSYSTEM_POSTGRES_USER:-memory_system}"
 POSTGRES_PASSWORD="${MEMORYSYSTEM_POSTGRES_PASSWORD:-memory_system_dev_password}"
 POSTGRES_PORT="${MEMORYSYSTEM_POSTGRES_PORT:-55432}"
 API_PORT="${MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_PORT:-5199}"
-API_KEY="${MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY:-private-alpha-local-key}"
+LOCAL_DEMO_API_KEY="private-alpha-local-key"
+API_KEY="${MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY:-${MEMORYSYSTEM_API_KEY:-}}"
 PRINCIPAL_ID="11111111-1111-4111-8111-111111111111"
 PROJECT_ID="33333333-3333-4333-8333-333333333333"
 RUN_ID="$(date -u +%Y%m%d%H%M%S)_$$"
@@ -27,6 +28,17 @@ PUBLISH_DIR="$WORK_DIR/publish"
 BACKUP_FILE="$WORK_DIR/$SMOKE_DB.dump"
 KEEP_DATABASES="${MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_KEEP_DATABASES:-false}"
 KEEP_WORK_DIR="${MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_KEEP_WORK_DIR:-false}"
+
+if [[ -z "$API_KEY" ]]; then
+  echo "MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY is required for production-pilot deployment smoke." >&2
+  echo "Use a throwaway non-demo value from your secret source; do not use the public local demo key." >&2
+  exit 64
+fi
+
+if [[ "$API_KEY" == "$LOCAL_DEMO_API_KEY" ]]; then
+  echo "Refusing to run production-pilot deployment smoke with the public local demo API key." >&2
+  exit 64
+fi
 
 api_pid=""
 worker_pid=""

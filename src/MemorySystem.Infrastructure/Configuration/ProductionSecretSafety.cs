@@ -7,6 +7,7 @@ public static class ProductionSecretSafety
     private static readonly HashSet<string> KnownUnsafeSecretValues = new(StringComparer.OrdinalIgnoreCase)
     {
         "api-key",
+        "agent-api-key",
         "changeme",
         "change-me",
         "dev-key",
@@ -18,6 +19,7 @@ public static class ProductionSecretSafety
         "memory_system_dev_password",
         "password",
         "placeholder",
+        "private-alpha-local-key",
         "sample-key",
         "secret",
         "second-test-api-key",

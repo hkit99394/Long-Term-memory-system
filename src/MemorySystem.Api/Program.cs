@@ -17,6 +17,8 @@ using MemorySystem.Infrastructure.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Observability;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
 
@@ -40,6 +42,7 @@ builder.Services.AddMemorySystemMemoryReviews();
 builder.Services.AddMemorySystemOperations(builder.Configuration);
 builder.Services.AddMemorySystemVaultExports();
 builder.Services.AddMemorySystemAdminConsole();
+builder.Services.AddMemorySystemRateLimiting(builder.Configuration);
 builder.Services.ConfigureOptions<MemorySystemForwardedHeadersOptionsSetup>();
 
 builder.Services
@@ -78,15 +81,17 @@ if (RequiresTransportSecurity(app.Environment))
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseMiddleware<TelemetryCorrelationMiddleware>();
+app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<ApiRequestMetricsMiddleware>();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("live"),
     ResponseWriter = WritePublicHealthResponseAsync
-}).AllowAnonymous();
+}).AllowAnonymous().DisableRateLimiting();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
@@ -98,14 +103,14 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
         [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
     },
     ResponseWriter = WriteHealthResponseAsync
-}).AllowAnonymous();
+}).AllowAnonymous().DisableRateLimiting();
 
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = WriteHealthResponseAsync
-}).AllowAnonymous();
+}).AllowAnonymous().DisableRateLimiting();
 
-app.MapGet("/", () => "Hello World!").AllowAnonymous();
+app.MapGet("/", () => "Hello World!").AllowAnonymous().DisableRateLimiting();
 app.MapMemorySystemEventEndpoints();
 app.MapMemorySystemMemoryFactEndpoints();
 app.MapMemorySystemMemoryProposalEndpoints();
@@ -171,6 +176,22 @@ if (app.Environment.IsEnvironment("Testing"))
                         resourceId);
                 }))
         .ExcludeFromDescription();
+
+    app.MapPost(
+        "/__test/json-body/widgets",
+        async (HttpContext context, CancellationToken cancellationToken) =>
+        {
+            var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<TestJsonBodyRequest>(
+                context.Request,
+                "JSON body test request is invalid.",
+                cancellationToken);
+
+            return requestResult.Succeeded
+                ? Results.Ok(new TestJsonBodyResponse(requestResult.Value!.Value))
+                : ToTestingResult(requestResult.Problem!);
+        })
+        .RequireAuthorization()
+        .ExcludeFromDescription();
 }
 
 app.Run();
@@ -220,6 +241,16 @@ static bool RequiresTransportSecurity(IHostEnvironment environment)
         && !environment.IsEnvironment("Testing");
 }
 
+static IResult ToTestingResult(ApiIdempotencyResponse response)
+{
+    return response.Body is ProblemDetails problem
+        ? Results.Problem(
+            statusCode: response.StatusCode,
+            title: problem.Title,
+            detail: problem.Detail)
+        : Results.Json(response.Body, statusCode: response.StatusCode, contentType: response.ContentType);
+}
+
 static bool ForwardedHeadersEnabled(IConfiguration configuration)
 {
     return bool.TryParse(configuration["TransportSecurity:ForwardedHeadersEnabled"], out var enabled)
@@ -253,3 +284,7 @@ public partial class Program
 internal sealed record TestIdempotencyRequest(string Value);
 
 internal sealed record TestIdempotencyResponse(Guid Id, string Value);
+
+internal sealed record TestJsonBodyRequest(string Value);
+
+internal sealed record TestJsonBodyResponse(string Value);

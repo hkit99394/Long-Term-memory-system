@@ -38,7 +38,8 @@ public static class MemoryFactEndpointExtensions
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await SemanticSearchAsync(context, search, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Expensive);
 
         endpoints.MapGet(
             "/api/memory/search/hybrid",
@@ -50,7 +51,8 @@ public static class MemoryFactEndpointExtensions
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await HybridSearchAsync(context, search, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Expensive);
 
         endpoints.MapGet(
             "/api/memory/context",
@@ -64,7 +66,8 @@ public static class MemoryFactEndpointExtensions
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await BuildContextPacketAsync(context, contextPacketBuilder, contextPacketObservations, contextProductMetrics, environment, embeddingOptions.Value, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Expensive);
 
         endpoints.MapPost(
             "/api/memory/context/feedback",
@@ -84,7 +87,8 @@ public static class MemoryFactEndpointExtensions
                     contextProductMetrics,
                     loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"),
                     cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Mutation);
 
         endpoints.MapPost(
             "/api/memory/query-facts",
@@ -94,7 +98,8 @@ public static class MemoryFactEndpointExtensions
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await QueryFactsAsync(context, factFindingService, loggerFactory.CreateLogger("MemorySystem.Api.MemoryFacts"), cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Expensive);
 
         endpoints.MapGet(
             "/api/memory/{id:guid}",

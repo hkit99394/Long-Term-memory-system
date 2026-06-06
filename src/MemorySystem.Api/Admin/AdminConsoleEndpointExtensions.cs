@@ -51,7 +51,8 @@ public static class AdminConsoleEndpointExtensions
                 ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
                 await ListMemoryFactsAsync(context, store, sourceEventLinks, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapGet(
             "/api/admin/source-events",
@@ -61,7 +62,8 @@ public static class AdminConsoleEndpointExtensions
                 ISourceEventLinkBuilder sourceEventLinks,
                 CancellationToken cancellationToken) =>
                 await ListSourceEventsAsync(context, store, sourceEventLinks, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapGet(
             "/api/admin/compliance/status",
@@ -70,7 +72,8 @@ public static class AdminConsoleEndpointExtensions
                 IAdminGovernanceStore governanceStore,
                 CancellationToken cancellationToken) =>
                 await ReadComplianceStatusAsync(context, governanceStore, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapGet(
             "/api/admin/pilot/readiness",
@@ -79,7 +82,8 @@ public static class AdminConsoleEndpointExtensions
                 IWebHostEnvironment environment,
                 CancellationToken cancellationToken) =>
                 await ReadPilotReadinessAsync(context, environment, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         return endpoints;
     }

@@ -31,7 +31,8 @@ public static class AdminGovernanceEndpointExtensions
                 IAdminGovernanceStore store,
                 CancellationToken cancellationToken) =>
                 await ListLegalHoldsAsync(context, store, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/governance/legal-holds",
@@ -44,7 +45,8 @@ public static class AdminGovernanceEndpointExtensions
                     "POST /api/admin/governance/legal-holds",
                     async (idempotencyContext, cancellationToken) =>
                         await CreateLegalHoldAsync(context, store, idempotencyContext, cancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/governance/legal-holds/{id:guid}/release",
@@ -65,7 +67,8 @@ public static class AdminGovernanceEndpointExtensions
                             authenticationAuditRecorder,
                             idempotencyContext,
                             cancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/governance/erasures",
@@ -78,7 +81,8 @@ public static class AdminGovernanceEndpointExtensions
                     "POST /api/admin/governance/erasures",
                     async (idempotencyContext, cancellationToken) =>
                         await ExecuteErasureAsync(context, store, idempotencyContext, cancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapGet(
             "/api/admin/governance/retention-report",
@@ -87,7 +91,8 @@ public static class AdminGovernanceEndpointExtensions
                 IAdminGovernanceStore store,
                 CancellationToken cancellationToken) =>
                 await ReadRetentionReportAsync(context, store, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         return endpoints;
     }

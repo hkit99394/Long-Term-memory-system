@@ -24,7 +24,8 @@ public static class EventEndpointExtensions
                             workflow,
                             idempotencyContext,
                             cancellationToken)))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Mutation);
 
         endpoints.MapGet(
             "/api/events/{id:guid}",

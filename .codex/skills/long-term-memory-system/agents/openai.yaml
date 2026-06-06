@@ -1,0 +1,7 @@
+interface:
+  display_name: "Long-Term Memory System"
+  short_description: "Retrieve and write durable project memory"
+  default_prompt: "Use $long-term-memory-system to retrieve relevant project memory before answering and store durable facts only when grounded in source evidence."
+
+policy:
+  allow_implicit_invocation: true

@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_DEMO_API_KEY="private-alpha-local-key"
 API_BASE_URL="${MEMORYSYSTEM_API_BASE_URL:-http://127.0.0.1:5099}"
-API_KEY="${MEMORYSYSTEM_API_KEY:-private-alpha-local-key}"
+API_KEY="${MEMORYSYSTEM_API_KEY:-}"
 OUTPUT_FILE="${MEMORYSYSTEM_OPERATIONS_METRICS_SMOKE_FILE:-}"
 ALERT_INPUTS_FILE="${MEMORYSYSTEM_OBSERVABILITY_ALERT_INPUTS_FILE:-$ROOT_DIR/observability/alert-inputs/api-metrics.txt}"
 
@@ -14,6 +15,25 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+is_loopback_url() {
+  [[ "$1" =~ ^https?://(127\.0\.0\.1|localhost)([:/]|$) || "$1" =~ ^https?://\[::1\]([:/]|$) ]]
+}
+
+if [[ -z "$API_KEY" ]]; then
+  if is_loopback_url "$API_BASE_URL"; then
+    API_KEY="$LOCAL_DEMO_API_KEY"
+    echo "Using local demo API key default for loopback operations metrics smoke." >&2
+  else
+    echo "MEMORYSYSTEM_API_KEY is required when running operations metrics smoke against a non-loopback API." >&2
+    exit 64
+  fi
+fi
+
+if [[ "$API_KEY" == "$LOCAL_DEMO_API_KEY" ]] && ! is_loopback_url "$API_BASE_URL"; then
+  echo "Refusing to use the public local demo API key against a non-loopback API." >&2
+  exit 64
+fi
 
 required_metrics=()
 while IFS= read -r metric_name; do

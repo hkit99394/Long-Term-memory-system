@@ -1,0 +1,13 @@
+services:
+  local-access:
+    image: caddy:2.8.4-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17
+    restart: unless-stopped
+    ports:
+      - "${MEMORYSYSTEM_LOCAL_ACCESS_BIND:-127.0.0.1}:${MEMORYSYSTEM_LOCAL_ACCESS_PORT:-8081}:8081"
+    volumes:
+      - ./ops/caddy/Caddyfile.local-access:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - memorysystem

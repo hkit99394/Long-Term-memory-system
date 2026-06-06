@@ -5,11 +5,14 @@ using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Authentication;
 using MemorySystem.Application.Scopes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.Http;
 
 internal static class ApiRequestHelpers
 {
+    private const int BufferThreshold = 30 * 1024;
+
     public static bool TryGetPrincipalId(HttpContext context, out Guid principalId)
     {
         var principalIdValue =
@@ -76,8 +79,25 @@ internal static class ApiRequestHelpers
                     "Request Content-Type must be application/json."));
         }
 
+        var maxBodyBytes = request.HttpContext.RequestServices
+            .GetRequiredService<IOptions<ApiIdempotencyOptions>>()
+            .Value
+            .MaxBodyBytes;
+
+        if (request.ContentLength > maxBodyBytes)
+        {
+            return JsonBodyReadResult<T>.Failure(BodyTooLargeProblem(title, maxBodyBytes));
+        }
+
         try
         {
+            request.EnableBuffering(BufferThreshold, maxBodyBytes);
+
+            if (request.Body.CanSeek)
+            {
+                request.Body.Position = 0;
+            }
+
             var value = await request.ReadFromJsonAsync<T>(cancellationToken);
 
             return value is null
@@ -96,6 +116,25 @@ internal static class ApiRequestHelpers
                     title,
                     "Request body must be valid JSON."));
         }
+        catch (IOException)
+        {
+            return JsonBodyReadResult<T>.Failure(BodyTooLargeProblem(title, maxBodyBytes));
+        }
+        finally
+        {
+            if (request.Body.CanSeek)
+            {
+                request.Body.Position = 0;
+            }
+        }
+    }
+
+    private static ApiIdempotencyResponse BodyTooLargeProblem(string title, long maxBodyBytes)
+    {
+        return Problem(
+            StatusCodes.Status413PayloadTooLarge,
+            title,
+            $"JSON request bodies must be {maxBodyBytes} bytes or fewer.");
     }
 
     public static ApiIdempotencyResponse Problem(int statusCode, string title, string detail)

@@ -183,7 +183,8 @@ Observability artifact verification:
 Production-pilot deployment smoke verification:
 
 ```bash
-./scripts/production-pilot-deployment-smoke.sh
+MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY="$(openssl rand -hex 32)" \
+  ./scripts/production-pilot-deployment-smoke.sh
 ```
 
 More testing notes, including alternate PostgreSQL ports and CI behavior, are in
@@ -266,6 +267,7 @@ Start with these documents:
 - [Private alpha workflow](docs/private-alpha-workflow.md)
 - [Product improvement plan](docs/product-improvement-plan.md)
 - [Agent-facing memory contract](docs/agent-facing-memory-contract.md)
+- [Project-local memory skill](.codex/skills/long-term-memory-system/SKILL.md)
 - [Agent Memory OpenAPI v1](docs/api/agent-memory-v1.openapi.json)
 - [Agent Memory v1 client examples](docs/api/agent-memory-v1-examples.md)
 - [Context Product v1 caller guide](docs/api/context-product-v1-caller-guide.md)
@@ -276,4 +278,5 @@ Start with these documents:
 - [Benchmarking plan](docs/benchmarking.md)
 - [Backup and restore runbook](docs/backup-restore.md)
 - [Production secret handling](docs/production-secrets.md)
+- [Production container tool](docs/production-container.md)
 - [Private Alpha 0.1 release notes](docs/private-alpha-0.1-release.md)

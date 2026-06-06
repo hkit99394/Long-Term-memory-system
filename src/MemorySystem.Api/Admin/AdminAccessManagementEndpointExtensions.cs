@@ -19,7 +19,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await UpsertOrganizationMembershipAsync(context, store, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/access/project-memberships",
@@ -29,7 +30,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await UpsertProjectMembershipAsync(context, store, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/access/role-assignments",
@@ -39,7 +41,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await UpsertRoleAssignmentAsync(context, store, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/access/namespace-grants",
@@ -49,7 +52,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await UpsertNamespaceGrantAsync(context, store, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/access/effective-preview",
@@ -58,7 +62,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await PreviewEffectiveAccessAsync(context, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         endpoints.MapPost(
             "/api/admin/access/permission-drift",
@@ -68,7 +73,8 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await GeneratePermissionDriftReportAsync(context, store, accessAuthorizer, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         return endpoints;
     }

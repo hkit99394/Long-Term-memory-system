@@ -20,6 +20,8 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
 | [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
 | [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
+| [Production Container Tool](production-container.md) | Defines the single-machine Docker Compose tool, v1.0.0 image build, migrator/API/worker rollout, health checks, and rollback path. |
+| [Project-local Long-Term Memory Skill](../.codex/skills/long-term-memory-system/SKILL.md) | Defines reusable agent instructions for retrieving, writing, reviewing, and giving feedback on memory through the API without exposing secrets. |
 | [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
 | [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Scopes infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment release checklists. |
@@ -166,6 +168,7 @@ The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first
 | Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
 | Principal | A human, agent, or service account making a request to the memory system. |
 | Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
+| Production container tool | The single-machine Docker Compose wrapper for the v1.0.0 multi-role image, one-shot migrator, long-running API and worker roles, and operator health/status/log commands. |
 | Production deployment shape | The production-pilot runtime split between the migrator, API, worker, managed PostgreSQL, secret store, rollback procedure, and restore validation path. |
 | Production observability | The production-pilot signal contract, metrics export, alert rules, dashboard, trace coverage manifest, and operator first-response checks. |
 | Production platform integration | The LR-05 plan for connecting the service to IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and per-environment release gates. |

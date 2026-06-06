@@ -32,7 +32,8 @@ public static class AdminAuditExportEndpointExtensions
                 IAccessAuditEventStore accessAuditEventStore,
                 CancellationToken cancellationToken) =>
                 await ExportAccessAuditAsync(context, store, accessAuthorizer, accessAuditEventStore, cancellationToken))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
         return endpoints;
     }

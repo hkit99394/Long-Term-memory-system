@@ -1,0 +1,23 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17
+    restart: unless-stopped
+    environment:
+      MEMORYSYSTEM_PUBLIC_HOSTNAME: ${MEMORYSYSTEM_PUBLIC_HOSTNAME:-example.com}
+      MEMORYSYSTEM_TLS_EMAIL: ${MEMORYSYSTEM_TLS_EMAIL:-ops@example.com}
+    ports:
+      - "${MEMORYSYSTEM_HTTP_PORT:-80}:80"
+      - "${MEMORYSYSTEM_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./ops/caddy/Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - memorysystem-caddy-data:/data
+      - memorysystem-caddy-config:/config
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - memorysystem
+
+volumes:
+  memorysystem-caddy-data:
+  memorysystem-caddy-config:

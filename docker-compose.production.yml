@@ -1,0 +1,135 @@
+name: memorysystem-production
+
+x-memorysystem-image: &memorysystem-image
+  image: ${MEMORYSYSTEM_IMAGE:-memorysystem:1.0.0}
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      VERSION: ${MEMORYSYSTEM_SERVICE_VERSION:-1.0.0}
+      SOURCE_REVISION: ${MEMORYSYSTEM_SOURCE_REVISION:-local}
+      BUILD_DATE: ${MEMORYSYSTEM_BUILD_DATE:-unknown}
+
+x-memorysystem-container: &memorysystem-container
+  <<: *memorysystem-image
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - memorysystem
+
+x-memorysystem-runtime-env: &memorysystem-runtime-env
+  DOTNET_ENVIRONMENT: Production
+  MEMORYSYSTEM_SERVICE_VERSION: ${MEMORYSYSTEM_SERVICE_VERSION:-1.0.0}
+  MEMORYSYSTEM_POSTGRES_HOST: postgres
+  MEMORYSYSTEM_POSTGRES_PORT: 5432
+  MEMORYSYSTEM_POSTGRES_DB: ${MEMORYSYSTEM_POSTGRES_DB:-memory_system}
+  MEMORYSYSTEM_POSTGRES_USER: ${MEMORYSYSTEM_POSTGRES_USER:-memory_system}
+  MEMORYSYSTEM_POSTGRES_PASSWORD: ${MEMORYSYSTEM_POSTGRES_PASSWORD:-placeholder}
+  Embeddings__Provider: ${MEMORYSYSTEM_EMBEDDINGS_PROVIDER:-openai}
+  Embeddings__Model: ${MEMORYSYSTEM_EMBEDDINGS_MODEL:-text-embedding-3-small}
+  Embeddings__Dimension: ${MEMORYSYSTEM_EMBEDDINGS_DIMENSION:-1536}
+  Embeddings__Endpoint: ${MEMORYSYSTEM_EMBEDDINGS_ENDPOINT:-https://api.openai.com/v1/embeddings}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-placeholder}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg17-bookworm@sha256:feb68f4f15446397d8cac7f4fe48fe4586de83160d1fc48b46283312d1a33966
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MEMORYSYSTEM_POSTGRES_DB:-memory_system}
+      POSTGRES_USER: ${MEMORYSYSTEM_POSTGRES_USER:-memory_system}
+      POSTGRES_PASSWORD: ${MEMORYSYSTEM_POSTGRES_PASSWORD:-placeholder}
+    volumes:
+      - memorysystem-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -c \"SELECT 1;\" >/dev/null"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - memorysystem
+
+  migrator:
+    <<: *memorysystem-container
+    profiles:
+      - migrate
+    restart: "no"
+    working_dir: /app/migrator
+    command:
+      [
+        "dotnet",
+        "/app/migrator/MemorySystem.Migrator.dll",
+        "--migrations-directory",
+        "/app/migrations"
+      ]
+    environment:
+      <<: *memorysystem-runtime-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *memorysystem-container
+    restart: unless-stopped
+    working_dir: /app/api
+    command: ["dotnet", "/app/api/MemorySystem.Api.dll"]
+    environment:
+      <<: *memorysystem-runtime-env
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Authentication__ApiKey__Keys__operator__Key: ${MEMORYSYSTEM_OPERATOR_API_KEY:-placeholder}
+      Authentication__ApiKey__Keys__operator__PrincipalId: ${MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID:-replace-with-principal-guid}
+      Authentication__ApiKey__Keys__operator__DisplayName: ${MEMORYSYSTEM_OPERATOR_DISPLAY_NAME:-Production Operator}
+      Authentication__ApiKey__Keys__operator__CredentialId: ${MEMORYSYSTEM_OPERATOR_CREDENTIAL_ID:-}
+      TransportSecurity__ForwardedHeadersEnabled: ${MEMORYSYSTEM_FORWARDED_HEADERS_ENABLED:-true}
+      ForwardedHeaders__KnownNetworks__0: ${MEMORYSYSTEM_FORWARD_PROXY_NETWORK:-127.0.0.0/8}
+      ForwardedHeaders__KnownNetworks__1: 127.0.0.0/8
+    ports:
+      - "${MEMORYSYSTEM_API_BIND:-127.0.0.1}:${MEMORYSYSTEM_API_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8080/health/live >/dev/null"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    <<: *memorysystem-container
+    restart: unless-stopped
+    working_dir: /app/worker
+    command: ["dotnet", "/app/worker/MemorySystem.Worker.dll"]
+    environment:
+      <<: *memorysystem-runtime-env
+      OutboxWorker__WorkerId: ${MEMORYSYSTEM_OUTBOX_WORKER_ID:-production-docker-worker-1}
+      EphemeralEventRetention__Enabled: ${MEMORYSYSTEM_EPHEMERAL_EVENT_RETENTION_ENABLED:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  memorysystem-postgres-data:
+
+networks:
+  memorysystem:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${MEMORYSYSTEM_DOCKER_NETWORK_CIDR:-172.30.42.0/24}
