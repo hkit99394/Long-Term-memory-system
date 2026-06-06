@@ -15,7 +15,7 @@ internal static class ApiDatabaseTestSupport
         string connectionString,
         Guid principalId,
         string principalType = "human",
-        string displayName = "Jack Tam")
+        string displayName = "Local Demo User")
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();

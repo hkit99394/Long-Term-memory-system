@@ -55,7 +55,8 @@ Generated outputs are ignored by git.
    ../../scripts/seed-private-alpha-demo.sh
    ```
 
-2. Run the API with the seeded principal and local API key.
+2. Run the API with the seeded local-demo principal and key. The root
+   [README](../../README.md) has the copy-paste command.
 
 3. Generate the prompt pack:
 
@@ -77,6 +78,9 @@ Generated outputs are ignored by git.
    MEMORYSYSTEM_BENCHMARK_API_KEY=private-alpha-local-key \
    python3 fetch_contexts.py
    ```
+
+   `private-alpha-local-key` is the committed local-demo key. Set
+   `MEMORYSYSTEM_BENCHMARK_API_KEY` explicitly for any non-local API.
 
 6. For each task, run `memory_off` first.
 

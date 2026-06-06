@@ -3,12 +3,12 @@
   "info": {
     "title": "Long-Term Memory System Agent API",
     "version": "v1",
-    "description": "Curated LMSS v1 contract for agent-facing memory operations backed by the existing private-alpha API."
+    "description": "Curated LMSS v1 contract for agent-facing memory operations backed by the local demo API."
   },
   "servers": [
     {
       "url": "http://127.0.0.1:5099",
-      "description": "Local private-alpha API"
+      "description": "Local demo API"
     }
   ],
   "security": [

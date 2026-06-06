@@ -76,12 +76,15 @@ Run the API with the seeded local principal and API key:
 
 ```bash
 env \
-  'Authentication__ApiKey__Keys__local-jack__Key=private-alpha-local-key' \
-  'Authentication__ApiKey__Keys__local-jack__PrincipalId=11111111-1111-4111-8111-111111111111' \
-  'Authentication__ApiKey__Keys__local-jack__DisplayName=Jack Tam' \
+  'Authentication__ApiKey__Keys__local_demo__Key=private-alpha-local-key' \
+  'Authentication__ApiKey__Keys__local_demo__PrincipalId=11111111-1111-4111-8111-111111111111' \
+  'Authentication__ApiKey__Keys__local_demo__DisplayName=Local Demo User' \
   ASPNETCORE_URLS=http://127.0.0.1:5099 \
   dotnet run --project ../../src/MemorySystem.Api --no-launch-profile
 ```
+
+`private-alpha-local-key` is the committed local-demo key. Set
+`MEMORYSYSTEM_BENCHMARK_API_KEY` explicitly for any non-local API.
 
 Run all eight benchmark task tool calls, including ACU-003:
 

@@ -2,32 +2,20 @@
 
 A durable, auditable memory service for AI agents.
 
-The system stores long-lived memory in PostgreSQL, uses pgvector for semantic
-recall, preserves source events as evidence, and keeps memory writes and reads
+This project stores long-lived memory in PostgreSQL, uses pgvector for semantic
+recall, preserves source events as evidence, and keeps memory reads and writes
 behind explicit governance boundaries.
 
-Version 1.0.0 is marked GO for external pilot. See the
-[1.0.0 GO record](docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md), the
-[release readiness status](docs/external-pilot-readiness-status.json), and the
-[product improvement plan](docs/product-improvement-plan.md) for the current
-status and next milestones.
+Status: `v1.0.0` is marked GO for an external pilot. That means the pilot
+workflow, local verification, governance evidence, and operator checks are
+documented and repeatable. Start with the [GO record](docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md),
+[release readiness status](docs/external-pilot-readiness-status.json), and
+[product improvement plan](docs/product-improvement-plan.md) when you need the
+current release context.
 
-## Contents
+## What It Does
 
-- [What it does](#what-it-does)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [Run locally](#run-locally)
-- [Testing](#testing)
-- [TypeScript tooling](#typescript-tooling)
-- [Useful endpoints](#useful-endpoints)
-- [Repository layout](#repository-layout)
-- [Documentation](#documentation)
-
-## What it does
-
-This project is not a prompt dump or a notes app. Its goal is trustworthy AI
+The system is not a prompt dump or a notes app. Its goal is trustworthy AI
 continuity: durable memories should have scope, provenance, confidence,
 lifecycle state, and an access boundary.
 
@@ -36,25 +24,21 @@ Core capabilities:
 - Append source events as evidence.
 - Propose durable memory through a Memory Broker.
 - Route low-confidence, duplicate, similar, or conflicting memory to review.
-- Retrieve scoped context packets through authorized full-text, semantic, and
-  hybrid search.
+- Retrieve scoped context packets through authorized structured, full-text,
+  semantic, and hybrid search.
 - Record context-packet feedback without storing raw query text.
-- Browse authorized memory facts, source events, and audit references in the admin console.
-- Execute authenticated governance workflows for legal holds, erasure, and
+- Inspect authorized memory facts, source events, and audit references in the
+  admin console.
+- Run authenticated governance workflows for legal holds, erasure, and
   retention reporting.
 - Export approved memory to a human-readable vault.
-- Expose operational health for API readiness, worker heartbeat, outbox backlog,
-  pending reviews, and stale vault exports.
-- Export authenticated pilot metrics for request health, readiness, outbox,
-  worker heartbeat, retrieval feedback, and embedding-index failures.
-- Ship executable pilot observability artifacts for alerts, dashboards, and
-  trace coverage.
-- Run repeatable private-alpha seed, backup/restore, deployment, and
-  observability smoke checks.
+- Expose health, readiness, worker heartbeat, outbox, review, metrics, backup,
+  restore, and observability checks for pilot operation.
 
-## Architecture
+## How It Works
 
-The service is built around PostgreSQL as the source of truth.
+PostgreSQL is the source of truth. pgvector supports recall, but vector rows are
+rebuildable derived data rather than authoritative memory.
 
 | Area | Implementation |
 | --- | --- |
@@ -62,62 +46,69 @@ The service is built around PostgreSQL as the source of truth.
 | Domain/application | C#/.NET 10 projects |
 | Storage | PostgreSQL 17 with pgvector |
 | Migrations | SQL-first migration runner |
-| Retrieval | Structured search, full-text search, pgvector semantic search, hybrid ranking |
+| Retrieval | Structured search, full-text search, semantic search, hybrid ranking |
 | Background work | Outbox worker for indexing, export, review, expiry, redaction, and retention tasks |
-| UI/tooling | TypeScript review dashboard and local tooling |
+| UI/tooling | TypeScript review dashboard, admin console, and vault tooling |
 | Tests | Unit tests plus PostgreSQL-backed integration tests |
 
-Read the detailed architecture guide in
-[docs/architecture.md](docs/architecture.md).
+Read [docs/architecture.md](docs/architecture.md) for the detailed component
+map, write path, read path, trust model, and current architecture boundary.
 
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
 - Docker with Docker Compose
-- Node.js for TypeScript UI and tool builds
+- Node.js, when changing TypeScript UI or tooling
 
 Docker Compose runs PostgreSQL with pgvector on local port `55432` by default.
 
-## Quick start
+## Quick Start
 
-Start PostgreSQL:
+From the repository root:
 
 ```bash
 docker compose up -d --wait postgres
-```
-
-Create the private-alpha Scenario 0001 demo data:
-
-```bash
 ./scripts/seed-private-alpha-demo.sh
-```
 
-Build and run the fast verification suite:
-
-```bash
 dotnet restore MemorySystem.sln
 dotnet build MemorySystem.sln --configuration Release --no-restore
 dotnet test MemorySystem.sln --configuration Release --no-build --filter "Category!=Database"
 ```
 
-Run the API with the seeded local principal:
+Run the API with the seeded local demo principal:
 
 ```bash
-Authentication__ApiKey__Keys__local_jack__Key=private-alpha-local-key \
-Authentication__ApiKey__Keys__local_jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
-Authentication__ApiKey__Keys__local_jack__DisplayName="Jack Tam" \
+Authentication__ApiKey__Keys__local_demo__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local_demo__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local_demo__DisplayName="Local Demo User" \
+ASPNETCORE_URLS=http://127.0.0.1:5099 \
 dotnet run --project src/MemorySystem.Api
 ```
 
-Run the worker in another terminal:
+In a second terminal, run the worker:
 
 ```bash
 dotnet run --project src/MemorySystem.Worker
 ```
 
-Most API endpoints require the configured `X-Api-Key` header.
+Open or call:
 
-## Run locally
+```bash
+curl http://127.0.0.1:5099/health/live
+curl -H "X-Api-Key: private-alpha-local-key" http://127.0.0.1:5099/api/operations/summary
+```
+
+Then visit:
+
+- `http://127.0.0.1:5099/reviews/` for the review dashboard
+- `http://127.0.0.1:5099/admin/` for the admin console
+
+The local API key `private-alpha-local-key` and Docker password
+`memory_system_dev_password` are committed demo values. They are not secrets and
+must not be reused outside local development or tests. Production secret rules
+are documented in [docs/production-secrets.md](docs/production-secrets.md).
+
+## Local Workflow
 
 The seed runner is the fastest way to create a useful local database:
 
@@ -125,11 +116,12 @@ The seed runner is the fastest way to create a useful local database:
 ./scripts/seed-private-alpha-demo.sh
 ```
 
-It starts PostgreSQL if needed, applies migrations, and upserts the Scenario
-0001 actors, memberships, grants, source events, memory facts, role lenses,
-chunks, outbox jobs, and deterministic embeddings.
+It starts PostgreSQL if needed, applies migrations, and upserts Scenario 0001:
+actors, memberships, grants, source events, memory facts, role lenses, chunks,
+outbox jobs, and deterministic embeddings.
 
-Use the private-alpha workflow to walk through the product path:
+Use [docs/private-alpha-workflow.md](docs/private-alpha-workflow.md) to walk the
+product path:
 
 1. Append source evidence.
 2. Propose durable memory.
@@ -139,14 +131,12 @@ Use the private-alpha workflow to walk through the product path:
 6. Export human-readable memory.
 7. Check operational state.
 
-Workflow details are in
-[docs/private-alpha-workflow.md](docs/private-alpha-workflow.md). The seed story
-is in
+The seed story is defined in
 [docs/scenarios/0001-user-preference-project-decision-cto-context.md](docs/scenarios/0001-user-preference-project-decision-cto-context.md).
 
 ## Testing
 
-Fast local verification:
+Fast verification:
 
 ```bash
 dotnet restore MemorySystem.sln
@@ -162,38 +152,20 @@ MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.Integrat
 docker compose stop postgres
 ```
 
-Backup/restore smoke verification:
+Useful smoke checks:
 
 ```bash
 ./scripts/backup-restore-smoke.sh
-```
-
-Operations metrics smoke verification against a running local API:
-
-```bash
+./scripts/observability-artifacts-smoke.sh
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
 ```
 
-Observability artifact verification:
+More test paths, alternate PostgreSQL ports, CI behavior, benchmark gates, and
+production-pilot smoke commands are in [docs/testing.md](docs/testing.md).
 
-```bash
-./scripts/observability-artifacts-smoke.sh
-```
+## TypeScript Tooling
 
-Production-pilot deployment smoke verification:
-
-```bash
-MEMORYSYSTEM_PRODUCTION_PILOT_SMOKE_API_KEY="$(openssl rand -hex 32)" \
-  ./scripts/production-pilot-deployment-smoke.sh
-```
-
-More testing notes, including alternate PostgreSQL ports and CI behavior, are in
-[docs/testing.md](docs/testing.md).
-
-## TypeScript tooling
-
-The dashboard and vault-sync tools are dependency-free Node.js projects. Use
-these commands when changing TypeScript sources under `tools/`:
+Run these checks after changing dashboard, admin console, or vault-sync sources:
 
 ```bash
 cd tools/ui
@@ -207,12 +179,12 @@ npm run build
 npm run check
 ```
 
-The UI build writes the static review dashboard asset under
-`src/MemorySystem.Api/wwwroot/reviews/` and the admin console asset under
+The UI build writes static assets under
+`src/MemorySystem.Api/wwwroot/reviews/` and
 `src/MemorySystem.Api/wwwroot/admin/`. The vault-sync build writes
 `tools/vault-sync/dist/vault-sync.js`.
 
-## Useful endpoints
+## Useful Endpoints
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -222,11 +194,6 @@ The UI build writes the static review dashboard asset under
 | `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
 | `GET /api/admin/memory/facts` | Authenticated memory fact inspection for the admin console |
 | `GET /api/admin/source-events` | Authenticated source event and audit reference inspection for the admin console |
-| `GET /api/admin/governance/legal-holds` | Authenticated legal hold reporting |
-| `POST /api/admin/governance/legal-holds` | Create a legal hold over authorized source events |
-| `POST /api/admin/governance/legal-holds/{id}/release` | Release a legal hold and restore event retention where no other hold is active |
-| `POST /api/admin/governance/erasures` | Execute erasure over authorized source events and derived copies |
-| `GET /api/admin/governance/retention-report` | Retention report by namespace, retention class, sensitivity, and age |
 | `POST /api/events` | Append source evidence |
 | `POST /api/memory/proposals` | Propose durable memory |
 | `GET /api/memory/context` | Build a scoped context packet |
@@ -235,48 +202,47 @@ The UI build writes the static review dashboard asset under
 | `GET /reviews/` | Local review dashboard |
 | `GET /admin/` | Local memory admin console |
 
-## Repository layout
+The curated agent-facing API contract lives in
+[docs/api/agent-memory-v1.openapi.json](docs/api/agent-memory-v1.openapi.json).
+Runnable curl examples are in
+[docs/api/agent-memory-v1-examples.md](docs/api/agent-memory-v1-examples.md).
+
+## Repository Layout
 
 ```text
 src/
-  MemorySystem.Api/             ASP.NET Core API and review dashboard assets
+  MemorySystem.Api/             ASP.NET Core API and static UI assets
   MemorySystem.Application/     Application contracts and use-case services
-  MemorySystem.Domain/          Thin domain boundary; model extraction is tracked by LR-04
+  MemorySystem.Domain/          Domain boundary and extracted IO-free concepts
   MemorySystem.Infrastructure/  PostgreSQL, providers, repositories, and stores
   MemorySystem.Migrator/        SQL migration runner
   MemorySystem.Worker/          Outbox and retention worker
-  MemorySystem.DemoSeeder/      Private-alpha seed/demo runner
+  MemorySystem.DemoSeeder/      Scenario 0001 seed/demo runner
 tests/
   MemorySystem.UnitTests/
   MemorySystem.IntegrationTests/
-benchmarks/                     Benchmark fixtures, prompt packs, rubrics, and reports
+benchmarks/                     Benchmark fixtures, runners, rubrics, and reports
 migrations/                     SQL schema migrations
-observability/                  Pilot alerts, dashboard, trace coverage, and metric inputs
-scripts/                        Local seed and release hygiene scripts
-docs/                           Architecture, decisions, runbooks, and roadmap
+observability/                  Alerts, dashboards, trace coverage, and metric inputs
+scripts/                        Local seed, smoke, release, and operator scripts
+docs/                           Architecture, API, runbooks, decisions, and roadmap
 vault/                          Human-readable memory export workspace
+infra/                          Terraform platform contracts and modules
 ```
 
 ## Documentation
 
-Start with these documents:
+New readers should start here:
 
-- [Documentation index](docs/README.md)
+- [Documentation hub](docs/README.md)
 - [Project goal](docs/project-goal.md)
 - [Architecture overview](docs/architecture.md)
-- [Private alpha workflow](docs/private-alpha-workflow.md)
-- [Product improvement plan](docs/product-improvement-plan.md)
-- [Agent-facing memory contract](docs/agent-facing-memory-contract.md)
-- [Project-local memory skill](.codex/skills/long-term-memory-system/SKILL.md)
-- [Agent Memory OpenAPI v1](docs/api/agent-memory-v1.openapi.json)
-- [Agent Memory v1 client examples](docs/api/agent-memory-v1-examples.md)
-- [Context Product v1 caller guide](docs/api/context-product-v1-caller-guide.md)
-- [Policy targeting for agent callers](docs/api/policy-targeting-for-agent-callers.md)
-- [API `memory.queryFacts` implementation plan](docs/api/memory-query-facts-implementation-plan.md)
-- [Roadmap](docs/roadmap.md)
+- [Local demo workflow](docs/private-alpha-workflow.md)
+- [API contracts](docs/api/README.md)
 - [Testing commands](docs/testing.md)
-- [Benchmarking plan](docs/benchmarking.md)
-- [Backup and restore runbook](docs/backup-restore.md)
 - [Production secret handling](docs/production-secrets.md)
-- [Production container tool](docs/production-container.md)
-- [Private Alpha 0.1 release notes](docs/private-alpha-0.1-release.md)
+
+Planning, release, governance, platform, and architecture-decision records are
+kept under `docs/` for traceability. Historical pilot evidence is intentionally
+preserved; use the linked release readiness status and GO record for the current
+state.

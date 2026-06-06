@@ -34,8 +34,8 @@ Principal:
 principal:
   id: "11111111-1111-4111-8111-111111111111"
   principal_type: "human"
-  display_name: "Jack Tam"
-  api_key_label: "local-jack"
+  display_name: "Local Demo User"
+  api_key_label: "local-demo"
 ```
 
 Organization:

@@ -2,11 +2,16 @@
 
 ## Purpose
 
-This document defines the target repository layout for the long-term memory system. It is a practical map for M1 and later implementation work.
+This document maps the current repository layout for the long-term memory
+system. Use it to decide where new code, tests, migrations, tools, benchmark
+fixtures, infrastructure contracts, and docs should live.
 
-The structure follows the architecture boundary: API entrypoints stay thin, application services own use cases, domain code stays infrastructure-free, infrastructure owns PostgreSQL and provider integrations, and workers process outbox jobs.
+The structure follows the architecture boundary: API entrypoints stay thin,
+application services own use cases, domain code stays infrastructure-free,
+infrastructure owns PostgreSQL and provider integrations, and workers process
+outbox jobs.
 
-## Target Layout
+## Layout
 
 ```text
 repo-root/
@@ -23,22 +28,27 @@ repo-root/
     MemorySystem.UnitTests/
     MemorySystem.IntegrationTests/
   benchmarks/
+    agent-contract-usefulness-v1/
+    context-product-v1/
     llm-outcome-v0/
+    release-gate/
   infra/
     terraform/
   migrations/
-    001_initial_memory_schema.sql
+    *.sql
+  observability/
   tools/
     ui/
     vault-sync/
   docs/
+    api/
     decisions/
     scenarios/
   vault/
     AI Memory System/
 ```
 
-`repo-root/` means the current repository root, not a nested child folder. M1 should create the .NET solution, source projects, test projects, local database runtime, and first migration path at this level.
+`repo-root/` means the current repository root, not a nested child folder.
 
 ## Root
 
@@ -286,12 +296,6 @@ resources and environment overlays, while SQL schema history remains in
 `docs/production-platform-rehearsal-pi08.md` as the written evidence from the
 first isolated platform rehearsal.
 
-## Benchmarks
-
-`benchmarks/` contains benchmark suites, scorecard templates, summarizers, and
-the MR-12 release gate. Generated local runs live under
-`benchmarks/outputs/`; curated fixtures and runners remain committed.
-
 ## Tools
 
 ### `tools/ui`
@@ -326,7 +330,8 @@ Rules:
 ## Benchmarks
 
 `benchmarks/` contains benchmark fixtures, runners, rubrics, and generated
-report templates.
+report templates. Generated local runs live under `benchmarks/outputs/`;
+curated fixtures and runners remain committed.
 
 Current suite:
 
@@ -335,6 +340,9 @@ Current suite:
 - `benchmarks/agent-contract-usefulness-v1`: LMSS v1 benchmark tasks for
   contract-aware fact finding, evidence use, contradiction handling, role
   targeting, feedback hygiene, and scoped safety.
+- `benchmarks/context-product-v1`: context packet, safe exclusion, and feedback
+  benchmark smoke.
+- `benchmarks/release-gate`: MR-12 release-gate fixtures and runner.
 
 Rules:
 

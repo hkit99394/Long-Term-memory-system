@@ -1,205 +1,192 @@
-# Documentation Index
+# Documentation Hub
 
-## Brief Summary
+This folder contains the product, architecture, API, testing, operations,
+release, and decision records for the Long-Term Memory System.
 
-This project is a long-term memory system for AI agents. Its purpose is to store durable memory safely, retrieve only relevant memory for each task, preserve evidence for every memory, and give humans a way to review, correct, expire, or delete what the system remembers.
+If you are new to the repository, start with the short path below. The later
+sections are for deeper implementation, pilot, governance, and platform work.
 
-The chosen long-term stack is C# / ASP.NET Core, PostgreSQL, pgvector, SQL-first migrations, TypeScript for UI and tooling, and Python only for experiments or evaluations.
+## Start Here
 
-## Document Index
+| Need | Read |
+| --- | --- |
+| Understand the project in one page | [Project Goal](project-goal.md) |
+| Understand the system shape | [Architecture Overview](architecture.md) |
+| Run the local product workflow | [Local Demo Workflow](private-alpha-workflow.md) |
+| Find setup and test commands | [Testing Commands](testing.md) |
+| Integrate as an agent or client | [API Contracts](api/README.md) |
+| Understand current release posture | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) and [release readiness status](external-pilot-readiness-status.json) |
+
+The root [README](../README.md) has the fastest copy-paste quick start.
+
+## Public Repository Notes
+
+- Local demo credentials such as `private-alpha-local-key` and
+  `memory_system_dev_password` are committed placeholders for local development
+  and tests only. Do not reuse them for shared, pilot, staging, or production
+  environments.
+- Several records use terms such as "private alpha" and "external pilot". These
+  are historical product milestones, not hidden deployment instructions.
+- Current release status is tracked by
+  [external-pilot-readiness-status.json](external-pilot-readiness-status.json)
+  and the v1.0.0 GO record. Older no-go or rehearsal documents are preserved as
+  decision history.
+- A license file is not currently committed. Choose a license before inviting
+  external reuse or broad contribution.
+
+## Reader Paths
+
+### Local Development
+
+1. [Project Goal](project-goal.md)
+2. [Architecture Overview](architecture.md)
+3. [Folder Structure](folder-structure.md)
+4. [Local Demo Workflow](private-alpha-workflow.md)
+5. [Testing Commands](testing.md)
+
+### Agent/API Integration
+
+1. [API Contracts](api/README.md)
+2. [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md)
+3. [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json)
+4. [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md)
+5. [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md)
+6. [Context Packet Product v1 Contract](api/context-packet-product-v1.md)
+7. [Agent-Facing Memory Contract](agent-facing-memory-contract.md)
+
+### Operations And Governance
+
+1. [Production Secret Handling](production-secrets.md)
+2. [Production Deployment Shape](production-deployment-shape.md)
+3. [Production Container Tool](production-container.md)
+4. [Production Observability and Alerting](production-observability.md)
+5. [Backup and Restore Runbook](backup-restore.md)
+6. [Retention Policy](retention-policy.md)
+7. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+8. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+
+### Planning And Release History
+
+1. [Product Improvement Plan](product-improvement-plan.md)
+2. [Roadmap](roadmap.md)
+3. [Backlog](backlog.md)
+4. [Benchmarking Plan](benchmarking.md)
+5. [Benchmark Release-Gate Report LR-03](benchmark-release-gate-lr03.md)
+6. [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+7. [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
+
+## Reference Index
+
+### Product And Architecture
 
 | Document | Purpose |
 | --- | --- |
-| [Project Goal](project-goal.md) | Defines the north star for the project: trustworthy, auditable, permission-aware long-term memory for AI agents. |
-| [Architecture Overview](architecture.md) | Provides the short component, write-path, read-path, trust, and MVP architecture guide. |
-| [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Describes the architecture, stack, schema direction, API surface, memory broker, context builder, phases, risks, and first build steps. |
-| [Folder Structure](folder-structure.md) | Defines the target repository layout, ownership boundaries, and where new code, tests, migrations, tools, and docs should live. |
-| [Testing Commands](testing.md) | Lists local and CI-ready restore, build, test, and database-backed integration commands. |
-| [Benchmarking Plan](benchmarking.md) | Defines technical, LLM outcome, agent-contract benchmarks, and the MR-12 benchmark release gate, including Memory Lift, Contract Lift, safety gates, scenario suites, and report shape. |
-| [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) | Records the first local benchmark release-gate baseline with Memory Lift, Contract Lift, safety counters, source-link coverage, and agent-contract smoke status. |
-| [Retention Policy](retention-policy.md) | Defines raw event payload retention, sensitivity handling, legal hold, erasure, and audit-preservation rules. |
-| [Backup and Restore Runbook](backup-restore.md) | Defines PostgreSQL backup, restore, validation, and retention-aware recovery procedures. |
-| [Production Secret Handling](production-secrets.md) | Defines production API key, PostgreSQL, and embedding provider secret configuration and rotation rules. |
-| [Production Container Tool](production-container.md) | Defines the single-machine Docker Compose tool, v1.0.0 image build, migrator/API/worker rollout, health checks, and rollback path. |
-| [Project-local Long-Term Memory Skill](../.codex/skills/long-term-memory-system/SKILL.md) | Defines reusable agent instructions for retrieving, writing, reviewing, and giving feedback on memory through the API without exposing secrets. |
-| [Production Deployment Shape](production-deployment-shape.md) | Defines the production-pilot runtime topology, migrator/API/worker split, database expectations, rollback, and restore validation path. |
-| [Production Observability and Alerting](production-observability.md) | Defines the production-pilot metrics, traces, logs, alerts, dashboard minimum, operator response paths, and executable observability artifacts under `observability/`. |
-| [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Scopes infrastructure-as-code boundaries, managed PostgreSQL and backup exporter assumptions, runtime OpenTelemetry wiring, alert routing, and environment release checklists. |
-| [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) | Scopes data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages. |
-| [Environment Governance Policy GC-01](environment-governance-policy-gc01.md) | Defines the local, CI, pilot, and production governance policy contract for data residency, retention windows, external payload stores, exceptions, evidence locations, and unchanged runtime authorization. |
-| [Permission-Drift Report GC-02](permission-drift-report-gc02.md) | Defines the payload-safe permission-drift report for principals, identity bindings, service accounts, memberships, role assignments, namespace grants, effective-access previews, and review findings. |
-| [Backup Erasure Replay Validation GC-03](backup-erasure-replay-validation-gc03.md) | Defines the payload-safe erasure replay ledger, restore-time replay/verification flow, evidence, metrics, and promotion rule for backups that predate erasure actions. |
-| [Standard And Audit Retention Minimization GC-04](standard-audit-retention-minimization-gc04.md) | Defines the dry-run/execute operator job for standard and audit source-event payload minimization, legal-hold skips, derived-copy handling, evidence, and metrics. |
-| [External Payload Retention Check GC-05](external-payload-retention-check-gc05.md) | Defines the payload-safe external payload-store retention check for provider object existence, deletion evidence, policy violations, and metrics. |
-| [Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md) | Defines the payload-safe compliance evidence package manifest, artifact index, SHA-256 sidecar, strict mode, and metrics. |
-| [Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md) | Defines the `/admin/` Compliance view and `/api/admin/compliance/status` contract for payload-safe retention, legal hold, erasure replay, permission drift, and evidence package status links. |
-| [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md) | Defines the repeatable release smoke that verifies policy config, permission drift, audit export, retention dry run, erasure replay, and strict evidence packaging against an isolated database. |
-| [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | Selects the first AWS/Terraform/container platform baseline, artifact contract, environment model, state/secrets rules, and owner model. |
-| [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Defines local, CI, pilot, and production release evidence gates for migration, health, metrics, benchmark, backup/restore, rollback, alert routing, and audit records. |
-| [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | Records the first isolated platform rehearsal across migrator/API/worker, health, metrics, backup/restore, rollback, benchmark, alert routing, and next-move planning. |
-| [Pilot Readiness Evidence Review](pilot-readiness-evidence-review-2026-06-01.md) | Reviews the fresh benchmark gate, GC-08 smoke, and release evidence bundle, then records the no-go decision for external pilot invite until target-environment evidence is produced. |
-| [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) | Defines the P0 target-environment rehearsal gates, owners, evidence bundle, pass/fail criteria, and go/no-go template required before inviting the first external pilot user. |
-| [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) | Records the 2026-06-04 local pilot-equivalent EPR-02/EPR-03 evidence for deployment smoke, benchmark gate, live agent-contract smoke, governance/compliance smoke, backup/restore, and alert artifact validation. |
-| [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) | Preserves the historical EPR-04 NO-GO decision and the evidence, alert acknowledgement, rollback, communication, and owner-signature inputs that were later accepted as post-GO hardening work. |
-| [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) | Records the owner-approved version 1.0.0 GO replacement for EPR-04 and marks the external pilot invite approved. |
-| [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) | Reconciles the external-pilot readiness docs around the prior state and now points current release decisions to the v1.0.0 GO replacement. |
-| [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md) | Defines the machine-readable external-pilot readiness status contract backed by `external-pilot-readiness-status.json` and its schema for docs, tests, future CI, and the P3 operator cockpit. |
-| [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md) | Defines the first admin cockpit slice for external-pilot readiness: authenticated Pilot view, readiness endpoint, EPR gates, GO decision, evidence links, and post-GO hardening inputs. |
-| [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Defines the Terraform module/environment layout, multi-role OCI image contract, managed RDS PostgreSQL/pgvector baseline, and backup/restore job contracts for the AWS pilot target. |
-| [Product Improvement Plan](product-improvement-plan.md) | Captures the product-owner improvement plan for private alpha, production pilot, platform maturity, and the ultimate product goal. |
-| [Enterprise Access Gate](enterprise-access-gate.md) | Scopes the LR-01 OIDC/SSO, service account, role assignment UI, audit export, migration, and pilot acceptance plan. |
-| [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) | Defines the EA-09 pilot workflow for OIDC provider setup, identity binding, service-account bootstrap, role/grant review, audit export, rollback, and break-glass API-key handling. |
-| [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) | Decides that the first pilot does not need SCIM or directory sync yet, and defines any future sync as provisioning-only. |
-| [Context Productization Gate](context-productization-gate.md) | Scopes the LR-02 explainable context packet, safe exclusion, reviewer action, feedback loop, and benchmark-visible ranking plan. |
-| [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Inventories stable scope, namespace, trust, lifecycle, retention, sensitivity, source evidence, and feedback concepts and defines the compatibility-tested extraction sequence into `MemorySystem.Domain`. |
-| [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | Defines the LLM Memory Support Service v1 contract for agent tools, targeting fields, fact finding, safety semantics, and follow-on schema work. |
-| [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Publishes the curated LMSS v1 OpenAPI contract for existing agent-facing memory endpoints. |
-| [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Shows curl-based client examples for the v1 memory workflow, including idempotent writes and retrieval feedback. |
-| [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) | Shows how agent callers read inclusion explanations, handle safe exclusions, submit feedback actions, hand off reviewable observations, and avoid raw query storage. |
-| [Context Packet Product v1 Contract](api/context-packet-product-v1.md) | Defines the CP-01 productized context packet response contract and JSON Schema. |
-| [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) | Documents principal resolution, target scope, namespace, role id, trust level, retention class, sensitivity, and source event rules for agent callers. |
-| [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) | Maps the fact-finding endpoint to Application, Infrastructure, API, authorization, contradiction handling, and tests. |
-| [Private Alpha Workflow](private-alpha-workflow.md) | Defines the first end-to-end private-alpha workflow from source event through reviewed memory, context retrieval, vault export, and operational summary. |
-| [Roadmap](roadmap.md) | Breaks the architecture plan into delivery milestones, dependencies, decision gates, and first build sequence. |
-| [Backlog](backlog.md) | Lists actionable work items by milestone with priorities, statuses, and acceptance criteria. |
-| [Scenario 0001: User Preference, Project Decision, and CTO Context](scenarios/0001-user-preference-project-decision-cto-context.md) | Defines the first M1-M6 implementation throughline and sample data. |
-| [Decision 0001: Data-Access Approach](decisions/0001-data-access-approach.md) | Records the initial backend data-access choice for the M1-M3 path. |
-| [Decision 0002: Migration Runner Approach](decisions/0002-migration-runner-approach.md) | Records the initial SQL migration runner choice for local development and integration tests. |
-| [Decision 0003: Local Database Runtime](decisions/0003-local-database-runtime.md) | Records the pinned PostgreSQL plus pgvector Docker image for local development and integration tests. |
-| [Decision 0004: API Idempotency Request Hash](decisions/0004-api-idempotency-request-hash.md) | Records the M2 idempotency key scope, request hash rule, retry behavior, and expiry default. |
-| [Decision 0005: Event Append Contract](decisions/0005-event-append-contract.md) | Records the M2 `POST /api/events` request shape, scope mapping, inline payload storage, and retry behavior. |
-| [Decision 0006: Minimal Memory Proposal Broker](decisions/0006-minimal-memory-proposal-broker.md) | Records the M2 `POST /api/memory/proposals` contract and deterministic broker decision rules. |
-| [Decision 0007: Transactional Memory Proposal Write](decisions/0007-transactional-memory-proposal-write.md) | Records the M2 stored proposal transaction that creates memory facts, chunks, outbox jobs, and idempotent responses. |
-| [Decision 0008: Scope Resolver Contract](decisions/0008-scope-resolver-contract.md) | Records the M3 scope resolver boundary for global, org, project, user, role, agent, and session requests. |
-| [Decision 0009: Membership and Grant Access Checks](decisions/0009-membership-and-grant-access-checks.md) | Records the M3 access policy for memberships, role assignments, namespace grants, and write-path enforcement. |
-| [Decision 0010: Memory Fact Scope Consistency](decisions/0010-memory-fact-scope-consistency.md) | Records the M3 database constraint that keeps memory fact scope ids, namespace prefixes, and owner columns aligned. |
-| [Decision 0011: Direct Memory Fact Read Access](decisions/0011-direct-memory-fact-read-access.md) | Records the M3 direct memory fact read endpoint and blocked cross-project read behavior. |
-| [Decision 0012: Memory Namespace Parser](decisions/0012-memory-namespace-parser.md) | Records the M3 parser for turning namespace strings into canonical scope metadata. |
-| [Decision 0013: Memory Facts Repository](decisions/0013-memory-facts-repository.md) | Records the M4 repository boundary for storing and retrieving structured memory facts. |
-| [Decision 0014: Memory Status Lifecycle](decisions/0014-memory-status-lifecycle.md) | Records the M4 memory fact lifecycle states and default active-only retrieval policy. |
-| [Decision 0015: Role Memory Lens Repository](decisions/0015-role-memory-lens-repository.md) | Records the M4 repository boundary for shared role principles and project-role lenses. |
-| [Decision 0016: Role Lens Base Fact Validation](decisions/0016-role-lens-base-fact-validation.md) | Records the M4 validation rules connecting role lenses to allowed base memory fact scopes. |
-| [Decision 0017: Structured Memory Fact Search](decisions/0017-structured-memory-fact-search.md) | Records the M4 repository search path for filtering memory facts by scope, type, subject, and status without vector retrieval. |
-| [Decision 0018: Memory Candidate Classification](decisions/0018-memory-candidate-classification.md) | Records the M5 broker classification kinds returned with memory proposal decisions. |
-| [Decision 0019: Session-Only Task Instructions](decisions/0019-session-only-task-instructions.md) | Records the M5 broker rule that keeps one-off task instructions out of durable memory. |
-| [Decision 0020: Similar Active Memory Deduplication](decisions/0020-similar-active-memory-deduplication.md) | Records the M5 workflow rule that sends similar active memory proposals to review instead of blindly inserting duplicates. |
-| [Decision 0021: Memory Proposal Contradiction Detection](decisions/0021-memory-proposal-contradiction-detection.md) | Records the M5 workflow rule that sends clear conflicts with active memory to review before writing another durable fact. |
-| [Decision 0022: Memory Proposal Confidence Scoring](decisions/0022-memory-proposal-confidence-scoring.md) | Records the M5 broker confidence scoring table and review threshold for durable proposal decisions. |
-| [Decision 0023: Authorized Full-Text Memory Search](decisions/0023-authorized-full-text-memory-search.md) | Records the M6 full-text search path over `memory_chunks.search_vector` with authorization predicates inside SQL. |
-| [Decision 0024: Embedding Provider Adapter](decisions/0024-embedding-provider-adapter.md) | Records the M6 embedding provider contract, deterministic local adapter, selected model/dimension configuration, and idempotent embedding storage path. |
-| [Decision 0025: Authorized pgvector Semantic Search](decisions/0025-authorized-pgvector-semantic-search.md) | Records the M6 semantic search endpoint, cosine distance operator, authorization-before-ranking query shape, and deferred ANN index choice. |
-| [Decision 0026: Hybrid Memory Ranking](decisions/0026-hybrid-memory-ranking.md) | Records the M6 hybrid search endpoint and final-score formula combining relevance, confidence, recency, authority, and scope match. |
-| [Decision 0027: Context Packet Builder](decisions/0027-context-packet-builder.md) | Records the M6 context packet endpoint, packet grouping, compactness limit, source links, and ranking explanation fields. |
-| [Decision 0028: Retrieval Evaluation Tests](decisions/0028-retrieval-evaluation-tests.md) | Records the M6 retrieval evaluation scorecard for relevance, compactness, write precision, false positives, and contradiction quality. |
-| [Decision 0029: Pending Review API](decisions/0029-pending-review-api.md) | Records the M7 pending review queue endpoint and review-permission filtering rule. |
-| [Decision 0030: Review Dashboard](decisions/0030-review-dashboard.md) | Records the M7 TypeScript review dashboard and review action endpoint behavior. |
-| [Decision 0031: Obsidian Export](decisions/0031-obsidian-export.md) | Records the M7 Obsidian export endpoint, Markdown source metadata, and vault-sync tool behavior. |
-| [Decision 0032: Stale Vault Exports](decisions/0032-stale-vault-exports.md) | Records the M7 stale marker workflow for deleted, redacted, expired, superseded, and contradicted vault exports. |
-| [Decision 0033: Archive Vault Exports](decisions/0033-archive-vault-exports.md) | Records the M7 archive export endpoint for readable superseded, expired, and contradicted memory. |
-| [Decision 0034: Operational Health Checks](decisions/0034-operational-health-checks.md) | Records the M8 API liveness/readiness split, worker heartbeat freshness check, and embedding provider health behavior. |
-| [Decision 0035: Structured Operational Logging](decisions/0035-structured-operational-logging.md) | Records the M8 structured logging contract for proposal, retrieval, review, and redaction decision points without payload leakage. |
-| [Decision 0036: Retention and Erasure Policy](decisions/0036-retention-and-erasure-policy.md) | Records the M8 raw event payload retention windows, legal hold behavior, erasure expectations, and audit-preservation policy. |
-| [Decision 0037: Backup and Restore Runbook](decisions/0037-backup-and-restore-runbook.md) | Records the M8 PostgreSQL custom-format backup, restore validation, migration, and retention-aware recovery process. |
-| [Decision 0038: Production Secret Handling](decisions/0038-production-secret-handling.md) | Records the M8 production secret configuration, runtime guardrails, and rotation expectations. |
-| [Decision 0039: Production Deployment Shape](decisions/0039-production-deployment-shape.md) | Records the production-pilot migrator, API, worker, managed PostgreSQL, secret-store, rollback, and restore-validation shape. |
-| [Decision 0040: Production Observability and Alerting](decisions/0040-production-observability-and-alerting.md) | Records the production-pilot signal ownership, alerting, dashboard, and payload-safe tracing/logging contract. |
-| [Decision 0041: Benchmark Release Gates](decisions/0041-benchmark-release-gates.md) | Records the MR-12 release gate that combines Memory Lift, Contract Lift, scoped-safety counters, stale-memory usage, source-link coverage, and agent-contract smoke. |
-| [Decision 0042: Enterprise Access Gate](decisions/0042-enterprise-access-gate.md) | Records the LR-01 enterprise access scope and the decision to keep local memberships, role assignments, and namespace grants as the runtime authorization boundary. |
-| [Decision 0043: Context Productization Gate](decisions/0043-context-productization-gate.md) | Records the LR-02 context productization scope for inclusion explanations, safe exclusions, reviewer actions, and benchmark-visible ranking loops. |
-| [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Records the LR-04 planning-first extraction scope for moving stable IO-free concepts into `MemorySystem.Domain` without schema or endpoint churn. |
-| [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Records the LR-05 platform boundary for IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and release checklists. |
-| [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Records the PI-01 AWS ECS/RDS/ECR/Terraform baseline and immutable multi-role OCI image contract. |
-| [Decision 0047: Directory Sync Is Provisioning Only](decisions/0047-directory-sync-provisioning-only.md) | Records the EA-10 decision to defer directory sync until after pilot evidence and keep any future sync outside runtime authorization. |
-| [Decision 0048: Governance And Compliance Gate](decisions/0048-governance-compliance-gate.md) | Records the LR-06 governance/compliance boundary for environment policy, backup erasure replay, permission-drift reporting, external payload-store checks, and payload-safe evidence packages. |
-| [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Summarizes the Short Run private-alpha baseline and release verification. |
+| [Project Goal](project-goal.md) | North star for trustworthy, auditable, permission-aware long-term memory. |
+| [Architecture Overview](architecture.md) | Component map, write path, read path, data boundaries, and trust model. |
+| [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Full design plan, schema direction, phases, risks, and build steps. |
+| [Folder Structure](folder-structure.md) | Repository layout, ownership boundaries, and where new work should live. |
+| [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
+| [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 
-## Dictionary
+### API
+
+| Document | Purpose |
+| --- | --- |
+| [API Contracts](api/README.md) | Entry point for API contracts and runnable examples. |
+| [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Curated OpenAPI contract for agent-facing endpoints. |
+| [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Curl-based end-to-end memory workflow. |
+| [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) | Principal, scope, namespace, trust, retention, sensitivity, and source evidence rules. |
+| [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) | Context explanations, safe exclusions, feedback, review handoff, and raw query hygiene. |
+| [Context Packet Product v1 Contract](api/context-packet-product-v1.md) | Productized context packet contract and schema reference. |
+| [API `memory.queryFacts` Implementation Plan](api/memory-query-facts-implementation-plan.md) | Implementation map for the fact-finding endpoint. |
+
+### Local Workflow And Tests
+
+| Document | Purpose |
+| --- | --- |
+| [Local Demo Workflow](private-alpha-workflow.md) | Repeatable local product path from evidence to memory, review, retrieval, feedback, export, and operations. |
+| [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) | Seeded demo story used by local workflows and benchmarks. |
+| [Testing Commands](testing.md) | Fast, database-backed, TypeScript, backup/restore, benchmark, and smoke commands. |
+| [Benchmarking Plan](benchmarking.md) | Product-level benchmark strategy and release gate criteria. |
+| [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) | First local benchmark release-gate baseline. |
+| [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Historical private-alpha baseline and verification notes. |
+
+### Operations, Platform, And Compliance
+
+| Document | Purpose |
+| --- | --- |
+| [Retention Policy](retention-policy.md) | Raw event payload retention, sensitivity, legal hold, erasure, and audit preservation. |
+| [Backup and Restore Runbook](backup-restore.md) | PostgreSQL backup, restore, validation, and retention-aware recovery. |
+| [Production Secret Handling](production-secrets.md) | Runtime secret configuration, rotation, and guardrails. |
+| [Production Deployment Shape](production-deployment-shape.md) | Migrator/API/worker split, managed PostgreSQL expectations, rollback, and restore validation. |
+| [Production Container Tool](production-container.md) | Single-machine Docker Compose operator tool and rollout path. |
+| [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
+| [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
+| [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | AWS/Terraform/container platform baseline. |
+| [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
+| [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
+| [Terraform Platform](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
+| [Observability Artifacts](../observability/README.md) | Alerts, dashboard, trace coverage, and metric input manifests. |
+
+### Governance And Compliance Track
+
+| Document | Purpose |
+| --- | --- |
+| [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) | Governance/compliance release boundary and implementation plan. |
+| [Environment Governance Policy GC-01](environment-governance-policy-gc01.md) | Environment-specific data residency, retention, exceptions, and evidence policy. |
+| [Permission-Drift Report GC-02](permission-drift-report-gc02.md) | Payload-safe access-drift report contract. |
+| [Backup Erasure Replay Validation GC-03](backup-erasure-replay-validation-gc03.md) | Restore-time replay of post-backup erasure actions. |
+| [Standard And Audit Retention Minimization GC-04](standard-audit-retention-minimization-gc04.md) | Dry-run/execute minimization job for old standard and audit payloads. |
+| [External Payload Retention Check GC-05](external-payload-retention-check-gc05.md) | External payload-store retention verification contract. |
+| [Compliance Evidence Package GC-06](compliance-evidence-package-gc06.md) | Payload-safe evidence package manifest and artifact index. |
+| [Governance/Compliance Admin Console GC-07](governance-compliance-admin-console-gc07.md) | Admin compliance view and status endpoint contract. |
+| [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md) | One-command database-backed governance/compliance smoke. |
+
+### Enterprise Access And Context Productization
+
+| Document | Purpose |
+| --- | --- |
+| [Enterprise Access Gate](enterprise-access-gate.md) | OIDC/SSO, service accounts, access-management UI, audit export, and migration plan. |
+| [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) | Pilot workflow for OIDC, service accounts, grants, audit export, rollback, and break-glass keys. |
+| [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) | Decision to defer SCIM/directory sync until after pilot evidence. |
+| [Context Productization Gate](context-productization-gate.md) | Explainable context packets, safe exclusions, reviewer action, feedback, and ranking plan. |
+
+### Release Evidence
+
+| Document | Purpose |
+| --- | --- |
+| [Pilot Readiness Evidence Review](pilot-readiness-evidence-review-2026-06-01.md) | Historical evidence review and no-go decision before target-environment evidence. |
+| [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) | Target-environment rehearsal gates, evidence bundle, and go/no-go template. |
+| [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) | Local pilot-equivalent release evidence record. |
+| [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) | Historical no-go record retained for traceability. |
+| [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) | Owner-approved GO replacement for version 1.0.0 external pilot. |
+| [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) | Reconciliation record that points current release decisions to the v1.0.0 GO record. |
+| [Release Readiness Status Contract P2](release-readiness-status-contract-p2.md) | Contract for the machine-readable readiness status JSON. |
+| [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md) | Admin Pilot view and readiness endpoint plan. |
+
+### Planning
+
+| Document | Purpose |
+| --- | --- |
+| [Product Improvement Plan](product-improvement-plan.md) | Product-owner improvement plan from private alpha through production pilot. |
+| [Roadmap](roadmap.md) | Milestones, dependencies, decision gates, and build sequence. |
+| [Backlog](backlog.md) | Work items by milestone with priorities, statuses, and acceptance criteria. |
+| [Decisions](decisions/) | Architecture and implementation decision records. |
+
+## Glossary
 
 | Term | Meaning |
 | --- | --- |
 | Agent | An AI process or role that can use memory to complete tasks. |
-| Agent-private memory | Memory scoped to one agent and not automatically shared with other agents. |
-| Archive export | A readable Markdown projection of inactive but non-redacted memory, such as superseded, expired, or contradicted memory. |
-| Backup validation database | A temporary PostgreSQL database used to prove a backup can be restored and queried without overwriting the active database. |
-| Benchmark release gate | The MR-12 executable check that combines Memory Lift, Contract Lift, scoped-safety leaks, stale-memory usage, source-link coverage, and agent-contract smoke before a production-pilot release can pass. |
-| Candidate kind | The broker's classification for a proposed memory, such as preference, project fact, decision, role lens, agent-private memory, or session-only instruction. |
-| Confidence score | The broker-assigned effective confidence used for review and storage decisions. Request confidence is capped or defaulted according to source trust level. |
-| Conflicting active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate, a different object, and a deterministic contradiction such as enabled/disabled or use/do-not-use. |
-| Context productization gate | The LR-02 plan for explainable context packets, safe exclusion summaries, reviewer feedback actions, and ranking improvements that are visible in benchmark results. |
-| Contract Lift | The difference between the LLM outcome score with LMSS v1 agent-contract tool responses and the score with memory disabled. |
-| Context Builder | The read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
-| Context packet | A compact, source-linked, explainable memory bundle built from authorized hybrid retrieval results. |
+| Context Builder | Read-control component that retrieves, filters, ranks, and compresses relevant memory before an LLM call. |
+| Context packet | A compact, source-linked, explainable memory bundle built from authorized retrieval results. |
 | Durable memory | Memory intended to persist beyond the current session or task. |
-| Directory sync evaluation | The EA-10 decision that SCIM or provider group sync is not needed before the first pilot; any future sync must provision local records and never bypass the local authorizer. |
-| Domain model extraction | The LR-04 track for moving stable, IO-free memory concepts into `MemorySystem.Domain` behind compatibility tests while preserving current API and database contracts. |
-| Embedding | A vector representation of text used for semantic similarity search. |
-| Enterprise access gate | The LR-01 plan for OIDC or SSO, service accounts, access-management UI, audit export, and migration from API-key-only operation without weakening namespace grants. |
-| Event log | Append-only evidence of raw user messages, assistant messages, tool calls, and memory changes. |
-| Exclusion summary | A payload-safe explanation of why candidate memory was omitted, using withheld disclosure where counts or details could leak unauthorized or sensitive content. |
-| Full-text memory search | Keyword retrieval over `memory_chunks.search_vector` using PostgreSQL full-text search, with scope and namespace authorization predicates applied before ranking. |
-| Governance workflow | Authenticated operator action for legal holds, erasure execution, or retention reporting. |
-| Governance and compliance gate | The LR-06 plan for data residency, backup erasure replay, permission-drift reporting, environment-specific retention policy, external payload-store checks, and compliance evidence packages. |
-| Compliance evidence package | The GC-06 payload-safe manifest, NDJSON artifact index, and SHA-256 sidecar that link audit export, retention, legal hold, erasure replay, backup/restore, release checklist, benchmark, alert-route, and permission-drift evidence without raw payloads. |
-| Environment governance policy | The GC-01 contract that declares environment, residency areas, data classes, retention windows, external payload-store policy, exception records, evidence locations, and the `local_access_records_only` authorization boundary. |
-| Permission-drift report | The GC-02 payload-safe report that compares scoped principals, identity bindings, service accounts, memberships, roles, namespace grants, and authorizer previews to flag stale, expired, inactive, or over-broad access records. |
-| Backup erasure replay validation | The GC-03 restore validation path that imports a payload-safe redaction ledger, replays post-backup erasure actions, and proves restored source events and derived projections remain hidden before promotion. |
-| Standard and audit retention minimization | The GC-04 operator job that minimizes old standard/audit source-event payloads in dry-run or execute mode while respecting legal holds and preserving durable memory projections. |
-| External payload retention check | The GC-05 operator job that inspects `external_payload_uri` rows, verifies expected provider object state when configured, and emits payload-safe evidence without logging URIs, credentials, or payload bytes. |
-| Hybrid memory search | Retrieval that combines full-text and semantic relevance with confidence, recency, authority, and scope-match scores. |
-| Identity binding | A durable mapping from an external identity provider, issuer, and subject to one internal principal. |
-| Enterprise access pilot operator runbook | The EA-09 operational guide for safely running OIDC, service accounts, admin access management, audit export, rollback, and break-glass API-key procedures during the first pilot. |
-| Legal hold | A preservation state that keeps raw payloads and audit evidence until an authorized release action removes the hold. |
-| LLM outcome evaluation | A benchmark that scores the final LLM output, not only retrieved memory, to prove whether governed memory improves task success, decision consistency, preference adherence, correction handling, and safety. |
-| Memory Broker | The write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
-| Memory Lift | The difference between the LLM outcome score with governed memory enabled and the score with memory disabled. |
-| Memory fact | A structured memory record stored in PostgreSQL with scope, provenance, confidence, status, and lifecycle metadata. |
-| Memory facts repository | The application data-access boundary for storing and querying structured memory facts by id or resolved scope. |
-| Memory grant | A permission record that allows a principal or assigned role to read, write, review, or administer a namespace prefix. |
-| Memory owner columns | Typed columns such as `org_id`, `project_id`, `user_principal_id`, `role_id`, and `agent_principal_id` that mirror a memory fact's canonical scope. |
-| Memory read service | The application service that loads a memory fact and returns it only after the caller has read access to its scope and namespace. |
-| Memory status lifecycle | The supported memory fact states: active, tentative, superseded, contradicted, expired, deleted, and redacted. Normal retrieval includes active facts only. |
-| Namespace | A parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
-| Obsidian export | The authorized projection of approved decision and summary memory into source-linked Markdown documents for the vault. |
-| Obsidian vault | The human-readable Markdown workspace used for notes, summaries, decisions, and review exports. |
-| One-off task instruction | A short-lived instruction for the current answer, request, task, temporary file, or bug. The broker treats it as session-only rather than durable memory. |
-| Outbox job | A retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summary generation. |
-| Pending review | A `memory_reviews` row with `pending` status that points at a memory fact awaiting human review. |
-| pgvector | PostgreSQL extension used to store and search vector embeddings. |
-| Postgres truth | The rule that PostgreSQL is the authoritative source for structured memory. |
-| Principal | A human, agent, or service account making a request to the memory system. |
-| Production secret handling | The runtime and operator rules for supplying API keys, PostgreSQL credentials, and embedding provider credentials without committing secret values. |
-| Production container tool | The single-machine Docker Compose wrapper for the v1.0.0 multi-role image, one-shot migrator, long-running API and worker roles, and operator health/status/log commands. |
-| Production deployment shape | The production-pilot runtime split between the migrator, API, worker, managed PostgreSQL, secret store, rollback procedure, and restore validation path. |
-| Production observability | The production-pilot signal contract, metrics export, alert rules, dashboard, trace coverage manifest, and operator first-response checks. |
-| Production platform integration | The LR-05 plan for connecting the service to IaC, managed PostgreSQL, backup exporter evidence, runtime OpenTelemetry, alert routing, and per-environment release gates. |
-| Production platform baseline | The PI-01 decision selecting AWS ECS Fargate, Amazon RDS PostgreSQL, Amazon ECR, Terraform, and immutable OCI image digests for the first pilot platform target. |
-| Production release checklist | The PI-07 local, CI, pilot, and production evidence contract for migration, health, metrics, benchmark gate, backup/restore, rollback owner, alert routing, and audit records. |
-| Production platform rehearsal | The PI-08 isolated pilot rehearsal proving the migrator/API/worker split, health, metrics, backup/restore, rollback, benchmark, and alert-routing evidence path before real platform rollout. |
-| Pilot release evidence | The EPR-03 payload-safe record that links fresh local pilot-equivalent deployment smoke, benchmark, live agent-contract, governance/compliance, backup/restore, and alert artifact evidence before EPR-04 go/no-go sign-off. |
-| External pilot go/no-go | The EPR-04 decision trail: a historical NO-GO record plus the v1.0.0 GO replacement that approves external pilot invite. |
-| Documentation truth cleanup | The P1 reconciliation pass that keeps older milestone docs historically readable while pointing current release decisions to EPR-03 evidence and the v1.0.0 GO record. |
-| Release readiness status contract | The P2 JSON status and schema that centralize EPR gate statuses, evidence links, blockers, missing GO inputs, and next recommended work. |
-| Pilot operator cockpit | The P3 authenticated admin Pilot view and API endpoint that render the release-readiness status contract for operators. |
-| Terraform platform | The PI-02/PI-04 `infra/terraform` layout that defines environment overlays, runtime/database/observability module contracts, non-secret Terraform inputs, managed RDS PostgreSQL resources, and backup/restore job commands. |
-| Admin console | The authenticated `/admin/` surface for inspecting authorized memory facts, source events, lifecycle state, source links, audit references, and safe policy metadata. |
-| Governance/compliance admin console | The GC-07 `/admin/` Compliance view that surfaces retention, legal hold, erasure replay, permission drift, and evidence package status through payload-safe counts, paths, links, and metric names. |
-| Governance/compliance release smoke | The GC-08 one-command database-backed smoke that creates payload-safe policy, drift, audit, retention, legal hold, erasure replay, release, benchmark, alert-route, and strict evidence package artifacts before pilot readiness review. |
-| Project-role lens | A role-specific interpretation of one project's truth, such as the CTO perspective on a specific project decision. |
-| Retention class | The event policy label that controls raw payload retention: `ephemeral`, `standard`, `audit`, `legal_hold`, or `erasure_requested`. |
+| Memory Broker | Write-control component that decides whether proposed memory should be stored, rejected, reviewed, expired, or treated as session-only. |
+| Memory fact | Structured memory record with scope, provenance, confidence, lifecycle state, and policy metadata. |
+| Namespace | Parsed path-like scope used to separate global, organization, user, project, role, agent, and session memory. |
+| Outbox job | Retry-safe background work item used for embedding, indexing, export, review, expiry, redaction, or summaries. |
+| Principal | A human, agent, or service account making a request. |
 | Provenance | Evidence showing where a memory came from, usually through a source event. |
-| Redaction | Removal or masking of sensitive content from facts, chunks, exports, and event payloads where policy requires erasure. |
-| Review dashboard | The TypeScript UI for listing pending memory reviews and completing approve, reject, edit, expire, delete, or supersede actions. |
-| Role lens | A role-specific interpretation of shared truth, such as CTO, CFO, COO, CEO, Designer, or Developer perspective. |
-| Role lens base fact | The memory fact that a role lens interprets. Its scope must match the lens type: global for global role lenses, same organization for organization role lenses, or target project/same organization for project-role lenses. |
-| Role memory lens repository | The application data-access boundary for storing and querying shared role principles and project-role lenses. |
-| Retrieval evaluation | A deterministic scorecard over context-packet items and write observations that measures relevance, compactness, write precision, false positives, and contradiction quality. |
-| Semantic memory search | Vector retrieval over `memory_embeddings` using pgvector cosine distance, with authorized chunk filtering applied before distance ranking. |
-| Semantic recall | Retrieval by meaning rather than exact keyword match, usually through vector search. |
-| Secret store | A deployment-controlled system for storing and injecting secret values such as API keys, database credentials, and provider tokens. |
-| Session memory | Temporary memory for the current task or conversation only. |
-| Similar active memory | An active memory fact in the same scope and memory type with the same normalized subject and predicate but a different object. |
-| Structured memory search | A repository query over structured `memory_facts` columns such as scope, memory type, subject, and status. It does not use chunks, full-text search, embeddings, or vectors. |
-| Stale vault export | A Markdown marker that replaces an exported vault note when the authoritative memory fact is no longer active. |
-| Supersession | The process of replacing an outdated or contradicted memory with a newer memory while preserving audit history. |
+| Review dashboard | UI for approving, rejecting, editing, expiring, deleting, or superseding pending memory. |
 | Trust level | Metadata that separates trusted system or human-approved content from user-scoped, agent-private, tool, web, or retrieved content. |
 | Vector index | Search index used for semantic recall. It is not the source of truth. |

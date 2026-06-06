@@ -1,12 +1,18 @@
-# Private Alpha Workflow
+# Local Demo Workflow
 
 ## Purpose
 
-This workflow is the first private-alpha product path for the long-term memory system. It gives reviewers one repeatable story that proves the system can accept evidence, decide what should be remembered, let a human correct it, retrieve scoped context, and expose operational state.
+This workflow is the repeatable local product path for the long-term memory
+system. It gives reviewers one story that proves the system can accept
+evidence, decide what should be remembered, let a human correct it, retrieve
+scoped context, and expose operational state.
 
-Use [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) as the seed story.
+Use [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md)
+as the seed story. The file name still says `private-alpha` because this
+workflow began as the first private-alpha path; it is also the easiest public
+local demo.
 
-## Alpha Outcome
+## Outcome
 
 At the end of the workflow, a reviewer should be able to say:
 
@@ -18,17 +24,23 @@ At the end of the workflow, a reviewer should be able to say:
 
 ## Setup
 
-Create the repeatable private-alpha demo database state:
+Create the repeatable local demo database state:
 
 ```bash
 ./scripts/seed-private-alpha-demo.sh
 ```
 
-The command starts local PostgreSQL if needed, applies migrations, and upserts the Scenario 0001 actors, memberships, role assignments, grants, source events, memory facts, role lenses, chunks, outbox jobs, and deterministic embeddings.
+The command starts local PostgreSQL if needed, applies migrations, and upserts
+the Scenario 0001 actors, memberships, role assignments, grants, source events,
+memory facts, role lenses, chunks, outbox jobs, and deterministic embeddings.
 
-Run the API:
+Run the API with the seeded local demo principal:
 
 ```bash
+Authentication__ApiKey__Keys__local_demo__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local_demo__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local_demo__DisplayName="Local Demo User" \
+ASPNETCORE_URLS=http://127.0.0.1:5099 \
 dotnet run --project src/MemorySystem.Api
 ```
 
@@ -38,22 +50,18 @@ Run the worker in a second terminal:
 dotnet run --project src/MemorySystem.Worker
 ```
 
-The worker processes outbox jobs and runs the first retention automation. By default it minimizes unreferenced `ephemeral` source-event payloads after seven days, once on startup and then hourly.
+The worker processes outbox jobs and runs retention automation. By default it
+minimizes unreferenced `ephemeral` source-event payloads after seven days, once
+on startup and then hourly.
 
-For authenticated API calls, configure an API key mapped to the seeded principal:
+The seeded principal id is:
 
 ```text
 11111111-1111-4111-8111-111111111111
 ```
 
-Example local API configuration:
-
-```bash
-Authentication__ApiKey__Keys__local_jack__Key=private-alpha-local-key \
-Authentication__ApiKey__Keys__local_jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
-Authentication__ApiKey__Keys__local_jack__DisplayName="Jack Tam" \
-dotnet run --project src/MemorySystem.Api
-```
+The local API key `private-alpha-local-key` is a committed demo value. It is not
+a secret and must not be used outside local development or tests.
 
 ## Workflow
 
@@ -84,7 +92,7 @@ Expected result:
 Open the review dashboard:
 
 ```text
-/reviews/
+http://127.0.0.1:5099/reviews/
 ```
 
 Complete at least one pending review with approve, edit, delete, or supersede.
@@ -99,7 +107,7 @@ Expected result:
 Open the admin console:
 
 ```text
-/admin/
+http://127.0.0.1:5099/admin/
 ```
 
 Expected result:
@@ -150,7 +158,7 @@ Expected result:
 Check the operational summary:
 
 ```text
-GET /api/operations/summary
+GET http://127.0.0.1:5099/api/operations/summary
 ```
 
 Expected result:
@@ -166,11 +174,11 @@ Expected result:
 Also check:
 
 ```text
-GET /health/live
-GET /health/ready
+GET http://127.0.0.1:5099/health/live
+GET http://127.0.0.1:5099/health/ready
 ```
 
-## Alpha Acceptance Checklist
+## Acceptance Checklist
 
 - A new reviewer can run the service locally from the top-level README.
 - The scenario can be explained without reading code.
@@ -179,6 +187,6 @@ GET /health/ready
 - Context retrieval is scoped and source-linked.
 - The operator can see whether the worker, outbox, pending reviews, and stale exports need attention.
 
-## Follow-Up After Alpha
+## Follow-Up
 
 Record what helped the agent make a better decision and what did not. The next product iteration should improve the weakest observed point: write precision, review usability, retrieval relevance, stale-memory handling, or operator confidence.

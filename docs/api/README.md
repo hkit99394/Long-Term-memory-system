@@ -3,6 +3,10 @@
 This folder contains curated API contracts for agent-facing and client-facing
 use of the memory system.
 
+Run the local API from the root [README](../../README.md) before using the curl
+examples. The documented default API key is a local-demo value only; set
+`MEMORYSYSTEM_API_KEY` for any non-local API.
+
 ## Contracts
 
 | Contract | Purpose |

@@ -2,15 +2,15 @@
 
 These examples show the LMSS v1 workflow from a client or agent-tool point of
 view. They use the curated [OpenAPI contract](agent-memory-v1.openapi.json) and
-the private-alpha Scenario 0001 local API setup. For field-level scope,
-namespace, role, trust, retention, sensitivity, and evidence rules, see
+the Scenario 0001 local API setup. For field-level scope, namespace, role,
+trust, retention, sensitivity, and evidence rules, see
 [Policy Targeting For Agent Callers](policy-targeting-for-agent-callers.md).
 For context-product-specific explanation, exclusion, feedback, and review
 handoff guidance, see [Context Product v1 Caller Guide](context-product-v1-caller-guide.md).
 
 ## Prerequisites
 
-Seed the private-alpha demo data:
+Seed the local demo data:
 
 ```bash
 ./scripts/seed-private-alpha-demo.sh
@@ -19,11 +19,14 @@ Seed the private-alpha demo data:
 Run the API with the seeded local principal:
 
 ```bash
-Authentication__ApiKey__Keys__local_jack__Key=private-alpha-local-key \
-Authentication__ApiKey__Keys__local_jack__PrincipalId=11111111-1111-4111-8111-111111111111 \
-Authentication__ApiKey__Keys__local_jack__DisplayName="Jack Tam" \
+Authentication__ApiKey__Keys__local_demo__Key=private-alpha-local-key \
+Authentication__ApiKey__Keys__local_demo__PrincipalId=11111111-1111-4111-8111-111111111111 \
+Authentication__ApiKey__Keys__local_demo__DisplayName="Local Demo User" \
 dotnet run --project src/MemorySystem.Api --urls http://127.0.0.1:5099
 ```
+
+The default key is a committed local-demo value, not a secret. Set
+`MEMORYSYSTEM_API_KEY` when calling a non-local API.
 
 ## Runnable Curl Workflow
 
@@ -59,7 +62,7 @@ returned to the same caller.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MEMORYSYSTEM_API_BASE_URL` | `http://127.0.0.1:5099` | API base URL. |
-| `MEMORYSYSTEM_API_KEY` | `private-alpha-local-key` | Seeded local API key. |
+| `MEMORYSYSTEM_API_KEY` | `private-alpha-local-key` | Seeded local-demo API key. |
 | `MEMORYSYSTEM_PRINCIPAL_ID` | `11111111-1111-4111-8111-111111111111` | Seeded principal. |
 | `MEMORYSYSTEM_PROJECT_A_ID` | `33333333-3333-4333-8333-333333333333` | Seeded Project A scope id. |
 | `MEMORYSYSTEM_EXAMPLE_RUN_ID` | `lmss03-v1` | Prefix for stable idempotency keys. |

@@ -27,6 +27,9 @@ python3 benchmarks/agent-contract-usefulness-v1/run_smoke.py \
   --agent-smoke benchmarks/outputs/agent-contract-usefulness-v1/latest-smoke.run.json
 ```
 
+`private-alpha-local-key` is the committed local-demo key. Set
+`MEMORYSYSTEM_BENCHMARK_API_KEY` explicitly for any non-local API.
+
 The default reports are written to:
 
 ```text

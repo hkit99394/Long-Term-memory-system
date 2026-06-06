@@ -19,7 +19,7 @@ internal static partial class Scenario0001Seeder
             VALUES (
                 @principal_id,
                 'human',
-                'Jack Tam',
+                'Local Demo User',
                 'active'
             )
             ON CONFLICT (id)
