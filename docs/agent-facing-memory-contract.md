@@ -1,6 +1,6 @@
 # Agent-Facing Memory Contract
 
-Last reviewed: 2026-05-29
+Last reviewed: 2026-06-06
 
 ## Purpose
 
@@ -32,6 +32,10 @@ An agent should be able to:
 - read source evidence when it is authorized
 - understand why memory was included, excluded, rejected, or sent to review
 
+Before planning, coding, reviewing, or releasing project work, agents must run
+the memory pre-work loop: call `memory.getContext`, use `memory.queryFacts` for
+decisions and facts, then record retrieval feedback after the task.
+
 The contract should hide storage details but preserve governance details. Agents
 do not need to know table names, index strategy, or migration shape. They do
 need scope, provenance, lifecycle, confidence, and policy information.
@@ -46,8 +50,13 @@ need scope, provenance, lifecycle, confidence, and policy information.
 - Idempotent writes are part of the public behavior. Agents should retry safely.
 - Targeting is explicit. Agents must provide task scope and role context when
   asking for scoped memory.
+- Memory is part of task preparation. Agents must query context before
+  planning, coding, reviewing, or releasing, and use fact queries when durable
+  decisions or facts shape the work.
 - Responses explain provenance. Memory-derived facts should include source ids,
   source links, confidence, and lifecycle state where applicable.
+- Feedback closes the loop. Agents must record `useful`, `stale`, `wrong`,
+  `sensitive`, `over_broad`, or `missing` feedback after memory-informed work.
 - Sensitive data is minimized. Contracts must not expose raw query text,
   redacted payloads, or unauthorized memory.
 - Safety is a gate. A response that leaks cross-scope, deleted, redacted, or
@@ -65,7 +74,7 @@ schemas.
 | `principalId` | Authenticated human, agent, or service principal. Usually resolved from authentication, not supplied by the agent. | Auth |
 | `targetScope` | The memory scope the task is about, represented by `scopeType` and `scopeId`. | Read tools |
 | `namespace` | Path-like memory namespace, such as `/project/{id}/decisions`. | Write tools, optional filters |
-| `roleId` | Role perspective for the task, such as `cto`, `designer`, or `developer`. | Optional |
+| `roleId` | Role perspective for the task, such as `product_owner`, `cto`, `security_professional`, `developer`, or `tester_qa`. | Optional |
 | `trustLevel` | Source trust level for a write or evidence event. | Write tools |
 | `sensitivity` | Sensitivity label used by retention, logging, and redaction policy. | Write tools |
 | `retentionClass` | Raw event payload retention class. | Evidence writes |
@@ -114,6 +123,29 @@ The CP-01 productized context packet response contract is published at
 [api/context-packet-product-v1.md](api/context-packet-product-v1.md). The CP-10
 caller guide is published at
 [api/context-product-v1-caller-guide.md](api/context-product-v1-caller-guide.md).
+
+## Required Work Loop
+
+Agents must use memory as an input to project work, not as an afterthought.
+
+Before planning, coding, reviewing, or releasing:
+
+1. Call `memory.getContext` for task-scoped context.
+2. Call `memory.queryFacts` when decisions, facts, contradictions, source
+   links, lifecycle status, or policy metadata matter.
+3. Keep `packetId`, `itemId`, `sourceType`, and `sourceId` from returned
+   context items.
+
+After the task:
+
+- Record item feedback when returned memory was `useful`, `stale`, `wrong`,
+  `sensitive`, or `over_broad`.
+- Record packet-level `missing` feedback when important memory was absent.
+- Prefer `packetId` over resending raw query text.
+
+If memory retrieval is unavailable, the agent may continue only when the task is
+time-sensitive or retrieval failure is not relevant, and must state that memory
+retrieval was unavailable.
 
 ## Existing Capability Contracts
 

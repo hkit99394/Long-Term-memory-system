@@ -59,11 +59,13 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 1. [Production Secret Handling](production-secrets.md)
 2. [Production Deployment Shape](production-deployment-shape.md)
 3. [Production Container Tool](production-container.md)
-4. [Production Observability and Alerting](production-observability.md)
-5. [Backup and Restore Runbook](backup-restore.md)
-6. [Retention Policy](retention-policy.md)
-7. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-8. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+4. [Project Memory Boundary](project-memory-boundary.md)
+5. [Project Memory Runbook](project-memory-runbook.md)
+6. [Production Observability and Alerting](production-observability.md)
+7. [Backup and Restore Runbook](backup-restore.md)
+8. [Retention Policy](retention-policy.md)
+9. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+10. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -120,6 +122,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Production Secret Handling](production-secrets.md) | Runtime secret configuration, rotation, and guardrails. |
 | [Production Deployment Shape](production-deployment-shape.md) | Migrator/API/worker split, managed PostgreSQL expectations, rollback, and restore validation. |
 | [Production Container Tool](production-container.md) | Single-machine Docker Compose operator tool and rollout path. |
+| [Project Memory Boundary](project-memory-boundary.md) | Canonical local production endpoint, protected volume, project scope ids, role mapping, and seed command. |
+| [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
 | [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | AWS/Terraform/container platform baseline. |

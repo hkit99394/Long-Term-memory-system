@@ -134,6 +134,39 @@ This enables the Caddy local-access proxy on `127.0.0.1:8081` and keeps
 `X-Forwarded-Proto=https` flowing to the API without publishing the proxy on
 all interfaces.
 
+### Active Local Memory Endpoint
+
+For this repository, treat the local production memory endpoint as:
+
+```text
+http://127.0.0.1:8081
+```
+
+Use this endpoint for host-local admin, review, health, operations summary, and
+agent memory calls. The direct API port `127.0.0.1:8080` is an implementation
+detail and may reject plain HTTP unless a trusted proxy supplies
+`X-Forwarded-Proto=https`.
+
+After every deploy or restart, check:
+
+```text
+GET http://127.0.0.1:8081/health/ready
+GET http://127.0.0.1:8081/api/operations/summary
+```
+
+The named database volume is protected production memory:
+
+```text
+memorysystem-prod_memorysystem-postgres-data
+```
+
+Do not run `docker compose down -v` unless the reviewed intent is to wipe the
+production memory database. A normal `docker compose down` recreates containers
+and networks while preserving this volume.
+
+The canonical project memory boundary for this repository is recorded in
+[Project Memory Boundary](project-memory-boundary.md).
+
 ## Required Configuration
 
 | Setting | Purpose |

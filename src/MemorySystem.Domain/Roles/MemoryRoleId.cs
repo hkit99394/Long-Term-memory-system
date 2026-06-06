@@ -2,6 +2,12 @@ namespace MemorySystem.Domain.Roles;
 
 public sealed record MemoryRoleId
 {
+    public const string ProductOwner = "product_owner";
+    public const string SecurityProfessional = "security_professional";
+    public const string ItManager = "it_manager";
+    public const string TesterQa = "tester_qa";
+    public const string ReleaseManager = "release_manager";
+    public const string KnowledgeSteward = "knowledge_steward";
     public const string Designer = "designer";
     public const string Developer = "developer";
     public const string Cto = "cto";
@@ -11,9 +17,15 @@ public sealed record MemoryRoleId
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
-        Designer,
-        Developer,
+        ProductOwner,
         Cto,
+        SecurityProfessional,
+        ItManager,
+        Developer,
+        TesterQa,
+        ReleaseManager,
+        KnowledgeSteward,
+        Designer,
         Cfo,
         Coo,
         Ceo

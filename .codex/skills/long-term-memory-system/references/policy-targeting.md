@@ -68,7 +68,11 @@ POST /api/memory/query-facts        optional role-specific fact filtering
 POST /api/memory/context/feedback   optional retrieval-perspective metadata
 ```
 
-Role-specific memory is an access boundary. Do not leak Project A CTO memory to Project A CFO callers or Project B callers.
+Supported role ids are `product_owner`, `cto`, `security_professional`,
+`it_manager`, `developer`, `tester_qa`, `release_manager`,
+`knowledge_steward`, `designer`, `cfo`, `coo`, and `ceo`.
+
+Role-specific memory is an access boundary. Do not leak Project A CTO memory to Project A Product Owner callers or Project B callers.
 
 ## Trust, Retention, And Sensitivity
 

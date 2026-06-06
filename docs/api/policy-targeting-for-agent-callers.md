@@ -1,6 +1,6 @@
 # Policy Targeting For Agent Callers
 
-Last reviewed: 2026-05-30
+Last reviewed: 2026-06-06
 
 ## Purpose
 
@@ -16,6 +16,11 @@ perspective. Source events prove writes.
 ```
 
 ## Quick Defaults
+
+Before planning, coding, reviewing, or releasing project work, agents must call
+`GET /api/memory/context`. Use `POST /api/memory/query-facts` when decisions or
+facts shape the work. After the task, record context feedback as `useful`,
+`stale`, `wrong`, `sensitive`, `over_broad`, or `missing`.
 
 Use these defaults unless the task clearly needs something stricter:
 
@@ -83,7 +88,8 @@ Supported scope types are:
 Supported roles are:
 
 ```text
-designer, developer, cto, cfo, coo, ceo
+product_owner, cto, security_professional, it_manager, developer, tester_qa,
+release_manager, knowledge_steward, designer, cfo, coo, ceo
 ```
 
 ### Write Scope Rules

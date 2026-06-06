@@ -774,7 +774,20 @@ function renderAccessDetail(): void {
       "Role assignment",
       [
         textField("principalId", "Principal ID"),
-        selectField("roleId", "Role", ["cto", "developer", "designer", "cfo", "coo", "ceo"]),
+        selectField("roleId", "Role", [
+          "product_owner",
+          "cto",
+          "security_professional",
+          "it_manager",
+          "developer",
+          "tester_qa",
+          "release_manager",
+          "knowledge_steward",
+          "designer",
+          "cfo",
+          "coo",
+          "ceo"
+        ]),
         selectField("scopeType", "Scope", ["project", "org"]),
         textField("scopeId", "Scope ID")
       ],

@@ -199,7 +199,9 @@ curl -fsS -X POST \
   "$MEMORYSYSTEM_API_BASE_URL/api/admin/access/role-assignments"
 ```
 
-Supported roles are `designer`, `developer`, `cto`, `cfo`, `coo`, and `ceo`.
+Supported roles are `product_owner`, `cto`, `security_professional`,
+`it_manager`, `developer`, `tester_qa`, `release_manager`,
+`knowledge_steward`, `designer`, `cfo`, `coo`, and `ceo`.
 Role namespaces still require matching namespace grants.
 
 ### Namespace Grant

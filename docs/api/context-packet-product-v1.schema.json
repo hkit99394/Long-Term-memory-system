@@ -136,9 +136,15 @@
     "roleId": {
       "type": "string",
       "enum": [
-        "designer",
-        "developer",
+        "product_owner",
         "cto",
+        "security_professional",
+        "it_manager",
+        "developer",
+        "tester_qa",
+        "release_manager",
+        "knowledge_steward",
+        "designer",
         "cfo",
         "coo",
         "ceo"

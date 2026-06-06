@@ -112,7 +112,9 @@ public sealed class MemoryScopePolicyTests
 
     [Theory]
     [InlineData("CTO", "cto")]
+    [InlineData(" Product_Owner ", "product_owner")]
     [InlineData(" cfo ", "cfo")]
+    [InlineData("TESTER_QA", "tester_qa")]
     [InlineData(null, null)]
     public void TryNormalizeRoleId_canonicalizes_optional_role_id(
         string? roleId,

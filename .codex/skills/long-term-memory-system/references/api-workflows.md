@@ -7,6 +7,21 @@ MEMORYSYSTEM_API_BASE_URL
 MEMORYSYSTEM_API_KEY
 ```
 
+For this repository's host-local production memory system, prefer already
+exported canonical variables. If they are absent, inspect the project boundary
+and parse `.env.production` without printing secret values:
+
+```bash
+port=$(awk -F= '$1=="MEMORYSYSTEM_LOCAL_ACCESS_PORT"{print substr($0,index($0,"=")+1)}' .env.production)
+key=$(awk -F= '$1=="MEMORYSYSTEM_OPERATOR_API_KEY"{print substr($0,index($0,"=")+1)}' .env.production)
+base="http://127.0.0.1:${port:-8081}"
+```
+
+Use `base` as the effective `MEMORYSYSTEM_API_BASE_URL` and `key` as the
+effective `MEMORYSYSTEM_API_KEY` for operator workflows. Do not echo either
+variable. Do not shell-source `.env.production`; some values can contain
+unquoted spaces.
+
 Every authenticated request must include:
 
 ```http
@@ -14,6 +29,17 @@ X-Api-Key: ${MEMORYSYSTEM_API_KEY}
 ```
 
 Use `Content-Type: application/json` for JSON `POST` requests.
+
+## Required Before-Work Loop
+
+Before planning, coding, reviewing, or releasing project work:
+
+1. Call `GET /api/memory/context` with the task query, target scope, optional `roleId`, and a practical limit.
+2. Use `POST /api/memory/query-facts` when the task depends on decisions, facts, contradictions, source links, lifecycle status, or policy metadata.
+3. Keep the returned `packetId`, item `itemId`, `sourceType`, and `sourceId` for feedback.
+4. After the task, record `useful`, `stale`, `wrong`, `sensitive`, `over_broad`, or `missing` feedback with `POST /api/memory/context/feedback`.
+
+If retrieval fails and the task must continue, state the retrieval failure and avoid claiming stored memory support.
 
 ## Health
 
