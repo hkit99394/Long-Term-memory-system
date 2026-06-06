@@ -57,7 +57,7 @@ repo-root/
 | `MemorySystem.sln` | .NET solution containing API, Application, Domain, Infrastructure, Migrator, Worker, and test projects. |
 | `docker-compose.yml` | Local PostgreSQL plus pgvector runtime for development and integration tests, using the pinned image from [Decision 0003](decisions/0003-local-database-runtime.md). |
 | `benchmarks/` | Benchmark fixtures, prompt-pack generators, rubrics, and generated report workspace. |
-| `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, and decisions. |
+| `docs/` | Human-readable project documentation, roadmap, backlog, architecture notes, decisions, and source-of-truth policy. |
 | `infra/` | Production platform infrastructure. PI-02 starts Terraform module and environment contracts under `infra/terraform`; PI-03 adds managed RDS PostgreSQL resources; PI-04 adds backup/export and restore-validation job contracts. |
 | `migrations/` | SQL-first database migrations. These are the source of truth for schema changes. |
 | `src/` | Production .NET source code. |
@@ -327,6 +327,18 @@ Rules:
 - Tools can support review and export.
 - Tools must not become the source of truth for memory state.
 
+## Source-Of-Truth Policy
+
+[Memory vs Markdown Policy](memory-vs-markdown-policy.md) defines what belongs
+in Markdown, memory, backlog, source evidence, role lenses, release evidence,
+and vault exports. Use it before turning operator instructions or retrieved
+memory into durable project plans.
+
+Repository plans, policies, architecture records, API contracts, runbooks,
+release decisions, and backlog status belong in committed Markdown. Project
+memory stores compact, source-linked summaries that help agents retrieve the
+right context quickly.
+
 ## Benchmarks
 
 `benchmarks/` contains benchmark fixtures, runners, rubrics, and generated
@@ -363,6 +375,7 @@ Rules:
 | `docs/roadmap.md` | Milestone roadmap. |
 | `docs/backlog.md` | Milestone backlog and acceptance criteria. |
 | `docs/folder-structure.md` | Repository layout and ownership guide. |
+| `docs/memory-vs-markdown-policy.md` | IP-01 source-of-truth policy for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
@@ -402,6 +415,7 @@ Use it for:
 
 Do not use it for:
 
+- authoritative project policy or backlog status
 - high-volume event history
 - transactional state
 - concurrent writes

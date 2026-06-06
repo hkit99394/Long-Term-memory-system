@@ -46,6 +46,12 @@ The context request must target the project scope. Add `roleId` only when the
 task genuinely needs that role lens and the principal has the matching role
 assignment.
 
+Use [Memory vs Markdown Policy](memory-vs-markdown-policy.md) when retrieved
+memory changes project plans, policy, release posture, API contracts, or
+backlog status. Markdown and payload-safe release evidence are authoritative
+for those records; project memory should store compact source-linked summaries,
+not hidden roadmap or policy state.
+
 ## First Execution Slice
 
 1. Seed or repair the project, organization, role assignments, and grants:
@@ -61,9 +67,10 @@ assignment.
    ```
 
    The seed should keep 10-20 or more high-value memories about goals,
-   architecture, release state, the agent contract, roadmap, backlog, and role
-   responsibilities. It validates curated excerpts against the current source
-   files and records source document hashes in the evidence events.
+   architecture, release state, the agent contract, memory-vs-Markdown policy,
+   roadmap, backlog, and role responsibilities. It validates curated excerpts
+   against the current source files and records source document hashes in the
+   evidence events.
 
 3. Query context through the CTO lens:
 

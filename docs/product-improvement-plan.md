@@ -1,6 +1,6 @@
 # Product Improvement Plan
 
-Last reviewed: 2026-05-30
+Last reviewed: 2026-06-06
 
 ## Purpose
 
@@ -44,6 +44,39 @@ The next product challenge is to turn "memory system that works" into "memory pr
 - Automate the policies that protect trust: retention, erasure, stale projections, failed jobs, and access drift.
 - Keep PostgreSQL as the recovery authority and make every projection rebuildable.
 - Avoid a big rewrite. The next phase should harden, expose, and measure the existing system.
+
+## Ordered Improvement Backlog
+
+This ordered plan is the Markdown authority for the post-GO improvement list.
+It was promoted from source-backed project memory on 2026-06-06 as part of
+IP-01 so that memory is not the only home for roadmap priorities.
+
+Status values:
+
+- `Todo`: not started in this ordered plan.
+- `Doing`: actively in progress.
+- `Done`: implemented and verified for this ordered plan item.
+
+| ID | Priority | Status | Owner | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- | --- |
+| IP-01 | P0 | Done | Knowledge Steward + Product Owner | Memory vs Markdown Policy Cleanup | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) defines what belongs in Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports; the source-backed knowledge seed includes the policy. |
+| IP-02 | P0 | Todo | Security Professional + Developer | Admin Human Login For Console | Add OIDC/session-cookie login for `/admin/` and `/reviews/`; keep API keys for service accounts, automation, and break-glass use. |
+| IP-03 | P0 | Todo | IT/Ops + CTO | External / Managed PostgreSQL Production Profile | Support optional external database mode with documented connection config, migration flow, backup/restore validation, and smoke tests while keeping the Docker volume as local/simple mode. |
+| IP-04 | P0 | Todo | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | Attach real post-GO evidence for deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, and rollback notes. |
+| IP-05 | P0 | Todo | Product Owner + CTO | Project-Defined Roles | Allow each project to define its own role set while preserving default roles as templates. |
+| IP-06 | P0 | Todo | Knowledge Steward + Developer | Canonical Memory Types | Support durable memory types for goal, target, fact, decision, rationale, risk, assumption, constraint, requirement, release_evidence, and role_lens. |
+| IP-07 | P1 | Todo | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | Automate source hash drift checks, stale source links, duplicate memory detection, missing evidence, and source-backed seed validation. |
+| IP-08 | P1 | Todo | Developer + CTO | Agent Memory Client / Wrapper | Provide a small client or tool wrapper that enforces getContext, queryFacts, and feedback before project work. |
+| IP-09 | P1 | Todo | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | Turn weekly `/admin/` and `/reviews/` checks into a structured queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
+| IP-10 | P1 | Todo | IT/Ops | Production Backup And Restore Drill Schedule | Define recurring restore validation, evidence capture, RPO/RTO expectations, and protected-volume/export checks. |
+| IP-11 | P1 | Todo | Security Professional | Access Boundary Review | Audit memberships, role assignments, grants, service accounts, break-glass keys, and OIDC bindings; add permission-drift review to the weekly habit. |
+| IP-12 | P1 | Todo | Product Owner | Backlog And Roadmap Memory Sync | Keep roadmap targets and backlog priorities in Markdown, then seed high-value current state into memory with source evidence and source hashes. |
+| IP-13 | P1 | Todo | All Role Owners | Role Lens First Content Pass | Seed role-specific lenses for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
+| IP-14 | P2 | Todo | Product Owner + Developer | Admin UX Polish | Improve the admin UI around memory inspection, login state, source links, role filters, review routing, and operations status. |
+| IP-15 | P2 | Todo | Tester/QA + Knowledge Steward | Memory Quality Metrics | Track source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio. |
+| IP-16 | P2 | Todo | Product Owner + Knowledge Steward | Project Onboarding Runbook | Create a repeatable new-project setup flow for project scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
+| IP-17 | P2 | Todo | Release Manager + Ops | Release Evidence Bundle Automation | Generate one payload-safe evidence bundle for each release covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
+| IP-18 | P3 | Todo | Security Professional + IT/Ops | Directory Sync Evaluation | Revisit SCIM/group sync only after login and local grants are stable; keep sync provisioning-only and preserve local grants as the authorization source. |
 
 ## Short Run: 1-2 Weeks
 
@@ -346,7 +379,9 @@ produced. The next move should be a target-environment pilot rehearsal using
 rerun the benchmark release gate with the intended pilot model and fresh
 scorecards, rerun the governance/compliance release smoke or platform
 equivalent, upload the evidence bundle, verify alert receiver acknowledgement,
-and get rollback-owner signoff.
+and get rollback-owner signoff. In backlog terms, the next move should be a
+target-environment pilot rehearsal before treating target-environment evidence
+as complete.
 
 2026-06-04 update: EPR-02 and EPR-03 now have local pilot-equivalent evidence
 attached in [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md).

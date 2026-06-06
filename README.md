@@ -37,8 +37,12 @@ Core capabilities:
 
 ## How It Works
 
-PostgreSQL is the source of truth. pgvector supports recall, but vector rows are
-rebuildable derived data rather than authoritative memory.
+PostgreSQL is the source of truth for runtime memory records. pgvector supports
+recall, but vector rows are rebuildable derived data rather than authoritative
+memory. Repository plans, policy, API contracts, release decisions, and backlog
+status stay authoritative in Markdown under `docs/`; memory stores compact,
+source-linked summaries. See
+[docs/memory-vs-markdown-policy.md](docs/memory-vs-markdown-policy.md).
 
 | Area | Implementation |
 | --- | --- |
@@ -239,6 +243,7 @@ New readers should start here:
 - [Architecture overview](docs/architecture.md)
 - [Local demo workflow](docs/private-alpha-workflow.md)
 - [API contracts](docs/api/README.md)
+- [Memory vs Markdown policy](docs/memory-vs-markdown-policy.md)
 - [Testing commands](docs/testing.md)
 - [Production secret handling](docs/production-secrets.md)
 

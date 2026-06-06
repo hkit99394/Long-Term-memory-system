@@ -15,6 +15,7 @@ sections are for deeper implementation, pilot, governance, and platform work.
 | Run the local product workflow | [Local Demo Workflow](private-alpha-workflow.md) |
 | Find setup and test commands | [Testing Commands](testing.md) |
 | Integrate as an agent or client | [API Contracts](api/README.md) |
+| Know whether memory or Markdown is authoritative | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) |
 | Understand current release posture | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) and [release readiness status](external-pilot-readiness-status.json) |
 
 The root [README](../README.md) has the fastest copy-paste quick start.
@@ -53,6 +54,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 5. [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md)
 6. [Context Packet Product v1 Contract](api/context-packet-product-v1.md)
 7. [Agent-Facing Memory Contract](agent-facing-memory-contract.md)
+8. [Memory vs Markdown Policy](memory-vs-markdown-policy.md)
 
 ### Operations And Governance
 
@@ -87,8 +89,10 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Architecture Overview](architecture.md) | Component map, write path, read path, data boundaries, and trust model. |
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Full design plan, schema direction, phases, risks, and build steps. |
 | [Folder Structure](folder-structure.md) | Repository layout, ownership boundaries, and where new work should live. |
+| [Memory vs Markdown Policy](memory-vs-markdown-policy.md) | Source-of-truth rules for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
+| [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
 
 ### API
 
@@ -126,10 +130,12 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
+| [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Accepted platform integration boundary for IaC, managed PostgreSQL, telemetry, alert routing, and release checklists. |
 | [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | AWS/Terraform/container platform baseline. |
+| [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Accepted AWS, Terraform, and immutable OCI artifact baseline for the first platform target. |
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
-| [Terraform Platform](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
+| [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
 | [Observability Artifacts](../observability/README.md) | Alerts, dashboard, trace coverage, and metric input manifests. |
 
 ### Governance And Compliance Track
@@ -137,6 +143,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | Document | Purpose |
 | --- | --- |
 | [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md) | Governance/compliance release boundary and implementation plan. |
+| [Decision 0048: Governance And Compliance Gate](decisions/0048-governance-compliance-gate.md) | Accepted compliance boundary for residency, erasure replay, drift reporting, retention policy, external payload checks, and evidence packages. |
 | [Environment Governance Policy GC-01](environment-governance-policy-gc01.md) | Environment-specific data residency, retention, exceptions, and evidence policy. |
 | [Permission-Drift Report GC-02](permission-drift-report-gc02.md) | Payload-safe access-drift report contract. |
 | [Backup Erasure Replay Validation GC-03](backup-erasure-replay-validation-gc03.md) | Restore-time replay of post-backup erasure actions. |
@@ -153,6 +160,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Enterprise Access Gate](enterprise-access-gate.md) | OIDC/SSO, service accounts, access-management UI, audit export, and migration plan. |
 | [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) | Pilot workflow for OIDC, service accounts, grants, audit export, rollback, and break-glass keys. |
 | [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) | Decision to defer SCIM/directory sync until after pilot evidence. |
+| [Decision 0047: Directory Sync Is Provisioning Only](decisions/0047-directory-sync-provisioning-only.md) | Accepted constraint that future directory sync cannot bypass local memberships, roles, grants, previews, or audit records. |
 | [Context Productization Gate](context-productization-gate.md) | Explainable context packets, safe exclusions, reviewer action, feedback, and ranking plan. |
 
 ### Release Evidence
@@ -175,6 +183,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Product Improvement Plan](product-improvement-plan.md) | Product-owner improvement plan from private alpha through production pilot. |
 | [Roadmap](roadmap.md) | Milestones, dependencies, decision gates, and build sequence. |
 | [Backlog](backlog.md) | Work items by milestone with priorities, statuses, and acceptance criteria. |
+| [Memory vs Markdown Policy](memory-vs-markdown-policy.md) | Canonical policy for what should live in Markdown, memory, backlog, source evidence, role lenses, and release evidence. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

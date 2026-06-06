@@ -224,6 +224,52 @@ documents = {
             }
         ]
     },
+    "memory-vs-markdown-policy": {
+        "path": "docs/memory-vs-markdown-policy.md",
+        "title": "Memory vs Markdown Policy",
+        "summary": "Project source-of-truth policy for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports.",
+        "excerpts": [
+            "Markdown is the canonical source for project plans, policy, architecture, API",
+            "Memory is a governed retrieval layer over source-backed facts, decisions,",
+            "If a durable project claim matters for future agents, first put the source in",
+            "Role lenses are role-specific interpretations of shared truth, not separate",
+            "Release decisions and pilot claims require committed, payload-safe evidence."
+        ],
+        "items": [
+            {
+                "memoryType": "decision",
+                "namespace": f"/project/{project_id}/decisions",
+                "subject": "project source-of-truth policy",
+                "predicate": "uses",
+                "object": "Markdown docs and committed release evidence are canonical for project plans, policies, architecture, API contracts, runbooks, release decisions, and backlog status; memory is a source-linked retrieval projection, not the sole authority.",
+                "confidence": 0.96
+            },
+            {
+                "memoryType": "decision",
+                "namespace": f"/project/{project_id}/decisions",
+                "subject": "source-backed memory sync policy",
+                "predicate": "requires",
+                "object": "When a durable project claim affects future work, update the right Markdown or release-evidence record first, then seed or propose compact memory from that source with source evidence and a source hash.",
+                "confidence": 0.95
+            },
+            {
+                "memoryType": "fact",
+                "namespace": f"/project/{project_id}/facts",
+                "subject": "role lens boundary",
+                "predicate": "is",
+                "object": "Role lenses hold role-specific interpretation, attention, and risk framing over shared truth; they must not become alternate facts or unverified private policy.",
+                "confidence": 0.94
+            },
+            {
+                "memoryType": "fact",
+                "namespace": f"/project/{project_id}/release-evidence",
+                "subject": "release evidence boundary",
+                "predicate": "requires",
+                "object": "Release decisions and pilot claims belong in committed payload-safe evidence records and readiness JSON; memory may summarize current status only with links to those records.",
+                "confidence": 0.94
+            }
+        ]
+    },
     "project-memory-boundary": {
         "path": "docs/project-memory-boundary.md",
         "title": "Project Memory Boundary",

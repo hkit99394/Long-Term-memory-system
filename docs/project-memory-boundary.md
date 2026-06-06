@@ -64,8 +64,9 @@ That script uses `http://127.0.0.1:8081`, appends document evidence events, and
 proposes durable project memories from `project-goal.md`, `architecture.md`,
 `external-pilot-go-epr04-v1.0.0-2026-06-04.md`,
 `agent-facing-memory-contract.md`, `project-memory-boundary.md`, `roadmap.md`,
-and `backlog.md`. Each event records the current source document SHA-256 and
-the seed refuses to run if curated excerpts no longer appear in the source file.
+`memory-vs-markdown-policy.md`, and `backlog.md`. Each event records the
+current source document SHA-256 and the seed refuses to run if curated excerpts
+no longer appear in the source file.
 
 Use [How This Project Uses Its Own Memory System](project-memory-runbook.md)
 for the repeatable first execution slice, role-lens context checks, feedback
