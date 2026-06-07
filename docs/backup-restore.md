@@ -228,6 +228,29 @@ The ECS task wrapper or platform scheduler should upload evidence JSON to the
 release evidence bucket and expose or push the metric files into the pilot
 observability pipeline.
 
+## Drill Schedule
+
+IP-10 adds a recurring drill schedule around these jobs. Use
+[Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
+to plan weekly backup freshness checks, monthly restore-to-new-database
+validation, quarterly recovery rehearsals, post-erasure replay checks, and
+release-gate evidence.
+
+Generate a payload-safe checklist without running database commands:
+
+```bash
+scripts/backup-restore-drill-schedule.sh \
+  --environment production \
+  --drill-type monthly \
+  --dry-run
+```
+
+The drill evidence must record the backup id, backup timestamp, restore
+database, validation timestamp, operator, observed RPO, observed RTO, metrics,
+erasure replay status, and controlled evidence prefix. It must not include raw
+event payloads, memory bodies, chunk content, review notes, secrets, or logical
+dump contents.
+
 ## Retention and Erasure Caveats
 
 Backups can preserve content that has since been minimized or erased in the live database. Treat backup files as sensitive data.

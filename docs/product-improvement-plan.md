@@ -67,9 +67,9 @@ Status values:
 | IP-06 | P0 | Done | Knowledge Steward + Developer | Canonical Memory Types | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) defines the source-of-truth memory type vocabulary for `goal`, `target`, `fact`, `decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`, `release_evidence`, and `role_lens`, wires proposal/query validation through the domain value object, and keeps legacy aliases compatible. |
 | IP-07 | P1 | Done | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) adds `scripts/source-backed-memory-hygiene.sh`, pins source hashes in the production knowledge seed, validates stale source links, curated excerpt drift, duplicate memory identities, missing evidence, canonical memory types, and role-lens seed hygiene before source-backed project memory is written. |
 | IP-08 | P1 | Done | Developer + CTO | Agent Memory Client / Wrapper | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) adds `scripts/agent-memory-client.sh` with `prework`, `feedback`, and `status`; `prework` requires `memory.getContext` and `memory.queryFacts`, stores only packet/item/source metadata, blocks a new prework run while feedback is pending, and clears pending state only after `memory.recordContextFeedback` succeeds. |
-| IP-09 | P1 | Todo | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | Turn weekly `/admin/` and `/reviews/` checks into a structured queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
-| IP-10 | P1 | Todo | IT/Ops | Production Backup And Restore Drill Schedule | Define recurring restore validation, evidence capture, RPO/RTO expectations, and protected-volume/export checks. |
-| IP-11 | P1 | Todo | Security Professional | Access Boundary Review | Audit memberships, role assignments, grants, service accounts, break-glass keys, and OIDC bindings; add permission-drift review to the weekly habit. |
+| IP-09 | P1 | Done | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) adds `scripts/weekly-admin-review-workflow.sh`, which collects a payload-safe weekly queue across pending reviews, stale/wrong/sensitive context observations, over-broad and missing feedback, duplicate active-memory candidates, and source-backed seed drift. |
+| IP-10 | P1 | Done | IT/Ops | Production Backup And Restore Drill Schedule | [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md) adds `scripts/backup-restore-drill-schedule.sh` for weekly backup freshness, monthly restore validation, quarterly recovery rehearsal, post-erasure replay checks, and release-gate evidence with RPO/RTO expectations plus protected-volume/export checks. |
+| IP-11 | P1 | Done | Security Professional | Access Boundary Review | [Access Boundary Review IP-11](access-boundary-review-ip11.md) adds `scripts/access-boundary-review.sh`, which wraps payload-safe permission-drift reporting into a weekly review queue for memberships, role assignments, namespace grants, service accounts, service credentials, OIDC bindings, break-glass posture, and audit evidence. |
 | IP-12 | P1 | Todo | Product Owner | Backlog And Roadmap Memory Sync | Keep roadmap targets and backlog priorities in Markdown, then seed high-value current state into memory with source evidence and source hashes. |
 | IP-13 | P1 | Todo | All Role Owners | Role Lens First Content Pass | Seed role-specific lenses for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
 | IP-14 | P2 | Todo | Product Owner + Developer | Admin UX Polish | Improve the admin UI around memory inspection, login state, source links, role filters, review routing, and operations status. |
@@ -430,3 +430,24 @@ IP-08](agent-memory-client-wrapper-ip08.md). `scripts/agent-memory-client.sh`
 adds `prework`, `feedback`, and `status` commands so agents can run
 `memory.getContext`, `memory.queryFacts`, and packet-id feedback as one enforced
 work loop before and after project work.
+
+2026-06-07 update: IP-09 is implemented in [Weekly Admin Review Workflow
+IP-09](weekly-admin-review-workflow-ip09.md).
+`scripts/weekly-admin-review-workflow.sh` now collects the weekly memory review
+queue from `/api/reviews/pending`, context feedback observations,
+`/api/admin/memory/facts`, `/api/operations/summary`, and source-backed memory
+hygiene.
+
+2026-06-07 update: IP-10 is implemented in [Production Backup And Restore Drill
+Schedule IP-10](production-backup-restore-drill-schedule-ip10.md).
+`scripts/backup-restore-drill-schedule.sh` now emits payload-safe weekly,
+monthly, quarterly, post-erasure, and release-gate backup/restore drill
+schedules with RPO/RTO expectations, evidence capture, protected-volume checks,
+and export checks.
+
+2026-06-07 update: IP-11 is implemented in [Access Boundary Review
+IP-11](access-boundary-review-ip11.md). `scripts/access-boundary-review.sh`
+now emits a payload-safe weekly access boundary review queue from the
+permission-drift API, covering memberships, role assignments, namespace grants,
+service accounts, service credentials, OIDC bindings, break-glass posture, and
+audit evidence.

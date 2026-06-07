@@ -380,6 +380,9 @@ Rules:
 | `docs/canonical-memory-types-ip06.md` | IP-06 canonical durable memory type vocabulary and compatibility aliases. |
 | `docs/source-backed-memory-hygiene-ip07.md` | IP-07 source-backed memory hygiene automation contract and seed validation rules. |
 | `docs/agent-memory-client-wrapper-ip08.md` | IP-08 local agent memory wrapper contract for prework, fact queries, and feedback closeout. |
+| `docs/weekly-admin-review-workflow-ip09.md` | IP-09 weekly admin review workflow and payload-safe queue contract. |
+| `docs/production-backup-restore-drill-schedule-ip10.md` | IP-10 recurring backup/restore drill cadence, evidence, RPO/RTO, protected-volume, and export checks. |
+| `docs/access-boundary-review-ip11.md` | IP-11 access-boundary review contract for memberships, roles, grants, service accounts, OIDC bindings, break-glass posture, and permission drift. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |

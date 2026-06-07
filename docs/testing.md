@@ -110,6 +110,9 @@ When platform backup or restore job scripts change, run shell syntax checks:
 ```bash
 bash -n scripts/production-container.sh
 bash -n scripts/agent-memory-client.sh
+bash -n scripts/weekly-admin-review-workflow.sh
+bash -n scripts/backup-restore-drill-schedule.sh
+bash -n scripts/access-boundary-review.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
 bash -n scripts/source-backed-memory-hygiene.sh
@@ -122,6 +125,40 @@ bash -n scripts/platform-retention-minimization.sh
 bash -n scripts/platform-restore-validation.sh
 bash -n scripts/governance-compliance-release-smoke.sh
 bash -n scripts/target-environment-evidence-verify.sh
+```
+
+## Production Backup And Restore Drill Schedule
+
+Use this after changing the IP-10 drill schedule, backup/restore runbooks, or
+release evidence requirements. The dry run validates the payload-safe schedule
+contract without running backup, restore, or network commands:
+
+```bash
+bash -n scripts/backup-restore-drill-schedule.sh
+scripts/backup-restore-drill-schedule.sh \
+  --environment pilot \
+  --drill-type monthly \
+  --dry-run
+```
+
+## Access Boundary Review
+
+Use this after changing the IP-11 access-boundary workflow, permission-drift
+review, service-account posture, OIDC bindings, break-glass handling, or weekly
+security review docs. The dry run validates the payload-safe review contract
+without API calls:
+
+```bash
+bash -n scripts/access-boundary-review.sh
+scripts/access-boundary-review.sh --dry-run
+```
+
+When a local API is available, collect the canonical project access review:
+
+```bash
+scripts/access-boundary-review.sh \
+  --scope-type project \
+  --scope-id 9f8e7d6c-5b4a-4321-9123-abcdef123002
 ```
 
 ## Source-Backed Memory Hygiene
@@ -162,6 +199,24 @@ MEMORYSYSTEM_AGENT_MEMORY_STATE_FILE=/tmp/memorysystem-agent-memory-client-live-
 
 MEMORYSYSTEM_AGENT_MEMORY_STATE_FILE=/tmp/memorysystem-agent-memory-client-live-test.json \
   scripts/agent-memory-client.sh feedback --feedback-type missing
+```
+
+## Weekly Admin Review Workflow
+
+Use this after changing the IP-09 weekly review workflow or related review
+docs. The dry run validates the payload-safe queue contract without API calls:
+
+```bash
+bash -n scripts/weekly-admin-review-workflow.sh
+scripts/weekly-admin-review-workflow.sh --dry-run
+```
+
+When a local API is available, collect the live weekly queue:
+
+```bash
+scripts/weekly-admin-review-workflow.sh \
+  --scope-type project \
+  --scope-id 9f8e7d6c-5b4a-4321-9123-abcdef123002
 ```
 
 ## Target Environment Evidence Verification

@@ -129,13 +129,36 @@ technical feasibility and architecture consequences of those targets.
 
 ## Weekly Review
 
-Once each week, review the live console:
+Once each week, collect the structured review queue:
+
+```bash
+scripts/weekly-admin-review-workflow.sh
+scripts/access-boundary-review.sh \
+  --scope-type project \
+  --scope-id 9f8e7d6c-5b4a-4321-9123-abcdef123002
+```
+
+The workflow is defined in [Weekly Admin Review Workflow
+IP-09](weekly-admin-review-workflow-ip09.md). It checks pending reviews,
+stale/wrong/sensitive context observations, over-broad feedback, missing
+feedback metrics, duplicate active-memory candidates, and source-backed seed
+drift without printing raw source payloads.
+
+The access-boundary workflow is defined in [Access Boundary Review
+IP-11](access-boundary-review-ip11.md). It wraps the payload-safe
+permission-drift report into a weekly security queue for memberships, role
+assignments, namespace grants, service accounts, service credentials, OIDC
+bindings, break-glass posture, and audit evidence.
+
+Then review the live consoles for the queue items that need human action:
 
 ```text
 http://127.0.0.1:8081/admin/
 http://127.0.0.1:8081/reviews/
 ```
 
-Route stale, wrong, duplicate, missing, sensitive, or over-broad memories to the
-appropriate owner. The Knowledge Steward owns review hygiene, but each role owns
-the correctness of its domain.
+Route stale, wrong, duplicate, missing, sensitive, or over-broad memory signals
+to the appropriate owner. The Knowledge Steward owns review hygiene, but each
+role owns the correctness of its domain. Route permission-drift, break-glass,
+service-account, OIDC, and grant-boundary findings to the Security Professional
+and the owning operator before closing the weekly review.

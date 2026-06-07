@@ -108,6 +108,14 @@ runtime access checks.
 
 The report is diagnostic evidence. It must not become an authorization path.
 
+## Weekly Access Review
+
+IP-11 wraps this endpoint in [Access Boundary Review IP-11](access-boundary-review-ip11.md).
+Use `scripts/access-boundary-review.sh` during the weekly review habit to turn
+permission-drift findings into a payload-safe queue for memberships, role
+assignments, namespace grants, service accounts, service credentials, OIDC
+bindings, break-glass posture, and audit evidence.
+
 ## Follow-On Work
 
 GC-03 pairs permission-drift evidence with backup erasure replay validation, and

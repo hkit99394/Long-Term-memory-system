@@ -66,9 +66,11 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 6. [Project Memory Runbook](project-memory-runbook.md)
 7. [Production Observability and Alerting](production-observability.md)
 8. [Backup and Restore Runbook](backup-restore.md)
-9. [Retention Policy](retention-policy.md)
-10. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-11. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+9. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
+10. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
+11. [Retention Policy](retention-policy.md)
+12. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+13. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -95,6 +97,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Canonical durable memory type vocabulary and compatibility aliases for proposals and query filters. |
 | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Source hash drift, stale source link, duplicate memory, missing evidence, seed validation, and role-lens hygiene gate. |
 | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Repo-local wrapper that enforces context retrieval, fact queries, and packet-id feedback before and after project work. |
+| [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Structured weekly queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
+| [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly access-boundary review for memberships, roles, grants, service accounts, OIDC bindings, break-glass posture, and permission drift. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -136,6 +140,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Memory Boundary](project-memory-boundary.md) | Canonical local production endpoint, protected volume, project scope ids, role mapping, and seed command. |
 | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project role-definition table, admin API, validation rules, and default role templates. |
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
+| [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Weekly payload-safe memory review queue collector and role-owner operating procedure. |
+| [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly security review for permission drift, service accounts, OIDC bindings, break-glass keys, and audit evidence. |
 | [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
 | [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Accepted platform integration boundary for IaC, managed PostgreSQL, telemetry, alert routing, and release checklists. |
@@ -144,6 +150,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
 | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Payload-safe target evidence manifest, checksum verifier, and completion rule for post-GO target artifacts. |
+| [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md) | Weekly, monthly, quarterly, post-erasure, and release-gate backup/restore drill cadence with RPO/RTO and evidence checks. |
 | [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
 | [Observability Artifacts](../observability/README.md) | Alerts, dashboard, trace coverage, and metric input manifests. |
 
@@ -197,6 +204,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Source-of-truth memory type vocabulary for durable project memory and role lenses. |
 | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Automation contract for validating source-backed memory seed evidence before reseeding. |
 | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Wrapper contract for enforcing the agent memory prework and feedback loop. |
+| [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Structured weekly admin review queue contract for memory hygiene. |
+| [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Structured weekly access-boundary review contract for security posture. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary
