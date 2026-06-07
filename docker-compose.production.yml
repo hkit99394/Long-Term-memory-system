@@ -93,6 +93,11 @@ services:
       Authentication__ApiKey__Keys__operator__PrincipalId: ${MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID:-replace-with-principal-guid}
       Authentication__ApiKey__Keys__operator__DisplayName: ${MEMORYSYSTEM_OPERATOR_DISPLAY_NAME:-Production Operator}
       Authentication__ApiKey__Keys__operator__CredentialId: ${MEMORYSYSTEM_OPERATOR_CREDENTIAL_ID:-}
+      Authentication__ConsolePassword__Enabled: ${MEMORYSYSTEM_CONSOLE_PASSWORD_LOGIN_ENABLED:-false}
+      Authentication__ConsolePassword__Username: ${MEMORYSYSTEM_CONSOLE_PASSWORD_USERNAME:-}
+      Authentication__ConsolePassword__Password: ${MEMORYSYSTEM_CONSOLE_PASSWORD:-}
+      Authentication__ConsolePassword__ApiKeyId: ${MEMORYSYSTEM_CONSOLE_PASSWORD_API_KEY_ID:-operator}
+      Authentication__ConsoleLogin__EnvironmentLabel: ${MEMORYSYSTEM_CONSOLE_ENVIRONMENT_LABEL:-Production}
       TransportSecurity__ForwardedHeadersEnabled: ${MEMORYSYSTEM_FORWARDED_HEADERS_ENABLED:-true}
       ForwardedHeaders__KnownNetworks__0: ${MEMORYSYSTEM_FORWARD_PROXY_NETWORK:-127.0.0.0/8}
       ForwardedHeaders__KnownNetworks__1: 127.0.0.0/8

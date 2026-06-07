@@ -56,6 +56,18 @@ public static class ApiAuthenticationServiceCollectionExtensions
                 "Authentication:Oidc:JwksUri must use HTTPS when metadata HTTPS is required.")
             .ValidateOnStart();
 
+        services
+            .AddOptions<ConsolePasswordLoginOptions>()
+            .Bind(configuration.GetSection(ConsolePasswordLoginOptions.SectionName))
+            .Validate(
+                ConsolePasswordLoginOptions.HasRequiredConfiguration,
+                "Authentication:ConsolePassword must configure Username, Password, and ApiKeyId when enabled.")
+            .Validate(
+                options => ConsolePasswordLoginOptions.AllowsUnsafePassword(environment.EnvironmentName)
+                    || ConsolePasswordLoginOptions.HasProductionSafePassword(options),
+                "Authentication:ConsolePassword:Password must be production-safe outside Development and Testing environments.")
+            .ValidateOnStart();
+
         services.AddSingleton<IIdentityBindingStore, PostgresIdentityBindingStore>();
         services.AddSingleton<IPrincipalResolver, PostgresPrincipalResolver>();
         services.AddMemoryCache();

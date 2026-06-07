@@ -14,16 +14,16 @@
         <div id="status" class="status">Idle</div>
       </div>
       <form class="connection" autocomplete="off">
-        <label>
+        <label class="connection-internal" hidden>
           <span>API</span>
           <input id="api-base" name="api-base" type="url" placeholder="http://localhost:5000">
         </label>
-        <label>
+        <label class="connection-internal" hidden>
           <span>JWT / Key</span>
-          <input id="api-key" name="api-key" type="password" placeholder="OIDC JWT or break-glass key">
+          <input id="api-key" name="api-key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-1p-ignore data-lpignore="true" placeholder="OIDC JWT or break-glass key">
         </label>
         <button id="refresh" type="button">Refresh</button>
-        <button id="logout" type="button">Sign out</button>
+        <a id="logout" class="button-link" href="/auth/logout?returnUrl=/reviews/">Sign out</a>
       </form>
     </header>
 

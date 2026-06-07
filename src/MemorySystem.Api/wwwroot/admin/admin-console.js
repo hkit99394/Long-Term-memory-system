@@ -116,6 +116,7 @@ function renderAccessDetail() {
 "use strict";
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+const consoleReturnUrl = "/admin/";
 const state = {
     mode: "memory",
     facts: [],
@@ -163,9 +164,12 @@ const elements = {
 elements.apiBase.value = window.location.origin;
 elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
 updateCredentialState();
-redirectToLoginIfMissingCredential("/admin/");
+redirectToLoginIfMissingCredential(consoleReturnUrl);
 elements.refresh.addEventListener("click", () => void loadCurrentMode());
-elements.logout.addEventListener("click", () => void logout());
+elements.logout.addEventListener("click", event => {
+    event.preventDefault();
+    void logout();
+});
 elements.apiKey.addEventListener("change", () => {
     persistCredential();
     updateCredentialState();
@@ -446,23 +450,44 @@ async function apiFetch(path, init = {}) {
     const payload = text ? JSON.parse(text) : null;
     if (!response.ok) {
         const detail = payload?.detail ?? payload?.title ?? response.statusText;
+        if (isAuthenticationFailure(response)) {
+            redirectToLoginAfterAuthenticationFailure();
+        }
         throw new Error(`${response.status} ${detail}`);
     }
     return payload;
 }
 async function logout() {
     setBusy(true);
-    sessionStorage.removeItem(credentialStorageKey);
-    sessionStorage.removeItem(credentialKindStorageKey);
+    clearStoredCredential();
     elements.apiKey.value = "";
-    window.location.assign("/auth/login?returnUrl=/admin/");
+    window.location.assign(logoutUrl(consoleReturnUrl));
     setBusy(false);
 }
 function redirectToLoginIfMissingCredential(returnUrl) {
-    if (elements.apiKey.value.trim()) {
+    if (readCredential()) {
         return;
     }
-    window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+    window.location.replace(loginUrl(returnUrl));
+}
+function redirectToLoginAfterAuthenticationFailure() {
+    clearStoredCredential();
+    elements.apiKey.value = "";
+    updateCredentialState();
+    window.location.replace(loginUrl(consoleReturnUrl));
+}
+function clearStoredCredential() {
+    sessionStorage.removeItem(credentialStorageKey);
+    sessionStorage.removeItem(credentialKindStorageKey);
+}
+function isAuthenticationFailure(response) {
+    return response.status === 401 || response.status === 403;
+}
+function loginUrl(returnUrl) {
+    return `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+}
+function logoutUrl(returnUrl) {
+    return `/auth/logout?returnUrl=${encodeURIComponent(returnUrl)}`;
 }
 function persistCredential() {
     const credential = elements.apiKey.value.trim();
@@ -471,23 +496,44 @@ function persistCredential() {
         sessionStorage.setItem(credentialKindStorageKey, looksLikeJwt(credential) ? "jwt" : "api_key");
     }
     else {
-        sessionStorage.removeItem(credentialStorageKey);
-        sessionStorage.removeItem(credentialKindStorageKey);
+        clearStoredCredential();
     }
 }
 function applyAuth(headers) {
-    const credential = elements.apiKey.value.trim();
+    const credential = readCredential();
     if (!credential) {
         return;
     }
-    persistCredential();
-    if (looksLikeJwt(credential)) {
+    if (!readStoredCredential()) {
+        persistCredential();
+    }
+    if (usesBearerCredential(credential)) {
         headers.set("Authorization", `Bearer ${credential}`);
         headers.delete("X-Api-Key");
         return;
     }
     headers.set("X-Api-Key", credential);
     headers.delete("Authorization");
+}
+function readCredential() {
+    const storedCredential = readStoredCredential();
+    if (storedCredential) {
+        if (elements.apiKey.value.trim() !== storedCredential) {
+            elements.apiKey.value = storedCredential;
+            updateCredentialState();
+        }
+        return storedCredential;
+    }
+    return elements.apiKey.value.trim();
+}
+function readStoredCredential() {
+    return sessionStorage.getItem(credentialStorageKey)?.trim() ?? "";
+}
+function usesBearerCredential(credential) {
+    const credentialKind = sessionStorage.getItem(credentialKindStorageKey);
+    return credentialKind === "oidc_jwt"
+        || credentialKind === "jwt"
+        || (!credentialKind && looksLikeJwt(credential));
 }
 function looksLikeJwt(value) {
     return value.split(".").length === 3;

@@ -21,6 +21,108 @@ public sealed class ApiConsoleTokenAuthenticationTests
     private const string Audience = "memory-system-api";
     private const string Subject = "console-subject-123";
     private const string BreakGlassApiKey = "break-glass-api-key-0123456789abcdef";
+    private const string ConsolePasswordUsername = "uat-operator";
+    private const string ConsolePassword = "uat-password-0123456789abcdef";
+
+    [Fact]
+    public async Task Console_login_page_uses_external_assets_without_cookie_session()
+    {
+        using var factory = CreateConsoleTokenFactory(new StaticPrincipalResolver());
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        using var response = await client.GetAsync("/auth/login?returnUrl=/reviews/");
+        var html = await response.Content.ReadAsStringAsync();
+        using var cssResponse = await client.GetAsync("/auth/login.css");
+        var css = await cssResponse.Content.ReadAsStringAsync();
+        using var scriptResponse = await client.GetAsync("/auth/login.js");
+        var script = await scriptResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(response.Headers.TryGetValues("Set-Cookie", out _));
+        Assert.Contains("href=\"/auth/login.css\"", html, StringComparison.Ordinal);
+        Assert.Contains("src=\"/auth/login.js\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"Environment\">Testing</p>", html, StringComparison.Ordinal);
+        Assert.Contains("role=\"status\" aria-live=\"polite\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<style", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("addEventListener", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"password-form\"", html, StringComparison.Ordinal);
+        Assert.Contains("returnUrl\" value=\"/reviews/\"", html, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, cssResponse.StatusCode);
+        Assert.Contains(".login-shell", css, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, scriptResponse.StatusCode);
+        Assert.Contains("/api/auth/console/password", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Console_logout_page_clears_browser_session_with_external_script()
+    {
+        using var factory = CreateConsoleTokenFactory(new StaticPrincipalResolver());
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        using var response = await client.GetAsync("/auth/logout?returnUrl=/reviews/");
+        var html = await response.Content.ReadAsStringAsync();
+        using var scriptResponse = await client.GetAsync("/auth/logout.js");
+        var script = await scriptResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(response.Headers.TryGetValues("Set-Cookie", out _));
+        Assert.Contains("src=\"/auth/logout.js\"", html, StringComparison.Ordinal);
+        Assert.Contains("data-return-url=\"/reviews/\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.OK, scriptResponse.StatusCode);
+        Assert.Contains("sessionStorage.removeItem(credentialKey)", script, StringComparison.Ordinal);
+        Assert.Contains("sessionStorage.removeItem(credentialKindKey)", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Console_static_assets_are_served_without_cache_for_fast_uat_redeploys()
+    {
+        using var factory = CreateConsoleTokenFactory(new StaticPrincipalResolver());
+        var client = factory.CreateClient();
+
+        using var adminScript = await client.GetAsync("/admin/admin-console.js");
+        using var loginScript = await client.GetAsync("/auth/login.js");
+
+        Assert.Equal(HttpStatusCode.OK, adminScript.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, loginScript.StatusCode);
+        Assert.Contains("no-cache", adminScript.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
+        Assert.Contains("no-store", loginScript.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Console_login_page_renders_password_form_when_configured()
+    {
+        var principalId = Guid.NewGuid();
+        using var factory = CreateConsoleTokenFactory(
+            new StaticPrincipalResolver(
+                apiKeyPrincipal: new AuthenticatedPrincipal(
+                    principalId,
+                    "human",
+                    "UAT Operator",
+                    AuthenticationMethods.ApiKey,
+                    "break-glass-key")),
+            configuredApiKey: BreakGlassApiKey,
+            configuredApiKeyPrincipalId: principalId.ToString("D"),
+            enableConsolePassword: true,
+            environmentLabel: "UAT");
+        var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/auth/login?returnUrl=/admin/");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("id=\"password-form\"", html, StringComparison.Ordinal);
+        Assert.Contains("autocomplete=\"username\"", html, StringComparison.Ordinal);
+        Assert.Contains("autocomplete=\"current-password\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"Environment\">UAT</p>", html, StringComparison.Ordinal);
+        Assert.Contains("Emergency access key", html, StringComparison.Ordinal);
+    }
 
     [Fact]
     public async Task Console_static_entrypoints_load_without_cookie_session()
@@ -82,6 +184,67 @@ public sealed class ApiConsoleTokenAuthenticationTests
         Assert.Equal(principalId.ToString(), authPayload.GetProperty("principalId").GetString());
         Assert.Equal(AuthenticationMethods.Oidc, authPayload.GetProperty("authMethod").GetString());
         Assert.Equal(bindingId.ToString(), authPayload.GetProperty("credentialId").GetString());
+    }
+
+    [Fact]
+    public async Task Console_password_validation_is_disabled_by_default()
+    {
+        using var factory = CreateConsoleTokenFactory(new StaticPrincipalResolver());
+        var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/console/password",
+            new
+            {
+                username = ConsolePasswordUsername,
+                password = ConsolePassword,
+                returnUrl = "/admin/"
+            });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.False(response.Headers.TryGetValues("Set-Cookie", out _));
+    }
+
+    [Fact]
+    public async Task Console_password_validation_allows_configured_human_principal_without_issuing_cookie()
+    {
+        var principalId = Guid.NewGuid();
+        using var factory = CreateConsoleTokenFactory(
+            new StaticPrincipalResolver(
+                apiKeyPrincipal: new AuthenticatedPrincipal(
+                    principalId,
+                    "human",
+                    "UAT Operator",
+                    AuthenticationMethods.ApiKey,
+                    "break-glass-key")),
+            configuredApiKey: BreakGlassApiKey,
+            configuredApiKeyPrincipalId: principalId.ToString("D"),
+            enableConsolePassword: true);
+        var client = factory.CreateClient();
+
+        using var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/console/password",
+            new
+            {
+                username = ConsolePasswordUsername,
+                password = ConsolePassword,
+                returnUrl = "/reviews/"
+            });
+
+        var tokenResult = await loginResponse.Content.ReadFromJsonAsync<ConsoleTokenPayload>();
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        Assert.False(loginResponse.Headers.TryGetValues("Set-Cookie", out _));
+        Assert.NotNull(tokenResult);
+        Assert.Equal("/reviews/", tokenResult.ReturnUrl);
+        Assert.Equal("console_password_api_key", tokenResult.CredentialKind);
+        Assert.Equal(BreakGlassApiKey, tokenResult.Credential);
+
+        var issuedCredential = Assert.IsType<string>(tokenResult.Credential);
+        client.DefaultRequestHeaders.Add("X-Api-Key", issuedCredential);
+        var authPayload = await ReadFallbackAuthPayloadAsync(client);
+        Assert.Equal(ApiKeyAuthenticationDefaults.AuthenticationScheme, authPayload.GetProperty("scheme").GetString());
+        Assert.Equal(principalId.ToString(), authPayload.GetProperty("principalId").GetString());
+        Assert.Equal(AuthenticationMethods.ApiKey, authPayload.GetProperty("authMethod").GetString());
     }
 
     [Fact]
@@ -164,7 +327,9 @@ public sealed class ApiConsoleTokenAuthenticationTests
         IPrincipalResolver principalResolver,
         OidcJwksDocument? jwks = null,
         string? configuredApiKey = null,
-        string? configuredApiKeyPrincipalId = null)
+        string? configuredApiKeyPrincipalId = null,
+        bool enableConsolePassword = false,
+        string? environmentLabel = null)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -189,6 +354,19 @@ public sealed class ApiConsoleTokenAuthenticationTests
                         configuration["Authentication:ApiKey:Keys:break-glass:DisplayName"] = "Break Glass";
                     }
 
+                    if (enableConsolePassword)
+                    {
+                        configuration["Authentication:ConsolePassword:Enabled"] = "true";
+                        configuration["Authentication:ConsolePassword:Username"] = ConsolePasswordUsername;
+                        configuration["Authentication:ConsolePassword:Password"] = ConsolePassword;
+                        configuration["Authentication:ConsolePassword:ApiKeyId"] = "break-glass";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(environmentLabel))
+                    {
+                        configuration["Authentication:ConsoleLogin:EnvironmentLabel"] = environmentLabel;
+                    }
+
                     configurationBuilder.AddInMemoryCollection(configuration);
                 });
                 builder.ConfigureTestServices(services =>
@@ -209,7 +387,8 @@ public sealed class ApiConsoleTokenAuthenticationTests
         string AuthMethod,
         string CredentialId,
         string CredentialKind,
-        string ReturnUrl);
+        string ReturnUrl,
+        string? Credential);
 
     private sealed class StaticPrincipalResolver(
         AuthenticatedPrincipal? oidcPrincipal = null,

@@ -65,6 +65,32 @@ public sealed class ProductionContainerSecurityHardeningTests
         }
     }
 
+    [Fact]
+    public void Production_compose_maps_optional_console_password_login_without_enabling_it_by_default()
+    {
+        var root = FindRepositoryRoot();
+        var compose = File.ReadAllText(Path.Combine(root, "docker-compose.production.yml"));
+        var envExample = File.ReadAllText(Path.Combine(root, ".env.production.example"));
+
+        foreach (var fragment in new[]
+        {
+            "Authentication__ConsolePassword__Enabled: ${MEMORYSYSTEM_CONSOLE_PASSWORD_LOGIN_ENABLED:-false}",
+            "Authentication__ConsolePassword__Username: ${MEMORYSYSTEM_CONSOLE_PASSWORD_USERNAME:-}",
+            "Authentication__ConsolePassword__Password: ${MEMORYSYSTEM_CONSOLE_PASSWORD:-}",
+            "Authentication__ConsolePassword__ApiKeyId: ${MEMORYSYSTEM_CONSOLE_PASSWORD_API_KEY_ID:-operator}",
+            "Authentication__ConsoleLogin__EnvironmentLabel: ${MEMORYSYSTEM_CONSOLE_ENVIRONMENT_LABEL:-Production}"
+        })
+        {
+            Assert.Contains(fragment, compose, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("MEMORYSYSTEM_CONSOLE_PASSWORD_LOGIN_ENABLED=false", envExample, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_CONSOLE_PASSWORD_USERNAME=", envExample, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_CONSOLE_PASSWORD=", envExample, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_CONSOLE_PASSWORD_API_KEY_ID=operator", envExample, StringComparison.Ordinal);
+        Assert.Contains("MEMORYSYSTEM_CONSOLE_ENVIRONMENT_LABEL=Production", envExample, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

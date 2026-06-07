@@ -276,6 +276,7 @@ interface TextFetchResult {
 
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+const consoleReturnUrl = "/admin/";
 
 interface AdminConsoleState {
   mode: "memory" | "events" | "operations" | "access" | "compliance" | "pilot";
@@ -331,7 +332,7 @@ const elements = {
   createdToFilter: byId<HTMLInputElement>("created-to-filter"),
   query: byId<HTMLInputElement>("query"),
   refresh: byId<HTMLButtonElement>("refresh"),
-  logout: byId<HTMLButtonElement>("logout"),
+  logout: byId<HTMLElement>("logout"),
   status: byId<HTMLElement>("status"),
   listTitle: byId<HTMLElement>("list-title"),
   resultList: byId<HTMLElement>("result-list"),
@@ -343,9 +344,12 @@ const elements = {
 elements.apiBase.value = window.location.origin;
 elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
 updateCredentialState();
-redirectToLoginIfMissingCredential("/admin/");
+redirectToLoginIfMissingCredential(consoleReturnUrl);
 elements.refresh.addEventListener("click", () => void loadCurrentMode());
-elements.logout.addEventListener("click", () => void logout());
+elements.logout.addEventListener("click", event => {
+  event.preventDefault();
+  void logout();
+});
 elements.apiKey.addEventListener("change", () => {
   persistCredential();
   updateCredentialState();
@@ -659,6 +663,10 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const detail = payload?.detail ?? payload?.title ?? response.statusText;
+    if (isAuthenticationFailure(response)) {
+      redirectToLoginAfterAuthenticationFailure();
+    }
+
     throw new Error(`${response.status} ${detail}`);
   }
 
@@ -667,19 +675,42 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 async function logout(): Promise<void> {
   setBusy(true);
-  sessionStorage.removeItem(credentialStorageKey);
-  sessionStorage.removeItem(credentialKindStorageKey);
+  clearStoredCredential();
   elements.apiKey.value = "";
-  window.location.assign("/auth/login?returnUrl=/admin/");
+  window.location.assign(logoutUrl(consoleReturnUrl));
   setBusy(false);
 }
 
 function redirectToLoginIfMissingCredential(returnUrl: string): void {
-  if (elements.apiKey.value.trim()) {
+  if (readCredential()) {
     return;
   }
 
-  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+  window.location.replace(loginUrl(returnUrl));
+}
+
+function redirectToLoginAfterAuthenticationFailure(): void {
+  clearStoredCredential();
+  elements.apiKey.value = "";
+  updateCredentialState();
+  window.location.replace(loginUrl(consoleReturnUrl));
+}
+
+function clearStoredCredential(): void {
+  sessionStorage.removeItem(credentialStorageKey);
+  sessionStorage.removeItem(credentialKindStorageKey);
+}
+
+function isAuthenticationFailure(response: Response): boolean {
+  return response.status === 401 || response.status === 403;
+}
+
+function loginUrl(returnUrl: string): string {
+  return `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+}
+
+function logoutUrl(returnUrl: string): string {
+  return `/auth/logout?returnUrl=${encodeURIComponent(returnUrl)}`;
 }
 
 function persistCredential(): void {
@@ -688,20 +719,21 @@ function persistCredential(): void {
     sessionStorage.setItem(credentialStorageKey, credential);
     sessionStorage.setItem(credentialKindStorageKey, looksLikeJwt(credential) ? "jwt" : "api_key");
   } else {
-    sessionStorage.removeItem(credentialStorageKey);
-    sessionStorage.removeItem(credentialKindStorageKey);
+    clearStoredCredential();
   }
 }
 
 function applyAuth(headers: Headers): void {
-  const credential = elements.apiKey.value.trim();
+  const credential = readCredential();
   if (!credential) {
     return;
   }
 
-  persistCredential();
+  if (!readStoredCredential()) {
+    persistCredential();
+  }
 
-  if (looksLikeJwt(credential)) {
+  if (usesBearerCredential(credential)) {
     headers.set("Authorization", `Bearer ${credential}`);
     headers.delete("X-Api-Key");
     return;
@@ -709,6 +741,32 @@ function applyAuth(headers: Headers): void {
 
   headers.set("X-Api-Key", credential);
   headers.delete("Authorization");
+}
+
+function readCredential(): string {
+  const storedCredential = readStoredCredential();
+  if (storedCredential) {
+    if (elements.apiKey.value.trim() !== storedCredential) {
+      elements.apiKey.value = storedCredential;
+      updateCredentialState();
+    }
+
+    return storedCredential;
+  }
+
+  return elements.apiKey.value.trim();
+}
+
+function readStoredCredential(): string {
+  return sessionStorage.getItem(credentialStorageKey)?.trim() ?? "";
+}
+
+function usesBearerCredential(credential: string): boolean {
+  const credentialKind = sessionStorage.getItem(credentialKindStorageKey);
+
+  return credentialKind === "oidc_jwt"
+    || credentialKind === "jwt"
+    || (!credentialKind && looksLikeJwt(credential));
 }
 
 function looksLikeJwt(value: string): boolean {

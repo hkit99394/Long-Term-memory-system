@@ -13,6 +13,7 @@ namespace MemorySystem.Api.Authentication;
 public static class ConsoleTokenEndpointExtensions
 {
     public const string LoginPath = "/auth/login";
+    public const string LogoutPath = "/auth/logout";
 
     private const string LoginTitle = "Console token login is invalid.";
 
@@ -20,11 +21,44 @@ public static class ConsoleTokenEndpointExtensions
     {
         endpoints.MapGet(
                 LoginPath,
-                (HttpContext context) => Results.Content(
-                    BuildLoginPage(ReadReturnUrl(context)),
+                (
+                    HttpContext context,
+                    IOptionsMonitor<ConsolePasswordLoginOptions> consolePasswordOptions,
+                    IConfiguration configuration,
+                    IHostEnvironment environment) => Results.Content(
+                    BuildLoginPage(
+                        ReadReturnUrl(context),
+                        consolePasswordOptions.CurrentValue.Enabled,
+                        ReadEnvironmentLabel(configuration, environment)),
                     "text/html; charset=utf-8"))
             .AllowAnonymous()
             .DisableRateLimiting();
+
+        endpoints.MapGet(
+                LogoutPath,
+                (HttpContext context) => Results.Content(
+                    BuildLogoutPage(ReadReturnUrl(context)),
+                    "text/html; charset=utf-8"))
+            .AllowAnonymous()
+            .DisableRateLimiting();
+
+        endpoints.MapPost(
+                "/api/auth/console/password",
+                async (
+                    HttpContext context,
+                    IOptionsMonitor<ConsolePasswordLoginOptions> consolePasswordOptions,
+                    IOptionsMonitor<ApiKeyAuthenticationOptions> apiKeyOptions,
+                    IPrincipalResolver principalResolver,
+                    IAuthenticationAuditRecorder authenticationAuditRecorder,
+                    CancellationToken cancellationToken) =>
+                    await ValidateConsolePasswordAsync(
+                        context,
+                        consolePasswordOptions,
+                        apiKeyOptions,
+                        principalResolver,
+                        authenticationAuditRecorder,
+                        cancellationToken))
+            .AllowAnonymous();
 
         endpoints.MapPost(
                 "/api/auth/console/oidc-token",
@@ -61,6 +95,126 @@ public static class ConsoleTokenEndpointExtensions
             .AllowAnonymous();
 
         return endpoints;
+    }
+
+    private static async Task<IResult> ValidateConsolePasswordAsync(
+        HttpContext context,
+        IOptionsMonitor<ConsolePasswordLoginOptions> consolePasswordOptions,
+        IOptionsMonitor<ApiKeyAuthenticationOptions> apiKeyOptions,
+        IPrincipalResolver principalResolver,
+        IAuthenticationAuditRecorder authenticationAuditRecorder,
+        CancellationToken cancellationToken)
+    {
+        var requestResult = await ApiRequestHelpers.ReadJsonBodyAsync<ConsolePasswordRequest>(
+            context.Request,
+            LoginTitle,
+            cancellationToken);
+
+        if (!requestResult.Succeeded)
+        {
+            return ToResult(requestResult.Problem!);
+        }
+
+        var request = requestResult.Value!;
+        var returnUrl = NormalizeReturnUrl(request.ReturnUrl);
+        var options = consolePasswordOptions.CurrentValue;
+        if (!options.Enabled)
+        {
+            await RecordFailedAuthenticationAsync(
+                authenticationAuditRecorder,
+                context,
+                AuthenticationMethods.ApiKey,
+                "console_password_disabled",
+                cancellationToken: cancellationToken);
+
+            return Problem(
+                StatusCodes.Status503ServiceUnavailable,
+                "Password login is unavailable.",
+                "Password login is not enabled for this environment.");
+        }
+
+        var username = request.Username?.Trim();
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(request.Password))
+        {
+            await RecordFailedAuthenticationAsync(
+                authenticationAuditRecorder,
+                context,
+                AuthenticationMethods.ApiKey,
+                "blank_console_password_credentials",
+                cancellationToken: cancellationToken);
+
+            return Problem(
+                StatusCodes.Status400BadRequest,
+                LoginTitle,
+                "Username and password are required.");
+        }
+
+        if (!ConfiguredCredentialsMatch(username, request.Password, options))
+        {
+            await RecordFailedAuthenticationAsync(
+                authenticationAuditRecorder,
+                context,
+                AuthenticationMethods.ApiKey,
+                "invalid_console_password",
+                cancellationToken: cancellationToken);
+
+            return Problem(
+                StatusCodes.Status401Unauthorized,
+                LoginTitle,
+                "Username or password is invalid.");
+        }
+
+        var apiKeyCredential = FindApiKeyCredentialById(
+            options.ApiKeyId!.Trim(),
+            apiKeyOptions.Get(ApiKeyAuthenticationDefaults.AuthenticationScheme));
+        if (apiKeyCredential is null)
+        {
+            await RecordFailedAuthenticationAsync(
+                authenticationAuditRecorder,
+                context,
+                AuthenticationMethods.ApiKey,
+                "console_password_api_key_not_configured",
+                cancellationToken: cancellationToken);
+
+            return Problem(
+                StatusCodes.Status503ServiceUnavailable,
+                "Password login is unavailable.",
+                "The configured password-login API key is not available.");
+        }
+
+        var resolvedPrincipal = await principalResolver.ResolveApiKeyAsync(
+            new ApiKeyPrincipalResolutionRequest(
+                apiKeyCredential.PrincipalId,
+                apiKeyCredential.KeyId,
+                apiKeyCredential.DisplayName,
+                apiKeyCredential.CredentialId),
+            cancellationToken);
+
+        if (resolvedPrincipal is null
+            || !string.Equals(resolvedPrincipal.PrincipalType, "human", StringComparison.Ordinal))
+        {
+            await RecordFailedAuthenticationAsync(
+                authenticationAuditRecorder,
+                context,
+                AuthenticationMethods.ApiKey,
+                "inactive_or_non_human_console_password_principal",
+                apiKeyCredential.KeyId,
+                apiKeyCredential.PrincipalId,
+                cancellationToken);
+
+            return Problem(
+                StatusCodes.Status401Unauthorized,
+                LoginTitle,
+                "Password login is not bound to an active human principal.");
+        }
+
+        await RecordSucceededAuthenticationAsync(authenticationAuditRecorder, context, resolvedPrincipal, cancellationToken);
+
+        return Results.Ok(ToTokenResponse(
+            resolvedPrincipal,
+            "console_password_api_key",
+            returnUrl,
+            apiKeyCredential.Key));
     }
 
     private static async Task<IResult> ValidateOidcTokenAsync(
@@ -246,7 +400,8 @@ public static class ConsoleTokenEndpointExtensions
     private static ConsoleTokenResponse ToTokenResponse(
         AuthenticatedPrincipal resolvedPrincipal,
         string credentialKind,
-        string returnUrl)
+        string returnUrl,
+        string? credential = null)
     {
         return new ConsoleTokenResponse(
             Authenticated: true,
@@ -256,7 +411,17 @@ public static class ConsoleTokenEndpointExtensions
             AuthMethod: resolvedPrincipal.AuthMethod,
             CredentialId: resolvedPrincipal.CredentialId,
             CredentialKind: credentialKind,
-            ReturnUrl: returnUrl);
+            ReturnUrl: returnUrl,
+            Credential: credential);
+    }
+
+    private static ApiKeyCredential? FindApiKeyCredentialById(
+        string keyId,
+        ApiKeyAuthenticationOptions options)
+    {
+        return options.Keys.TryGetValue(keyId, out var credential)
+            ? ToApiKeyCredential(keyId, credential)
+            : null;
     }
 
     private static ApiKeyCredential? FindApiKeyCredential(
@@ -265,29 +430,52 @@ public static class ConsoleTokenEndpointExtensions
     {
         foreach (var (keyId, credential) in options.Keys)
         {
-            if (string.IsNullOrWhiteSpace(keyId)
-                || credential is null
-                || string.IsNullOrWhiteSpace(credential.Key)
-                || !Guid.TryParse(credential.PrincipalId, out var principalId))
+            var apiKeyCredential = ToApiKeyCredential(keyId, credential);
+            if (apiKeyCredential is null)
             {
                 continue;
             }
 
-            if (!ApiKeysMatch(providedKey, credential.Key))
+            if (!ApiKeysMatch(providedKey, apiKeyCredential.Key))
             {
                 continue;
             }
 
-            return new ApiKeyCredential(
-                keyId,
-                principalId,
-                credential.CredentialId,
-                string.IsNullOrWhiteSpace(credential.DisplayName)
-                    ? principalId.ToString("D")
-                    : credential.DisplayName);
+            return apiKeyCredential;
         }
 
         return null;
+    }
+
+    private static ApiKeyCredential? ToApiKeyCredential(
+        string keyId,
+        ApiKeyCredentialOptions? credential)
+    {
+        if (string.IsNullOrWhiteSpace(keyId)
+            || credential is null
+            || string.IsNullOrWhiteSpace(credential.Key)
+            || !Guid.TryParse(credential.PrincipalId, out var principalId))
+        {
+            return null;
+        }
+
+        return new ApiKeyCredential(
+            keyId,
+            credential.Key,
+            principalId,
+            credential.CredentialId,
+            string.IsNullOrWhiteSpace(credential.DisplayName)
+                ? principalId.ToString("D")
+                : credential.DisplayName);
+    }
+
+    private static bool ConfiguredCredentialsMatch(
+        string username,
+        string password,
+        ConsolePasswordLoginOptions options)
+    {
+        return ApiKeysMatch(username, options.Username!)
+            && ApiKeysMatch(password, options.Password!);
     }
 
     private static bool ApiKeysMatch(string providedKey, string configuredKey)
@@ -375,9 +563,47 @@ public static class ConsoleTokenEndpointExtensions
                 : "/admin/";
     }
 
-    private static string BuildLoginPage(string returnUrl)
+    private static string ReadEnvironmentLabel(
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        var configuredLabel = configuration["Authentication:ConsoleLogin:EnvironmentLabel"];
+
+        return string.IsNullOrWhiteSpace(configuredLabel)
+            ? environment.EnvironmentName
+            : configuredLabel.Trim();
+    }
+
+    private static string BuildLoginPage(
+        string returnUrl,
+        bool consolePasswordLoginEnabled,
+        string environmentLabel)
     {
         var encodedReturnUrl = HtmlEncoder.Default.Encode(returnUrl);
+        var encodedEnvironmentLabel = HtmlEncoder.Default.Encode(environmentLabel);
+        var passwordSection = consolePasswordLoginEnabled
+            ? $$"""
+                <section class="login-section primary" aria-labelledby="password-heading">
+                  <div class="section-heading">
+                    <p class="eyebrow">Operator access</p>
+                    <h2 id="password-heading">Sign in</h2>
+                  </div>
+                  <form id="password-form" autocomplete="on">
+                    <input type="hidden" name="returnUrl" value="{{encodedReturnUrl}}">
+                    <label>
+                      Username
+                      <input name="username" autocomplete="username" required>
+                    </label>
+                    <label>
+                      Password
+                      <input name="password" type="password" autocomplete="current-password" required>
+                    </label>
+                    <button type="submit">Sign in</button>
+                  </form>
+                </section>
+                """
+            : string.Empty;
+        var advancedOpenAttribute = consolePasswordLoginEnabled ? string.Empty : " open";
 
         return $$"""
             <!doctype html>
@@ -386,84 +612,88 @@ public static class ConsoleTokenEndpointExtensions
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <title>Memory Console Login</title>
-              <style>
-                :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-                body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f7fb; color: #1f2937; }
-                main { width: min(92vw, 440px); background: #fff; border: 1px solid #d9e2ef; border-radius: 8px; padding: 24px; box-shadow: 0 16px 48px rgb(15 23 42 / 10%); }
-                h1 { margin: 0 0 18px; font-size: 1.35rem; line-height: 1.2; }
-                label, textarea, input, button { display: block; width: 100%; box-sizing: border-box; }
-                label { margin-top: 14px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #4b5563; }
-                textarea, input { margin-top: 6px; border: 1px solid #c8d4e3; border-radius: 6px; padding: 10px; font: inherit; }
-                textarea { min-height: 112px; resize: vertical; }
-                button { margin-top: 12px; border: 0; border-radius: 6px; padding: 10px 12px; font-weight: 700; cursor: pointer; background: #2563eb; color: #fff; }
-                button.secondary { background: #334155; }
-                #status { min-height: 1.25rem; margin-top: 14px; color: #b91c1c; font-size: 0.9rem; }
-                @media (prefers-color-scheme: dark) {
-                  body { background: #0f172a; color: #e5e7eb; }
-                  main { background: #111827; border-color: #334155; box-shadow: none; }
-                  label { color: #cbd5e1; }
-                  textarea, input { background: #0b1220; color: #f8fafc; border-color: #475569; }
-                }
-              </style>
+              <link rel="stylesheet" href="/auth/login.css">
             </head>
             <body>
-              <main>
-                <h1>Memory Console Login</h1>
-                <form id="oidc-form" autocomplete="off">
-                  <input type="hidden" name="returnUrl" value="{{encodedReturnUrl}}">
-                  <label>
-                    OIDC JWT
-                    <textarea name="token" required spellcheck="false"></textarea>
-                  </label>
-                  <button type="submit">Use JWT</button>
-                </form>
-                <form id="api-key-form" autocomplete="off">
-                  <input type="hidden" name="returnUrl" value="{{encodedReturnUrl}}">
-                  <label>
-                    Break-glass API key
-                    <input name="apiKey" type="password">
-                  </label>
-                  <button class="secondary" type="submit">Use break-glass key</button>
-                </form>
-                <div id="status" role="status"></div>
+              <main class="login-shell">
+                <section class="brand-panel" aria-labelledby="login-title">
+                  <div class="brand-kicker">
+                    <p class="eyebrow">Long Term Memory System</p>
+                    <p class="environment-badge" aria-label="Environment">{{encodedEnvironmentLabel}}</p>
+                  </div>
+                  <h1 id="login-title">Memory Console Login</h1>
+                  <p class="lede">Access is kept in this browser session only. Closing the tab or signing out clears the console credential.</p>
+                </section>
+                <section class="login-panel" aria-label="Console authentication">
+                  {{passwordSection}}
+                  <details class="advanced-access"{{advancedOpenAttribute}}>
+                    <summary>Advanced access</summary>
+                    <section class="login-section" aria-labelledby="oidc-heading">
+                      <div class="section-heading">
+                        <p class="eyebrow">Federated access</p>
+                        <h2 id="oidc-heading">Operator token</h2>
+                      </div>
+                      <form id="oidc-form" autocomplete="off">
+                        <input type="hidden" name="returnUrl" value="{{encodedReturnUrl}}">
+                        <label>
+                          Token
+                          <textarea name="token" required spellcheck="false"></textarea>
+                        </label>
+                        <button class="secondary" type="submit">Use operator token</button>
+                      </form>
+                    </section>
+                    <section class="login-section compact" aria-labelledby="api-key-heading">
+                      <div class="section-heading">
+                        <p class="eyebrow">Emergency access</p>
+                        <h2 id="api-key-heading">Emergency access key</h2>
+                        <p class="helper">Privileged and audited.</p>
+                      </div>
+                      <form id="api-key-form" autocomplete="off">
+                        <input type="hidden" name="returnUrl" value="{{encodedReturnUrl}}">
+                        <label>
+                          Access key
+                          <input name="apiKey" type="password" autocomplete="off">
+                        </label>
+                        <button class="secondary" type="submit">Use emergency key</button>
+                      </form>
+                    </section>
+                  </details>
+                </section>
+                <div id="status" role="status" aria-live="polite" tabindex="-1"></div>
               </main>
-              <script>
-                const credentialKey = "memorySystem.consoleCredential";
-                const credentialKindKey = "memorySystem.consoleCredentialKind";
-                const status = document.getElementById("status");
-                document.getElementById("oidc-form").addEventListener("submit", event => {
-                  event.preventDefault();
-                  void login("/api/auth/console/oidc-token", {
-                    token: event.currentTarget.token.value,
-                    returnUrl: event.currentTarget.returnUrl.value
-                  }, event.currentTarget.token.value, "oidc_jwt");
-                });
-                document.getElementById("api-key-form").addEventListener("submit", event => {
-                  event.preventDefault();
-                  void login("/api/auth/console/break-glass-key", {
-                    apiKey: event.currentTarget.apiKey.value,
-                    returnUrl: event.currentTarget.returnUrl.value
-                  }, event.currentTarget.apiKey.value, "break_glass_api_key");
-                });
-                async function login(path, body, credential, credentialKind) {
-                  status.textContent = "";
-                  const response = await fetch(path, {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body)
-                  });
-                  const text = await response.text();
-                  const payload = text ? JSON.parse(text) : {};
-                  if (!response.ok) {
-                    status.textContent = payload.detail || payload.title || response.statusText;
-                    return;
-                  }
-                  sessionStorage.setItem(credentialKey, credential.trim());
-                  sessionStorage.setItem(credentialKindKey, credentialKind);
-                  window.location.assign(payload.returnUrl || "/admin/");
-                }
-              </script>
+              <script type="module" src="/auth/login.js"></script>
+            </body>
+            </html>
+            """;
+    }
+
+    private static string BuildLogoutPage(string returnUrl)
+    {
+        var encodedReturnUrl = HtmlEncoder.Default.Encode(returnUrl);
+        var encodedLoginUrl = HtmlEncoder.Default.Encode($"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}");
+
+        return $$"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Signing out</title>
+              <link rel="stylesheet" href="/auth/login.css">
+            </head>
+            <body>
+              <main class="login-shell logout-shell">
+                <section class="brand-panel" aria-labelledby="logout-title">
+                  <p class="eyebrow">Long Term Memory System</p>
+                  <h1 id="logout-title">Signing Out</h1>
+                  <p class="lede">Clearing the browser console credential.</p>
+                </section>
+                <section class="login-panel" aria-label="Sign out status">
+                  <p id="status" role="status" aria-live="polite" data-return-url="{{encodedReturnUrl}}">Signing out...</p>
+                  <p class="helper"><a href="{{encodedLoginUrl}}">Return to login</a></p>
+                </section>
+              </main>
+              <script type="module" src="/auth/logout.js"></script>
             </body>
             </html>
             """;
@@ -473,6 +703,8 @@ public static class ConsoleTokenEndpointExtensions
 
     private sealed record ConsoleBreakGlassKeyRequest(string? ApiKey, string? ReturnUrl);
 
+    private sealed record ConsolePasswordRequest(string? Username, string? Password, string? ReturnUrl);
+
     private sealed record ConsoleTokenResponse(
         bool Authenticated,
         string PrincipalId,
@@ -481,10 +713,12 @@ public static class ConsoleTokenEndpointExtensions
         string AuthMethod,
         string CredentialId,
         string CredentialKind,
-        string ReturnUrl);
+        string ReturnUrl,
+        string? Credential);
 
     private sealed record ApiKeyCredential(
         string KeyId,
+        string Key,
         Guid PrincipalId,
         string? CredentialId,
         string DisplayName);
