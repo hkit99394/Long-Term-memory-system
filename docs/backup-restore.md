@@ -147,6 +147,14 @@ dotnet run --project src/MemorySystem.Migrator -- \
 
 Then point the API and worker at the restored connection string and verify readiness.
 
+When the production container tool uses
+`MEMORYSYSTEM_POSTGRES_PROFILE=external`, the live runtime connection string is
+`MEMORYSYSTEM_POSTGRES_CONNECTION_STRING`; platform backup jobs should use
+`MEMORYSYSTEM_POSTGRES_URL` or libpq `PG*` variables from the same secret
+source, and restore validation should use a separate
+`MEMORYSYSTEM_RESTORE_CONNECTION_STRING` for the fresh validation database. See
+[External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md).
+
 ## Platform Automation
 
 PI-04 adds two checked-in platform job scripts for pilot and production

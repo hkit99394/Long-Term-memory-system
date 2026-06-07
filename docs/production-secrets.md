@@ -70,6 +70,7 @@ Do not reuse the same key value under multiple key ids. The API rejects duplicat
 Preferred production input:
 
 ```text
+MEMORYSYSTEM_POSTGRES_PROFILE=external
 ConnectionStrings:Postgres=<secret-postgres-connection-string>
 ```
 
@@ -78,6 +79,15 @@ The equivalent environment variable fallback is:
 ```text
 MEMORYSYSTEM_POSTGRES_CONNECTION_STRING=<secret-postgres-connection-string>
 ```
+
+For the production container tool, `MEMORYSYSTEM_POSTGRES_PROFILE=local` keeps
+using the protected Docker Compose volume and `MEMORYSYSTEM_POSTGRES_PASSWORD`.
+`MEMORYSYSTEM_POSTGRES_PROFILE=external` uses
+`MEMORYSYSTEM_POSTGRES_CONNECTION_STRING`, does not start the local `postgres`
+service, and requires PostgreSQL TLS. Keep managed connection strings quoted in
+`.env.production` when they contain `SSL Mode=...`. See
+[External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md)
+for the production container profile switch.
 
 When a platform cannot provide a single connection string, configure all parts:
 
@@ -186,6 +196,8 @@ Before promoting a production configuration:
 - API key values are unique, long-lived only by policy, and mapped to active principals
 - direct HTTPS reaches the API, or forwarded headers are enabled with trusted proxy/network values
 - PostgreSQL does not use local Docker Compose credentials
+- managed PostgreSQL profile uses `MEMORYSYSTEM_POSTGRES_PROFILE=external` and
+  a TLS-enabled `MEMORYSYSTEM_POSTGRES_CONNECTION_STRING`
 - OpenAI endpoint is HTTPS and the API key is stored outside the repository
 - API and worker processes use the same PostgreSQL and embedding provider configuration
 - `/health/live` and `/health/ready` are checked after deployment

@@ -60,14 +60,15 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 
 1. [Production Secret Handling](production-secrets.md)
 2. [Production Deployment Shape](production-deployment-shape.md)
-3. [Production Container Tool](production-container.md)
-4. [Project Memory Boundary](project-memory-boundary.md)
-5. [Project Memory Runbook](project-memory-runbook.md)
-6. [Production Observability and Alerting](production-observability.md)
-7. [Backup and Restore Runbook](backup-restore.md)
-8. [Retention Policy](retention-policy.md)
-9. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-10. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+3. [External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md)
+4. [Production Container Tool](production-container.md)
+5. [Project Memory Boundary](project-memory-boundary.md)
+6. [Project Memory Runbook](project-memory-runbook.md)
+7. [Production Observability and Alerting](production-observability.md)
+8. [Backup and Restore Runbook](backup-restore.md)
+9. [Retention Policy](retention-policy.md)
+10. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+11. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -125,6 +126,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Backup and Restore Runbook](backup-restore.md) | PostgreSQL backup, restore, validation, and retention-aware recovery. |
 | [Production Secret Handling](production-secrets.md) | Runtime secret configuration, rotation, and guardrails. |
 | [Production Deployment Shape](production-deployment-shape.md) | Migrator/API/worker split, managed PostgreSQL expectations, rollback, and restore validation. |
+| [External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md) | Local Docker-volume versus external managed PostgreSQL profile switch, migration flow, backup/restore validation, and smoke checks. |
 | [Production Container Tool](production-container.md) | Single-machine Docker Compose operator tool and rollout path. |
 | [Project Memory Boundary](project-memory-boundary.md) | Canonical local production endpoint, protected volume, project scope ids, role mapping, and seed command. |
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |

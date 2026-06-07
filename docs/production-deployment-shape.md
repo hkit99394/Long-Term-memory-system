@@ -65,6 +65,15 @@ context packet observations, governance legal holds, vault export tracking, and
 worker heartbeats. Vault files and generated benchmark outputs are projections,
 not recovery sources.
 
+The container deployment tool now has an explicit PostgreSQL profile switch:
+`MEMORYSYSTEM_POSTGRES_PROFILE=local` keeps the protected Docker volume for
+single-machine deployments, while `MEMORYSYSTEM_POSTGRES_PROFILE=external`
+uses `MEMORYSYSTEM_POSTGRES_CONNECTION_STRING` and does not start the local
+`postgres` service. See
+[External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md)
+for the exact configuration, migration flow, restore validation, and smoke
+checks.
+
 ## Secret Store Expectations
 
 Production secrets must come from the deployment platform's secret store or an
@@ -141,6 +150,9 @@ pilot hosts that are not yet on ECS/Fargate:
 
 - `docker-compose.production.yml` runs PostgreSQL, API, worker, and a one-shot
   migrator profile from the same immutable image.
+- `docker-compose.production.external-postgres.yml` switches the same runtime
+  roles to an already-provisioned managed PostgreSQL database without starting
+  the local PostgreSQL service.
 - `docker-compose.production.tls.yml` can add a Caddy TLS terminator on the
   same host when the deployment is not using an external load balancer or
   reverse proxy.

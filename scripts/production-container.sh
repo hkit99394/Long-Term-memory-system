@@ -17,7 +17,7 @@ Commands:
   build     Build the v1.0.0 multi-role production image.
   config    Render the Docker Compose production configuration.
   migrate   Run the one-shot migrator role.
-  up        Start postgres, API, and worker roles.
+  up        Start runtime roles for the selected PostgreSQL profile.
   deploy    Build, migrate, start, and check health.
   enable-local-access
             Enable host-local browser access on 127.0.0.1:8081.
@@ -30,6 +30,8 @@ Commands:
 
 Environment:
   MEMORYSYSTEM_PRODUCTION_ENV_FILE can point at the deployment env file.
+  MEMORYSYSTEM_POSTGRES_PROFILE=local uses the protected Docker volume.
+  MEMORYSYSTEM_POSTGRES_PROFILE=external uses a managed PostgreSQL connection string.
   MEMORYSYSTEM_LOCAL_ACCESS_ENABLED=true adds the loopback-only local proxy.
   MEMORYSYSTEM_PRODUCTION_TLS_ENABLED=true adds the Caddy TLS override.
   MEMORYSYSTEM_IMAGE defaults to memorysystem:1.0.0.
@@ -74,6 +76,10 @@ compose() {
   project_name="$(read_env_value COMPOSE_PROJECT_NAME memorysystem-prod)"
   args=(--project-name "$project_name" --file "$COMPOSE_FILE")
 
+  if is_external_postgres_profile; then
+    args+=(--file "$ROOT_DIR/docker-compose.production.external-postgres.yml")
+  fi
+
   if is_true "$(read_env_value MEMORYSYSTEM_PRODUCTION_TLS_ENABLED false)"; then
     args+=(--file "$ROOT_DIR/docker-compose.production.tls.yml")
   fi
@@ -89,6 +95,39 @@ compose() {
   docker compose "${args[@]}" "$@"
 }
 
+postgres_profile() {
+  local value
+
+  value="$(read_env_value MEMORYSYSTEM_POSTGRES_PROFILE local)"
+
+  case "$value" in
+    local|LOCAL|Local|docker|Docker|docker-volume|Docker-volume)
+      printf 'local'
+      ;;
+    external|EXTERNAL|External|managed|MANAGED|Managed)
+      printf 'external'
+      ;;
+    *)
+      printf 'invalid'
+      ;;
+  esac
+}
+
+is_external_postgres_profile() {
+  [[ "$(postgres_profile)" == "external" ]]
+}
+
+validate_postgres_profile() {
+  local profile
+
+  profile="$(postgres_profile)"
+
+  if [[ "$profile" == "invalid" ]]; then
+    printf 'Invalid MEMORYSYSTEM_POSTGRES_PROFILE: use local or external.\n' >&2
+    return 1
+  fi
+}
+
 is_true() {
   case "$1" in
     1|true|TRUE|True|yes|YES|Yes|y|Y|on|ON|On)
@@ -101,7 +140,11 @@ is_true() {
 }
 
 runtime_services() {
-  printf '%s\n' postgres api worker
+  if ! is_external_postgres_profile; then
+    printf '%s\n' postgres
+  fi
+
+  printf '%s\n' api worker
 
   if is_true "$(read_env_value MEMORYSYSTEM_PRODUCTION_TLS_ENABLED false)"; then
     printf '%s\n' caddy
@@ -133,6 +176,45 @@ validate_secret() {
     printf 'Invalid %s: configure a non-placeholder value of at least 16 characters.\n' "$key" >&2
     return 1
   fi
+}
+
+validate_external_postgres_connection_string() {
+  local value
+  local normalized_value
+  local failures=0
+
+  value="$(read_env_value MEMORYSYSTEM_POSTGRES_CONNECTION_STRING "")"
+  normalized_value="${value,,}"
+
+  if is_placeholder "$value" || [[ "${#value}" -lt 32 ]]; then
+    printf 'Invalid MEMORYSYSTEM_POSTGRES_CONNECTION_STRING: configure a non-placeholder managed PostgreSQL connection string.\n' >&2
+    return 1
+  fi
+
+  for required_part in "host=" "port=" "database=" "username=" "password="; do
+    if [[ "$normalized_value" != *"$required_part"* ]]; then
+      printf 'Invalid MEMORYSYSTEM_POSTGRES_CONNECTION_STRING: missing %s in the managed PostgreSQL connection string.\n' "$required_part" >&2
+      failures=1
+    fi
+  done
+
+  case "$normalized_value" in
+    *"host=postgres"*|*"host=localhost"*|*"host=127.0.0.1"*|*"host=::1"*|*"memory_system_dev_password"*|*"password=placeholder"*|*"password=changeme"*|*"password=change-me"*)
+      printf 'Invalid MEMORYSYSTEM_POSTGRES_CONNECTION_STRING: external profile must not point at the local Compose database or local/test password.\n' >&2
+      failures=1
+      ;;
+  esac
+
+  case "$normalized_value" in
+    *"ssl mode=require"*|*"ssl mode=verifyca"*|*"ssl mode=verifyfull"*|*"sslmode=require"*|*"sslmode=verifyca"*|*"sslmode=verifyfull"*)
+      ;;
+    *)
+      printf 'Invalid MEMORYSYSTEM_POSTGRES_CONNECTION_STRING: managed profile must require PostgreSQL TLS with SSL Mode=Require, VerifyCA, or VerifyFull.\n' >&2
+      failures=1
+      ;;
+  esac
+
+  return "$failures"
 }
 
 validate_guid() {
@@ -232,7 +314,13 @@ validate_host() {
     }
   fi
 
-  validate_secret MEMORYSYSTEM_POSTGRES_PASSWORD || failures=1
+  validate_postgres_profile || failures=1
+  if is_external_postgres_profile; then
+    validate_external_postgres_connection_string || failures=1
+  else
+    validate_secret MEMORYSYSTEM_POSTGRES_PASSWORD || failures=1
+  fi
+
   validate_secret MEMORYSYSTEM_OPERATOR_API_KEY || failures=1
   validate_guid MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID || failures=1
 
@@ -388,10 +476,12 @@ enable_local_access() {
 }
 
 seed_operator() {
+  local connection_string
   local db_name
   local db_user
   local principal_id
   local display_name
+  local psql_command=()
 
   validate_guid MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID
 
@@ -400,10 +490,20 @@ seed_operator() {
   principal_id="$(read_env_value MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID "")"
   display_name="$(read_env_value MEMORYSYSTEM_OPERATOR_DISPLAY_NAME "Production Operator")"
 
-  compose exec -T postgres psql \
+  if is_external_postgres_profile; then
+    validate_external_postgres_connection_string
+    command -v psql >/dev/null 2>&1 || {
+      printf 'psql is required on the operator host for seed-operator with MEMORYSYSTEM_POSTGRES_PROFILE=external.\n' >&2
+      return 1
+    }
+    connection_string="$(read_env_value MEMORYSYSTEM_POSTGRES_CONNECTION_STRING "")"
+    psql_command=(psql "$connection_string")
+  else
+    psql_command=(compose exec -T postgres psql -U "$db_user" -d "$db_name")
+  fi
+
+  "${psql_command[@]}" \
     -v ON_ERROR_STOP=1 \
-    -U "$db_user" \
-    -d "$db_name" \
     -v principal_id="$principal_id" \
     -v display_name="$display_name" <<'SQL'
 INSERT INTO principals (

@@ -98,9 +98,19 @@ Use [Backup and Restore Runbook](backup-restore.md) when PostgreSQL recovery beh
 ./scripts/backup-restore-smoke.sh
 ```
 
+When the production PostgreSQL profile changes, render the managed profile
+without connecting to a real database:
+
+```bash
+./scripts/external-postgres-profile-smoke.sh
+```
+
 When platform backup or restore job scripts change, run shell syntax checks:
 
 ```bash
+bash -n scripts/production-container.sh
+bash -n scripts/seed-production-memory-boundary.sh
+bash -n scripts/external-postgres-profile-smoke.sh
 bash -n scripts/platform-backup-export.sh
 bash -n scripts/platform-compliance-evidence-package.sh
 bash -n scripts/platform-erasure-replay-ledger-export.sh

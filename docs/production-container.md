@@ -12,7 +12,8 @@ The production container shape preserves the existing release boundaries:
 - one image for API, worker, migrator, seeder, and operator scripts
 - migrator runs once before traffic
 - API and worker run as separate long-lived roles
-- PostgreSQL with pgvector is the durable authority
+- PostgreSQL with pgvector is the durable authority, either through the local
+  protected Docker volume or an external managed database profile
 - secrets are supplied by the machine's secret source, not committed files
 - TLS is terminated before the API, with trusted forwarded headers configured
 
@@ -22,11 +23,15 @@ The production container shape preserves the existing release boundaries:
    Use `scripts/production-container.sh build` to build
    `memorysystem:1.0.0` with OCI version, source revision, and build-date
    labels.
-2. Configure the production host.
+2. Configure the production host and PostgreSQL profile.
    Start from `.env.production.example`, replace every placeholder secret, and
-   keep the real values outside source control. The API and worker reject
-   placeholder API keys, placeholder OpenAI keys, deterministic embeddings, and
-   local PostgreSQL defaults outside `Development` and `Testing`.
+   keep the real values outside source control. Use
+   `MEMORYSYSTEM_POSTGRES_PROFILE=local` for the protected Docker volume or
+   `MEMORYSYSTEM_POSTGRES_PROFILE=external` with
+   `MEMORYSYSTEM_POSTGRES_CONNECTION_STRING` for managed PostgreSQL. The API
+   and worker reject placeholder API keys, placeholder OpenAI keys,
+   deterministic embeddings, and local PostgreSQL defaults outside
+   `Development` and `Testing`.
 3. Terminate TLS before the API container.
    The compose file binds the API to `127.0.0.1` by default. Put Caddy, nginx,
    a load balancer, or another TLS terminator in front of it and set
@@ -36,7 +41,9 @@ The production container shape preserves the existing release boundaries:
    Use `scripts/production-container.sh migrate` and capture the applied and
    skipped migration output in the release record.
 5. Start the runtime roles.
-   Use `scripts/production-container.sh up` for PostgreSQL, API, and worker.
+   Use `scripts/production-container.sh up` for PostgreSQL, API, and worker in
+   local profile. In external profile, the command starts only API and worker;
+   the managed database must already be reachable.
    The API has a Docker liveness check; full readiness still depends on
    PostgreSQL, embedding configuration, outbox backlog, and worker heartbeat.
 6. Verify and operate.
@@ -55,6 +62,12 @@ scripts/production-container.sh up
 scripts/production-container.sh health
 scripts/production-container.sh status
 scripts/production-container.sh logs api worker
+```
+
+Render the managed-database profile without touching a real database:
+
+```bash
+./scripts/external-postgres-profile-smoke.sh
 ```
 
 For a full first deployment on a prepared host:
@@ -83,8 +96,33 @@ scripts/production-container.sh preflight
 
 Preflight checks that Docker and Docker Compose are reachable, the env file
 exists, required secrets are non-placeholder values, the operator principal id
-is a GUID, OpenAI embeddings are not configured with a placeholder key, the
-trusted proxy CIDR is set, and the compose configuration renders.
+is a GUID, the selected PostgreSQL profile is valid, OpenAI embeddings are not
+configured with a placeholder key, the trusted proxy CIDR is set, and the
+compose configuration renders.
+
+### PostgreSQL Profile
+
+Default local profile:
+
+```text
+MEMORYSYSTEM_POSTGRES_PROFILE=local
+```
+
+Local profile starts the `postgres` service and stores durable data in the
+protected `memorysystem-prod_memorysystem-postgres-data` Docker volume.
+
+Managed profile:
+
+```text
+MEMORYSYSTEM_POSTGRES_PROFILE=external
+MEMORYSYSTEM_POSTGRES_CONNECTION_STRING="Host=<managed-host>;Port=5432;Database=memory_system;Username=<user>;Password=<secret>;SSL Mode=VerifyFull"
+```
+
+External profile adds `docker-compose.production.external-postgres.yml`, does
+not start the local `postgres` service, removes local database dependencies
+from migrator/API/worker, and requires PostgreSQL TLS. See
+[External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md)
+for migration, backup/restore validation, and smoke details.
 
 Preflight fails when `MEMORYSYSTEM_API_BIND=0.0.0.0` because that exposes the
 API container port directly. Keep the default `127.0.0.1` bind unless a reviewed
@@ -171,6 +209,8 @@ The canonical project memory boundary for this repository is recorded in
 
 | Setting | Purpose |
 | --- | --- |
+| `MEMORYSYSTEM_POSTGRES_PROFILE` | `local` for the protected Docker volume, `external` for managed PostgreSQL. |
+| `MEMORYSYSTEM_POSTGRES_CONNECTION_STRING` | Managed PostgreSQL connection string when the profile is `external`. |
 | `MEMORYSYSTEM_POSTGRES_PASSWORD` | Production PostgreSQL password. |
 | `MEMORYSYSTEM_OPERATOR_API_KEY` | Initial operator API key value. |
 | `MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID` | Active internal principal id for the operator key. |

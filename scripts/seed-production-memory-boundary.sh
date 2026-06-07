@@ -59,6 +59,10 @@ compose() {
   project_name="$(read_env_value COMPOSE_PROJECT_NAME memorysystem-prod)"
   args=(--project-name "$project_name" --file "$COMPOSE_FILE")
 
+  if is_external_postgres_profile; then
+    args+=(--file "$ROOT_DIR/docker-compose.production.external-postgres.yml")
+  fi
+
   if is_true "$(read_env_value MEMORYSYSTEM_PRODUCTION_TLS_ENABLED false)"; then
     args+=(--file "$ROOT_DIR/docker-compose.production.tls.yml")
   fi
@@ -74,20 +78,84 @@ compose() {
   docker compose "${args[@]}" "$@"
 }
 
+postgres_profile() {
+  local value
+
+  value="$(read_env_value MEMORYSYSTEM_POSTGRES_PROFILE local)"
+
+  case "$value" in
+    local|LOCAL|Local|docker|Docker|docker-volume|Docker-volume)
+      printf 'local'
+      ;;
+    external|EXTERNAL|External|managed|MANAGED|Managed)
+      printf 'external'
+      ;;
+    *)
+      printf 'invalid'
+      ;;
+  esac
+}
+
+is_external_postgres_profile() {
+  [[ "$(postgres_profile)" == "external" ]]
+}
+
+validate_external_postgres_connection_string() {
+  local value
+  local normalized_value
+
+  value="$(read_env_value MEMORYSYSTEM_POSTGRES_CONNECTION_STRING "")"
+  normalized_value="${value,,}"
+
+  if [[ -z "$value" || "${#value}" -lt 32 ]]; then
+    printf 'MEMORYSYSTEM_POSTGRES_CONNECTION_STRING is required for MEMORYSYSTEM_POSTGRES_PROFILE=external.\n' >&2
+    return 1
+  fi
+
+  case "$normalized_value" in
+    *"host=postgres"*|*"host=localhost"*|*"host=127.0.0.1"*|*"host=::1"*|*"memory_system_dev_password"*|*"password=placeholder"*|*"password=changeme"*|*"password=change-me"*)
+      printf 'MEMORYSYSTEM_POSTGRES_CONNECTION_STRING must not point at local Compose PostgreSQL or placeholder credentials in external profile.\n' >&2
+      return 1
+      ;;
+  esac
+
+  case "$normalized_value" in
+    *"ssl mode=require"*|*"ssl mode=verifyca"*|*"ssl mode=verifyfull"*|*"sslmode=require"*|*"sslmode=verifyca"*|*"sslmode=verifyfull"*)
+      ;;
+    *)
+      printf 'MEMORYSYSTEM_POSTGRES_CONNECTION_STRING must require PostgreSQL TLS in external profile.\n' >&2
+      return 1
+      ;;
+  esac
+}
+
 operator_principal_id="$(read_env_value MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID "")"
 operator_display_name="$(read_env_value MEMORYSYSTEM_OPERATOR_DISPLAY_NAME "Production Operator")"
 db_name="$(read_env_value MEMORYSYSTEM_POSTGRES_DB memory_system)"
 db_user="$(read_env_value MEMORYSYSTEM_POSTGRES_USER memory_system)"
+psql_command=()
 
 if ! [[ "$operator_principal_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
   printf 'MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID must be a GUID in %s.\n' "$ENV_FILE" >&2
   exit 64
 fi
 
-compose exec -T postgres psql \
+if is_external_postgres_profile; then
+  validate_external_postgres_connection_string
+  command -v psql >/dev/null 2>&1 || {
+    printf 'psql is required on the operator host for MEMORYSYSTEM_POSTGRES_PROFILE=external.\n' >&2
+    exit 64
+  }
+  psql_command=(psql "$(read_env_value MEMORYSYSTEM_POSTGRES_CONNECTION_STRING "")")
+elif [[ "$(postgres_profile)" == "invalid" ]]; then
+  printf 'MEMORYSYSTEM_POSTGRES_PROFILE must be local or external.\n' >&2
+  exit 64
+else
+  psql_command=(compose exec -T postgres psql -U "$db_user" -d "$db_name")
+fi
+
+"${psql_command[@]}" \
   -v ON_ERROR_STOP=1 \
-  -U "$db_user" \
-  -d "$db_name" \
   -v operator_principal_id="$operator_principal_id" \
   -v operator_display_name="$operator_display_name" \
   -v org_id="$ORG_ID" \
