@@ -60,7 +60,18 @@ not hidden roadmap or policy state.
    ./scripts/seed-production-memory-boundary.sh
    ```
 
-2. Store the first source-backed knowledge base from the current docs:
+2. Validate the roadmap/backlog sync report before source-backed memory seeding:
+
+   ```bash
+   ./scripts/backlog-roadmap-memory-sync.sh --dry-run
+   ```
+
+   [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md)
+   keeps [Roadmap](roadmap.md) and [Backlog](backlog.md) canonical while the
+   source-backed seed carries compact memory summaries with pinned source
+   hashes and curated excerpts.
+
+3. Store the first source-backed knowledge base from the current docs:
 
    ```bash
    ./scripts/seed-production-knowledge-base.sh
@@ -72,7 +83,19 @@ not hidden roadmap or policy state.
    against the current source files and records source document hashes in the
    evidence events.
 
-3. Query context through the CTO lens:
+4. Seed the first role-lens content pass:
+
+   ```bash
+   ./scripts/role-lens-first-pass.sh --dry-run
+   ./scripts/role-lens-first-pass.sh
+   ```
+
+   [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md)
+   resolves the live responsibility base facts, appends one payload-safe source
+   event, and proposes `role_lens` memories for Product Owner, CTO, Security,
+   Ops, Developer, QA, Release Manager, and Knowledge Steward.
+
+5. Query context through the CTO lens:
 
    ```bash
    curl --max-time 10 -sS -G \
@@ -84,7 +107,7 @@ not hidden roadmap or policy state.
      http://127.0.0.1:8081/api/memory/context
    ```
 
-4. Query context through the Product Owner lens:
+6. Query context through the Product Owner lens:
 
    ```bash
    curl --max-time 10 -sS -G \
@@ -96,7 +119,7 @@ not hidden roadmap or policy state.
      http://127.0.0.1:8081/api/memory/context
    ```
 
-5. Verify evidence links and role boundaries:
+7. Verify evidence links and role boundaries:
 
    - The response `targetScope` must be the canonical project.
    - The response `roleId` must match the requested role lens.
@@ -105,7 +128,7 @@ not hidden roadmap or policy state.
    - Shared project memory may appear across roles when the caller is
      authorized.
 
-6. Record feedback for any memory that changed the work:
+8. Record feedback for any memory that changed the work:
 
    ```text
    POST http://127.0.0.1:8081/api/memory/context/feedback

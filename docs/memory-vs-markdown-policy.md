@@ -139,3 +139,8 @@ Markdown to project memory. Seed entries must:
 Follow-on hygiene automation should detect source hash drift, stale source
 links, duplicate memory, missing evidence, and role-lens claims that no longer
 match their source documents.
+
+For roadmap and backlog changes, run
+`scripts/backlog-roadmap-memory-sync.sh --dry-run` before reseeding so
+`docs/roadmap.md` and `docs/backlog.md` remain canonical while memory receives
+only compact source-backed summaries.

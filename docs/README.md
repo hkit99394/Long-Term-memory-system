@@ -99,6 +99,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Repo-local wrapper that enforces context retrieval, fact queries, and packet-id feedback before and after project work. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Structured weekly queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly access-boundary review for memberships, roles, grants, service accounts, OIDC bindings, break-glass posture, and permission drift. |
+| [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) | Sync guard that keeps roadmap/backlog state canonical in Markdown while seeding compact source-backed memory. |
+| [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | First source-backed role-lens seed for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -142,6 +144,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Weekly payload-safe memory review queue collector and role-owner operating procedure. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly security review for permission drift, service accounts, OIDC bindings, break-glass keys, and audit evidence. |
+| [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | Role-owner seed workflow for source-backed project role lenses. |
 | [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
 | [Decision 0045: Production Platform Integration](decisions/0045-production-platform-integration.md) | Accepted platform integration boundary for IaC, managed PostgreSQL, telemetry, alert routing, and release checklists. |
@@ -206,6 +209,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Wrapper contract for enforcing the agent memory prework and feedback loop. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Structured weekly admin review queue contract for memory hygiene. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Structured weekly access-boundary review contract for security posture. |
+| [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) | Product Owner sync workflow for roadmap/backlog Markdown and source-backed memory. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

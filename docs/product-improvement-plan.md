@@ -70,8 +70,8 @@ Status values:
 | IP-09 | P1 | Done | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) adds `scripts/weekly-admin-review-workflow.sh`, which collects a payload-safe weekly queue across pending reviews, stale/wrong/sensitive context observations, over-broad and missing feedback, duplicate active-memory candidates, and source-backed seed drift. |
 | IP-10 | P1 | Done | IT/Ops | Production Backup And Restore Drill Schedule | [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md) adds `scripts/backup-restore-drill-schedule.sh` for weekly backup freshness, monthly restore validation, quarterly recovery rehearsal, post-erasure replay checks, and release-gate evidence with RPO/RTO expectations plus protected-volume/export checks. |
 | IP-11 | P1 | Done | Security Professional | Access Boundary Review | [Access Boundary Review IP-11](access-boundary-review-ip11.md) adds `scripts/access-boundary-review.sh`, which wraps payload-safe permission-drift reporting into a weekly review queue for memberships, role assignments, namespace grants, service accounts, service credentials, OIDC bindings, break-glass posture, and audit evidence. |
-| IP-12 | P1 | Todo | Product Owner | Backlog And Roadmap Memory Sync | Keep roadmap targets and backlog priorities in Markdown, then seed high-value current state into memory with source evidence and source hashes. |
-| IP-13 | P1 | Todo | All Role Owners | Role Lens First Content Pass | Seed role-specific lenses for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
+| IP-12 | P1 | Done | Product Owner | Backlog And Roadmap Memory Sync | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) adds `scripts/backlog-roadmap-memory-sync.sh`, which validates that `docs/roadmap.md` and `docs/backlog.md` remain canonical while the source-backed knowledge seed carries current high-value roadmap/backlog memory with pinned source hashes and curated excerpts. |
+| IP-13 | P1 | Done | All Role Owners | Role Lens First Content Pass | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) adds `scripts/role-lens-first-pass.sh`, which resolves active source-backed responsibility base facts and seeds canonical `role_lens` memories for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
 | IP-14 | P2 | Todo | Product Owner + Developer | Admin UX Polish | Improve the admin UI around memory inspection, login state, source links, role filters, review routing, and operations status. |
 | IP-15 | P2 | Todo | Tester/QA + Knowledge Steward | Memory Quality Metrics | Track source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio. |
 | IP-16 | P2 | Todo | Product Owner + Knowledge Steward | Project Onboarding Runbook | Create a repeatable new-project setup flow for project scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
@@ -451,3 +451,16 @@ now emits a payload-safe weekly access boundary review queue from the
 permission-drift API, covering memberships, role assignments, namespace grants,
 service accounts, service credentials, OIDC bindings, break-glass posture, and
 audit evidence.
+
+2026-06-07 update: IP-12 is implemented in [Backlog And Roadmap Memory Sync
+IP-12](backlog-roadmap-memory-sync-ip12.md).
+`scripts/backlog-roadmap-memory-sync.sh` now validates that roadmap and backlog
+Markdown are canonical while `scripts/seed-production-knowledge-base.sh` keeps
+high-value roadmap/backlog memory source-backed with pinned SHA-256 hashes and
+curated excerpts.
+
+2026-06-07 update: IP-13 is implemented in [Role Lens First Content Pass
+IP-13](role-lens-first-content-pass-ip13.md).
+`scripts/role-lens-first-pass.sh` now validates role-lens source excerpts,
+resolves live base responsibility facts through `/api/admin/memory/facts`, and
+proposes canonical `role_lens` memories for the eight default operating roles.

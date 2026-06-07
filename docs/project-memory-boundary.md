@@ -57,7 +57,10 @@ Compose project. It does not print API keys or secret values.
 After the boundary exists, seed the first source-backed project knowledge base:
 
 ```bash
+./scripts/backlog-roadmap-memory-sync.sh --dry-run
 ./scripts/seed-production-knowledge-base.sh
+./scripts/role-lens-first-pass.sh --dry-run
+./scripts/role-lens-first-pass.sh
 ```
 
 That script uses `http://127.0.0.1:8081`, appends document evidence events, and
@@ -67,6 +70,15 @@ proposes durable project memories from `project-goal.md`, `architecture.md`,
 `memory-vs-markdown-policy.md`, and `backlog.md`. Each event records the
 current source document SHA-256 and the seed refuses to run if curated excerpts
 no longer appear in the source file.
+
+`scripts/backlog-roadmap-memory-sync.sh` is the IP-12 guard for roadmap/backlog
+memory. It validates that `docs/roadmap.md` and `docs/backlog.md` remain the
+canonical sources before their compact source-backed memory summaries are
+seeded.
+
+`scripts/role-lens-first-pass.sh` is the IP-13 role-lens seed. It resolves the
+live active responsibility base facts before proposing canonical `role_lens`
+memories for the eight default operating roles.
 
 Use [How This Project Uses Its Own Memory System](project-memory-runbook.md)
 for the repeatable first execution slice, role-lens context checks, feedback

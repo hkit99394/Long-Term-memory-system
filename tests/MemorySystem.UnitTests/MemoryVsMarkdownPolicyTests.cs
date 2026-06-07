@@ -26,11 +26,12 @@ public sealed class MemoryVsMarkdownPolicyTests
         Assert.Contains("Role lenses are role-specific interpretations of shared truth", policy, StringComparison.Ordinal);
         Assert.Contains("Release decisions and pilot claims require committed, payload-safe evidence", policy, StringComparison.Ordinal);
         Assert.Contains("scripts/seed-production-knowledge-base.sh", policy, StringComparison.Ordinal);
+        Assert.Contains("scripts/backlog-roadmap-memory-sync.sh --dry-run", policy, StringComparison.Ordinal);
 
         var productPlan = File.ReadAllText(productPlanPath);
         Assert.Contains("## Ordered Improvement Backlog", productPlan, StringComparison.Ordinal);
         Assert.Contains("| IP-01 | P0 | Done | Knowledge Steward + Product Owner | Memory vs Markdown Policy Cleanup |", productPlan, StringComparison.Ordinal);
-        Assert.Contains("| IP-12 | P1 | Todo | Product Owner | Backlog And Roadmap Memory Sync |", productPlan, StringComparison.Ordinal);
+        Assert.Contains("| IP-12 | P1 | Done | Product Owner | Backlog And Roadmap Memory Sync |", productPlan, StringComparison.Ordinal);
 
         var docsIndex = File.ReadAllText(docsIndexPath);
         Assert.Contains("[Memory vs Markdown Policy](memory-vs-markdown-policy.md)", docsIndex, StringComparison.Ordinal);

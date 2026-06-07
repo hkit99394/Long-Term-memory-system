@@ -113,6 +113,7 @@ bash -n scripts/agent-memory-client.sh
 bash -n scripts/weekly-admin-review-workflow.sh
 bash -n scripts/backup-restore-drill-schedule.sh
 bash -n scripts/access-boundary-review.sh
+bash -n scripts/backlog-roadmap-memory-sync.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
 bash -n scripts/source-backed-memory-hygiene.sh
@@ -172,6 +173,34 @@ hygiene without calling the API.
 ```bash
 ./scripts/source-backed-memory-hygiene.sh
 MEMORYSYSTEM_KNOWLEDGE_SEED_DRY_RUN=true ./scripts/seed-production-knowledge-base.sh
+```
+
+## Backlog And Roadmap Memory Sync
+
+Use this after changing [Roadmap](roadmap.md), [Backlog](backlog.md), or the
+roadmap/backlog entries in `scripts/seed-production-knowledge-base.sh`. The
+sync report validates that Markdown remains canonical while source-backed seed
+memory carries current hashes, excerpts, subjects, namespaces, and memory
+types:
+
+```bash
+bash -n scripts/backlog-roadmap-memory-sync.sh
+scripts/backlog-roadmap-memory-sync.sh --dry-run
+scripts/source-backed-memory-hygiene.sh
+MEMORYSYSTEM_KNOWLEDGE_SEED_DRY_RUN=true scripts/seed-production-knowledge-base.sh
+```
+
+## Role Lens First Content Pass
+
+Use this after seeding the source-backed project knowledge base. The dry run
+validates source excerpts and prints the planned role-lens bundle without API
+calls; the live run resolves active responsibility base facts before proposing
+canonical `role_lens` memories:
+
+```bash
+bash -n scripts/role-lens-first-pass.sh
+scripts/role-lens-first-pass.sh --dry-run
+scripts/role-lens-first-pass.sh
 ```
 
 ## Agent Memory Client Wrapper

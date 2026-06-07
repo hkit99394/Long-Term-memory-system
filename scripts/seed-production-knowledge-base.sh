@@ -230,7 +230,7 @@ documents = {
     },
     "memory-vs-markdown-policy": {
         "path": "docs/memory-vs-markdown-policy.md",
-        "sourceSha256": "5f9521b7614976ab20ecca12409425bce6d454c51cc3b71fdc49b4a5ab61f307",
+        "sourceSha256": "d5047d8de855329c478a7fe00bf3fe002f117c7cb73ea52a54c59f7e60876fd3",
         "title": "Memory vs Markdown Policy",
         "summary": "Project source-of-truth policy for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports.",
         "excerpts": [
@@ -277,7 +277,7 @@ documents = {
     },
     "project-memory-boundary": {
         "path": "docs/project-memory-boundary.md",
-        "sourceSha256": "b8b2c517c0af11d26c78ae97996c12388be7293256da9af4d0cbe78b6574ea10",
+        "sourceSha256": "2a2cd8eceb80e8d4894fd695e5f93b76a24b8b069a975964b334a005dfc96b6a",
         "title": "Project Memory Boundary",
         "summary": "Canonical production memory scope, protected runtime habits, namespaces, and first-class role responsibilities.",
         "excerpts": [
