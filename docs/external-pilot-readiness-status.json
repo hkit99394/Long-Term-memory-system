@@ -2,7 +2,7 @@
   "$schema": "./external-pilot-readiness-status.schema.json",
   "schemaVersion": 1,
   "statusId": "external-pilot-readiness-2026-06-04",
-  "generatedAt": "2026-06-04",
+  "generatedAt": "2026-06-07",
   "scope": "external-pilot",
   "environment": {
     "target": "pilot",
@@ -25,6 +25,7 @@
     "goRecord": "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
     "truthCleanup": "docs/documentation-truth-cleanup-p1-2026-06-04.md",
     "statusContract": "docs/release-readiness-status-contract-p2.md",
+    "targetEvidenceHardening": "docs/target-environment-evidence-hardening-ip04.md",
     "backlog": "docs/backlog.md"
   },
   "gates": [
@@ -123,7 +124,7 @@
     {
       "id": "V1-01",
       "title": "Attach post-GO target-environment evidence package",
-      "uses": "docs/external-pilot-readiness-status.json"
+      "uses": "docs/target-environment-evidence-hardening-ip04.md"
     }
   ]
 }

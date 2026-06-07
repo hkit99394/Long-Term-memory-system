@@ -1,13 +1,17 @@
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Roles;
 using MemorySystem.Application.RoleMemoryLenses;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Roles;
 using MemorySystem.Infrastructure.DomainMapping;
 using MemorySystem.Infrastructure.Outbox;
 using Npgsql;
 
 namespace MemorySystem.Infrastructure.RoleMemoryLenses;
 
-public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource) : IRoleMemoryLensRepository
+public sealed class PostgresRoleMemoryLensRepository(
+    NpgsqlDataSource dataSource,
+    IProjectRoleDefinitionStore projectRoleDefinitions) : IRoleMemoryLensRepository
 {
     public async Task<RoleMemoryLensRecord?> FindAsync(
         Guid roleMemoryLensId,
@@ -44,11 +48,6 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         ArgumentException.ThrowIfNullOrWhiteSpace(query.RoleId);
         ArgumentException.ThrowIfNullOrWhiteSpace(query.Status);
 
-        if (!MemoryScopePolicy.RoleIds.Contains(query.RoleId))
-        {
-            throw new ArgumentException($"Role id '{query.RoleId}' is not supported.", nameof(query));
-        }
-
         if (!MemoryFactStatuses.IsSupported(query.Status))
         {
             throw new ArgumentException($"Role memory lens status '{query.Status}' is not supported.", nameof(query));
@@ -60,6 +59,7 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         }
 
         var lensScope = RoleMemoryLensStorageRules.ResolveLensScope(query.Scope);
+        var roleId = NormalizeRoleForLensScope(query.RoleId, lensScope);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 
@@ -74,7 +74,6 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             LIMIT @limit;
             """,
             connection);
-        var roleId = PostgresDomainMapping.RequireRoleId(query.RoleId);
         var status = PostgresDomainMapping.RequireLifecycleStatus(query.Status);
         command.Parameters.AddWithValue("role_id", roleId);
         RoleMemoryLensStorageRules.AddScopeParameters(command, lensScope);
@@ -102,11 +101,6 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Interpretation);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Status);
 
-        if (!MemoryScopePolicy.RoleIds.Contains(command.RoleId))
-        {
-            throw new ArgumentException($"Role id '{command.RoleId}' is not supported.", nameof(command));
-        }
-
         if (command.BaseMemoryFactId == Guid.Empty)
         {
             throw new ArgumentException("Base memory fact id must not be empty.", nameof(command));
@@ -133,9 +127,9 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
         }
 
         var roleMemoryLensId = command.Id ?? Guid.NewGuid();
-        var roleId = PostgresDomainMapping.RequireRoleId(command.RoleId);
         var status = PostgresDomainMapping.RequireLifecycleStatus(command.Status);
         var lensScope = RoleMemoryLensStorageRules.ResolveLensScope(command.Scope);
+        var roleId = await NormalizeRoleForLensScopeAsync(command.RoleId, lensScope, cancellationToken);
         var interpretation = command.Interpretation.Trim();
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
@@ -273,6 +267,43 @@ public sealed class PostgresRoleMemoryLensRepository(NpgsqlDataSource dataSource
             PostgresDomainMapping.RequireLifecycleStatus(reader.GetString(9)),
             reader.GetGuid(10),
             reader.GetGuid(11));
+    }
+
+    private static string NormalizeRoleForLensScope(
+        string roleId,
+        RoleMemoryLensStorageScope lensScope)
+    {
+        if (!MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleId, out var error))
+        {
+            throw new ArgumentException(error);
+        }
+
+        if (lensScope.ScopeType == "project" || MemoryRoleId.IsDefaultTemplate(normalizedRoleId))
+        {
+            return normalizedRoleId;
+        }
+
+        throw new ArgumentException($"Role id '{normalizedRoleId}' is not supported for {lensScope.ScopeType} role memory lenses.");
+    }
+
+    private async Task<string> NormalizeRoleForLensScopeAsync(
+        string roleId,
+        RoleMemoryLensStorageScope lensScope,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRoleId = NormalizeRoleForLensScope(roleId, lensScope);
+
+        if (lensScope.ScopeType != "project" || MemoryRoleId.IsDefaultTemplate(normalizedRoleId))
+        {
+            return normalizedRoleId;
+        }
+
+        var projectId = lensScope.ProjectId
+            ?? throw new InvalidOperationException("Project role lenses require a project id.");
+
+        return await projectRoleDefinitions.IsActiveProjectRoleAsync(projectId, normalizedRoleId, cancellationToken)
+            ? normalizedRoleId
+            : throw new ArgumentException($"Role id '{normalizedRoleId}' is not an active project role definition.");
     }
 
     private static async Task ValidateBaseMemoryFactScopeAsync(

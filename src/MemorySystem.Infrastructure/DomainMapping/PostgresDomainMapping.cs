@@ -80,11 +80,13 @@ internal static class PostgresDomainMapping
 
     public static string RequireRoleId(string? roleId, string fieldName = "roleId")
     {
-        return Require(
-            () => MemoryRoleId.TryNormalize(roleId, out var normalizedRoleId, out var error)
-                ? (normalizedRoleId, error)
-                : (null, error),
-            fieldName).Value;
+        if (MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleId, out var error))
+        {
+            return normalizedRoleId;
+        }
+
+        throw new InvalidOperationException(
+            $"Database value for {fieldName} is invalid: {error ?? "unknown error"}");
     }
 
     public static string RequireLifecycleStatus(string? status, string fieldName = "status")

@@ -30,6 +30,24 @@ the first external pilot user is invited.
 | Benchmark inputs | Pilot model name, fixture set, LLM outcome scorecard path, agent-contract scorecard path, and agent-contract smoke output path. |
 | Alert route | Receiver destination, route-test metric, runbook link, owner acknowledgement path, and silence policy. |
 
+## Target Evidence Manifest
+
+[Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md)
+adds the machine-readable manifest and verifier for the real target run. Before
+accepting target evidence, create a
+`memorysystem.target_environment_evidence` manifest that follows
+[target-environment-evidence-manifest.schema.json](target-environment-evidence-manifest.schema.json)
+and run:
+
+```bash
+./scripts/target-environment-evidence-verify.sh /path/to/target-environment-evidence-manifest.json
+```
+
+The verifier requires every deploy smoke, metrics/tracing, benchmark,
+governance, backup/restore, alert acknowledgement, evidence upload, rollback,
+and go/no-go artifact to be listed as payload-safe local evidence with a
+matching SHA-256 hash before the controlled audit-store prefix is accepted.
+
 ## Execution Checklist
 
 | Step | Gate | Required action | Evidence |
@@ -42,8 +60,8 @@ the first external pilot user is invited.
 | 6 | Governance/compliance | Run `scripts/governance-compliance-release-smoke.sh` or the platform equivalent against the pilot database and evidence target. | Strict compliance evidence package, artifact index, hash sidecar, policy evidence, audit export, retention report, erasure replay, and permission-drift output. |
 | 7 | Backup/restore | Attach managed backup/PITR status or run backup/export plus restore-to-new-database validation. | Backup evidence JSON, restore validation evidence JSON, backup/restore metrics, and pgvector validation output. |
 | 8 | Alert receiver acknowledgement | Fire or simulate the pilot route test and confirm the real receiver acknowledges it. | Alert route-test result, receiver acknowledgement, owner, destination, and runbook link. |
-| 9 | Evidence upload | Upload migration, health, metrics, benchmark, governance/compliance, backup/restore, alert routing, approval, and rollback-owner evidence to the controlled audit store. | Immutable evidence prefix and retention policy. |
-| 10 | Go/no-go | Have the release owner and named rollback owner sign the final decision. | Signed go/no-go record with decision, timestamp, rollback boundary, and communication route. |
+| 9 | Evidence upload | Upload migration, health, metrics, benchmark, governance/compliance, backup/restore, alert routing, approval, and rollback-owner evidence to the controlled audit store; verify the target evidence manifest before accepting the prefix. | Immutable evidence prefix, retention policy, target evidence manifest, and `target-environment-evidence-verify.sh` output. |
+| 10 | Go/no-go | Have the release owner and named rollback owner sign the final decision. | Signed go/no-go record with decision, timestamp, rollback boundary, communication route, and verified manifest path. |
 
 ## Pass Criteria
 
@@ -81,6 +99,7 @@ Pilot environment:
 Image digest:
 Database target:
 Evidence prefix:
+Evidence manifest:
 Release owner:
 Rollback owner:
 Alert-route owner:
@@ -148,3 +167,6 @@ EPR-02 and EPR-03 have local pilot-equivalent evidence attached. EPR-04 now has
 an owner-approved version 1.0.0 GO replacement. Controlled target evidence, real
 alert receiver acknowledgement, rollback boundary, and communication route
 remain post-GO hardening work.
+[Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md)
+now defines the manifest and checksum verifier for attaching that real target
+evidence, but the target evidence bundle is not attached in this workspace yet.

@@ -354,6 +354,11 @@ Memory proposal example:
 | `memory.readFact` | Path `id`; authorization uses the authenticated principal and the fact's stored scope and namespace. |
 | `memory.readEvidence` | Path `id`; authorization uses the authenticated principal and the event's stored scope. |
 
+Canonical durable `memoryType` values are `goal`, `target`, `fact`,
+`decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`,
+`release_evidence`, and `role_lens`. New role-lens proposals should use
+`role_lens`.
+
 ## Common Mistakes
 
 | Mistake | Result | Fix |

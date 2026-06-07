@@ -10,6 +10,14 @@ public sealed record AdminProjectMembershipRequest(
     Guid PrincipalId,
     string AccessLevel);
 
+public sealed record AdminProjectRoleDefinitionRequest(
+    Guid ProjectId,
+    string RoleId,
+    string DisplayName,
+    string? Description,
+    string? TemplateRoleId,
+    string? Status);
+
 public sealed record AdminRoleAssignmentRequest(
     Guid PrincipalId,
     string RoleId,

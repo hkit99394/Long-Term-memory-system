@@ -37,7 +37,12 @@ public sealed class MemoryContextPacketBuilder(
         var targetScope = NormalizeTargetScope(query);
         var trimmedQuery = query.Query.Trim();
 
-        if (!MemoryScopePolicy.TryNormalizeRoleId(query.RoleId, out var roleId, out var roleError))
+        string? roleId;
+        if (string.IsNullOrWhiteSpace(query.RoleId))
+        {
+            roleId = null;
+        }
+        else if (!MemoryScopePolicy.TryNormalizeRoleIdentifier(query.RoleId, out roleId, out var roleError))
         {
             throw new ArgumentException(roleError, nameof(query));
         }

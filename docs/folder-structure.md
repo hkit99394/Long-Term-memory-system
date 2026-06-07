@@ -376,6 +376,9 @@ Rules:
 | `docs/backlog.md` | Milestone backlog and acceptance criteria. |
 | `docs/folder-structure.md` | Repository layout and ownership guide. |
 | `docs/memory-vs-markdown-policy.md` | IP-01 source-of-truth policy for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports. |
+| `docs/project-defined-roles-ip05.md` | IP-05 project-defined role vocabulary, default templates, admin API, and validation contract. |
+| `docs/canonical-memory-types-ip06.md` | IP-06 canonical durable memory type vocabulary and compatibility aliases. |
+| `docs/source-backed-memory-hygiene-ip07.md` | IP-07 source-backed memory hygiene automation contract and seed validation rules. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
@@ -388,6 +391,9 @@ Rules:
 | `docs/governance-compliance-release-smoke-gc08.md` | GC-08 governance/compliance release smoke contract. |
 | `docs/pilot-readiness-evidence-review-2026-06-01.md` | Pilot readiness evidence review and external invite go/no-go decision. |
 | `docs/target-environment-pilot-rehearsal-p0.md` | P0 target-environment pilot rehearsal runbook, evidence checklist, and go/no-go template. |
+| `docs/target-environment-evidence-hardening-ip04.md` | IP-04 target-environment evidence manifest, checksum verifier, and completion rule for real target artifacts. |
+| `docs/target-environment-evidence-manifest.schema.json` | JSON Schema for the payload-safe target evidence manifest. |
+| `docs/target-environment-evidence-manifest.example.json` | Copyable example manifest for a real target evidence bundle. |
 | `docs/pilot-release-evidence-epr03-2026-06-04.md` | Payload-safe EPR-02/EPR-03 local pilot-equivalent release evidence record. |
 | `docs/external-pilot-go-no-go-epr04-2026-06-04.md` | Historical EPR-04 external-pilot NO-GO decision record and GO replacement requirements. |
 | `docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md` | Owner-approved EPR-04 GO replacement for version 1.0.0 external pilot. |

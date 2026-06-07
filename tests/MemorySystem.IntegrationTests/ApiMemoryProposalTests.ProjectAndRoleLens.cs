@@ -84,7 +84,7 @@ public sealed partial class ApiMemoryProposalTests
             var lensPayload = await SendProposalAsync(
                 client,
                 "proposal-role-lens-key",
-                CreateProjectRoleLensProposalBody(baseMemoryFactId));
+                CreateProjectRoleLensProposalBody(baseMemoryFactId, memoryType: "role_lens"));
             var roleMemoryLensId = lensPayload.GetProperty("memoryId").GetGuid();
             var roleMemoryLens = await ReadRoleMemoryLensAsync(databaseConnectionString, roleMemoryLensId);
             var memoryChunk = await ReadMemoryChunkAsync(

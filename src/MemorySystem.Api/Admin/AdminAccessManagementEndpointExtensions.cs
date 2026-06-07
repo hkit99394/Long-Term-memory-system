@@ -2,7 +2,9 @@ using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Access;
 using MemorySystem.Application.Admin;
+using MemorySystem.Application.Roles;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Scopes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MemorySystem.Api.Admin;
@@ -30,6 +32,17 @@ public static class AdminAccessManagementEndpointExtensions
                 IMemoryAccessAuthorizer accessAuthorizer,
                 CancellationToken cancellationToken) =>
                 await UpsertProjectMembershipAsync(context, store, accessAuthorizer, cancellationToken))
+            .RequireAuthorization()
+            .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
+
+        endpoints.MapPost(
+            "/api/admin/access/project-roles",
+            async (
+                HttpContext context,
+                IProjectRoleDefinitionStore store,
+                IMemoryAccessAuthorizer accessAuthorizer,
+                CancellationToken cancellationToken) =>
+                await UpsertProjectRoleDefinitionAsync(context, store, accessAuthorizer, cancellationToken))
             .RequireAuthorization()
             .RequireRateLimiting(MemorySystemRateLimitPolicyNames.Admin);
 
@@ -191,6 +204,63 @@ public static class AdminAccessManagementEndpointExtensions
         }
     }
 
+    private static async Task<IResult> UpsertProjectRoleDefinitionAsync(
+        HttpContext context,
+        IProjectRoleDefinitionStore store,
+        IMemoryAccessAuthorizer accessAuthorizer,
+        CancellationToken cancellationToken)
+    {
+        var body = await ReadBodyAsync<AdminProjectRoleDefinitionRequest>(
+            context,
+            "Project role definition request is invalid.",
+            cancellationToken);
+        if (!body.Succeeded)
+        {
+            return body.FailureResult!;
+        }
+
+        if (!ApiRequestHelpers.TryReadPrincipalId(context, out var actorPrincipalId, out var principalFailure))
+        {
+            return principalFailure;
+        }
+
+        var request = body.Value!;
+        var scope = new MemoryScopeResolution("project", request.ProjectId.ToString("D"), ProjectId: request.ProjectId);
+        var authorization = await AuthorizeOperatorAsync(accessAuthorizer, actorPrincipalId, scope, namespacePrefix: null, cancellationToken);
+        if (authorization is not null)
+        {
+            return authorization;
+        }
+
+        try
+        {
+            var record = await store.UpsertAsync(
+                new ProjectRoleDefinitionCommand(
+                    actorPrincipalId,
+                    request.ProjectId,
+                    request.RoleId,
+                    request.DisplayName,
+                    request.Description,
+                    request.TemplateRoleId,
+                    string.IsNullOrWhiteSpace(request.Status) ? "active" : request.Status),
+                cancellationToken);
+
+            return Results.Ok(new AdminProjectRoleDefinitionResponse(
+                record.ProjectId,
+                record.RoleId,
+                record.DisplayName,
+                record.Description,
+                record.TemplateRoleId,
+                record.Status,
+                record.CreatedAt,
+                record.UpdatedAt));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest("Project role definition request is invalid.", exception.Message);
+        }
+    }
+
     private static async Task<IResult> UpsertRoleAssignmentAsync(
         HttpContext context,
         IAdminAccessManagementStore store,
@@ -285,11 +355,16 @@ public static class AdminAccessManagementEndpointExtensions
             return BadRequest("Namespace grant request is invalid.", error!);
         }
 
+        var authorizationNamespace = ShouldAuthorizeProjectRoleNamespaceGrantByScopeOnly(
+            scope,
+            request.NamespacePrefix)
+            ? null
+            : request.NamespacePrefix;
         var authorization = await AuthorizeOperatorAsync(
             accessAuthorizer,
             actorPrincipalId,
             scope,
-            request.NamespacePrefix,
+            authorizationNamespace,
             cancellationToken);
         if (authorization is not null)
         {
@@ -473,6 +548,22 @@ public static class AdminAccessManagementEndpointExtensions
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Admin access-management request is forbidden.",
                 detail: decision.Reason);
+    }
+
+    private static bool ShouldAuthorizeProjectRoleNamespaceGrantByScopeOnly(
+        MemoryScopeResolution scope,
+        string namespacePrefix)
+    {
+        if (scope.ScopeType != MemoryScopeType.Project
+            || scope.ProjectId is not Guid projectId)
+        {
+            return false;
+        }
+
+        return MemoryNamespaceParser.TryParse(namespacePrefix, out var memoryNamespace, out _)
+            && memoryNamespace.RoleId is not null
+            && memoryNamespace.ScopeType == MemoryScopeType.Project
+            && memoryNamespace.ScopeId == projectId.ToString("D");
     }
 
     private static bool TryCreateManagedScope(

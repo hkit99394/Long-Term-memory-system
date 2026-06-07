@@ -72,6 +72,7 @@ dry_run = dry_run_raw.strip().lower() in {"1", "true", "yes", "y", "on"}
 documents = {
     "project-goal": {
         "path": "docs/project-goal.md",
+        "sourceSha256": "658b0ee6051065c7e098b5a12f0b2e9380beda7afdb345fc84764957ec36f9c4",
         "title": "Project Goal",
         "summary": "North-star definition for trustworthy, auditable, permission-aware long-term memory.",
         "excerpts": [
@@ -100,6 +101,7 @@ documents = {
     },
     "architecture": {
         "path": "docs/architecture.md",
+        "sourceSha256": "bace2227fa2a32a16e8e9f570180c04649f9e7cdb062bcb5b53a6bf3d740ff7e",
         "title": "Architecture Overview",
         "summary": "Core architecture boundaries, write path, read path, and trust model.",
         "excerpts": [
@@ -153,6 +155,7 @@ documents = {
     },
     "release-go": {
         "path": "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
+        "sourceSha256": "fc5ecd98050ab84c764131cb65c169c887d6239ecfec8768d2731b0e22f1182a",
         "title": "External Pilot GO EPR-04 v1.0.0",
         "summary": "Owner-approved GO decision for version 1.0.0 external pilot and residual evidence hardening.",
         "excerpts": [
@@ -181,6 +184,7 @@ documents = {
     },
     "agent-contract": {
         "path": "docs/agent-facing-memory-contract.md",
+        "sourceSha256": "41d63f7375dbf210f3e8395b1cf861419f252320ab36ccd704995186cf79952b",
         "title": "Agent-Facing Memory Contract",
         "summary": "LMSS v1 tool contract and agent memory-use semantics.",
         "excerpts": [
@@ -226,6 +230,7 @@ documents = {
     },
     "memory-vs-markdown-policy": {
         "path": "docs/memory-vs-markdown-policy.md",
+        "sourceSha256": "5f9521b7614976ab20ecca12409425bce6d454c51cc3b71fdc49b4a5ab61f307",
         "title": "Memory vs Markdown Policy",
         "summary": "Project source-of-truth policy for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports.",
         "excerpts": [
@@ -272,12 +277,13 @@ documents = {
     },
     "project-memory-boundary": {
         "path": "docs/project-memory-boundary.md",
+        "sourceSha256": "b8b2c517c0af11d26c78ae97996c12388be7293256da9af4d0cbe78b6574ea10",
         "title": "Project Memory Boundary",
         "summary": "Canonical production memory scope, protected runtime habits, namespaces, and first-class role responsibilities.",
         "excerpts": [
             "The project id above is the canonical `scopeId` for durable project memory",
             "Production memory is stored in the Docker volume:",
-            "The first-class operating role vocabulary is `product_owner`, `cto`,",
+            "The default role templates are `product_owner`, `cto`,",
             "| Product Owner | `product_owner` | Goals, target users, acceptance criteria, backlog, roadmap targets, roadmap priority, and product GO/NO-GO rationale. |"
         ],
         "items": [
@@ -357,6 +363,7 @@ documents = {
     },
     "roadmap": {
         "path": "docs/roadmap.md",
+        "sourceSha256": "c0ad27c8de3f44c5ce8e726f493043a0435a3b2aa8fed5be3fa727f84179a4c1",
         "title": "Roadmap",
         "summary": "Current delivery track, milestones, decision gates, and next milestone.",
         "excerpts": [
@@ -385,6 +392,7 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
+        "sourceSha256": "14bcffa6181a543773f5d38662635d36d337a306f9150b76d7b6bdbabaa13145",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [
@@ -434,6 +442,17 @@ def read_source(document):
     except UnicodeDecodeError as exc:
         raise RuntimeError(f"Source document is not UTF-8 text: {document['path']}") from exc
 
+    source_sha256 = hashlib.sha256(source_bytes).hexdigest()
+    expected_sha256 = document.get("sourceSha256")
+    if not expected_sha256:
+        raise RuntimeError(f"Source hash is not pinned for {document['path']}.")
+    if source_sha256 != expected_sha256:
+        raise RuntimeError(
+            f"Source hash drift for {document['path']}. "
+            f"Expected {expected_sha256}, found {source_sha256}. "
+            "Update curated excerpts and sourceSha256 before writing memory."
+        )
+
     missing_excerpts = [
         excerpt
         for excerpt in document["excerpts"]
@@ -447,7 +466,7 @@ def read_source(document):
         )
 
     return {
-        "sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "sha256": source_sha256,
         "byteLength": len(source_bytes),
         "lineCount": source_text.count("\n") + (1 if source_text else 0),
     }
@@ -529,6 +548,10 @@ def propose_memory(document_key, index, source_event_id, source, item):
         "trustLevel": "user_scoped",
         "sensitivity": "none",
     }
+    for optional_field in ("roleId", "baseMemoryFactId"):
+        if optional_field in item:
+            body[optional_field] = item[optional_field]
+
     _, payload = request_json(
         "POST",
         "/api/memory/proposals",

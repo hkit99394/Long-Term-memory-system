@@ -1,4 +1,5 @@
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Roles;
 using MemorySystem.Domain.Sensitivity;
 using MemorySystem.Domain.Trust;
 
@@ -145,7 +146,7 @@ public sealed class MinimalMemoryProposalBroker : IMemoryProposalBroker
         }
 
         if (string.IsNullOrWhiteSpace(proposal.RoleId)
-            || !MemoryScopePolicy.RoleIds.Contains(proposal.RoleId))
+            || !MemoryRoleId.TryNormalizeIdentifier(proposal.RoleId, out _, out _))
         {
             reason = "Role-lens proposals require a supported roleId before durable storage.";
             return false;

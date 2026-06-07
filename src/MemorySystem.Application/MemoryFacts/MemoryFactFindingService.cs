@@ -2,6 +2,7 @@ using MemorySystem.Application.Events;
 using MemorySystem.Application.Retention;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Domain.Evidence;
+using MemorySystem.Domain.MemoryTypes;
 
 namespace MemorySystem.Application.MemoryFacts;
 
@@ -12,20 +13,6 @@ public sealed class MemoryFactFindingService(
     private const int DefaultLimit = 8;
     private const int MaxLimit = 20;
     private const int MaxNamespaces = 10;
-
-    private static readonly IReadOnlySet<string> SupportedMemoryTypes =
-        new HashSet<string>(StringComparer.Ordinal)
-        {
-            "preference",
-            "decision",
-            "fact",
-            "principle",
-            "summary",
-            "role_principle",
-            "project_role_lens",
-            "agent_private",
-            "session_instruction"
-        };
 
     public async Task<MemoryFactFindingResult> QueryFactsAsync(
         MemoryFactFindingQuery query,
@@ -100,7 +87,9 @@ public sealed class MemoryFactFindingService(
             throw new ArgumentException(targetScopeError, nameof(query));
         }
 
-        if (!MemoryScopePolicy.TryNormalizeRoleId(query.RoleId, out var roleId, out var roleError))
+        string? roleId = null;
+        if (!string.IsNullOrWhiteSpace(query.RoleId)
+            && !MemoryScopePolicy.TryNormalizeRoleIdentifier(query.RoleId, out roleId, out var roleError))
         {
             throw new ArgumentException(roleError, nameof(query));
         }
@@ -165,19 +154,17 @@ public sealed class MemoryFactFindingService(
 
         foreach (var memoryType in memoryTypes)
         {
-            var trimmed = memoryType?.Trim().ToLowerInvariant();
-
-            if (string.IsNullOrWhiteSpace(trimmed))
+            if (string.IsNullOrWhiteSpace(memoryType))
             {
                 throw new ArgumentException("memoryTypes cannot contain blank values.");
             }
 
-            if (!SupportedMemoryTypes.Contains(trimmed))
+            if (!MemoryType.TryNormalizeQueryableType(memoryType, out var normalizedMemoryType, out _))
             {
-                throw new ArgumentException($"memoryType '{trimmed}' is not supported.");
+                throw new ArgumentException($"memoryType '{memoryType.Trim().ToLowerInvariant()}' is not supported.");
             }
 
-            normalized.Add(trimmed);
+            normalized.Add(normalizedMemoryType!.Value);
         }
 
         return normalized.ToArray();

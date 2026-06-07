@@ -97,12 +97,19 @@ The operator principal receives explicit project-scoped admin grants for:
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/ceo/lens
 ```
 
+Canonical durable memory types for project work are `goal`, `target`, `fact`,
+`decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`,
+`release_evidence`, and `role_lens`; see [Canonical Memory Types
+IP-06](canonical-memory-types-ip06.md).
+
 ## Role Responsibilities
 
-The first-class operating role vocabulary is `product_owner`, `cto`,
+The default role templates are `product_owner`, `cto`,
 `security_professional`, `it_manager`, `developer`, `tester_qa`,
-`release_manager`, and `knowledge_steward`. The runtime also keeps legacy
-business roles `designer`, `cfo`, `coo`, and `ceo` for compatibility.
+`release_manager`, `knowledge_steward`, `designer`, `cfo`, `coo`, and `ceo`.
+[Project-Defined Roles IP-05](project-defined-roles-ip05.md) lets each project
+define additional active role ids while keeping these defaults as templates.
+This repository currently seeds the default operating roles below.
 
 | Operating Role | Memory Role | Primary Ownership |
 | --- | --- | --- |

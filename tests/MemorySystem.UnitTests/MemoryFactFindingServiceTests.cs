@@ -58,6 +58,47 @@ public sealed class MemoryFactFindingServiceTests
     }
 
     [Fact]
+    public async Task QueryFactsAsync_accepts_ip06_canonical_memory_type_filters()
+    {
+        var store = new FakeMemoryFactFindingStore(new MemoryFactFindingStoreResult([], [], []));
+        var service = new MemoryFactFindingService(store, new FakeSourceEventLinkBuilder());
+
+        await service.QueryFactsAsync(new MemoryFactFindingQuery(
+            PrincipalId,
+            "canonical types",
+            MemoryTypes:
+            [
+                " Goal ",
+                "target",
+                "fact",
+                "decision",
+                "rationale",
+                "risk",
+                "assumption",
+                "constraint",
+                "requirement",
+                "release_evidence",
+                "role_lens"
+            ]));
+
+        Assert.Equal(
+            [
+                "goal",
+                "target",
+                "fact",
+                "decision",
+                "rationale",
+                "risk",
+                "assumption",
+                "constraint",
+                "requirement",
+                "release_evidence",
+                "role_lens"
+            ],
+            store.Query!.MemoryTypes);
+    }
+
+    [Fact]
     public async Task QueryFactsAsync_maps_contradictions_and_safe_exclusions()
     {
         var store = new FakeMemoryFactFindingStore(new MemoryFactFindingStoreResult(
@@ -120,7 +161,7 @@ public sealed class MemoryFactFindingServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.QueryFactsAsync(new MemoryFactFindingQuery(PrincipalId, "query", TargetScopeType: "project")));
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.QueryFactsAsync(new MemoryFactFindingQuery(PrincipalId, "query", RoleId: "astronaut")));
+            service.QueryFactsAsync(new MemoryFactFindingQuery(PrincipalId, "query", RoleId: "1astronaut")));
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.QueryFactsAsync(new MemoryFactFindingQuery(PrincipalId, "query", Namespaces: ["project/a"])));
         await Assert.ThrowsAsync<ArgumentException>(() =>

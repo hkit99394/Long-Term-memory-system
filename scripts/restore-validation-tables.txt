@@ -10,6 +10,7 @@ organizations
 projects
 organization_memberships
 project_memberships
+project_role_definitions
 role_assignments
 memory_access_grants
 events

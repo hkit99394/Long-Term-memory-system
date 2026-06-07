@@ -1,7 +1,9 @@
 using MemorySystem.Application.Access;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.MemoryProposals;
+using MemorySystem.Application.Roles;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Roles;
 
 namespace MemorySystem.UnitTests;
 
@@ -100,6 +102,41 @@ public sealed class MemoryProposalWorkflowTests
         Assert.Equal("none", writeStore.Proposal.Sensitivity);
         Assert.Equal(0.900m, writeStore.Proposal.Confidence);
         Assert.Equal(0.900m, result.Decision?.Confidence);
+    }
+
+    [Theory]
+    [InlineData("goal", "/goals")]
+    [InlineData("target", "/targets")]
+    [InlineData("fact", "/facts")]
+    [InlineData("rationale", "/rationale")]
+    [InlineData("risk", "/risks")]
+    [InlineData("assumption", "/assumptions")]
+    [InlineData("constraint", "/constraints")]
+    [InlineData("requirement", "/requirements")]
+    [InlineData("release_evidence", "/release-evidence")]
+    public async Task DecideAsync_stores_canonical_project_memory_types(
+        string memoryType,
+        string namespaceSuffix)
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var workflow = CreateWorkflow(sourceEvents, writeStore);
+
+        var result = await workflow.DecideAsync(CreateRequest(
+            memoryType: memoryType,
+            scopeType: "project",
+            scopeId: ProjectId.ToString(),
+            namespaceValue: $"/project/{ProjectId}{namespaceSuffix}",
+            visibility: "project_shared",
+            subject: "canonical memory type",
+            predicate: "supports",
+            objectValue: memoryType));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(MemoryProposalDecisions.Stored, result.Decision?.Decision);
+        Assert.Equal(MemoryCandidateClassifications.ProjectFact, result.Decision?.CandidateKind);
+        Assert.Equal(memoryType, writeStore.Proposal.MemoryType);
+        Assert.Equal(1, writeStore.CallCount);
     }
 
     [Fact]
@@ -339,7 +376,7 @@ public sealed class MemoryProposalWorkflowTests
         var workflow = CreateWorkflow(sourceEvents, writeStore, memoryFacts: memoryFacts);
 
         var result = await workflow.DecideAsync(CreateRequest(
-            memoryType: "project_role_lens",
+            memoryType: "role_lens",
             scopeType: "project",
             scopeId: ProjectId.ToString(),
             namespaceValue: $"/project/{ProjectId}/role/cto/lens",
@@ -358,6 +395,69 @@ public sealed class MemoryProposalWorkflowTests
         Assert.Equal(1, memoryFacts.FindCallCount);
         Assert.Equal(0, memoryFacts.SearchCallCount);
         Assert.Equal(1, writeStore.CallCount);
+    }
+
+    [Fact]
+    public async Task DecideAsync_allows_active_project_defined_role_lens()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var baseMemoryFact = ProjectMemoryFact();
+        var memoryFacts = new FakeMemoryFactRepository(baseMemoryFact);
+        var roleDefinitions = new FakeProjectRoleDefinitionStore("implementation_lead");
+        var workflow = CreateWorkflow(
+            sourceEvents,
+            writeStore,
+            memoryFacts: memoryFacts,
+            projectRoleDefinitions: roleDefinitions);
+
+        var result = await workflow.DecideAsync(CreateRequest(
+            memoryType: "role_lens",
+            scopeType: "project",
+            scopeId: ProjectId.ToString(),
+            namespaceValue: $"/project/{ProjectId}/role/implementation_lead/lens",
+            visibility: "project_shared",
+            subject: "storage engine decision",
+            predicate: "means_for_role",
+            objectValue: "prioritize implementation sequencing and migration checks",
+            roleId: "implementation_lead",
+            baseMemoryFactId: baseMemoryFact.Id));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(MemoryProposalDecisions.Stored, result.Decision?.Decision);
+        Assert.Equal(1, roleDefinitions.CallCount);
+        Assert.Equal(1, writeStore.CallCount);
+    }
+
+    [Fact]
+    public async Task DecideAsync_rejects_inactive_project_defined_role_before_authorizing()
+    {
+        var sourceEvents = new FakeSourceEventReferenceStore(sourceEventExists: true);
+        var writeStore = new FakeMemoryProposalWriteStore();
+        var accessAuthorizer = new FakeMemoryAccessAuthorizer(allowed: true);
+        var workflow = CreateWorkflow(
+            sourceEvents,
+            writeStore,
+            accessAuthorizer,
+            projectRoleDefinitions: new FakeProjectRoleDefinitionStore());
+
+        var result = await workflow.DecideAsync(CreateRequest(
+            memoryType: "project_role_lens",
+            scopeType: "project",
+            scopeId: ProjectId.ToString(),
+            namespaceValue: $"/project/{ProjectId}/role/implementation_lead/lens",
+            visibility: "project_shared",
+            subject: "storage engine decision",
+            predicate: "means_for_role",
+            objectValue: "prioritize implementation sequencing and migration checks",
+            roleId: "implementation_lead",
+            baseMemoryFactId: Guid.Parse("99999999-9999-4999-8999-999999999999")));
+
+        Assert.False(result.IsValid);
+        Assert.Contains("active project role definition", result.InvalidReason, StringComparison.Ordinal);
+        Assert.Equal(0, accessAuthorizer.CallCount);
+        Assert.Equal(0, sourceEvents.CallCount);
+        Assert.Equal(0, writeStore.CallCount);
     }
 
     [Fact]
@@ -402,7 +502,7 @@ public sealed class MemoryProposalWorkflowTests
         var workflow = CreateWorkflow(sourceEvents, writeStore, memoryFacts: memoryFacts);
 
         var result = await workflow.DecideAsync(CreateRequest(
-            memoryType: "role_principle",
+            memoryType: "role_lens",
             scopeType: "global",
             scopeId: "global",
             namespaceValue: "/role/cto/shared",
@@ -626,7 +726,8 @@ public sealed class MemoryProposalWorkflowTests
         ISourceEventReferenceStore sourceEvents,
         IMemoryProposalWriteStore writeStore,
         IMemoryAccessAuthorizer? accessAuthorizer = null,
-        IMemoryFactRepository? memoryFacts = null)
+        IMemoryFactRepository? memoryFacts = null,
+        IProjectRoleDefinitionStore? projectRoleDefinitions = null)
     {
         return new MemoryProposalWorkflow(
             new MinimalMemoryProposalBroker(),
@@ -634,7 +735,43 @@ public sealed class MemoryProposalWorkflowTests
             sourceEvents,
             memoryFacts ?? new FakeMemoryFactRepository(),
             new MemoryScopeResolver(new FakeMemoryScopeReferenceStore()),
-            accessAuthorizer ?? new FakeMemoryAccessAuthorizer(allowed: true));
+            accessAuthorizer ?? new FakeMemoryAccessAuthorizer(allowed: true),
+            projectRoleDefinitions ?? new FakeProjectRoleDefinitionStore());
+    }
+
+    private sealed class FakeProjectRoleDefinitionStore(params string[] activeProjectRoleIds) : IProjectRoleDefinitionStore
+    {
+        private readonly HashSet<string> activeProjectRoleIds = activeProjectRoleIds
+            .Select(roleId =>
+            {
+                Assert.True(MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleId, out _));
+                return normalizedRoleId;
+            })
+            .ToHashSet(StringComparer.Ordinal);
+
+        public int CallCount { get; private set; }
+
+        public Task<ProjectRoleDefinitionRecord> UpsertAsync(
+            ProjectRoleDefinitionCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<bool> IsActiveProjectRoleAsync(
+            Guid projectId,
+            string roleId,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+
+            Assert.Equal(ProjectId, projectId);
+            Assert.True(MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleId, out _));
+
+            return Task.FromResult(
+                MemoryRoleId.IsDefaultTemplate(normalizedRoleId)
+                || activeProjectRoleIds.Contains(normalizedRoleId));
+        }
     }
 
     private static MemoryProposalWorkflowRequest CreateRequest(

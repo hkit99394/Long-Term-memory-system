@@ -35,7 +35,7 @@ public sealed class PostgresDomainMappingTests
     {
         Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireScope("project", "not-a-guid"));
         Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireNamespace("project/without/root"));
-        Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireRoleId("intern"));
+        Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireRoleId("1intern"));
         Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireLifecycleStatus("ACTIVE"));
         Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireRetentionClass("forever"));
         Assert.Throws<InvalidOperationException>(() => PostgresDomainMapping.RequireSensitivity("classified"));

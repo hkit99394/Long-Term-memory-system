@@ -2011,9 +2011,18 @@
       "MemoryType": {
         "type": "string",
         "enum": [
+          "goal",
+          "target",
           "preference",
           "decision",
           "fact",
+          "rationale",
+          "risk",
+          "assumption",
+          "constraint",
+          "requirement",
+          "release_evidence",
+          "role_lens",
           "principle",
           "summary",
           "role_principle",

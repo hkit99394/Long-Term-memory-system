@@ -110,6 +110,8 @@ When platform backup or restore job scripts change, run shell syntax checks:
 ```bash
 bash -n scripts/production-container.sh
 bash -n scripts/seed-production-memory-boundary.sh
+bash -n scripts/seed-production-knowledge-base.sh
+bash -n scripts/source-backed-memory-hygiene.sh
 bash -n scripts/external-postgres-profile-smoke.sh
 bash -n scripts/platform-backup-export.sh
 bash -n scripts/platform-compliance-evidence-package.sh
@@ -118,6 +120,30 @@ bash -n scripts/platform-external-payload-retention-check.sh
 bash -n scripts/platform-retention-minimization.sh
 bash -n scripts/platform-restore-validation.sh
 bash -n scripts/governance-compliance-release-smoke.sh
+bash -n scripts/target-environment-evidence-verify.sh
+```
+
+## Source-Backed Memory Hygiene
+
+Use this after changing `scripts/seed-production-knowledge-base.sh` or any
+Markdown source document pinned by that seed. The hygiene gate validates source
+hash drift, stale source links, curated excerpt drift, duplicate memory
+identities, missing source evidence, canonical memory types, and role-lens seed
+hygiene without calling the API.
+
+```bash
+./scripts/source-backed-memory-hygiene.sh
+MEMORYSYSTEM_KNOWLEDGE_SEED_DRY_RUN=true ./scripts/seed-production-knowledge-base.sh
+```
+
+## Target Environment Evidence Verification
+
+Use this before accepting post-GO target evidence for IP-04. The manifest must
+list local payload-safe artifacts for every required target gate, and the
+verifier checks each SHA-256 hash before the evidence prefix is accepted.
+
+```bash
+./scripts/target-environment-evidence-verify.sh /path/to/target-environment-evidence-manifest.json
 ```
 
 ## Governance/Compliance Release Smoke

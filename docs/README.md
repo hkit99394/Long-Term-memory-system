@@ -91,6 +91,9 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Long-Term AI Memory System Plan](long-term-memory-system-plan.md) | Full design plan, schema direction, phases, risks, and build steps. |
 | [Folder Structure](folder-structure.md) | Repository layout, ownership boundaries, and where new work should live. |
 | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) | Source-of-truth rules for Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports. |
+| [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project-specific role definitions, default role templates, and project role-lens validation rules. |
+| [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Canonical durable memory type vocabulary and compatibility aliases for proposals and query filters. |
+| [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Source hash drift, stale source link, duplicate memory, missing evidence, seed validation, and role-lens hygiene gate. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -129,6 +132,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md) | Local Docker-volume versus external managed PostgreSQL profile switch, migration flow, backup/restore validation, and smoke checks. |
 | [Production Container Tool](production-container.md) | Single-machine Docker Compose operator tool and rollout path. |
 | [Project Memory Boundary](project-memory-boundary.md) | Canonical local production endpoint, protected volume, project scope ids, role mapping, and seed command. |
+| [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project role-definition table, admin API, validation rules, and default role templates. |
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Production Observability and Alerting](production-observability.md) | Pilot metrics, traces, logs, alerts, dashboards, and smoke checks. |
 | [Production Platform Integration LR-05](production-platform-integration-lr05.md) | Infrastructure-as-code and managed platform integration boundary. |
@@ -137,6 +141,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Accepted AWS, Terraform, and immutable OCI artifact baseline for the first platform target. |
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
+| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Payload-safe target evidence manifest, checksum verifier, and completion rule for post-GO target artifacts. |
 | [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
 | [Observability Artifacts](../observability/README.md) | Alerts, dashboard, trace coverage, and metric input manifests. |
 
@@ -172,6 +177,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Pilot Readiness Evidence Review](pilot-readiness-evidence-review-2026-06-01.md) | Historical evidence review and no-go decision before target-environment evidence. |
 | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) | Target-environment rehearsal gates, evidence bundle, and go/no-go template. |
 | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) | Local pilot-equivalent release evidence record. |
+| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | In-progress post-GO target evidence manifest and verifier contract. |
 | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) | Historical no-go record retained for traceability. |
 | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) | Owner-approved GO replacement for version 1.0.0 external pilot. |
 | [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) | Reconciliation record that points current release decisions to the v1.0.0 GO record. |
@@ -186,6 +192,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Roadmap](roadmap.md) | Milestones, dependencies, decision gates, and build sequence. |
 | [Backlog](backlog.md) | Work items by milestone with priorities, statuses, and acceptance criteria. |
 | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) | Canonical policy for what should live in Markdown, memory, backlog, source evidence, role lenses, and release evidence. |
+| [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Source-of-truth memory type vocabulary for durable project memory and role lenses. |
+| [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Automation contract for validating source-backed memory seed evidence before reseeding. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

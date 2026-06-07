@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "kind": "memorysystem.target_environment_evidence",
+  "releaseId": "pilot-2026-06-07",
+  "environment": "pilot",
+  "targetEnvironment": {
+    "name": "pilot",
+    "account": "platform-account-or-subscription-id",
+    "region": "platform-region",
+    "networkBoundary": "vpc-or-equivalent-network-boundary"
+  },
+  "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "databaseTarget": {
+    "provider": "managed-postgresql",
+    "endpointRef": "secret-or-platform-reference-not-a-raw-connection-string",
+    "databaseName": "memory_system",
+    "pgvectorVerified": true
+  },
+  "evidencePrefix": "s3://release-evidence-bucket/memorysystem/pilot-2026-06-07/",
+  "generatedAtUtc": "2026-06-07T00:00:00Z",
+  "payloadSafe": true,
+  "owners": {
+    "releaseOwner": "release-manager",
+    "rollbackOwner": "ops-rollback-owner",
+    "alertRouteOwner": "on-call-owner",
+    "evidenceOwner": "evidence-custodian",
+    "benchmarkScorer": "qa-benchmark-owner",
+    "governanceReviewer": "governance-reviewer"
+  },
+  "gates": [
+    {
+      "id": "environment_preflight",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:01:00Z",
+      "summary": "Target environment, network boundary, image digest, evidence prefix, alert receiver, and owners confirmed.",
+      "artifacts": [
+        {
+          "path": "evidence/environment-preflight.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Payload-safe preflight record.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "terraform_validation",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:02:00Z",
+      "summary": "Platform inputs validated without secret values.",
+      "artifacts": [
+        {
+          "path": "evidence/terraform-validation.txt",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Terraform or platform validation output.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "deployment_smoke",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:03:00Z",
+      "summary": "Migrator, API, worker, health, read/write, heartbeat, and restore smoke passed in the target environment.",
+      "artifacts": [
+        {
+          "path": "evidence/deployment-smoke.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Target deployment smoke output.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "metrics_and_tracing",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:04:00Z",
+      "summary": "Operations metrics, exporter health, alert inputs, and trace coverage were verified.",
+      "artifacts": [
+        {
+          "path": "evidence/metrics-and-tracing.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Metrics and tracing evidence.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "benchmark_scorecards",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:05:00Z",
+      "summary": "Pilot-model benchmark scorecards passed release thresholds.",
+      "artifacts": [
+        {
+          "path": "evidence/benchmark-release-gate.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Benchmark scorecard and release-gate output.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "governance_smoke",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:06:00Z",
+      "summary": "Target governance/compliance smoke produced a strict evidence package.",
+      "artifacts": [
+        {
+          "path": "evidence/governance-compliance-smoke.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Governance/compliance smoke output.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "backup_restore",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:07:00Z",
+      "summary": "Managed backup/PITR or backup export plus restore-to-new-database validation passed.",
+      "artifacts": [
+        {
+          "path": "evidence/backup-restore.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Backup and restore validation evidence.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "alert_receiver_acknowledgement",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:08:00Z",
+      "summary": "Real receiver acknowledged the pilot alert route test.",
+      "acknowledgement": {
+        "receiver": "pilot-page-route",
+        "acknowledgedBy": "on-call-owner",
+        "acknowledgedAtUtc": "2026-06-07T00:08:00Z",
+        "runbook": "docs/production-observability.md"
+      },
+      "artifacts": [
+        {
+          "path": "evidence/alert-acknowledgement.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Alert route-test and receiver acknowledgement.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "evidence_upload",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:09:00Z",
+      "summary": "Evidence bundle was uploaded to the controlled audit store prefix.",
+      "artifacts": [
+        {
+          "path": "evidence/evidence-upload-receipt.json",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Controlled evidence upload receipt.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "rollback_notes",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:10:00Z",
+      "summary": "Rollback owner, boundary, previous image, command path, and communication route were recorded.",
+      "rollback": {
+        "previousImageDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "rollbackBoundary": "before first external pilot write after deployment",
+        "communicationRoute": "pilot-release-channel"
+      },
+      "signatures": {
+        "rollbackOwner": "ops-rollback-owner"
+      },
+      "artifacts": [
+        {
+          "path": "evidence/rollback-notes.md",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Rollback notes and owner signoff.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "go_no_go",
+      "status": "passed",
+      "completedAtUtc": "2026-06-07T00:11:00Z",
+      "summary": "Release owner and rollback owner signed the final decision.",
+      "decision": {
+        "decision": "GO",
+        "releaseOwnerSignature": "release-manager",
+        "rollbackOwnerSignature": "ops-rollback-owner"
+      },
+      "artifacts": [
+        {
+          "path": "evidence/go-no-go.md",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "description": "Final go/no-go record.",
+          "payloadSafe": true
+        }
+      ]
+    }
+  ]
+}

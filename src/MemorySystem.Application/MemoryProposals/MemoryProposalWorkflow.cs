@@ -1,6 +1,9 @@
 using MemorySystem.Application.Access;
 using MemorySystem.Application.MemoryFacts;
+using MemorySystem.Application.Roles;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.MemoryTypes;
+using MemorySystem.Domain.Roles;
 using MemorySystem.Domain.Sensitivity;
 using MemorySystem.Domain.Trust;
 
@@ -12,19 +15,9 @@ public sealed class MemoryProposalWorkflow(
     ISourceEventReferenceStore sourceEvents,
     IMemoryFactRepository memoryFacts,
     IMemoryScopeResolver scopeResolver,
-    IMemoryAccessAuthorizer accessAuthorizer) : IMemoryProposalWorkflow
+    IMemoryAccessAuthorizer accessAuthorizer,
+    IProjectRoleDefinitionStore projectRoleDefinitions) : IMemoryProposalWorkflow
 {
-    private static readonly IReadOnlySet<string> MemoryTypes = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "preference",
-        "decision",
-        "fact",
-        "role_principle",
-        "project_role_lens",
-        "agent_private",
-        "session_instruction"
-    };
-
     private static readonly IReadOnlySet<string> Visibilities = new HashSet<string>(StringComparer.Ordinal)
     {
         "private",
@@ -78,6 +71,15 @@ public sealed class MemoryProposalWorkflow(
             out var namespaceError))
         {
             return MemoryProposalWorkflowResult.Invalid(namespaceError!);
+        }
+
+        var roleDefinitionFailure = await ValidateRoleLensRoleDefinitionAsync(
+            scopeResult.Resolution,
+            proposal,
+            cancellationToken);
+        if (roleDefinitionFailure is not null)
+        {
+            return roleDefinitionFailure;
         }
 
         if (!MemoryProposalDecisionRules.IsSessionOnly(proposal))
@@ -205,7 +207,6 @@ public sealed class MemoryProposalWorkflow(
         command = null!;
         error = null;
 
-        var memoryType = Normalize(request.MemoryType);
         var scopeType = Normalize(request.ScopeType);
         var scopeId = request.ScopeId?.Trim() ?? string.Empty;
         var namespaceValue = request.Namespace?.Trim() ?? string.Empty;
@@ -213,7 +214,7 @@ public sealed class MemoryProposalWorkflow(
         var trustLevel = Normalize(request.TrustLevel, MemoryTrustLevel.UserScoped);
         var sensitivity = Normalize(request.Sensitivity, MemorySensitivity.None);
 
-        if (!MemoryTypes.Contains(memoryType))
+        if (!MemoryType.TryNormalizeProposalType(request.MemoryType, out var memoryType, out _))
         {
             error = "memoryType is required and must be supported.";
             return false;
@@ -270,7 +271,7 @@ public sealed class MemoryProposalWorkflow(
         command = new MemoryProposalCommand(
             request.SourceEventId,
             sourceEventExists,
-            memoryType,
+            memoryType!.Value,
             scopeType,
             scopeId,
             namespaceValue,
@@ -320,7 +321,7 @@ public sealed class MemoryProposalWorkflow(
         }
 
         if (string.IsNullOrWhiteSpace(proposal.RoleId)
-            || !MemoryScopePolicy.RoleIds.Contains(proposal.RoleId))
+            || !MemoryRoleId.TryNormalizeIdentifier(proposal.RoleId, out _, out _))
         {
             error = "Role-lens proposals require a supported roleId.";
             return false;
@@ -348,7 +349,7 @@ public sealed class MemoryProposalWorkflow(
         if (proposal.CandidateKind == MemoryCandidateClassifications.RoleLens
             && proposal.ScopeType == "global"
             && !string.IsNullOrWhiteSpace(proposal.RoleId)
-            && MemoryScopePolicy.RoleIds.Contains(proposal.RoleId)
+            && MemoryRoleId.IsDefaultTemplate(proposal.RoleId)
             && IsNamespaceAtOrBelow(proposal.Namespace, $"/role/{proposal.RoleId}/shared"))
         {
             return "/global/role-lens";
@@ -386,14 +387,49 @@ public sealed class MemoryProposalWorkflow(
         return memoryNamespace.ScopeType switch
         {
             "role" => segments.Count >= 3
-                && MemoryScopePolicy.RoleIds.Contains(segments[1])
+                && memoryNamespace.RoleId is not null
                 && string.Equals(segments[2], "shared", StringComparison.Ordinal),
             "org" or "project" => segments.Count >= 5
                 && string.Equals(segments[2], "role", StringComparison.Ordinal)
-                && MemoryScopePolicy.RoleIds.Contains(segments[3])
+                && memoryNamespace.RoleId is not null
                 && string.Equals(segments[4], "lens", StringComparison.Ordinal),
             _ => false
         };
+    }
+
+    private async Task<MemoryProposalWorkflowResult?> ValidateRoleLensRoleDefinitionAsync(
+        MemoryScopeResolution scope,
+        MemoryProposalCommand proposal,
+        CancellationToken cancellationToken)
+    {
+        if (proposal.CandidateKind != MemoryCandidateClassifications.RoleLens)
+        {
+            return null;
+        }
+
+        if (scope.ScopeType == "project")
+        {
+            if (!scope.ProjectId.HasValue)
+            {
+                return MemoryProposalWorkflowResult.Invalid("Project role-lens proposals require project scope.");
+            }
+
+            if (await projectRoleDefinitions.IsActiveProjectRoleAsync(
+                    scope.ProjectId.Value,
+                    proposal.RoleId!,
+                    cancellationToken))
+            {
+                return null;
+            }
+
+            return MemoryProposalWorkflowResult.Invalid(
+                "Role-lens proposals require a default role template or active project role definition.");
+        }
+
+        return MemoryRoleId.IsDefaultTemplate(proposal.RoleId)
+            ? null
+            : MemoryProposalWorkflowResult.Invalid(
+                "Role-lens proposals outside project scope require a default role template.");
     }
 
     private static Guid RequireGuid(Guid? value, string message)

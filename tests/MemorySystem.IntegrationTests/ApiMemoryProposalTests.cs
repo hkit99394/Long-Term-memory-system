@@ -102,11 +102,12 @@ public sealed partial class ApiMemoryProposalTests
 
     private static string CreateProjectRoleLensProposalBody(
         Guid baseMemoryFactId,
-        string roleId = "cto")
+        string roleId = "cto",
+        string memoryType = "project_role_lens")
     {
         return CreateProposalBody(
             sourceEventId: ProjectSourceEventId,
-            memoryType: "project_role_lens",
+            memoryType: memoryType,
             scopeType: "project",
             scopeId: TestProjectId,
             namespaceValue: $"/project/{TestProjectId}/role/cto/lens",

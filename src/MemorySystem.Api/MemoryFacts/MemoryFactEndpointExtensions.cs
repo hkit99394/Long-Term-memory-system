@@ -827,8 +827,16 @@ public static class MemoryFactEndpointExtensions
         out string? roleId,
         out string? error)
     {
-        return MemoryScopePolicy.TryNormalizeRoleId(
-            context.Request.Query["roleId"].ToString(),
+        var requestedRoleId = context.Request.Query["roleId"].ToString();
+        if (string.IsNullOrWhiteSpace(requestedRoleId))
+        {
+            roleId = null;
+            error = null;
+            return true;
+        }
+
+        return MemoryScopePolicy.TryNormalizeRoleIdentifier(
+            requestedRoleId,
             out roleId,
             out error);
     }
@@ -838,7 +846,14 @@ public static class MemoryFactEndpointExtensions
         out string? roleId,
         out string? error)
     {
-        return MemoryScopePolicy.TryNormalizeRoleId(
+        if (string.IsNullOrWhiteSpace(requestedRoleId))
+        {
+            roleId = null;
+            error = null;
+            return true;
+        }
+
+        return MemoryScopePolicy.TryNormalizeRoleIdentifier(
             requestedRoleId,
             out roleId,
             out error);

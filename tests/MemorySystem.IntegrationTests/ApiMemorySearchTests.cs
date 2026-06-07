@@ -400,7 +400,7 @@ public sealed partial class ApiMemorySearchTests
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
         var baseMemory = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
             new MemoryScopeResolution("project", ProjectAId.ToString(), OrgId: OrgAId, ProjectId: ProjectAId),
             $"/project/{ProjectAId}/decisions",
@@ -535,7 +535,7 @@ public sealed partial class ApiMemorySearchTests
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+        var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
         var userPreference = await memoryFacts.StoreAsync(new MemoryFactWriteCommand(
             new MemoryScopeResolution("user", PrincipalId.ToString(), PrincipalId: PrincipalId),
             $"/user/{PrincipalId}/preferences",

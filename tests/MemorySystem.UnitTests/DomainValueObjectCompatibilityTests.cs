@@ -10,6 +10,7 @@ using MemorySystem.Application.Events;
 using MemorySystem.Application.MemoryContext;
 using MemorySystem.Domain.Evidence;
 using MemorySystem.Domain.Lifecycle;
+using MemorySystem.Domain.MemoryTypes;
 using MemorySystem.Domain.Namespaces;
 using MemorySystem.Domain.Retention;
 using MemorySystem.Domain.Retrieval;
@@ -108,6 +109,44 @@ public sealed class DomainValueObjectCompatibilityTests
         Assert.Equal(applicationRoleId, domainRoleId!.Value);
     }
 
+    [Fact]
+    public void Domain_project_role_namespace_accepts_custom_project_role_identifier()
+    {
+        var namespaceValue = "/project/33333333-3333-4333-8333-333333333333/role/Implementation_Lead/lens";
+
+        var applicationResult = ApplicationNamespaceParser.TryParse(
+            namespaceValue,
+            out var applicationNamespace,
+            out var applicationError);
+        var domainResult = MemoryNamespaceParser.TryParse(
+            namespaceValue,
+            out var domainNamespace,
+            out var domainError);
+
+        Assert.True(applicationResult);
+        Assert.True(domainResult);
+        Assert.Null(applicationError);
+        Assert.Null(domainError);
+        Assert.Equal("implementation_lead", applicationNamespace.RoleId);
+        Assert.Equal("implementation_lead", domainNamespace!.RoleId?.Value);
+    }
+
+    [Fact]
+    public void Domain_org_and_shared_role_namespaces_keep_default_template_roles()
+    {
+        Assert.False(MemoryNamespaceParser.TryParse(
+            "/org/22222222-2222-4222-8222-222222222222/role/implementation_lead/lens",
+            out _,
+            out var orgError));
+        Assert.Contains("supported", orgError, StringComparison.Ordinal);
+
+        Assert.False(MemoryNamespaceParser.TryParse(
+            "/role/implementation_lead/shared",
+            out _,
+            out var sharedError));
+        Assert.Contains("supported", sharedError, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("/global/instructions", "global", "global", null)]
     [InlineData("/org/22222222-2222-4222-8222-222222222222/policies", "org", "22222222-2222-4222-8222-222222222222", null)]
@@ -148,7 +187,7 @@ public sealed class DomainValueObjectCompatibilityTests
     [InlineData("/global/", "empty path")]
     [InlineData("/project/not-a-guid/decisions", "valid GUID")]
     [InlineData("/org/22222222-2222-4222-8222-222222222222/role/cto", "category")]
-    [InlineData("/project/33333333-3333-4333-8333-333333333333/role/intern/lens", "not supported")]
+    [InlineData("/project/33333333-3333-4333-8333-333333333333/role/1intern/lens", "not supported")]
     [InlineData("/role/intern/shared", "not supported")]
     [InlineData("/session/global/working_memory", "must not be 'global'")]
     [InlineData("/session/session-1/../working_memory", "relative path")]
@@ -192,6 +231,49 @@ public sealed class DomainValueObjectCompatibilityTests
         }
 
         Assert.False(MemoryLifecycleStatus.IsSupported("ACTIVE"));
+    }
+
+    [Fact]
+    public void Domain_memory_type_vocabulary_defines_ip06_canonical_durable_types()
+    {
+        var canonicalTypes = new[]
+        {
+            "goal",
+            "target",
+            "fact",
+            "decision",
+            "rationale",
+            "risk",
+            "assumption",
+            "constraint",
+            "requirement",
+            "release_evidence",
+            "role_lens"
+        };
+
+        Assert.Equal(canonicalTypes.Order(), MemoryType.CanonicalDurable.Order());
+
+        foreach (var memoryType in canonicalTypes)
+        {
+            Assert.True(MemoryType.TryNormalizeProposalType(memoryType.ToUpperInvariant(), out var proposalType, out var proposalError));
+            Assert.True(MemoryType.TryNormalizeQueryableType($" {memoryType} ", out var queryableType, out var queryableError));
+            Assert.Null(proposalError);
+            Assert.Null(queryableError);
+            Assert.Equal(memoryType, proposalType!.Value);
+            Assert.Equal(memoryType, queryableType!.Value);
+            Assert.True(proposalType.IsCanonicalDurable);
+        }
+    }
+
+    [Fact]
+    public void Domain_memory_type_vocabulary_keeps_legacy_query_aliases_separate_from_canonical_set()
+    {
+        Assert.True(MemoryType.TryNormalizeQueryableType("summary", out var summary, out _));
+        Assert.Equal("summary", summary!.Value);
+        Assert.False(summary.IsCanonicalDurable);
+
+        Assert.False(MemoryType.TryNormalizeProposalType("summary", out _, out var proposalError));
+        Assert.Contains("supported", proposalError, StringComparison.Ordinal);
     }
 
     [Theory]

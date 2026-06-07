@@ -124,6 +124,28 @@ public static class MemoryScopePolicy
         return false;
     }
 
+    public static bool TryNormalizeRoleIdentifier(
+        string? roleId,
+        out string? normalizedRoleId,
+        out string? error)
+    {
+        normalizedRoleId = null;
+
+        if (string.IsNullOrWhiteSpace(roleId))
+        {
+            error = "roleId is required.";
+            return false;
+        }
+
+        if (!MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleIdValue, out error))
+        {
+            return false;
+        }
+
+        normalizedRoleId = normalizedRoleIdValue;
+        return true;
+    }
+
     private static bool HasNamespaceScope(
         string namespaceValue,
         string expectedScopeType,

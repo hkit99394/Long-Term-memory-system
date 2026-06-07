@@ -33,6 +33,16 @@ fields:
 Pilot and production evidence should be uploaded to the configured
 `release_evidence_bucket` or an equivalent controlled audit store.
 
+For real target-environment evidence, pilot and production releases must also
+include a `memorysystem.target_environment_evidence` manifest and pass:
+
+```bash
+scripts/target-environment-evidence-verify.sh /path/to/target-environment-evidence-manifest.json
+```
+
+See [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md)
+for the manifest contract and completion rule.
+
 ## Local Release Checklist
 
 Local releases prove the developer workstation can still build, test, migrate,
@@ -110,7 +120,7 @@ back up, restore, and roll back the service with real platform wiring.
 | Backup/restore | Confirm backup freshness before migration and run restore-to-new-database validation after deployment. | Backup evidence JSON, restore validation evidence JSON, and backup/restore metrics. |
 | Rollback owner | Record the pilot rollback owner, decision deadline, previous image digest, rollback command, database restore boundary, and communication route. | Release manifest and rollback note. |
 | Alert routing | Fire or simulate the pilot route test with `memorysystem_alert_route_test{environment="pilot"} == 1`, verify owner, destination, silence policy, and runbook link. | Alert route-test result and receiver acknowledgement. |
-| Audit evidence | Upload migration, health, metrics, benchmark, backup/restore, alert routing, approval, and rollback decision evidence to `release_evidence_bucket`. | Evidence object prefix and retention policy. |
+| Audit evidence | Upload migration, health, metrics, benchmark, backup/restore, alert routing, approval, and rollback decision evidence to `release_evidence_bucket`; attach the target evidence manifest and verifier output. | Evidence object prefix, retention policy, manifest path, and `target-environment-evidence-verify.sh` output. |
 
 Pilot exit criteria:
 
@@ -136,7 +146,7 @@ evidence.
 | Backup/restore | Attach managed PostgreSQL backup/PITR status, latest backup export evidence, latest restore-to-new-database validation result, restore rehearsal window, and known data-loss window. | Backup/restore evidence and recovery-point note. |
 | Rollback owner | Record the named rollback owner, escalation fallback, previous image digest, rollback command, database restore boundary, and the exact decision time after deployment. | Signed release manifest. |
 | Alert routing | Verify page, ticket, and info alert routes, current on-call owner, escalation fallback, silence policy, runbook links, and `memorysystem_alert_route_test{environment="production"} == 1`. | Alert route-test evidence and receiver acknowledgement. |
-| Audit evidence | Store release approval, migration, health, metrics, benchmark, backup/restore, alert routing, rollback owner, and final go/no-go evidence in the controlled audit store or `release_evidence_bucket`. | Immutable evidence prefix and retention period. |
+| Audit evidence | Store release approval, migration, health, metrics, benchmark, backup/restore, alert routing, rollback owner, final go/no-go evidence, target evidence manifest, and verifier output in the controlled audit store or `release_evidence_bucket`. | Immutable evidence prefix, retention period, manifest path, and `target-environment-evidence-verify.sh` output. |
 
 Production exit criteria:
 
@@ -178,5 +188,7 @@ The historical
 record remains the prior NO-GO audit trail. Controlled evidence, real alert
 acknowledgement, rollback boundary, and communication route should be attached
 as post-GO hardening evidence.
+[Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md)
+defines the required manifest and checksum verifier for that attachment path.
 Automation and the P3 cockpit should read the structured status from
 `docs/external-pilot-readiness-status.json`.

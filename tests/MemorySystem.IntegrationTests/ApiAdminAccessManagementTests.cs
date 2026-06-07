@@ -158,6 +158,120 @@ public sealed class ApiAdminAccessManagementTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_admin_access_management_defines_project_roles_before_custom_role_assignments()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_project_roles_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareAccessFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var undefinedRoleResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/role-assignments",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = "implementation_lead",
+                    scopeType = "project",
+                    scopeId = ProjectId
+                }));
+            var undefinedRoleBody = await undefinedRoleResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, undefinedRoleResponse.StatusCode);
+            Assert.Contains("active project role definition", undefinedRoleBody, StringComparison.Ordinal);
+
+            using var orgCustomRoleResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/role-assignments",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = "implementation_lead",
+                    scopeType = "org",
+                    scopeId = OrgId
+                }));
+            var orgCustomRoleBody = await orgCustomRoleResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, orgCustomRoleResponse.StatusCode);
+            Assert.Contains("not supported for organization scope", orgCustomRoleBody, StringComparison.Ordinal);
+
+            using var projectRoleResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/project-roles",
+                new
+                {
+                    projectId = ProjectId,
+                    roleId = "Implementation_Lead",
+                    displayName = "Implementation Lead",
+                    description = "Owns sequencing, merge readiness, and delivery risk for this project.",
+                    templateRoleId = "developer",
+                    status = "active"
+                }));
+            var projectRoleBody = await projectRoleResponse.Content.ReadAsStringAsync();
+            using var projectRolePayload = JsonDocument.Parse(projectRoleBody);
+
+            Assert.Equal(HttpStatusCode.OK, projectRoleResponse.StatusCode);
+            Assert.Equal("implementation_lead", projectRolePayload.RootElement.GetProperty("roleId").GetString());
+            Assert.Equal("Implementation Lead", projectRolePayload.RootElement.GetProperty("displayName").GetString());
+            Assert.Equal("developer", projectRolePayload.RootElement.GetProperty("templateRoleId").GetString());
+            Assert.Equal("active", projectRolePayload.RootElement.GetProperty("status").GetString());
+
+            using var assignmentResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/role-assignments",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = "implementation_lead",
+                    scopeType = "project",
+                    scopeId = ProjectId
+                }));
+            var assignmentBody = await assignmentResponse.Content.ReadAsStringAsync();
+            using var assignmentPayload = JsonDocument.Parse(assignmentBody);
+
+            Assert.Equal(HttpStatusCode.OK, assignmentResponse.StatusCode);
+            Assert.Equal("implementation_lead", assignmentPayload.RootElement.GetProperty("roleId").GetString());
+
+            using var grantResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/namespace-grants",
+                new
+                {
+                    principalId = (Guid?)null,
+                    roleId = "implementation_lead",
+                    namespacePrefix = $"/project/{ProjectId}/role/implementation_lead/lens",
+                    permission = "read",
+                    scopeType = "project",
+                    scopeId = ProjectId
+                }));
+            var grantBody = await grantResponse.Content.ReadAsStringAsync();
+            using var grantPayload = JsonDocument.Parse(grantBody);
+
+            Assert.Equal(HttpStatusCode.OK, grantResponse.StatusCode);
+            Assert.Equal("implementation_lead", grantPayload.RootElement.GetProperty("roleId").GetString());
+            Assert.Equal("read", grantPayload.RootElement.GetProperty("permission").GetString());
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.True(await HasProjectRoleDefinitionAsync(dataSource, "implementation_lead"));
+            Assert.True(await HasRoleAssignmentAsync(dataSource, TargetPrincipalId, "implementation_lead"));
+            Assert.True(await HasRoleNamespaceGrantAsync(
+                dataSource,
+                "implementation_lead",
+                $"/project/{ProjectId}/role/implementation_lead/lens",
+                "read"));
+            Assert.Equal(1L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectRoleDefinitionChange));
+            Assert.Equal(1L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.RoleAssignmentChange));
+            Assert.Equal(1L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.NamespaceGrantChange));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_admin_access_management_rejects_case_insensitive_self_admin_escalation()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -360,6 +474,51 @@ public sealed class ApiAdminAccessManagementTests
             );
             """);
         command.Parameters.AddWithValue("principal_id", principalId);
+        command.Parameters.AddWithValue("namespace_prefix", namespacePrefix);
+        command.Parameters.AddWithValue("permission", permission);
+
+        return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<bool> HasProjectRoleDefinitionAsync(
+        NpgsqlDataSource dataSource,
+        string roleId)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM project_role_definitions
+                WHERE project_id = @project_id
+                    AND role_id = @role_id
+                    AND template_role_id = 'developer'
+                    AND status = 'active'
+            );
+            """);
+        command.Parameters.AddWithValue("project_id", ProjectId);
+        command.Parameters.AddWithValue("role_id", roleId);
+
+        return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<bool> HasRoleNamespaceGrantAsync(
+        NpgsqlDataSource dataSource,
+        string roleId,
+        string namespacePrefix,
+        string permission)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM memory_access_grants
+                WHERE role_id = @role_id
+                    AND principal_id IS NULL
+                    AND namespace_prefix = @namespace_prefix
+                    AND permission = @permission
+            );
+            """);
+        command.Parameters.AddWithValue("role_id", roleId);
         command.Parameters.AddWithValue("namespace_prefix", namespacePrefix);
         command.Parameters.AddWithValue("permission", permission);
 

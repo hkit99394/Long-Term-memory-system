@@ -224,6 +224,9 @@ Expected output:
 Contract rules:
 
 - Durable memory must reference source evidence.
+- Prefer canonical memory types: `goal`, `target`, `fact`, `decision`,
+  `rationale`, `risk`, `assumption`, `constraint`, `requirement`,
+  `release_evidence`, and `role_lens`.
 - `decision` should stay in the known set: `stored`, `rejected`,
   `review_required`, or `session_only`.
 - Rejections and review decisions should include a usable reason.
@@ -355,7 +358,7 @@ Input shape:
   },
   "roleId": "cto",
   "namespaces": ["/project/project-a/decisions"],
-  "memoryTypes": ["decision", "preference", "summary"],
+  "memoryTypes": ["decision", "risk", "release_evidence"],
   "includeContradictions": true,
   "includeExcluded": true,
   "limit": 8

@@ -51,7 +51,7 @@ public sealed class MinimalMemoryProposalBrokerTests
     public void Decide_accepts_structured_role_lens_proposal()
     {
         var decision = new MinimalMemoryProposalBroker().Decide(CreateProposal(
-            memoryType: "role_principle",
+            memoryType: "role_lens",
             scopeType: "org",
             scopeId: "44444444-4444-4444-8444-444444444444",
             namespaceValue: "/org/44444444-4444-4444-8444-444444444444/role/cto/lens",
@@ -109,10 +109,18 @@ public sealed class MinimalMemoryProposalBrokerTests
     }
 
     [Theory]
+    [InlineData("goal", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/goals", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("target", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/targets", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
     [InlineData("preference", "user", "11111111-1111-4111-8111-111111111111", "/user/11111111-1111-4111-8111-111111111111/preferences", MemoryCandidateClassifications.Preference, MemoryProposalDecisions.Stored)]
     [InlineData("fact", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/facts", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
     [InlineData("decision", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/decisions", MemoryCandidateClassifications.Decision, MemoryProposalDecisions.Stored)]
-    [InlineData("role_principle", "org", "44444444-4444-4444-8444-444444444444", "/org/44444444-4444-4444-8444-444444444444/role/cto/lens", MemoryCandidateClassifications.RoleLens, MemoryProposalDecisions.ReviewRequired)]
+    [InlineData("rationale", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/rationale", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("risk", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/risks", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("assumption", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/assumptions", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("constraint", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/constraints", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("requirement", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/requirements", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("release_evidence", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/release-evidence", MemoryCandidateClassifications.ProjectFact, MemoryProposalDecisions.Stored)]
+    [InlineData("role_lens", "org", "44444444-4444-4444-8444-444444444444", "/org/44444444-4444-4444-8444-444444444444/role/cto/lens", MemoryCandidateClassifications.RoleLens, MemoryProposalDecisions.ReviewRequired)]
     [InlineData("project_role_lens", "project", "33333333-3333-4333-8333-333333333333", "/project/33333333-3333-4333-8333-333333333333/role/cto/lens", MemoryCandidateClassifications.RoleLens, MemoryProposalDecisions.ReviewRequired)]
     [InlineData("agent_private", "agent", "22222222-2222-4222-8222-222222222222", "/agent/22222222-2222-4222-8222-222222222222/private", MemoryCandidateClassifications.AgentPrivate, MemoryProposalDecisions.Stored)]
     [InlineData("session_instruction", "session", "session-1", "/session/session-1/instructions", MemoryCandidateClassifications.SessionOnlyInstruction, MemoryProposalDecisions.SessionOnly)]
@@ -151,7 +159,9 @@ public sealed class MinimalMemoryProposalBrokerTests
     [Theory]
     [InlineData("decision", "global", "global", "/global/decisions")]
     [InlineData("decision", "user", "11111111-1111-4111-8111-111111111111", "/user/11111111-1111-4111-8111-111111111111/preferences")]
+    [InlineData("goal", "user", "11111111-1111-4111-8111-111111111111", "/user/11111111-1111-4111-8111-111111111111/goals")]
     [InlineData("role_principle", "role", "cto", "/role/cto/shared")]
+    [InlineData("role_lens", "role", "cto", "/role/cto/shared")]
     [InlineData("role_principle", "user", "11111111-1111-4111-8111-111111111111", "/user/11111111-1111-4111-8111-111111111111/preferences")]
     [InlineData("project_role_lens", "org", "44444444-4444-4444-8444-444444444444", "/org/44444444-4444-4444-8444-444444444444/role/cto/lens")]
     public void Decide_rejects_candidate_types_outside_supported_scopes(

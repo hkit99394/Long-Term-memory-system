@@ -38,7 +38,7 @@ public sealed class MemoryNamespaceParserTests
     [InlineData("/global/", "empty path")]
     [InlineData("/project/not-a-guid/decisions", "valid GUID")]
     [InlineData("/org/22222222-2222-4222-8222-222222222222/role/cto", "category")]
-    [InlineData("/project/33333333-3333-4333-8333-333333333333/role/intern/lens", "not supported")]
+    [InlineData("/project/33333333-3333-4333-8333-333333333333/role/1intern/lens", "not supported")]
     [InlineData("/project/33333333-3333-4333-8333-333333333333/role/cto", "category")]
     [InlineData("/role/intern/shared", "not supported")]
     [InlineData("/session/global/working_memory", "must not be 'global'")]

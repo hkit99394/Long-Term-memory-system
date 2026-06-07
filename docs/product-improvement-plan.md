@@ -62,10 +62,10 @@ Status values:
 | IP-01 | P0 | Done | Knowledge Steward + Product Owner | Memory vs Markdown Policy Cleanup | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) defines what belongs in Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports; the source-backed knowledge seed includes the policy. |
 | IP-02 | P0 | Done | Security Professional + Developer | Admin Human Login For Console | `/auth/login` validates OIDC JWTs for active human identity bindings, `/admin/` and `/reviews/` send JWTs as `Authorization: Bearer`, break-glass API keys remain an explicit human-only fallback, and no console session cookie is issued. |
 | IP-03 | P0 | Done | IT/Ops + CTO | External / Managed PostgreSQL Production Profile | [External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md) defines `local` versus `external` database modes; the production container tool validates managed TLS connection strings, renders API/worker/migrator without local `postgres` dependencies, keeps the protected Docker volume as the default local mode, and ships `external-postgres-profile-smoke.sh`. |
-| IP-04 | P0 | Todo | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | Attach real post-GO evidence for deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, and rollback notes. |
-| IP-05 | P0 | Todo | Product Owner + CTO | Project-Defined Roles | Allow each project to define its own role set while preserving default roles as templates. |
-| IP-06 | P0 | Todo | Knowledge Steward + Developer | Canonical Memory Types | Support durable memory types for goal, target, fact, decision, rationale, risk, assumption, constraint, requirement, release_evidence, and role_lens. |
-| IP-07 | P1 | Todo | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | Automate source hash drift checks, stale source links, duplicate memory detection, missing evidence, and source-backed seed validation. |
+| IP-04 | P0 | Doing | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) defines the payload-safe target evidence manifest and `scripts/target-environment-evidence-verify.sh` for real deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, evidence upload, rollback notes, and go/no-go signatures; status remains Doing until a real target manifest passes the verifier and is linked from release evidence. |
+| IP-05 | P0 | Done | Product Owner + CTO | Project-Defined Roles | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) adds `project_role_definitions`, `POST /api/admin/access/project-roles`, project-aware role assignment/grant/lens validation, default role templates, and fail-closed handling for undefined or disabled custom project roles. |
+| IP-06 | P0 | Done | Knowledge Steward + Developer | Canonical Memory Types | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) defines the source-of-truth memory type vocabulary for `goal`, `target`, `fact`, `decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`, `release_evidence`, and `role_lens`, wires proposal/query validation through the domain value object, and keeps legacy aliases compatible. |
+| IP-07 | P1 | Done | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) adds `scripts/source-backed-memory-hygiene.sh`, pins source hashes in the production knowledge seed, validates stale source links, curated excerpt drift, duplicate memory identities, missing evidence, canonical memory types, and role-lens seed hygiene before source-backed project memory is written. |
 | IP-08 | P1 | Todo | Developer + CTO | Agent Memory Client / Wrapper | Provide a small client or tool wrapper that enforces getContext, queryFacts, and feedback before project work. |
 | IP-09 | P1 | Todo | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | Turn weekly `/admin/` and `/reviews/` checks into a structured queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
 | IP-10 | P1 | Todo | IT/Ops | Production Backup And Restore Drill Schedule | Define recurring restore validation, evidence capture, RPO/RTO expectations, and protected-volume/export checks. |
@@ -394,3 +394,33 @@ hardening work.
 now provides a machine-readable status file for the EPR gates and current
 blockers. [Pilot Operator Cockpit P3](pilot-operator-cockpit-p3.md) now renders
 that status through the authenticated admin Pilot view and readiness endpoint.
+
+2026-06-07 update: IP-04 is now in progress. [Target-Environment Evidence
+Hardening IP-04](target-environment-evidence-hardening-ip04.md) adds the
+payload-safe manifest contract, example manifest, and
+`scripts/target-environment-evidence-verify.sh` checksum verifier for the real
+target run. The actual target-environment evidence bundle is still not attached
+in this workspace, so IP-04 remains Doing until that verifier passes against
+real target artifacts and the controlled evidence prefix is linked from release
+evidence.
+
+2026-06-07 update: IP-05 is implemented in [Project-Defined Roles
+IP-05](project-defined-roles-ip05.md). Projects can now define active custom
+role ids through `POST /api/admin/access/project-roles`; project role
+assignments, namespace grants, and role-lens proposals accept either default
+role templates or active project-defined roles, while global and organization
+role surfaces keep the default templates.
+
+2026-06-07 update: IP-06 is implemented in [Canonical Memory Types
+IP-06](canonical-memory-types-ip06.md). The domain now owns the canonical
+durable memory type vocabulary, proposal validation accepts the new project
+types and canonical `role_lens`, query-facts filtering accepts the same
+canonical set, and legacy values remain compatible for existing rows and
+callers.
+
+2026-06-07 update: IP-07 is implemented in [Source-Backed Memory Hygiene
+Automation IP-07](source-backed-memory-hygiene-ip07.md).
+`scripts/source-backed-memory-hygiene.sh` validates the production knowledge
+seed without calling the API, and `scripts/seed-production-knowledge-base.sh`
+now pins source document SHA-256 hashes before accepting curated source-backed
+memory inputs.

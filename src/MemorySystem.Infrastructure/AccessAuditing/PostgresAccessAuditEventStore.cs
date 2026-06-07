@@ -312,12 +312,12 @@ public sealed class PostgresAccessAuditEventStore(NpgsqlDataSource dataSource) :
             return null;
         }
 
-        if (!MemoryRoleId.TryNormalize(normalized, out var roleId, out _))
+        if (!MemoryRoleId.TryNormalizeIdentifier(normalized, out var roleId, out _))
         {
             throw new ArgumentException("Role id is not supported.");
         }
 
-        return roleId!.Value;
+        return roleId;
     }
 
     private static IReadOnlyDictionary<string, string?> NormalizeMetadata(IReadOnlyDictionary<string, string?>? metadata)

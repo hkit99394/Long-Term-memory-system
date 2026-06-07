@@ -131,7 +131,12 @@ public static class MemoryNamespaceParser
 
         var roleId = segments[4].ToLowerInvariant();
 
-        if (!MemoryRoleId.All.Contains(roleId))
+        var roleIsValid = scopeType == MemoryScopeType.Project
+            ? MemoryRoleId.TryNormalizeIdentifier(roleId, out roleId, out _)
+            : MemoryRoleId.TryNormalize(roleId, out var normalizedTemplateRoleId, out _)
+                && (roleId = normalizedTemplateRoleId!.Value).Length > 0;
+
+        if (!roleIsValid)
         {
             return Fail($"{scopeType} role namespace role id is not supported.", out memoryNamespace, out error);
         }
@@ -156,16 +161,16 @@ public static class MemoryNamespaceParser
 
         var roleId = segments[2].ToLowerInvariant();
 
-        if (!MemoryRoleId.All.Contains(roleId))
+        if (!MemoryRoleId.TryNormalize(roleId, out var normalizedRoleId, out _))
         {
             return Fail("role namespace role id is not supported.", out memoryNamespace, out error);
         }
 
         memoryNamespace = new MemoryNamespace(
             value,
-            MemoryScope.FromNormalized(MemoryScopeType.Role, roleId),
+            MemoryScope.FromNormalized(MemoryScopeType.Role, normalizedRoleId!.Value),
             segments.Skip(1).ToArray(),
-            MemoryRoleId.FromNormalized(roleId));
+            MemoryRoleId.FromNormalized(normalizedRoleId.Value));
         error = null;
         return true;
     }

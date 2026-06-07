@@ -316,7 +316,7 @@ public sealed partial class ApiMemorySearchTests
             var (invalidRoleStatus, invalidRolePayload, _) = await SendContextPacketAsync(
                 client,
                 "context packet",
-                roleId: "intern");
+                roleId: "1intern");
 
             Assert.Equal(HttpStatusCode.BadRequest, invalidProjectStatus);
             Assert.Contains("valid GUID", invalidProjectPayload.GetProperty("detail").GetString(), StringComparison.Ordinal);

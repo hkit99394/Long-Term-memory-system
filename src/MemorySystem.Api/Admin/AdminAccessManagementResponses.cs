@@ -12,6 +12,16 @@ public sealed record AdminProjectMembershipResponse(
     string AccessLevel,
     DateTimeOffset CreatedAt);
 
+public sealed record AdminProjectRoleDefinitionResponse(
+    Guid ProjectId,
+    string RoleId,
+    string DisplayName,
+    string? Description,
+    string? TemplateRoleId,
+    string Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record AdminRoleAssignmentResponse(
     Guid AssignmentId,
     Guid PrincipalId,

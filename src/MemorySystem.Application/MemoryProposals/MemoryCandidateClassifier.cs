@@ -1,3 +1,5 @@
+using MemorySystem.Domain.MemoryTypes;
+
 namespace MemorySystem.Application.MemoryProposals;
 
 internal static class MemoryCandidateClassifier
@@ -13,12 +15,14 @@ internal static class MemoryCandidateClassifier
 
         return proposal.MemoryType switch
         {
-            "preference" when proposal.ScopeType == "user" => MemoryCandidateClassifications.Preference,
-            "fact" when proposal.ScopeType == "project" => MemoryCandidateClassifications.ProjectFact,
-            "decision" when proposal.ScopeType == "project" => MemoryCandidateClassifications.Decision,
-            "role_principle" when proposal.ScopeType is "global" or "org" => MemoryCandidateClassifications.RoleLens,
-            "project_role_lens" when proposal.ScopeType == "project" => MemoryCandidateClassifications.RoleLens,
-            "agent_private" when proposal.ScopeType == "agent" => MemoryCandidateClassifications.AgentPrivate,
+            MemoryType.Preference when proposal.ScopeType == "user" => MemoryCandidateClassifications.Preference,
+            MemoryType.Decision when proposal.ScopeType == "project" => MemoryCandidateClassifications.Decision,
+            var value when MemoryType.CanonicalProjectFactLike.Contains(value)
+                && proposal.ScopeType == "project" => MemoryCandidateClassifications.ProjectFact,
+            MemoryType.RoleLens when proposal.ScopeType is "global" or "org" or "project" => MemoryCandidateClassifications.RoleLens,
+            MemoryType.RolePrinciple when proposal.ScopeType is "global" or "org" => MemoryCandidateClassifications.RoleLens,
+            MemoryType.ProjectRoleLens when proposal.ScopeType == "project" => MemoryCandidateClassifications.RoleLens,
+            MemoryType.AgentPrivate when proposal.ScopeType == "agent" => MemoryCandidateClassifications.AgentPrivate,
             _ => MemoryCandidateClassifications.Unsupported
         };
     }

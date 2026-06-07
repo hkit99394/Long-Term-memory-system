@@ -1,7 +1,9 @@
 using MemorySystem.Application.Access;
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
+using MemorySystem.Application.Roles;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Domain.Roles;
 using MemorySystem.Domain.Scopes;
 using Npgsql;
 using NpgsqlTypes;
@@ -10,7 +12,8 @@ namespace MemorySystem.Infrastructure.Admin;
 
 public sealed class PostgresAdminAccessManagementStore(
     NpgsqlDataSource dataSource,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminAccessManagementStore
+    IAccessAuditEventStore accessAuditEventStore,
+    IProjectRoleDefinitionStore projectRoleDefinitions) : IAdminAccessManagementStore
 {
     private static readonly IReadOnlySet<string> OrganizationAccessLevels = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -164,8 +167,12 @@ public sealed class PostgresAdminAccessManagementStore(
         ValidateId(command.ActorPrincipalId, "Actor principal id");
         ValidateId(command.PrincipalId, "Principal id");
         ValidateId(command.ScopeId, "Scope id");
-        var roleId = NormalizeAllowed(command.RoleId, MemoryScopePolicy.RoleIds, "Role id");
         var scopeType = NormalizeAllowed(command.ScopeType, RoleAssignmentScopeTypes, "Role assignment scope type");
+        var roleId = await NormalizeRoleForScopeAsync(
+            command.RoleId,
+            scopeType,
+            command.ScopeId,
+            cancellationToken);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var existing = await FindRoleAssignmentAsync(
@@ -223,7 +230,12 @@ public sealed class PostgresAdminAccessManagementStore(
         ValidateId(command.ActorPrincipalId, "Actor principal id");
         ValidateId(command.ScopeId, "Scope id");
         var scopeType = NormalizeAllowed(command.ScopeType, RoleAssignmentScopeTypes, "Namespace grant scope type");
-        var target = NormalizeGrantTarget(command.PrincipalId, command.RoleId);
+        var target = await NormalizeGrantTargetAsync(
+            command.PrincipalId,
+            command.RoleId,
+            scopeType,
+            command.ScopeId,
+            cancellationToken);
         var namespacePrefix = NormalizeNamespacePrefix(command.NamespacePrefix);
         var permission = NormalizeAllowed(command.Permission, MemoryAccessPermissions.All, "Namespace grant permission");
 
@@ -467,7 +479,12 @@ public sealed class PostgresAdminAccessManagementStore(
             reader.GetFieldValue<DateTimeOffset>(5));
     }
 
-    private static (Guid? PrincipalId, string? RoleId) NormalizeGrantTarget(Guid? principalId, string? roleId)
+    private async Task<(Guid? PrincipalId, string? RoleId)> NormalizeGrantTargetAsync(
+        Guid? principalId,
+        string? roleId,
+        string scopeType,
+        Guid scopeId,
+        CancellationToken cancellationToken)
     {
         if (principalId == Guid.Empty)
         {
@@ -476,7 +493,7 @@ public sealed class PostgresAdminAccessManagementStore(
 
         var normalizedRoleId = string.IsNullOrWhiteSpace(roleId)
             ? null
-            : NormalizeAllowed(roleId, MemoryScopePolicy.RoleIds, "Role id");
+            : await NormalizeRoleForScopeAsync(roleId, scopeType, scopeId, cancellationToken);
 
         if (principalId.HasValue == (normalizedRoleId is not null))
         {
@@ -484,6 +501,32 @@ public sealed class PostgresAdminAccessManagementStore(
         }
 
         return (principalId, normalizedRoleId);
+    }
+
+    private async Task<string> NormalizeRoleForScopeAsync(
+        string roleId,
+        string scopeType,
+        Guid scopeId,
+        CancellationToken cancellationToken)
+    {
+        if (!MemoryRoleId.TryNormalizeIdentifier(roleId, out var normalizedRoleId, out var error))
+        {
+            throw new ArgumentException(error);
+        }
+
+        if (scopeType == MemoryScopeType.Project)
+        {
+            return await projectRoleDefinitions.IsActiveProjectRoleAsync(scopeId, normalizedRoleId, cancellationToken)
+                ? normalizedRoleId
+                : throw new ArgumentException("Role id is not an active project role definition or default role template.");
+        }
+
+        if (MemoryRoleId.IsDefaultTemplate(normalizedRoleId))
+        {
+            return normalizedRoleId;
+        }
+
+        throw new ArgumentException("Role id is not supported for organization scope.");
     }
 
     private static string NormalizeNamespacePrefix(string namespacePrefix)

@@ -34,7 +34,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var globalBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 GlobalScope(),
@@ -135,7 +135,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var orgBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 OrgScope(),
@@ -191,7 +191,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var globalBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 GlobalScope(),
@@ -235,7 +235,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -280,7 +280,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -325,7 +325,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var deletedBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -371,7 +371,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var deletedBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -420,7 +420,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -465,7 +465,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -508,7 +508,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var projectBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 ProjectScope(),
@@ -570,7 +570,7 @@ public sealed class RoleMemoryLensRepositoryTests
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             var memoryFacts = new PostgresMemoryFactRepository(dataSource);
-            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource);
+            var roleLenses = new PostgresRoleMemoryLensRepository(dataSource, new TestProjectRoleDefinitionStore());
 
             var globalBaseFact = await memoryFacts.StoreAsync(CreateMemoryFactCommand(
                 GlobalScope(),
