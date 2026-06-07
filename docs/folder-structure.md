@@ -379,6 +379,7 @@ Rules:
 | `docs/project-defined-roles-ip05.md` | IP-05 project-defined role vocabulary, default templates, admin API, and validation contract. |
 | `docs/canonical-memory-types-ip06.md` | IP-06 canonical durable memory type vocabulary and compatibility aliases. |
 | `docs/source-backed-memory-hygiene-ip07.md` | IP-07 source-backed memory hygiene automation contract and seed validation rules. |
+| `docs/agent-memory-client-wrapper-ip08.md` | IP-08 local agent memory wrapper contract for prework, fact queries, and feedback closeout. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |

@@ -66,7 +66,7 @@ Status values:
 | IP-05 | P0 | Done | Product Owner + CTO | Project-Defined Roles | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) adds `project_role_definitions`, `POST /api/admin/access/project-roles`, project-aware role assignment/grant/lens validation, default role templates, and fail-closed handling for undefined or disabled custom project roles. |
 | IP-06 | P0 | Done | Knowledge Steward + Developer | Canonical Memory Types | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) defines the source-of-truth memory type vocabulary for `goal`, `target`, `fact`, `decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`, `release_evidence`, and `role_lens`, wires proposal/query validation through the domain value object, and keeps legacy aliases compatible. |
 | IP-07 | P1 | Done | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) adds `scripts/source-backed-memory-hygiene.sh`, pins source hashes in the production knowledge seed, validates stale source links, curated excerpt drift, duplicate memory identities, missing evidence, canonical memory types, and role-lens seed hygiene before source-backed project memory is written. |
-| IP-08 | P1 | Todo | Developer + CTO | Agent Memory Client / Wrapper | Provide a small client or tool wrapper that enforces getContext, queryFacts, and feedback before project work. |
+| IP-08 | P1 | Done | Developer + CTO | Agent Memory Client / Wrapper | [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) adds `scripts/agent-memory-client.sh` with `prework`, `feedback`, and `status`; `prework` requires `memory.getContext` and `memory.queryFacts`, stores only packet/item/source metadata, blocks a new prework run while feedback is pending, and clears pending state only after `memory.recordContextFeedback` succeeds. |
 | IP-09 | P1 | Todo | Knowledge Steward + Role Owners | Weekly Admin Review Workflow | Turn weekly `/admin/` and `/reviews/` checks into a structured queue for stale, wrong, missing, sensitive, over-broad, duplicate, and source-drift review. |
 | IP-10 | P1 | Todo | IT/Ops | Production Backup And Restore Drill Schedule | Define recurring restore validation, evidence capture, RPO/RTO expectations, and protected-volume/export checks. |
 | IP-11 | P1 | Todo | Security Professional | Access Boundary Review | Audit memberships, role assignments, grants, service accounts, break-glass keys, and OIDC bindings; add permission-drift review to the weekly habit. |
@@ -424,3 +424,9 @@ Automation IP-07](source-backed-memory-hygiene-ip07.md).
 seed without calling the API, and `scripts/seed-production-knowledge-base.sh`
 now pins source document SHA-256 hashes before accepting curated source-backed
 memory inputs.
+
+2026-06-07 update: IP-08 is implemented in [Agent Memory Client Wrapper
+IP-08](agent-memory-client-wrapper-ip08.md). `scripts/agent-memory-client.sh`
+adds `prework`, `feedback`, and `status` commands so agents can run
+`memory.getContext`, `memory.queryFacts`, and packet-id feedback as one enforced
+work loop before and after project work.

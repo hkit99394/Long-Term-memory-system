@@ -13,6 +13,7 @@ examples. The documented default API key is a local-demo value only; set
 | --- | --- |
 | [agent-memory-v1.openapi.json](agent-memory-v1.openapi.json) | LMSS v1 OpenAPI contract for the existing agent-facing memory workflow. |
 | [agent-memory-v1-examples.md](agent-memory-v1-examples.md) | Client examples for the v1 memory workflow. |
+| [../agent-memory-client-wrapper-ip08.md](../agent-memory-client-wrapper-ip08.md) | Repo-local wrapper that enforces `memory.getContext`, `memory.queryFacts`, and packet-id feedback around project work. |
 | [context-product-v1-caller-guide.md](context-product-v1-caller-guide.md) | CP-10 caller guide for reading context explanations, safe exclusions, feedback actions, review handoff, and raw query hygiene. |
 | [context-packet-product-v1.md](context-packet-product-v1.md) | CP-01 productized context packet response contract. |
 | [context-packet-product-v1.schema.json](context-packet-product-v1.schema.json) | JSON Schema for the productized context packet response. |

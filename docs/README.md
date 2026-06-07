@@ -94,6 +94,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project-specific role definitions, default role templates, and project role-lens validation rules. |
 | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Canonical durable memory type vocabulary and compatibility aliases for proposals and query filters. |
 | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Source hash drift, stale source link, duplicate memory, missing evidence, seed validation, and role-lens hygiene gate. |
+| [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Repo-local wrapper that enforces context retrieval, fact queries, and packet-id feedback before and after project work. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -105,6 +106,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [API Contracts](api/README.md) | Entry point for API contracts and runnable examples. |
 | [Agent Memory OpenAPI v1](api/agent-memory-v1.openapi.json) | Curated OpenAPI contract for agent-facing endpoints. |
 | [Agent Memory v1 Client Examples](api/agent-memory-v1-examples.md) | Curl-based end-to-end memory workflow. |
+| [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Local CLI wrapper for the required getContext, queryFacts, and feedback loop. |
 | [Policy Targeting For Agent Callers](api/policy-targeting-for-agent-callers.md) | Principal, scope, namespace, trust, retention, sensitivity, and source evidence rules. |
 | [Context Product v1 Caller Guide](api/context-product-v1-caller-guide.md) | Context explanations, safe exclusions, feedback, review handoff, and raw query hygiene. |
 | [Context Packet Product v1 Contract](api/context-packet-product-v1.md) | Productized context packet contract and schema reference. |
@@ -194,6 +196,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) | Canonical policy for what should live in Markdown, memory, backlog, source evidence, role lenses, and release evidence. |
 | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) | Source-of-truth memory type vocabulary for durable project memory and role lenses. |
 | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) | Automation contract for validating source-backed memory seed evidence before reseeding. |
+| [Agent Memory Client Wrapper IP-08](agent-memory-client-wrapper-ip08.md) | Wrapper contract for enforcing the agent memory prework and feedback loop. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

@@ -109,6 +109,7 @@ When platform backup or restore job scripts change, run shell syntax checks:
 
 ```bash
 bash -n scripts/production-container.sh
+bash -n scripts/agent-memory-client.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
 bash -n scripts/source-backed-memory-hygiene.sh
@@ -134,6 +135,33 @@ hygiene without calling the API.
 ```bash
 ./scripts/source-backed-memory-hygiene.sh
 MEMORYSYSTEM_KNOWLEDGE_SEED_DRY_RUN=true ./scripts/seed-production-knowledge-base.sh
+```
+
+## Agent Memory Client Wrapper
+
+Use this after changing the IP-08 wrapper or its docs. The non-network checks
+validate shell syntax and the local pending-state status path:
+
+```bash
+bash -n scripts/agent-memory-client.sh
+scripts/agent-memory-client.sh --help
+MEMORYSYSTEM_AGENT_MEMORY_STATE_FILE=/tmp/memorysystem-agent-memory-client-empty-test.json \
+  scripts/agent-memory-client.sh status
+```
+
+When a local API is available, run a live prework and feedback closeout using a
+temporary state file:
+
+```bash
+MEMORYSYSTEM_AGENT_MEMORY_STATE_FILE=/tmp/memorysystem-agent-memory-client-live-test.json \
+  scripts/agent-memory-client.sh prework \
+    --query "Agent memory wrapper smoke" \
+    --scope-type project \
+    --scope-id 9f8e7d6c-5b4a-4321-9123-abcdef123002 \
+    --role-id developer
+
+MEMORYSYSTEM_AGENT_MEMORY_STATE_FILE=/tmp/memorysystem-agent-memory-client-live-test.json \
+  scripts/agent-memory-client.sh feedback --feedback-type missing
 ```
 
 ## Target Environment Evidence Verification
