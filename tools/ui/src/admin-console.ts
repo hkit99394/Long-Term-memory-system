@@ -184,6 +184,9 @@ interface TextFetchResult {
   headers: Headers;
 }
 
+const credentialStorageKey = "memorySystem.consoleCredential";
+const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+
 interface AdminConsoleState {
   mode: "memory" | "events" | "access" | "compliance" | "pilot";
   facts: AdminMemoryFact[];
@@ -230,6 +233,7 @@ const elements = {
   createdToFilter: byId<HTMLInputElement>("created-to-filter"),
   query: byId<HTMLInputElement>("query"),
   refresh: byId<HTMLButtonElement>("refresh"),
+  logout: byId<HTMLButtonElement>("logout"),
   status: byId<HTMLElement>("status"),
   listTitle: byId<HTMLElement>("list-title"),
   resultList: byId<HTMLElement>("result-list"),
@@ -239,7 +243,11 @@ const elements = {
 };
 
 elements.apiBase.value = window.location.origin;
+elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
+redirectToLoginIfMissingCredential("/admin/");
 elements.refresh.addEventListener("click", () => void loadCurrentMode());
+elements.logout.addEventListener("click", () => void logout());
+elements.apiKey.addEventListener("change", persistCredential);
 elements.query.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -489,14 +497,11 @@ async function openSource(path: string): Promise<void> {
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();
@@ -508,6 +513,55 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return payload as T;
+}
+
+async function logout(): Promise<void> {
+  setBusy(true);
+  sessionStorage.removeItem(credentialStorageKey);
+  sessionStorage.removeItem(credentialKindStorageKey);
+  elements.apiKey.value = "";
+  window.location.assign("/auth/login?returnUrl=/admin/");
+  setBusy(false);
+}
+
+function redirectToLoginIfMissingCredential(returnUrl: string): void {
+  if (elements.apiKey.value.trim()) {
+    return;
+  }
+
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function persistCredential(): void {
+  const credential = elements.apiKey.value.trim();
+  if (credential) {
+    sessionStorage.setItem(credentialStorageKey, credential);
+  } else {
+    sessionStorage.removeItem(credentialStorageKey);
+    sessionStorage.removeItem(credentialKindStorageKey);
+  }
+}
+
+function applyAuth(headers: Headers): void {
+  const credential = elements.apiKey.value.trim();
+  if (!credential) {
+    return;
+  }
+
+  persistCredential();
+
+  if (looksLikeJwt(credential)) {
+    headers.set("Authorization", `Bearer ${credential}`);
+    headers.delete("X-Api-Key");
+    return;
+  }
+
+  headers.set("X-Api-Key", credential);
+  headers.delete("Authorization");
+}
+
+function looksLikeJwt(value: string): boolean {
+  return value.split(".").length === 3;
 }
 
 function render(): void {
@@ -1241,14 +1295,11 @@ function formValue(form: HTMLFormElement, name: string): string {
 async function apiFetchText(path: string, init: RequestInit = {}): Promise<TextFetchResult> {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();

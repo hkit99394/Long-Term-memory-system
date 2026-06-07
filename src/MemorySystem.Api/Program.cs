@@ -111,6 +111,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 }).AllowAnonymous().DisableRateLimiting();
 
 app.MapGet("/", () => "Hello World!").AllowAnonymous().DisableRateLimiting();
+app.MapMemorySystemConsoleTokenEndpoints();
 app.MapMemorySystemEventEndpoints();
 app.MapMemorySystemMemoryFactEndpoints();
 app.MapMemorySystemMemoryProposalEndpoints();

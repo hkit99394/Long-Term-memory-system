@@ -142,6 +142,19 @@ principal, and an `authentication` audit event is written with `auth_method =
 If the token is valid but the subject is unbound, the request must fail closed.
 Do not create a principal or grant during the failed login path.
 
+## Console JWT Login
+
+Use `/auth/login?returnUrl=/admin/` or `/auth/login?returnUrl=/reviews/` for
+interactive console access. Paste an OIDC JWT for a bound active human
+principal. After validation, the browser stores the JWT in `sessionStorage` and
+the console sends it as `Authorization: Bearer` on API calls.
+
+The same login page accepts a configured break-glass API key only when that key
+resolves to an active human principal. Break-glass console access is stored in
+`sessionStorage` and sent as `X-Api-Key`; service-account principals must not be
+accepted by the console login. The console does not issue or depend on a server
+session cookie.
+
 ## Access Setup
 
 Use the admin console at `/admin/` when possible. The API equivalents are

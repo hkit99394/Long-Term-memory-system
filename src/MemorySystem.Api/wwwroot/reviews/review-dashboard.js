@@ -49,6 +49,9 @@
 
 
 
+const credentialStorageKey = "memorySystem.consoleCredential";
+const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+
 const actions                 = ["approve", "reject", "edit", "expire", "delete", "supersede"];
 const actionLabels                               = {
   approve: "Approve",
@@ -71,6 +74,7 @@ const elements = {
   apiBase: byId                  ("api-base"),
   apiKey: byId                  ("api-key"),
   refresh: byId                   ("refresh"),
+  logout: byId                   ("logout"),
   status: byId             ("status"),
   reviewList: byId             ("review-list"),
   detail: byId             ("review-detail"),
@@ -86,7 +90,12 @@ const elements = {
   activity: byId             ("activity")
 };
 
+elements.apiBase.value = window.location.origin;
+elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
+redirectToLoginIfMissingCredential("/reviews/");
 elements.refresh.addEventListener("click", () => void loadReviews());
+elements.logout.addEventListener("click", () => void logout());
+elements.apiKey.addEventListener("change", persistCredential);
 elements.actionForm.addEventListener("submit", event => {
   event.preventDefault();
   void submitAction();
@@ -189,11 +198,7 @@ async function submitAction()                {
 async function apiFetch   (path        , init              = {})             {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -201,6 +206,7 @@ async function apiFetch   (path        , init              = {})             {
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();
@@ -212,6 +218,55 @@ async function apiFetch   (path        , init              = {})             {
   }
 
   return payload     ;
+}
+
+async function logout()                {
+  setBusy(true);
+  sessionStorage.removeItem(credentialStorageKey);
+  sessionStorage.removeItem(credentialKindStorageKey);
+  elements.apiKey.value = "";
+  window.location.assign("/auth/login?returnUrl=/reviews/");
+  setBusy(false);
+}
+
+function redirectToLoginIfMissingCredential(returnUrl        )       {
+  if (elements.apiKey.value.trim()) {
+    return;
+  }
+
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function persistCredential()       {
+  const credential = elements.apiKey.value.trim();
+  if (credential) {
+    sessionStorage.setItem(credentialStorageKey, credential);
+  } else {
+    sessionStorage.removeItem(credentialStorageKey);
+    sessionStorage.removeItem(credentialKindStorageKey);
+  }
+}
+
+function applyAuth(headers         )       {
+  const credential = elements.apiKey.value.trim();
+  if (!credential) {
+    return;
+  }
+
+  persistCredential();
+
+  if (looksLikeJwt(credential)) {
+    headers.set("Authorization", `Bearer ${credential}`);
+    headers.delete("X-Api-Key");
+    return;
+  }
+
+  headers.set("X-Api-Key", credential);
+  headers.delete("Authorization");
+}
+
+function looksLikeJwt(value        )          {
+  return value.split(".").length === 3;
 }
 
 function render()       {

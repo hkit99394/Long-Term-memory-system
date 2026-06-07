@@ -2,7 +2,6 @@ using MemorySystem.Application.Authentication;
 using MemorySystem.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace MemorySystem.Api.Authentication;

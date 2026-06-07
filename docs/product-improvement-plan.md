@@ -60,7 +60,7 @@ Status values:
 | ID | Priority | Status | Owner | Item | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
 | IP-01 | P0 | Done | Knowledge Steward + Product Owner | Memory vs Markdown Policy Cleanup | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) defines what belongs in Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports; the source-backed knowledge seed includes the policy. |
-| IP-02 | P0 | Todo | Security Professional + Developer | Admin Human Login For Console | Add OIDC/session-cookie login for `/admin/` and `/reviews/`; keep API keys for service accounts, automation, and break-glass use. |
+| IP-02 | P0 | Done | Security Professional + Developer | Admin Human Login For Console | `/auth/login` validates OIDC JWTs for active human identity bindings, `/admin/` and `/reviews/` send JWTs as `Authorization: Bearer`, break-glass API keys remain an explicit human-only fallback, and no console session cookie is issued. |
 | IP-03 | P0 | Todo | IT/Ops + CTO | External / Managed PostgreSQL Production Profile | Support optional external database mode with documented connection config, migration flow, backup/restore validation, and smoke tests while keeping the Docker volume as local/simple mode. |
 | IP-04 | P0 | Todo | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | Attach real post-GO evidence for deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, and rollback notes. |
 | IP-05 | P0 | Todo | Product Owner + CTO | Project-Defined Roles | Allow each project to define its own role set while preserving default roles as templates. |

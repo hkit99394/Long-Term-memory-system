@@ -48,6 +48,9 @@ interface DashboardState {
   actionIdempotencyKeys: Record<string, string>;
 }
 
+const credentialStorageKey = "memorySystem.consoleCredential";
+const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+
 const actions: ReviewAction[] = ["approve", "reject", "edit", "expire", "delete", "supersede"];
 const actionLabels: Record<ReviewAction, string> = {
   approve: "Approve",
@@ -70,6 +73,7 @@ const elements = {
   apiBase: byId<HTMLInputElement>("api-base"),
   apiKey: byId<HTMLInputElement>("api-key"),
   refresh: byId<HTMLButtonElement>("refresh"),
+  logout: byId<HTMLButtonElement>("logout"),
   status: byId<HTMLElement>("status"),
   reviewList: byId<HTMLElement>("review-list"),
   detail: byId<HTMLElement>("review-detail"),
@@ -85,7 +89,12 @@ const elements = {
   activity: byId<HTMLElement>("activity")
 };
 
+elements.apiBase.value = window.location.origin;
+elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
+redirectToLoginIfMissingCredential("/reviews/");
 elements.refresh.addEventListener("click", () => void loadReviews());
+elements.logout.addEventListener("click", () => void logout());
+elements.apiKey.addEventListener("change", persistCredential);
 elements.actionForm.addEventListener("submit", event => {
   event.preventDefault();
   void submitAction();
@@ -188,11 +197,7 @@ async function submitAction(): Promise<void> {
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -200,6 +205,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();
@@ -211,6 +217,55 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return payload as T;
+}
+
+async function logout(): Promise<void> {
+  setBusy(true);
+  sessionStorage.removeItem(credentialStorageKey);
+  sessionStorage.removeItem(credentialKindStorageKey);
+  elements.apiKey.value = "";
+  window.location.assign("/auth/login?returnUrl=/reviews/");
+  setBusy(false);
+}
+
+function redirectToLoginIfMissingCredential(returnUrl: string): void {
+  if (elements.apiKey.value.trim()) {
+    return;
+  }
+
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function persistCredential(): void {
+  const credential = elements.apiKey.value.trim();
+  if (credential) {
+    sessionStorage.setItem(credentialStorageKey, credential);
+  } else {
+    sessionStorage.removeItem(credentialStorageKey);
+    sessionStorage.removeItem(credentialKindStorageKey);
+  }
+}
+
+function applyAuth(headers: Headers): void {
+  const credential = elements.apiKey.value.trim();
+  if (!credential) {
+    return;
+  }
+
+  persistCredential();
+
+  if (looksLikeJwt(credential)) {
+    headers.set("Authorization", `Bearer ${credential}`);
+    headers.delete("X-Api-Key");
+    return;
+  }
+
+  headers.set("X-Api-Key", credential);
+  headers.delete("Authorization");
+}
+
+function looksLikeJwt(value: string): boolean {
+  return value.split(".").length === 3;
 }
 
 function render(): void {

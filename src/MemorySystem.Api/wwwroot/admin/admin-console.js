@@ -185,6 +185,9 @@
 
 
 
+const credentialStorageKey = "memorySystem.consoleCredential";
+const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+
 
 
 
@@ -231,6 +234,7 @@ const elements = {
   createdToFilter: byId                  ("created-to-filter"),
   query: byId                  ("query"),
   refresh: byId                   ("refresh"),
+  logout: byId                   ("logout"),
   status: byId             ("status"),
   listTitle: byId             ("list-title"),
   resultList: byId             ("result-list"),
@@ -240,7 +244,11 @@ const elements = {
 };
 
 elements.apiBase.value = window.location.origin;
+elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
+redirectToLoginIfMissingCredential("/admin/");
 elements.refresh.addEventListener("click", () => void loadCurrentMode());
+elements.logout.addEventListener("click", () => void logout());
+elements.apiKey.addEventListener("change", persistCredential);
 elements.query.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -490,14 +498,11 @@ async function openSource(path        )                {
 async function apiFetch   (path        , init              = {})             {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();
@@ -509,6 +514,55 @@ async function apiFetch   (path        , init              = {})             {
   }
 
   return payload     ;
+}
+
+async function logout()                {
+  setBusy(true);
+  sessionStorage.removeItem(credentialStorageKey);
+  sessionStorage.removeItem(credentialKindStorageKey);
+  elements.apiKey.value = "";
+  window.location.assign("/auth/login?returnUrl=/admin/");
+  setBusy(false);
+}
+
+function redirectToLoginIfMissingCredential(returnUrl        )       {
+  if (elements.apiKey.value.trim()) {
+    return;
+  }
+
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function persistCredential()       {
+  const credential = elements.apiKey.value.trim();
+  if (credential) {
+    sessionStorage.setItem(credentialStorageKey, credential);
+  } else {
+    sessionStorage.removeItem(credentialStorageKey);
+    sessionStorage.removeItem(credentialKindStorageKey);
+  }
+}
+
+function applyAuth(headers         )       {
+  const credential = elements.apiKey.value.trim();
+  if (!credential) {
+    return;
+  }
+
+  persistCredential();
+
+  if (looksLikeJwt(credential)) {
+    headers.set("Authorization", `Bearer ${credential}`);
+    headers.delete("X-Api-Key");
+    return;
+  }
+
+  headers.set("X-Api-Key", credential);
+  headers.delete("Authorization");
+}
+
+function looksLikeJwt(value        )          {
+  return value.split(".").length === 3;
 }
 
 function render()       {
@@ -1242,14 +1296,11 @@ function formValue(form                 , name        )         {
 async function apiFetchText(path        , init              = {})                           {
   const apiBase = elements.apiBase.value.trim().replace(/\/$/, "");
   const headers = new Headers(init.headers);
-  const apiKey = elements.apiKey.value.trim();
-
-  if (apiKey) {
-    headers.set("X-Api-Key", apiKey);
-  }
+  applyAuth(headers);
 
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers
   });
   const text = await response.text();

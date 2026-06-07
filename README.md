@@ -104,8 +104,14 @@ curl -H "X-Api-Key: private-alpha-local-key" http://127.0.0.1:5099/api/operation
 
 Then visit:
 
+- `http://127.0.0.1:5099/auth/login?returnUrl=/admin/` to store a local console credential
 - `http://127.0.0.1:5099/reviews/` for the review dashboard
 - `http://127.0.0.1:5099/admin/` for the admin console
+
+The console login accepts an OIDC JWT for a bound human principal. In local
+development, use the demo key as the explicit break-glass credential; the
+console stores it in browser `sessionStorage` and sends it as `X-Api-Key` for
+API calls. OIDC JWTs are sent as `Authorization: Bearer`.
 
 The local API key `private-alpha-local-key` and Docker password
 `memory_system_dev_password` are committed demo values. They are not secrets and
@@ -194,6 +200,9 @@ The UI build writes static assets under
 | --- | --- |
 | `GET /health/live` | Liveness check |
 | `GET /health/ready` | Readiness check, including database and provider health |
+| `GET /auth/login` | Console login page for OIDC JWTs and human-only break-glass keys |
+| `POST /api/auth/console/oidc-token` | Validate an OIDC JWT before storing it in browser session storage |
+| `POST /api/auth/console/break-glass-key` | Validate a human break-glass API key before storing it in browser session storage |
 | `GET /api/operations/summary` | API, worker, outbox, review, and vault-export summary |
 | `GET /api/operations/metrics` | Authenticated Prometheus-compatible pilot metrics |
 | `GET /api/admin/memory/facts` | Authenticated memory fact inspection for the admin console |
