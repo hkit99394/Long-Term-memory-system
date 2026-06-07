@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/checksums.sh"
+
 ENVIRONMENT="${MEMORYSYSTEM_ENVIRONMENT:-local}"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)_$$"
 BACKUP_ID="${MEMORYSYSTEM_BACKUP_ID:-}"
@@ -42,17 +45,6 @@ require_command() {
     echo "Required command not found: $name" >&2
     exit 1
   fi
-}
-
-sha256_file() {
-  local file="$1"
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$file" | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 "$file" | awk '{print $1}'
 }
 
 write_metrics() {

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/checksums.sh"
+
 usage() {
   cat <<'EOF'
 Usage: scripts/target-environment-evidence-verify.sh <manifest.json>
@@ -33,17 +36,6 @@ FAILURES=()
 
 add_failure() {
   FAILURES+=("$1")
-}
-
-sha256_file() {
-  local file="$1"
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$file" | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 "$file" | awk '{print $1}'
 }
 
 require_string() {
@@ -91,6 +83,10 @@ require_string '.targetEnvironment.name' 'targetEnvironment.name'
 require_string '.targetEnvironment.region' 'targetEnvironment.region'
 require_string '.databaseTarget.endpointRef' 'databaseTarget.endpointRef'
 require_string '.databaseTarget.databaseName' 'databaseTarget.databaseName'
+
+if ! jq -e '.databaseTarget.pgvectorVerified == true' "$MANIFEST_FILE" >/dev/null; then
+  add_failure "databaseTarget.pgvectorVerified must be true"
+fi
 
 for owner in releaseOwner rollbackOwner alertRouteOwner evidenceOwner benchmarkScorer governanceReviewer; do
   require_string ".owners.$owner" "owners.$owner"

@@ -344,6 +344,77 @@ public sealed class OutboxWorkerTests
         }
     }
 
+    [DatabaseTheory]
+    [Trait("Category", "Database")]
+    [InlineData("secret")]
+    [InlineData("regulated")]
+    public async Task Memory_index_handler_does_not_embed_blocked_source_sensitivity(string sensitivity)
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_outbox_sensitivity_embedding_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+
+            var sourceEventId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                sourceEventId,
+                PrincipalId,
+                "global",
+                "global",
+                trustLevel: "human_approved",
+                sensitivity: sensitivity);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var repository = new PostgresMemoryFactRepository(dataSource);
+            var memory = await repository.StoreAsync(new MemoryFactWriteCommand(
+                new MemoryScopeResolution("global", "global"),
+                "/global/decisions",
+                "decision",
+                "system",
+                $"Blocked source {sensitivity}",
+                "must",
+                "not call the embedding provider",
+                0.950m,
+                sourceEventId,
+                PrincipalId,
+                MemoryFactStatuses.Active));
+            var chunkId = await ReadMemoryFactChunkIdAsync(databaseConnectionString, memory.Id);
+            var handler = new MemoryIndexOutboxJobHandler(
+                dataSource,
+                new ThrowingEmbeddingProvider(),
+                new PostgresMemoryChunkEmbeddingStore(dataSource),
+                NullLogger<MemoryIndexOutboxJobHandler>.Instance);
+            var job = new OutboxJob(
+                Guid.NewGuid(),
+                MemoryIndexOutboxJobContract.JobType,
+                MemoryIndexOutboxJobContract.AggregateType,
+                memory.Id,
+                MemoryIndexOutboxJobContract.CreateIdempotencyKey(memory.Id),
+                MemoryIndexOutboxJobContract.SerializePayload(memory.Id, chunkId, sourceEventId),
+                "processing",
+                1,
+                DateTimeOffset.UtcNow,
+                null,
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow);
+
+            await handler.ProcessAsync(job, CancellationToken.None);
+
+            Assert.Equal(0, await CountEmbeddingsForChunkAsync(databaseConnectionString, chunkId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task<Guid> InsertOutboxJobAsync(
         string connectionString,
         string jobType,
@@ -539,6 +610,22 @@ public sealed class OutboxWorkerTests
             await redactAsync();
 
             return new MemoryEmbeddingVector(Model, Dimension, [0.1f, 0.2f, 0.3f]);
+        }
+    }
+
+    private sealed class ThrowingEmbeddingProvider : IMemoryEmbeddingProvider
+    {
+        public string ProviderName => "test";
+
+        public string Model => "test-embedding-model";
+
+        public int Dimension => 3;
+
+        public Task<MemoryEmbeddingVector> EmbedAsync(
+            MemoryEmbeddingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Blocked source content must not be sent to the embedding provider.");
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -70,6 +71,24 @@ public sealed class ApiRateLimitingTests
         Assert.Equal((HttpStatusCode)429, secondResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task Memory_full_text_search_uses_expensive_rate_limit_policy()
+    {
+        using var factory = CreateFactory(defaultPermitLimit: 10, expensivePermitLimit: 1);
+        using var client = factory.CreateClient();
+
+        using var first = new HttpRequestMessage(HttpMethod.Get, "/api/memory/search?q=alpha");
+        first.Headers.Add("X-Api-Key", ApiKeyA);
+        using var second = new HttpRequestMessage(HttpMethod.Get, "/api/memory/search?q=alpha");
+        second.Headers.Add("X-Api-Key", ApiKeyA);
+
+        using var firstResponse = await client.SendAsync(first);
+        using var secondResponse = await client.SendAsync(second);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal((HttpStatusCode)429, secondResponse.StatusCode);
+    }
+
     private static HttpRequestMessage CreateRequest(string apiKey)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/__test/json-body/widgets")
@@ -81,7 +100,9 @@ public sealed class ApiRateLimitingTests
         return request;
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(int defaultPermitLimit)
+    private static WebApplicationFactory<Program> CreateFactory(
+        int defaultPermitLimit,
+        int? expensivePermitLimit = null)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -95,6 +116,8 @@ public sealed class ApiRateLimitingTests
                             "Host=unused;Database=unused;Username=unused;Password=unused",
                         ["RateLimiting:Default:PermitLimit"] = defaultPermitLimit.ToString(),
                         ["RateLimiting:Default:WindowSeconds"] = "60",
+                        ["RateLimiting:Expensive:PermitLimit"] = (expensivePermitLimit ?? 60).ToString(),
+                        ["RateLimiting:Expensive:WindowSeconds"] = "60",
                         ["Authentication:ApiKey:Keys:key-a:Key"] = ApiKeyA,
                         ["Authentication:ApiKey:Keys:key-a:PrincipalId"] = PrincipalId,
                         ["Authentication:ApiKey:Keys:key-a:DisplayName"] = "Test API caller A",
@@ -106,6 +129,7 @@ public sealed class ApiRateLimitingTests
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton<IPrincipalResolver>(new AlwaysActivePrincipalResolver());
+                    services.AddSingleton<IMemoryChunkFullTextSearch, EmptyFullTextSearch>();
                 });
             });
     }
@@ -131,6 +155,16 @@ public sealed class ApiRateLimitingTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<AuthenticatedPrincipal?>(null);
+        }
+    }
+
+    private sealed class EmptyFullTextSearch : IMemoryChunkFullTextSearch
+    {
+        public Task<IReadOnlyList<MemoryChunkSearchResult>> SearchAsync(
+            MemoryChunkFullTextSearchQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<MemoryChunkSearchResult>>(Array.Empty<MemoryChunkSearchResult>());
         }
     }
 }

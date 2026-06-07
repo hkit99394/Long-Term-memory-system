@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/checksums.sh"
+
 ENVIRONMENT="${MEMORYSYSTEM_ENVIRONMENT:-local}"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)_$$"
 MODE="${MEMORYSYSTEM_EXTERNAL_PAYLOAD_CHECK_MODE:-audit-only}"
@@ -51,6 +54,10 @@ metric_label_escape() {
   printf '%s' "$value"
 }
 
+to_lower() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 require_command() {
   local name="$1"
 
@@ -90,29 +97,22 @@ json_string_array_from_csv() {
       printf ', '
     fi
 
-    printf '"%s"' "$(json_escape "${value,,}")"
+    printf '"%s"' "$(json_escape "$(to_lower "$value")")"
   done
   printf ']'
 }
 
-sha256_stream() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 | awk '{print $1}'
-}
-
 is_scheme_allowed() {
-  local scheme="${1,,}"
+  local scheme
   local allowed
+
+  scheme="$(to_lower "$1")"
 
   IFS=',' read -r -a values <<<"$ALLOWED_SCHEMES"
   for allowed in "${values[@]}"; do
     allowed="${allowed#"${allowed%%[![:space:]]*}"}"
     allowed="${allowed%"${allowed##*[![:space:]]}"}"
-    if [[ "${allowed,,}" == "$scheme" ]]; then
+    if [[ "$(to_lower "$allowed")" == "$scheme" ]]; then
       return 0
     fi
   done
@@ -178,8 +178,10 @@ probe_s3_uri() {
 }
 
 probe_external_payload() {
-  local scheme="${1,,}"
+  local scheme
   local uri="$2"
+
+  scheme="$(to_lower "$1")"
 
   case "$scheme" in
     file)

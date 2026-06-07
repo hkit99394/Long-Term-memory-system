@@ -1,3 +1,4 @@
+using MemorySystem.Application.MemoryChunks;
 using MemorySystem.Application.MemoryEmbeddings;
 using MemorySystem.Infrastructure.Outbox;
 using Microsoft.Extensions.Logging;
@@ -76,8 +77,13 @@ public sealed class MemoryIndexOutboxJobHandler(
                 concat_ws(' ', chunk.title, chunk.content),
                 chunk.content_hash,
                 fact.status,
-                lens.status
+                lens.status,
+                source_event.retention_class,
+                source_event.redaction_status,
+                source_event.sensitivity
             FROM memory_chunks AS chunk
+            INNER JOIN events AS source_event
+                ON source_event.id = chunk.source_event_id
             LEFT JOIN memory_facts AS fact
                 ON chunk.source_type = 'memory_fact'
                 AND fact.id = chunk.source_id
@@ -109,7 +115,10 @@ public sealed class MemoryIndexOutboxJobHandler(
             reader.GetString(3),
             reader.GetString(4),
             reader.IsDBNull(5) ? null : reader.GetString(5),
-            reader.IsDBNull(6) ? null : reader.GetString(6));
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.GetString(7),
+            reader.GetString(8),
+            reader.GetString(9));
 
         if (chunk.SourceEventId != payload.SourceEventId)
         {
@@ -123,6 +132,21 @@ public sealed class MemoryIndexOutboxJobHandler(
                 "Skipping memory index outbox job {JobId} because chunk {ChunkId} is redacted.",
                 jobId,
                 payload.ChunkId);
+            return null;
+        }
+
+        if (MemoryChunkSourceEligibility.BlocksEmbedding(
+            chunk.SourceRetentionClass,
+            chunk.SourceRedactionStatus,
+            chunk.SourceSensitivity))
+        {
+            logger.LogInformation(
+                "Skipping memory index outbox job {JobId} because source event {SourceEventId} is not eligible for embedding. RetentionClass={RetentionClass} RedactionStatus={RedactionStatus} Sensitivity={Sensitivity}",
+                jobId,
+                chunk.SourceEventId,
+                chunk.SourceRetentionClass,
+                chunk.SourceRedactionStatus,
+                chunk.SourceSensitivity);
             return null;
         }
 
@@ -169,7 +193,10 @@ public sealed class MemoryIndexOutboxJobHandler(
         string SearchableInput,
         string ContentHash,
         string? MemoryFactStatus,
-        string? RoleMemoryLensStatus);
+        string? RoleMemoryLensStatus,
+        string SourceRetentionClass,
+        string SourceRedactionStatus,
+        string SourceSensitivity);
 
     private sealed record MemoryIndexChunkInput(
         string SearchableInput,

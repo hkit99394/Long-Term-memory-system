@@ -5,5 +5,8 @@
   "scripts": {
     "build": "node build-review-dashboard.mjs",
     "check": "node --check ../../src/MemorySystem.Api/wwwroot/reviews/review-dashboard.js && node --check ../../src/MemorySystem.Api/wwwroot/admin/admin-console.js"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }

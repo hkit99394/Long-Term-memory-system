@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/checksums.sh"
 . "$ROOT_DIR/scripts/restore-validation-tables.sh"
 
 ENVIRONMENT="${MEMORYSYSTEM_ENVIRONMENT:-local}"
@@ -83,17 +84,6 @@ require_value() {
     echo "Required environment value is missing: $name" >&2
     exit 1
   fi
-}
-
-sha256_file() {
-  local file="$1"
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$file" | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 "$file" | awk '{print $1}'
 }
 
 run_migrator() {

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace MemorySystem.UnitTests;
@@ -138,7 +139,12 @@ public sealed class ReleaseEvidenceBundleAutomationIp17Tests
                 Assert.False(line.Contains(SecretFixtureMarker, StringComparison.Ordinal));
             });
 
-            Assert.Contains("ip17-test.json", File.ReadAllText(sidecarPath), StringComparison.Ordinal);
+            var sidecarParts = File.ReadAllText(sidecarPath)
+                .Trim()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            Assert.Equal(2, sidecarParts.Length);
+            Assert.Equal("ip17-test.json", sidecarParts[1]);
+            Assert.Equal(Sha256File(manifestPath), sidecarParts[0]);
         }
         finally
         {
@@ -189,6 +195,11 @@ public sealed class ReleaseEvidenceBundleAutomationIp17Tests
         }
 
         return artifacts;
+    }
+
+    private static string Sha256File(string path)
+    {
+        return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
     }
 
     private static async Task<ScriptResult> RunScriptAsync(string root, IReadOnlyList<string> arguments)

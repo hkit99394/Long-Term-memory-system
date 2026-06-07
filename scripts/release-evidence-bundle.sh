@@ -309,12 +309,12 @@ def write_outputs(manifest):
     summary_path = Path(manifest["bundle"]["summaryPath"])
     hash_path = Path(manifest["bundle"]["sha256SidecarPath"])
 
-    manifest_json = json.dumps(manifest, indent=2, sort_keys=True)
+    manifest_json = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     artifact_index = "\n".join(json.dumps(artifact, sort_keys=True) for artifact in manifest["artifacts"]) + "\n"
     summary = build_summary(manifest)
     manifest_sha256 = sha256_bytes(manifest_json.encode("utf-8"))
 
-    write_text(manifest_path, manifest_json + "\n")
+    write_text(manifest_path, manifest_json)
     write_text(artifact_index_path, artifact_index)
     write_text(summary_path, summary)
     write_text(hash_path, f"{manifest_sha256}  {manifest_path.name}\n")

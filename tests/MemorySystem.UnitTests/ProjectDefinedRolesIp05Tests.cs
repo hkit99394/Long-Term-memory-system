@@ -16,6 +16,8 @@ public sealed class ProjectDefinedRolesIp05Tests
         var roleValue = File.ReadAllText(Path.Combine(root, "src", "MemorySystem.Domain", "Roles", "MemoryRoleId.cs"));
         var projectRoleStore = File.ReadAllText(Path.Combine(root, "src", "MemorySystem.Infrastructure", "Roles", "PostgresProjectRoleDefinitionStore.cs"));
         var proposalWorkflow = File.ReadAllText(Path.Combine(root, "src", "MemorySystem.Application", "MemoryProposals", "MemoryProposalWorkflow.cs"));
+        var adminConsole = File.ReadAllText(Path.Combine(root, "tools", "ui", "src", "admin-console.ts"));
+        var adminAccessPanel = File.ReadAllText(Path.Combine(root, "tools", "ui", "src", "admin", "access-panel.ts"));
 
         Assert.Contains("| IP-05 | P0 | Done | Product Owner + CTO | Project-Defined Roles |", productPlan, StringComparison.Ordinal);
         Assert.Contains("# Project-Defined Roles IP-05", contract, StringComparison.Ordinal);
@@ -40,6 +42,10 @@ public sealed class ProjectDefinedRolesIp05Tests
         Assert.Contains("DefaultTemplates => All", roleValue, StringComparison.Ordinal);
         Assert.Contains("IsActiveProjectRoleAsync", projectRoleStore, StringComparison.Ordinal);
         Assert.Contains("Role-lens proposals require a default role template or active project role definition.", proposalWorkflow, StringComparison.Ordinal);
+        Assert.Contains("renderAccessDetail", adminConsole, StringComparison.Ordinal);
+        Assert.Contains("Project role definition", adminAccessPanel, StringComparison.Ordinal);
+        Assert.Contains("/api/admin/access/project-roles", adminAccessPanel, StringComparison.Ordinal);
+        Assert.Contains("project_role_definition_change", adminAccessPanel, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

@@ -147,10 +147,15 @@ public sealed class PostgresMemoryChunkHybridSearch(
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    private static readonly string SearchSql = SearchSqlTemplate.Replace(
-        "/*READ_AUTHORIZATION_PREDICATE*/",
-        PostgresMemoryAccessSql.BuildReadPredicate("candidate"),
-        StringComparison.Ordinal);
+    private static readonly string SearchSql = SearchSqlTemplate
+        .Replace(
+            "/*ELIGIBLE_CHUNK_PREDICATE*/",
+            PostgresMemoryChunkPolicySql.BuildEligibleChunkPredicate("chunk", "source_event", "fact", "lens"),
+            StringComparison.Ordinal)
+        .Replace(
+            "/*READ_AUTHORIZATION_PREDICATE*/",
+            PostgresMemoryAccessSql.BuildReadPredicate("candidate"),
+            StringComparison.Ordinal);
 
     private static readonly string ExclusionSearchSql = ExclusionSearchSqlTemplate.Replace(
         "/*READ_AUTHORIZATION_PREDICATE*/",
@@ -243,20 +248,7 @@ public sealed class PostgresMemoryChunkHybridSearch(
                     lens.role_id) AS required_role_id
             ) AS role_requirement ON TRUE
             CROSS JOIN fts
-            WHERE chunk.redacted_at IS NULL
-                AND source_event.retention_class <> 'erasure_requested'
-                AND source_event.redaction_status = 'none'
-                AND source_event.sensitivity NOT IN ('secret', 'regulated')
-                AND (
-                    (
-                        chunk.source_type = 'memory_fact'
-                        AND fact.status = 'active'
-                    )
-                    OR (
-                        chunk.source_type = 'role_memory_lens'
-                        AND lens.status = 'active'
-                    )
-                )
+            WHERE /*ELIGIBLE_CHUNK_PREDICATE*/
                 AND (
                     @target_scope_type IS NULL
                     OR chunk.scope_type = 'global'

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/checksums.sh"
+
 ENVIRONMENT="${MEMORYSYSTEM_ENVIRONMENT:-local}"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)_$$"
 PACKAGE_ID="${MEMORYSYSTEM_COMPLIANCE_PACKAGE_ID:-memorysystem-$ENVIRONMENT-$RUN_ID}"
@@ -118,26 +121,6 @@ metric_label_escape() {
   value="${value//\"/\\\"}"
   value="${value//$'\n'/\\n}"
   printf '%s' "$value"
-}
-
-sha256_file() {
-  local file="$1"
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$file" | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 "$file" | awk '{print $1}'
-}
-
-sha256_stream() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum | awk '{print $1}'
-    return
-  fi
-
-  shasum -a 256 | awk '{print $1}'
 }
 
 write_metrics() {

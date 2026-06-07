@@ -92,7 +92,7 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
             .EnumerateArray()
             .Select(attribute => attribute.GetString()!)
             .ToArray();
-        var telemetryFiles = new[]
+        var telemetryFiles = new List<string>
         {
             Path.Combine(root, "src", "MemorySystem.Infrastructure", "Observability", "MemorySystemTelemetry.cs"),
             Path.Combine(root, "src", "MemorySystem.Infrastructure", "Observability", "MemorySystemTelemetryOptions.cs"),
@@ -100,12 +100,15 @@ public sealed partial class ProductionPlatformTerraformSkeletonTests
             Path.Combine(root, "src", "MemorySystem.Api", "Operations", "TelemetryCorrelationMiddleware.cs"),
             Path.Combine(root, "src", "MemorySystem.Api", "Operations", "ApiRequestMetricsMiddleware.cs"),
             Path.Combine(root, "src", "MemorySystem.Api", "Idempotency", "ApiIdempotencyHttpService.cs"),
-            Path.Combine(root, "src", "MemorySystem.Api", "MemoryFacts", "MemoryFactEndpointExtensions.cs"),
             Path.Combine(root, "src", "MemorySystem.Api", "MemoryReviews", "MemoryReviewEndpointExtensions.cs"),
             Path.Combine(root, "src", "MemorySystem.Api", "VaultExports", "VaultExportEndpointExtensions.cs"),
             Path.Combine(root, "src", "MemorySystem.Api", "Admin", "AdminGovernanceEndpointExtensions.cs"),
             Path.Combine(root, "src", "MemorySystem.Worker", "OutboxJobProcessor.cs")
         };
+        telemetryFiles.AddRange(Directory.EnumerateFiles(
+            Path.Combine(root, "src", "MemorySystem.Api", "MemoryFacts"),
+            "MemoryFactEndpoint*.cs",
+            SearchOption.TopDirectoryOnly));
         var sourceText = string.Join("\n", telemetryFiles.Select(File.ReadAllText));
 
         foreach (var forbiddenAttribute in forbiddenAttributes)
