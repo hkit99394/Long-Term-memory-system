@@ -71,7 +71,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 11. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
 12. [Retention Policy](retention-policy.md)
 13. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-14. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+14. [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
+15. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -105,6 +106,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Admin UX Polish IP-14](admin-ux-polish-ip14.md) | Admin console polish for credential state, memory/source filters, review routing, and operations status. |
 | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Operations summary, Prometheus metrics, and admin readout for source-link coverage, stale/useful/missing feedback, role-boundary misses, and duplicates. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Payload-safe new-project setup flow for scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
+| [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Payload-safe release bundle generator for tests, migration, health, operations, benchmark, backup/restore, and rollback evidence. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -157,6 +159,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Production Platform Baseline PI-01](production-platform-baseline-pi01.md) | AWS/Terraform/container platform baseline. |
 | [Decision 0046: Production Platform And IaC Baseline](decisions/0046-production-platform-and-iac-baseline.md) | Accepted AWS, Terraform, and immutable OCI artifact baseline for the first platform target. |
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
+| [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager and Ops bundle automation for payload-safe release evidence manifests. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
 | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Payload-safe target evidence manifest, checksum verifier, and completion rule for post-GO target artifacts. |
 | [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md) | Weekly, monthly, quarterly, post-erasure, and release-gate backup/restore drill cadence with RPO/RTO and evidence checks. |
@@ -195,6 +198,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Pilot Readiness Evidence Review](pilot-readiness-evidence-review-2026-06-01.md) | Historical evidence review and no-go decision before target-environment evidence. |
 | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) | Target-environment rehearsal gates, evidence bundle, and go/no-go template. |
 | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) | Local pilot-equivalent release evidence record. |
+| [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Generates the per-release payload-safe bundle and artifact index for release evidence. |
 | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | In-progress post-GO target evidence manifest and verifier contract. |
 | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) | Historical no-go record retained for traceability. |
 | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) | Owner-approved GO replacement for version 1.0.0 external pilot. |
@@ -218,6 +222,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) | Product Owner sync workflow for roadmap/backlog Markdown and source-backed memory. |
 | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Tester/QA and Knowledge Steward quality metrics for operations, alerts, and admin review. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Repeatable setup plan for scope, role owners, grants, source-backed seeds, and reviews. |
+| [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager workflow for the generated evidence bundle and strict promotion rule. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

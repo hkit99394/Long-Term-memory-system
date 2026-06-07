@@ -75,7 +75,7 @@ Status values:
 | IP-14 | P2 | Done | Product Owner + Developer | Admin UX Polish | [Admin UX Polish IP-14](admin-ux-polish-ip14.md) adds credential-state display, memory-type/role/namespace filters, role-aware admin query parameters, review-routing actions, and an Operations view backed by `/api/operations/summary`. |
 | IP-15 | P2 | Done | Tester/QA + Knowledge Steward | Memory Quality Metrics | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) adds `memoryQuality` to `/api/operations/summary`, exports `memorysystem_memory_quality_*` Prometheus metrics, and surfaces source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio in the `/admin/` Operations view. |
 | IP-16 | P2 | Done | Product Owner + Knowledge Steward | Project Onboarding Runbook | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) adds `scripts/project-onboarding-runbook.sh`, which emits a payload-safe new-project setup plan for project scope, role owners, namespace grants, canonical memory types, seed documents, source evidence, context verification, and review cadence. |
-| IP-17 | P2 | Todo | Release Manager + Ops | Release Evidence Bundle Automation | Generate one payload-safe evidence bundle for each release covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
+| IP-17 | P2 | Done | Release Manager + Ops | Release Evidence Bundle Automation | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) adds `scripts/release-evidence-bundle.sh`, which generates one payload-safe bundle per release with JSON, NDJSON, Markdown, and SHA-256 outputs covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
 | IP-18 | P3 | Todo | Security Professional + IT/Ops | Directory Sync Evaluation | Revisit SCIM/group sync only after login and local grants are stable; keep sync provisioning-only and preserve local grants as the authorization source. |
 
 ## Short Run: 1-2 Weeks
@@ -484,3 +484,9 @@ IP-16](project-onboarding-runbook-ip16.md).
 plan for new project scope, role owners, namespace grants, canonical memory
 types, seed document hashes, source evidence requirements, context checks, and
 review cadence.
+
+2026-06-07 update: IP-17 is implemented in [Release Evidence Bundle Automation
+IP-17](release-evidence-bundle-automation-ip17.md).
+`scripts/release-evidence-bundle.sh` now generates a payload-safe release
+bundle with JSON, NDJSON, Markdown, and SHA-256 outputs for tests, migration
+status, health, operations summary, benchmark, backup/restore, and rollback.

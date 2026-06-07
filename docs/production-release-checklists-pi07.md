@@ -33,6 +33,13 @@ fields:
 Pilot and production evidence should be uploaded to the configured
 `release_evidence_bucket` or an equivalent controlled audit store.
 
+Use [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
+to package the release evidence manifest, artifact index, Markdown summary, and
+SHA-256 sidecar. `scripts/release-evidence-bundle.sh` is the release-manager
+bundle command for tests, migration status, health, operations summary,
+benchmark, backup/restore, and rollback evidence. Strict mode is required
+before pilot or production promotion.
+
 For real target-environment evidence, pilot and production releases must also
 include a `memorysystem.target_environment_evidence` manifest and pass:
 

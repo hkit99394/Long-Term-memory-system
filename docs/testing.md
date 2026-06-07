@@ -120,6 +120,7 @@ bash -n scripts/weekly-admin-review-workflow.sh
 bash -n scripts/backup-restore-drill-schedule.sh
 bash -n scripts/access-boundary-review.sh
 bash -n scripts/project-onboarding-runbook.sh
+bash -n scripts/release-evidence-bundle.sh
 bash -n scripts/backlog-roadmap-memory-sync.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
@@ -220,6 +221,19 @@ review cadence. The dry run emits a payload-safe setup plan without API calls:
 bash -n scripts/project-onboarding-runbook.sh
 scripts/project-onboarding-runbook.sh --dry-run
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectOnboardingRunbookIp16Tests
+```
+
+## Release Evidence Bundle
+
+Use this after changing the IP-17 release bundle workflow, release checklist,
+evidence packaging, operations summary evidence, benchmark gate evidence,
+backup/restore evidence, or rollback evidence. The dry run prints a
+payload-safe manifest without writing output files:
+
+```bash
+bash -n scripts/release-evidence-bundle.sh
+scripts/release-evidence-bundle.sh --dry-run --release-id local-draft
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ReleaseEvidenceBundleAutomationIp17Tests
 ```
 
 ## Agent Memory Client Wrapper
