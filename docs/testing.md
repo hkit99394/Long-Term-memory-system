@@ -119,6 +119,7 @@ bash -n scripts/agent-memory-client.sh
 bash -n scripts/weekly-admin-review-workflow.sh
 bash -n scripts/backup-restore-drill-schedule.sh
 bash -n scripts/access-boundary-review.sh
+bash -n scripts/project-onboarding-runbook.sh
 bash -n scripts/backlog-roadmap-memory-sync.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
@@ -209,6 +210,18 @@ scripts/role-lens-first-pass.sh --dry-run
 scripts/role-lens-first-pass.sh
 ```
 
+## Project Onboarding Runbook
+
+Use this after changing the IP-16 onboarding workflow, project memory boundary
+docs, role owner vocabulary, namespace grants, source-backed seed docs, or
+review cadence. The dry run emits a payload-safe setup plan without API calls:
+
+```bash
+bash -n scripts/project-onboarding-runbook.sh
+scripts/project-onboarding-runbook.sh --dry-run
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectOnboardingRunbookIp16Tests
+```
+
 ## Agent Memory Client Wrapper
 
 Use this after changing the IP-08 wrapper or its docs. The non-network checks
@@ -281,10 +294,17 @@ to include every required artifact.
 Use this after starting the API with a configured local API key. The smoke
 primes request metrics through `/api/operations/summary`, fetches
 `/api/operations/metrics`, and verifies the first alert-input metrics are
-present.
+present, including the IP-15 `memorysystem_memory_quality_*` metrics.
 
 ```bash
 MEMORYSYSTEM_API_BASE_URL=http://127.0.0.1:5099 ./scripts/operations-metrics-smoke.sh
+```
+
+Use the focused database-backed operations endpoint test after changing
+summary fields, quality calculations, or metric names:
+
+```bash
+dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~OperationalSummaryEndpointTests
 ```
 
 For loopback URLs only, the script uses the local demo key and prints that

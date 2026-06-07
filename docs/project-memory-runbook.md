@@ -54,6 +54,18 @@ not hidden roadmap or policy state.
 
 ## First Execution Slice
 
+For a new project boundary, render the IP-16 onboarding plan before seeding or
+repairing memory:
+
+```bash
+./scripts/project-onboarding-runbook.sh --dry-run
+```
+
+[Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) turns
+scope ids, role owners, namespace grants, canonical memory types, seed docs,
+source evidence, context verification, and review cadence into a repeatable
+payload-safe setup flow.
+
 1. Seed or repair the project, organization, role assignments, and grants:
 
    ```bash

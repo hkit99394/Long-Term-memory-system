@@ -277,7 +277,7 @@ documents = {
     },
     "project-memory-boundary": {
         "path": "docs/project-memory-boundary.md",
-        "sourceSha256": "2a2cd8eceb80e8d4894fd695e5f93b76a24b8b069a975964b334a005dfc96b6a",
+        "sourceSha256": "715a1727dd8f4fb70ba7ef495bef4e5fdbb6ef3c0ccd44213fdcd9c2aad57c95",
         "title": "Project Memory Boundary",
         "summary": "Canonical production memory scope, protected runtime habits, namespaces, and first-class role responsibilities.",
         "excerpts": [

@@ -73,8 +73,8 @@ Status values:
 | IP-12 | P1 | Done | Product Owner | Backlog And Roadmap Memory Sync | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) adds `scripts/backlog-roadmap-memory-sync.sh`, which validates that `docs/roadmap.md` and `docs/backlog.md` remain canonical while the source-backed knowledge seed carries current high-value roadmap/backlog memory with pinned source hashes and curated excerpts. |
 | IP-13 | P1 | Done | All Role Owners | Role Lens First Content Pass | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) adds `scripts/role-lens-first-pass.sh`, which resolves active source-backed responsibility base facts and seeds canonical `role_lens` memories for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
 | IP-14 | P2 | Done | Product Owner + Developer | Admin UX Polish | [Admin UX Polish IP-14](admin-ux-polish-ip14.md) adds credential-state display, memory-type/role/namespace filters, role-aware admin query parameters, review-routing actions, and an Operations view backed by `/api/operations/summary`. |
-| IP-15 | P2 | Todo | Tester/QA + Knowledge Steward | Memory Quality Metrics | Track source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio. |
-| IP-16 | P2 | Todo | Product Owner + Knowledge Steward | Project Onboarding Runbook | Create a repeatable new-project setup flow for project scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
+| IP-15 | P2 | Done | Tester/QA + Knowledge Steward | Memory Quality Metrics | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) adds `memoryQuality` to `/api/operations/summary`, exports `memorysystem_memory_quality_*` Prometheus metrics, and surfaces source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio in the `/admin/` Operations view. |
+| IP-16 | P2 | Done | Product Owner + Knowledge Steward | Project Onboarding Runbook | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) adds `scripts/project-onboarding-runbook.sh`, which emits a payload-safe new-project setup plan for project scope, role owners, namespace grants, canonical memory types, seed documents, source evidence, context verification, and review cadence. |
 | IP-17 | P2 | Todo | Release Manager + Ops | Release Evidence Bundle Automation | Generate one payload-safe evidence bundle for each release covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
 | IP-18 | P3 | Todo | Security Professional + IT/Ops | Directory Sync Evaluation | Revisit SCIM/group sync only after login and local grants are stable; keep sync provisioning-only and preserve local grants as the authorization source. |
 
@@ -470,3 +470,17 @@ IP-14](admin-ux-polish-ip14.md). The `/admin/` console now shows credential
 state, adds memory-type/role/namespace filters, routes memory and source-event
 details to `/reviews/`, and includes an Operations view backed by
 `/api/operations/summary`.
+
+2026-06-07 update: IP-15 is implemented in [Memory Quality Metrics
+IP-15](memory-quality-metrics-ip15.md). `/api/operations/summary` now includes
+`memoryQuality`, `/api/operations/metrics` exports
+`memorysystem_memory_quality_*` metrics, and the `/admin/` Operations view
+shows source-link coverage, stale-memory rate, useful feedback rate,
+missing-memory reports, role-boundary misses, and duplicate ratio.
+
+2026-06-07 update: IP-16 is implemented in [Project Onboarding Runbook
+IP-16](project-onboarding-runbook-ip16.md).
+`scripts/project-onboarding-runbook.sh` now emits a payload-safe onboarding
+plan for new project scope, role owners, namespace grants, canonical memory
+types, seed document hashes, source evidence requirements, context checks, and
+review cadence.

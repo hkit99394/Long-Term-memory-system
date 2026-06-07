@@ -116,6 +116,82 @@ public sealed class PostgresOperationalSummaryStore(
                 AND feedback.created_at < @retrieval_feedback_window_ended_at
             GROUP BY feedback_types.feedback_type, feedback_types.sort_order
             ORDER BY feedback_types.sort_order;
+
+            WITH memory_items AS (
+                SELECT
+                    'memory_fact' AS source_type,
+                    id,
+                    status,
+                    source_event_id
+                FROM memory_facts
+
+                UNION ALL
+
+                SELECT
+                    'role_memory_lens' AS source_type,
+                    id,
+                    status,
+                    source_event_id
+                FROM role_memory_lenses
+            ),
+            active_memory_items AS (
+                SELECT source_type, id, source_event_id
+                FROM memory_items
+                WHERE status = 'active'
+            ),
+            stale_feedback_sources AS (
+                SELECT DISTINCT
+                    feedback.source_type,
+                    feedback.source_id
+                FROM memory_retrieval_feedback AS feedback
+                WHERE feedback.feedback_type = 'stale'
+                    AND feedback.created_at >= @retrieval_feedback_window_started_at
+                    AND feedback.created_at < @retrieval_feedback_window_ended_at
+                    AND feedback.source_type IS NOT NULL
+                    AND feedback.source_id IS NOT NULL
+            ),
+            duplicate_groups AS (
+                SELECT count(*)::bigint AS group_size
+                FROM memory_facts
+                WHERE status NOT IN ('deleted', 'redacted')
+                GROUP BY
+                    memory_type,
+                    namespace,
+                    lower(btrim(subject)),
+                    lower(btrim(predicate)),
+                    lower(btrim(object))
+                HAVING count(*) > 1
+
+                UNION ALL
+
+                SELECT count(*)::bigint AS group_size
+                FROM role_memory_lenses
+                WHERE status NOT IN ('deleted', 'redacted')
+                GROUP BY
+                    role_id,
+                    scope_type,
+                    scope_id,
+                    base_memory_fact_id,
+                    lower(btrim(interpretation))
+                HAVING count(*) > 1
+            )
+            SELECT
+                (SELECT count(*)::bigint FROM memory_items WHERE status NOT IN ('deleted', 'redacted')),
+                (SELECT count(*)::bigint FROM active_memory_items),
+                (
+                    SELECT count(*)::bigint
+                    FROM active_memory_items
+                    WHERE source_event_id IS NOT NULL
+                ),
+                (
+                    SELECT count(*)::bigint
+                    FROM stale_feedback_sources AS feedback
+                    INNER JOIN active_memory_items AS item
+                        ON item.source_type = feedback.source_type
+                        AND item.id = feedback.source_id
+                ),
+                (SELECT count(*)::bigint FROM duplicate_groups),
+                COALESCE((SELECT sum(group_size)::bigint FROM duplicate_groups), 0);
             """,
             connection);
         command.CommandTimeout = CommandTimeoutSeconds;
@@ -146,10 +222,17 @@ public sealed class PostgresOperationalSummaryStore(
             retrievalFeedbackWindowStartedAt,
             generatedAt,
             cancellationToken);
+        await reader.NextResultAsync(cancellationToken);
+
+        var memoryQualityBase = await ReadMemoryQualityBaseSummaryAsync(reader, cancellationToken);
         var contextProduct = new OperationalContextProductSummary(
             contextProductMetrics.ReadRuntimeSummary(),
             ToContextProductFeedbackSummary(retrievalFeedback),
             contextProductBenchmarks.Read());
+        var memoryQuality = ToMemoryQualitySummary(
+            memoryQualityBase,
+            retrievalFeedback,
+            contextProduct.Runtime);
         var status = DetermineStatus(worker, outbox, reviews, vaultExports);
 
         return new OperationalSummary(
@@ -161,6 +244,7 @@ public sealed class PostgresOperationalSummaryStore(
             reviews,
             vaultExports,
             retrievalFeedback,
+            memoryQuality,
             contextProduct,
             embeddingFailures);
     }
@@ -279,6 +363,75 @@ public sealed class PostgresOperationalSummaryStore(
             byType);
     }
 
+    private static async Task<OperationalMemoryQualityBaseSummary> ReadMemoryQualityBaseSummaryAsync(
+        NpgsqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("Operational memory quality summary query returned no result.");
+        }
+
+        return new OperationalMemoryQualityBaseSummary(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            reader.GetInt64(2),
+            reader.GetInt64(3),
+            reader.GetInt64(4),
+            reader.GetInt64(5));
+    }
+
+    private static OperationalMemoryQualitySummary ToMemoryQualitySummary(
+        OperationalMemoryQualityBaseSummary memoryQuality,
+        OperationalRetrievalFeedbackSummary retrievalFeedback,
+        OperationalContextProductRuntimeSummary contextProductRuntime)
+    {
+        var usefulFeedback = FeedbackTypeSummary(retrievalFeedback, "useful");
+        var missingFeedback = FeedbackTypeSummary(retrievalFeedback, "missing");
+        var roleBoundaryMisses = contextProductRuntime.ExclusionsByReason
+            .Where(exclusion => string.Equals(exclusion.Reason, "role_mismatch", StringComparison.Ordinal))
+            .Sum(exclusion => exclusion.SummaryCount);
+        var roleBoundaryMissDisclosedItems = contextProductRuntime.ExclusionsByReason
+            .Where(exclusion => string.Equals(exclusion.Reason, "role_mismatch", StringComparison.Ordinal))
+            .Sum(exclusion => exclusion.DisclosedItemCount);
+
+        return new OperationalMemoryQualitySummary(
+            retrievalFeedback.WindowStartedAt,
+            retrievalFeedback.WindowEndedAt,
+            retrievalFeedback.WindowHours,
+            memoryQuality.DurableMemoryItems,
+            memoryQuality.ActiveMemoryItems,
+            memoryQuality.SourceLinkedActiveMemoryItems,
+            Ratio(memoryQuality.SourceLinkedActiveMemoryItems, memoryQuality.ActiveMemoryItems),
+            memoryQuality.StaleMemoryItems,
+            Ratio(memoryQuality.StaleMemoryItems, memoryQuality.ActiveMemoryItems),
+            usefulFeedback.Count,
+            retrievalFeedback.Total == 0 ? 0m : usefulFeedback.Share,
+            missingFeedback.Count,
+            missingFeedback.PerHour,
+            roleBoundaryMisses,
+            roleBoundaryMissDisclosedItems,
+            memoryQuality.DuplicateCandidateGroups,
+            memoryQuality.DuplicateCandidateItems,
+            Ratio(memoryQuality.DuplicateCandidateItems, memoryQuality.DurableMemoryItems));
+    }
+
+    private static OperationalRetrievalFeedbackTypeSummary FeedbackTypeSummary(
+        OperationalRetrievalFeedbackSummary retrievalFeedback,
+        string feedbackType)
+    {
+        return retrievalFeedback.ByType.FirstOrDefault(row =>
+                string.Equals(row.FeedbackType, feedbackType, StringComparison.Ordinal))
+            ?? new OperationalRetrievalFeedbackTypeSummary(feedbackType, 0, 0m, 0);
+    }
+
+    private static decimal Ratio(long numerator, long denominator)
+    {
+        return denominator <= 0
+            ? 0m
+            : Math.Round((decimal)numerator / denominator, 6, MidpointRounding.AwayFromZero);
+    }
+
     private static OperationalContextProductFeedbackSummary ToContextProductFeedbackSummary(
         OperationalRetrievalFeedbackSummary retrievalFeedback)
     {
@@ -328,4 +481,12 @@ public sealed class PostgresOperationalSummaryStore(
 
         return "healthy";
     }
+
+    private sealed record OperationalMemoryQualityBaseSummary(
+        long DurableMemoryItems,
+        long ActiveMemoryItems,
+        long SourceLinkedActiveMemoryItems,
+        long StaleMemoryItems,
+        long DuplicateCandidateGroups,
+        long DuplicateCandidateItems);
 }

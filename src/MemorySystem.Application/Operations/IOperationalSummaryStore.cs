@@ -14,6 +14,7 @@ public sealed record OperationalSummary(
     OperationalReviewSummary Reviews,
     OperationalVaultExportSummary VaultExports,
     OperationalRetrievalFeedbackSummary RetrievalFeedback,
+    OperationalMemoryQualitySummary MemoryQuality,
     OperationalContextProductSummary ContextProduct,
     OperationalEmbeddingFailureSummary EmbeddingFailures);
 
@@ -56,6 +57,26 @@ public sealed record OperationalRetrievalFeedbackTypeSummary(
     long Count,
     decimal Share,
     double PerHour);
+
+public sealed record OperationalMemoryQualitySummary(
+    DateTimeOffset WindowStartedAt,
+    DateTimeOffset WindowEndedAt,
+    double WindowHours,
+    long DurableMemoryItems,
+    long ActiveMemoryItems,
+    long SourceLinkedActiveMemoryItems,
+    decimal SourceLinkCoverage,
+    long StaleMemoryItems,
+    decimal StaleMemoryRate,
+    long UsefulFeedbackTotal,
+    decimal UsefulFeedbackRate,
+    long MissingMemoryReports,
+    double MissingMemoryReportsPerHour,
+    long RoleBoundaryMisses,
+    long RoleBoundaryMissDisclosedItems,
+    long DuplicateCandidateGroups,
+    long DuplicateCandidateItems,
+    decimal DuplicateRatio);
 
 public sealed record OperationalContextProductSummary(
     OperationalContextProductRuntimeSummary Runtime,

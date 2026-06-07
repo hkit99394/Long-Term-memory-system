@@ -257,6 +257,24 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
 
@@ -1184,6 +1202,30 @@ function renderOperationsDetail()       {
     return;
   }
 
+  if (selectedId === "quality") {
+    elements.detail.append(
+      heading("Memory quality"),
+      detailGrid([
+        ["Window", `${summary.memoryQuality.windowHours.toFixed(1)} hours`],
+        ["Durable memory items", summary.memoryQuality.durableMemoryItems.toString()],
+        ["Active memory items", summary.memoryQuality.activeMemoryItems.toString()],
+        ["Source-linked active items", summary.memoryQuality.sourceLinkedActiveMemoryItems.toString()],
+        ["Source-link coverage", percentText(summary.memoryQuality.sourceLinkCoverage)],
+        ["Stale memory items", summary.memoryQuality.staleMemoryItems.toString()],
+        ["Stale memory rate", percentText(summary.memoryQuality.staleMemoryRate)],
+        ["Useful feedback", summary.memoryQuality.usefulFeedbackTotal.toString()],
+        ["Useful feedback rate", percentText(summary.memoryQuality.usefulFeedbackRate)],
+        ["Missing reports", summary.memoryQuality.missingMemoryReports.toString()],
+        ["Missing reports per hour", summary.memoryQuality.missingMemoryReportsPerHour.toFixed(3)],
+        ["Role-boundary misses", summary.memoryQuality.roleBoundaryMisses.toString()],
+        ["Role-boundary disclosed items", summary.memoryQuality.roleBoundaryMissDisclosedItems.toString()],
+        ["Duplicate groups", summary.memoryQuality.duplicateCandidateGroups.toString()],
+        ["Duplicate items", summary.memoryQuality.duplicateCandidateItems.toString()],
+        ["Duplicate ratio", percentText(summary.memoryQuality.duplicateRatio)]
+      ]));
+    return;
+  }
+
   if (selectedId === "reviews") {
     elements.detail.append(
       heading("Reviews and exports"),
@@ -1892,6 +1934,13 @@ function operationListItems(summary                        )
       pills: [summary.retrievalFeedback.total > 0 ? "observed" : "quiet"],
       summary: `${summary.retrievalFeedback.total} actions in ${summary.retrievalFeedback.windowHours.toFixed(0)}h`,
       detail: topFeedbackLabel(summary.retrievalFeedback.byType)
+    },
+    {
+      id: "quality",
+      title: "Memory quality",
+      pills: [summary.memoryQuality.missingMemoryReports > 0 || summary.memoryQuality.duplicateCandidateGroups > 0 ? "needs_review" : "clear"],
+      summary: `${percentText(summary.memoryQuality.sourceLinkCoverage)} source coverage`,
+      detail: `${summary.memoryQuality.missingMemoryReports} missing reports`
     },
     {
       id: "reviews",

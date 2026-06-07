@@ -57,15 +57,21 @@ Compose project. It does not print API keys or secret values.
 After the boundary exists, seed the first source-backed project knowledge base:
 
 ```bash
+./scripts/project-onboarding-runbook.sh --dry-run
 ./scripts/backlog-roadmap-memory-sync.sh --dry-run
 ./scripts/seed-production-knowledge-base.sh
 ./scripts/role-lens-first-pass.sh --dry-run
 ./scripts/role-lens-first-pass.sh
 ```
 
-That script uses `http://127.0.0.1:8081`, appends document evidence events, and
-proposes durable project memories from `project-goal.md`, `architecture.md`,
-`external-pilot-go-epr04-v1.0.0-2026-06-04.md`,
+`scripts/project-onboarding-runbook.sh` is the IP-16 onboarding plan. It emits
+a payload-safe JSON checklist for project scope, role owners, namespace grants,
+canonical memory types, seed docs, source evidence, context checks, and review
+cadence before any live memory writes.
+
+The knowledge seed uses `http://127.0.0.1:8081`, appends document evidence
+events, and proposes durable project memories from `project-goal.md`,
+`architecture.md`, `external-pilot-go-epr04-v1.0.0-2026-06-04.md`,
 `agent-facing-memory-contract.md`, `project-memory-boundary.md`, `roadmap.md`,
 `memory-vs-markdown-policy.md`, and `backlog.md`. Each event records the
 current source document SHA-256 and the seed refuses to run if curated excerpts

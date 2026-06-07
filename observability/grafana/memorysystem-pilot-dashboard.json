@@ -100,6 +100,31 @@
       ]
     },
     {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Memory Quality",
+      "description": "area:retrieval signal:memory-quality",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "memorysystem_memory_quality_durable_items" },
+        { "refId": "B", "expr": "memorysystem_memory_quality_active_items" },
+        { "refId": "C", "expr": "memorysystem_memory_quality_source_linked_active_items" },
+        { "refId": "D", "expr": "memorysystem_memory_quality_source_link_coverage" },
+        { "refId": "E", "expr": "memorysystem_memory_quality_stale_memory_items" },
+        { "refId": "F", "expr": "memorysystem_memory_quality_stale_memory_rate" },
+        { "refId": "G", "expr": "memorysystem_memory_quality_useful_feedback_total" },
+        { "refId": "H", "expr": "memorysystem_memory_quality_useful_feedback_rate" },
+        { "refId": "I", "expr": "memorysystem_memory_quality_missing_memory_reports_total" },
+        { "refId": "J", "expr": "memorysystem_memory_quality_missing_memory_reports_per_hour" },
+        { "refId": "K", "expr": "memorysystem_memory_quality_role_boundary_misses_total" },
+        { "refId": "L", "expr": "memorysystem_memory_quality_role_boundary_miss_disclosed_items_total" },
+        { "refId": "M", "expr": "memorysystem_memory_quality_duplicate_candidate_groups" },
+        { "refId": "N", "expr": "memorysystem_memory_quality_duplicate_candidate_items" },
+        { "refId": "O", "expr": "memorysystem_memory_quality_duplicate_ratio" }
+      ]
+    },
+    {
       "id": 13,
       "type": "timeseries",
       "title": "Context Product Health",

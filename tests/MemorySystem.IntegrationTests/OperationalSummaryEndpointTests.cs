@@ -57,11 +57,33 @@ public sealed class OperationalSummaryEndpointTests
             await InsertOutboxJobAsync(databaseConnectionString, "pending", attempts: 1, lastError: "embedding provider throttled");
             await InsertOutboxJobAsync(databaseConnectionString, "dead_letter");
             var memoryFactId = await InsertReviewedMemoryFixtureAsync(databaseConnectionString);
+            var activeMemoryFactId = await InsertMemoryFixtureAsync(
+                databaseConnectionString,
+                "memory quality duplicate",
+                "tracks",
+                "source-linked quality metrics",
+                MemoryFactStatuses.Active);
+            await InsertMemoryFixtureAsync(
+                databaseConnectionString,
+                "memory quality duplicate",
+                "tracks",
+                "source-linked quality metrics",
+                MemoryFactStatuses.Superseded);
+            await InsertMemoryFixtureAsync(
+                databaseConnectionString,
+                "memory quality distinct",
+                "tracks",
+                "active source-link coverage",
+                MemoryFactStatuses.Active);
             await InsertPendingReviewAsync(databaseConnectionString, memoryFactId);
             await InsertStaleVaultExportAsync(databaseConnectionString, memoryFactId);
             await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-30));
             await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-20));
-            await InsertRetrievalFeedbackAsync(databaseConnectionString, "stale", DateTimeOffset.UtcNow.AddMinutes(-10));
+            await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "stale",
+                DateTimeOffset.UtcNow.AddMinutes(-10),
+                activeMemoryFactId);
             await InsertRetrievalFeedbackAsync(databaseConnectionString, "missing", DateTimeOffset.UtcNow.AddMinutes(-5));
             await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddDays(-2));
 
@@ -106,6 +128,22 @@ public sealed class OperationalSummaryEndpointTests
             Assert.Equal(1, feedbackByType["stale"].GetProperty("count").GetInt64());
             Assert.Equal(1, feedbackByType["missing"].GetProperty("count").GetInt64());
             Assert.Equal(0, feedbackByType["noisy"].GetProperty("count").GetInt64());
+
+            var memoryQuality = root.GetProperty("memoryQuality");
+            Assert.Equal(4, memoryQuality.GetProperty("durableMemoryItems").GetInt64());
+            Assert.Equal(2, memoryQuality.GetProperty("activeMemoryItems").GetInt64());
+            Assert.Equal(2, memoryQuality.GetProperty("sourceLinkedActiveMemoryItems").GetInt64());
+            Assert.Equal(1.0m, memoryQuality.GetProperty("sourceLinkCoverage").GetDecimal());
+            Assert.Equal(1, memoryQuality.GetProperty("staleMemoryItems").GetInt64());
+            Assert.Equal(0.5m, memoryQuality.GetProperty("staleMemoryRate").GetDecimal());
+            Assert.Equal(2, memoryQuality.GetProperty("usefulFeedbackTotal").GetInt64());
+            Assert.Equal(0.5m, memoryQuality.GetProperty("usefulFeedbackRate").GetDecimal());
+            Assert.Equal(1, memoryQuality.GetProperty("missingMemoryReports").GetInt64());
+            Assert.True(memoryQuality.GetProperty("missingMemoryReportsPerHour").GetDouble() > 0);
+            Assert.Equal(0, memoryQuality.GetProperty("roleBoundaryMisses").GetInt64());
+            Assert.Equal(1, memoryQuality.GetProperty("duplicateCandidateGroups").GetInt64());
+            Assert.Equal(2, memoryQuality.GetProperty("duplicateCandidateItems").GetInt64());
+            Assert.Equal(0.5m, memoryQuality.GetProperty("duplicateRatio").GetDecimal());
 
             var contextProduct = root.GetProperty("contextProduct");
             Assert.Equal(0, contextProduct.GetProperty("runtime").GetProperty("packetCount").GetInt64());
@@ -173,8 +211,24 @@ public sealed class OperationalSummaryEndpointTests
             await InsertOutboxJobAsync(databaseConnectionString, "pending");
             await InsertOutboxJobAsync(databaseConnectionString, "pending", attempts: 1, lastError: "embedding provider throttled");
             await InsertOutboxJobAsync(databaseConnectionString, "dead_letter");
+            var activeMemoryFactId = await InsertMemoryFixtureAsync(
+                databaseConnectionString,
+                "memory quality metric",
+                "exports",
+                "prometheus metric lines",
+                MemoryFactStatuses.Active);
+            await InsertMemoryFixtureAsync(
+                databaseConnectionString,
+                "memory quality metric",
+                "exports",
+                "prometheus metric lines",
+                MemoryFactStatuses.Superseded);
             await InsertRetrievalFeedbackAsync(databaseConnectionString, "useful", DateTimeOffset.UtcNow.AddMinutes(-10));
-            await InsertRetrievalFeedbackAsync(databaseConnectionString, "stale", DateTimeOffset.UtcNow.AddMinutes(-5));
+            await InsertRetrievalFeedbackAsync(
+                databaseConnectionString,
+                "stale",
+                DateTimeOffset.UtcNow.AddMinutes(-5),
+                activeMemoryFactId);
 
             using var factory = CreateFactory(databaseConnectionString);
             using var client = factory.CreateClient();
@@ -204,6 +258,19 @@ public sealed class OperationalSummaryEndpointTests
             Assert.Contains("memorysystem_worker_heartbeat_stale{worker_type=\"outbox\"} 0", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_retrieval_feedback_total{window=\"24h\"} 2", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_retrieval_feedback_type_total{feedback_type=\"useful\",window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_durable_items 2", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_active_items 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_source_linked_active_items 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_source_link_coverage 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_stale_memory_items{window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_stale_memory_rate{window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_useful_feedback_total{window=\"24h\"} 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_useful_feedback_rate{window=\"24h\"} 0.5", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_missing_memory_reports_total{window=\"24h\"} 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_role_boundary_misses_total 0", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_duplicate_candidate_groups 1", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_duplicate_candidate_items 2", body, StringComparison.Ordinal);
+            Assert.Contains("memorysystem_memory_quality_duplicate_ratio 1", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_context_product_packet_total 0", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_context_product_explanation_coverage 0", body, StringComparison.Ordinal);
             Assert.Contains("memorysystem_context_product_exclusion_summary_total{reason=\"not_authorized\",count_disclosure=\"withheld\"} 0", body, StringComparison.Ordinal);
@@ -290,6 +357,21 @@ public sealed class OperationalSummaryEndpointTests
 
     private static async Task<Guid> InsertReviewedMemoryFixtureAsync(string connectionString)
     {
+        return await InsertMemoryFixtureAsync(
+            connectionString,
+            "private alpha operator readout",
+            "shows",
+            "worker, outbox, review, and vault export state",
+            MemoryFactStatuses.Tentative);
+    }
+
+    private static async Task<Guid> InsertMemoryFixtureAsync(
+        string connectionString,
+        string subject,
+        string predicate,
+        string @object,
+        string status)
+    {
         var sourceEventId = Guid.NewGuid();
         await ApiDatabaseTestSupport.InsertSourceEventAsync(
             connectionString,
@@ -299,22 +381,56 @@ public sealed class OperationalSummaryEndpointTests
             "global",
             trustLevel: "human_approved");
 
-        await using var dataSource = NpgsqlDataSource.Create(connectionString);
-        var repository = new PostgresMemoryFactRepository(dataSource);
-        var memory = await repository.StoreAsync(new MemoryFactWriteCommand(
-            new MemoryScopeResolution("global", "global"),
-            "/global/decisions",
-            "decision",
-            "system",
-            "private alpha operator readout",
-            "shows",
-            "worker, outbox, review, and vault export state",
-            0.950m,
-            sourceEventId,
-            PrincipalId,
-            MemoryFactStatuses.Tentative));
+        var memoryFactId = Guid.NewGuid();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO memory_facts (
+                id,
+                scope_type,
+                scope_id,
+                namespace,
+                memory_type,
+                visibility,
+                subject,
+                predicate,
+                object,
+                confidence,
+                trust_level,
+                status,
+                source_event_id,
+                proposed_by_principal_id
+            )
+            VALUES (
+                @id,
+                'global',
+                'global',
+                '/global/decisions',
+                'decision',
+                'system',
+                @subject,
+                @predicate,
+                @object,
+                0.950,
+                'human_approved',
+                @status,
+                @source_event_id,
+                @proposed_by_principal_id
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("id", memoryFactId);
+        command.Parameters.AddWithValue("subject", subject);
+        command.Parameters.AddWithValue("predicate", predicate);
+        command.Parameters.AddWithValue("object", @object);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("source_event_id", sourceEventId);
+        command.Parameters.AddWithValue("proposed_by_principal_id", PrincipalId);
 
-        return memory.Id;
+        await command.ExecuteNonQueryAsync();
+
+        return memoryFactId;
     }
 
     private static async Task InsertPendingReviewAsync(string connectionString, Guid memoryFactId)
@@ -359,12 +475,17 @@ public sealed class OperationalSummaryEndpointTests
     private static async Task InsertRetrievalFeedbackAsync(
         string connectionString,
         string feedbackType,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        Guid? sourceId = null,
+        string sourceType = "memory_fact")
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
 
         var requiresSource = feedbackType is "useful" or "stale" or "wrong" or "sensitive" or "over_broad" or "noisy";
+        var feedbackSourceId = requiresSource
+            ? sourceId.GetValueOrDefault(Guid.NewGuid())
+            : (Guid?)null;
 
         await using var command = new NpgsqlCommand(
             """
@@ -398,9 +519,9 @@ public sealed class OperationalSummaryEndpointTests
         command.Parameters.AddWithValue("principal_id", PrincipalId);
         command.Parameters.AddWithValue("query_hash", $"sha256:{Guid.NewGuid():N}");
         command.Parameters.Add("source_type", NpgsqlDbType.Text).Value =
-            requiresSource ? "memory_fact" : DBNull.Value;
+            requiresSource ? sourceType : DBNull.Value;
         command.Parameters.Add("source_id", NpgsqlDbType.Uuid).Value =
-            requiresSource ? Guid.NewGuid() : DBNull.Value;
+            feedbackSourceId.HasValue ? feedbackSourceId.Value : DBNull.Value;
         command.Parameters.AddWithValue("feedback_type", feedbackType);
         command.Parameters.AddWithValue("created_at", createdAt);
 

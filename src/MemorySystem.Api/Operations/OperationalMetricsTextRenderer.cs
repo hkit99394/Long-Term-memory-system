@@ -22,6 +22,7 @@ public static class OperationalMetricsTextRenderer
         AppendOutboxMetrics(builder, summary.Outbox);
         AppendWorkerMetrics(builder, summary.Worker);
         AppendRetrievalFeedbackMetrics(builder, summary.RetrievalFeedback);
+        AppendMemoryQualityMetrics(builder, summary.MemoryQuality);
         AppendContextProductMetrics(builder, summary.ContextProduct);
         AppendEmbeddingMetrics(builder, summary.EmbeddingFailures, readiness);
         AppendGovernanceMetrics(builder, summary);
@@ -241,6 +242,71 @@ public static class OperationalMetricsTextRenderer
         AppendContextProductReviewOpenMetrics(builder, runtime.ReviewOpens);
         AppendContextProductRankingMetrics(builder, runtime.RankingSignals);
         AppendContextProductBenchmarkMetrics(builder, contextProduct.Benchmark);
+    }
+
+    private static void AppendMemoryQualityMetrics(
+        StringBuilder builder,
+        OperationalMemoryQualitySummary memoryQuality)
+    {
+        AppendHelp(builder, "memorysystem_memory_quality_durable_items", "Durable memory items included in quality calculations.");
+        AppendType(builder, "memorysystem_memory_quality_durable_items", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_durable_items", memoryQuality.DurableMemoryItems);
+
+        AppendHelp(builder, "memorysystem_memory_quality_active_items", "Active memory items eligible for retrieval.");
+        AppendType(builder, "memorysystem_memory_quality_active_items", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_active_items", memoryQuality.ActiveMemoryItems);
+
+        AppendHelp(builder, "memorysystem_memory_quality_source_linked_active_items", "Active memory items with source event links.");
+        AppendType(builder, "memorysystem_memory_quality_source_linked_active_items", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_source_linked_active_items", memoryQuality.SourceLinkedActiveMemoryItems);
+
+        AppendHelp(builder, "memorysystem_memory_quality_source_link_coverage", "Share of active memory items with source event links.");
+        AppendType(builder, "memorysystem_memory_quality_source_link_coverage", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_source_link_coverage", decimal.ToDouble(memoryQuality.SourceLinkCoverage));
+
+        AppendHelp(builder, "memorysystem_memory_quality_stale_memory_items", "Active memory items with recent stale feedback.");
+        AppendType(builder, "memorysystem_memory_quality_stale_memory_items", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_stale_memory_items", memoryQuality.StaleMemoryItems, ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_stale_memory_rate", "Share of active memory items with recent stale feedback.");
+        AppendType(builder, "memorysystem_memory_quality_stale_memory_rate", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_stale_memory_rate", decimal.ToDouble(memoryQuality.StaleMemoryRate), ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_useful_feedback_total", "Recent useful feedback reports.");
+        AppendType(builder, "memorysystem_memory_quality_useful_feedback_total", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_useful_feedback_total", memoryQuality.UsefulFeedbackTotal, ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_useful_feedback_rate", "Share of recent feedback reports that were useful.");
+        AppendType(builder, "memorysystem_memory_quality_useful_feedback_rate", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_useful_feedback_rate", decimal.ToDouble(memoryQuality.UsefulFeedbackRate), ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_missing_memory_reports_total", "Recent missing-memory feedback reports.");
+        AppendType(builder, "memorysystem_memory_quality_missing_memory_reports_total", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_missing_memory_reports_total", memoryQuality.MissingMemoryReports, ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_missing_memory_reports_per_hour", "Recent missing-memory feedback report rate.");
+        AppendType(builder, "memorysystem_memory_quality_missing_memory_reports_per_hour", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_missing_memory_reports_per_hour", memoryQuality.MissingMemoryReportsPerHour, ("window", "24h"));
+
+        AppendHelp(builder, "memorysystem_memory_quality_role_boundary_misses_total", "Context packets that observed role-boundary misses.");
+        AppendType(builder, "memorysystem_memory_quality_role_boundary_misses_total", "counter");
+        AppendSample(builder, "memorysystem_memory_quality_role_boundary_misses_total", memoryQuality.RoleBoundaryMisses);
+
+        AppendHelp(builder, "memorysystem_memory_quality_role_boundary_miss_disclosed_items_total", "Disclosed role-boundary-miss item count.");
+        AppendType(builder, "memorysystem_memory_quality_role_boundary_miss_disclosed_items_total", "counter");
+        AppendSample(builder, "memorysystem_memory_quality_role_boundary_miss_disclosed_items_total", memoryQuality.RoleBoundaryMissDisclosedItems);
+
+        AppendHelp(builder, "memorysystem_memory_quality_duplicate_candidate_groups", "Duplicate memory identity groups needing hygiene review.");
+        AppendType(builder, "memorysystem_memory_quality_duplicate_candidate_groups", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_duplicate_candidate_groups", memoryQuality.DuplicateCandidateGroups);
+
+        AppendHelp(builder, "memorysystem_memory_quality_duplicate_candidate_items", "Memory items that belong to duplicate identity groups.");
+        AppendType(builder, "memorysystem_memory_quality_duplicate_candidate_items", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_duplicate_candidate_items", memoryQuality.DuplicateCandidateItems);
+
+        AppendHelp(builder, "memorysystem_memory_quality_duplicate_ratio", "Share of durable memory items that belong to duplicate identity groups.");
+        AppendType(builder, "memorysystem_memory_quality_duplicate_ratio", "gauge");
+        AppendSample(builder, "memorysystem_memory_quality_duplicate_ratio", decimal.ToDouble(memoryQuality.DuplicateRatio));
     }
 
     private static void AppendContextProductExclusionMetrics(

@@ -64,13 +64,14 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 4. [Production Container Tool](production-container.md)
 5. [Project Memory Boundary](project-memory-boundary.md)
 6. [Project Memory Runbook](project-memory-runbook.md)
-7. [Production Observability and Alerting](production-observability.md)
-8. [Backup and Restore Runbook](backup-restore.md)
-9. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
-10. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
-11. [Retention Policy](retention-policy.md)
-12. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-13. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+7. [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md)
+8. [Production Observability and Alerting](production-observability.md)
+9. [Backup and Restore Runbook](backup-restore.md)
+10. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
+11. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
+12. [Retention Policy](retention-policy.md)
+13. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+14. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -102,6 +103,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) | Sync guard that keeps roadmap/backlog state canonical in Markdown while seeding compact source-backed memory. |
 | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | First source-backed role-lens seed for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
 | [Admin UX Polish IP-14](admin-ux-polish-ip14.md) | Admin console polish for credential state, memory/source filters, review routing, and operations status. |
+| [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Operations summary, Prometheus metrics, and admin readout for source-link coverage, stale/useful/missing feedback, role-boundary misses, and duplicates. |
+| [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Payload-safe new-project setup flow for scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -143,6 +146,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Memory Boundary](project-memory-boundary.md) | Canonical local production endpoint, protected volume, project scope ids, role mapping, and seed command. |
 | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project role-definition table, admin API, validation rules, and default role templates. |
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
+| [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Product Owner and Knowledge Steward onboarding flow for a new project memory boundary. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Weekly payload-safe memory review queue collector and role-owner operating procedure. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly security review for permission drift, service accounts, OIDC bindings, break-glass keys, and audit evidence. |
 | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | Role-owner seed workflow for source-backed project role lenses. |
@@ -212,6 +216,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Structured weekly admin review queue contract for memory hygiene. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Structured weekly access-boundary review contract for security posture. |
 | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) | Product Owner sync workflow for roadmap/backlog Markdown and source-backed memory. |
+| [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Tester/QA and Knowledge Steward quality metrics for operations, alerts, and admin review. |
+| [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Repeatable setup plan for scope, role owners, grants, source-backed seeds, and reviews. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary
