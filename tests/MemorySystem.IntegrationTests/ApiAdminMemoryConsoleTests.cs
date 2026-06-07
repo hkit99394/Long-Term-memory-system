@@ -46,14 +46,86 @@ public sealed class ApiAdminMemoryConsoleTests
             Assert.Contains("/api/admin/access/effective-preview", script, StringComparison.Ordinal);
             Assert.Contains("/api/admin/audit-exports", script, StringComparison.Ordinal);
             Assert.Contains("/api/admin/compliance/status", script, StringComparison.Ordinal);
+            Assert.Contains("/api/operations/summary", script, StringComparison.Ordinal);
+            Assert.Contains("/api/operations/metrics", script, StringComparison.Ordinal);
             Assert.Contains("Audit export", script, StringComparison.Ordinal);
             Assert.Contains("Evidence Links", script, StringComparison.Ordinal);
+            Assert.Contains("Open reviews", script, StringComparison.Ordinal);
+            Assert.Contains("roleId", script, StringComparison.Ordinal);
+            Assert.Contains("namespacePrefix", script, StringComparison.Ordinal);
             Assert.Contains("sourceLink", script, StringComparison.Ordinal);
             Assert.Contains("sourceRetentionClass", script, StringComparison.Ordinal);
             Assert.Contains("contentVisibilityReason", script, StringComparison.Ordinal);
             Assert.Contains("referenceType", script, StringComparison.Ordinal);
+            Assert.Contains("<option value=\"operations\">Operations</option>", html, StringComparison.Ordinal);
             Assert.Contains("""<option value="access">Access</option>""", html, StringComparison.Ordinal);
             Assert.Contains("""<option value="compliance">Compliance</option>""", html, StringComparison.Ordinal);
+            Assert.Contains("id=\"credential-state\"", html, StringComparison.Ordinal);
+            Assert.Contains("id=\"role-filter\"", html, StringComparison.Ordinal);
+            Assert.Contains("id=\"memory-type-filter\"", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Get_admin_source_events_filters_by_role_id()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_source_role_filter_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await ApiDatabaseTestSupport.ApplyMigrationsAsync(databaseConnectionString);
+            await ApiDatabaseTestSupport.InsertPrincipalAsync(databaseConnectionString, PrincipalId);
+            await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(databaseConnectionString, PrincipalId, "cto");
+            await ApiDatabaseTestSupport.InsertRoleAssignmentAsync(databaseConnectionString, PrincipalId, "product_owner");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                "/role/cto/events",
+                "read",
+                roleId: "cto");
+            await ApiDatabaseTestSupport.InsertMemoryAccessGrantAsync(
+                databaseConnectionString,
+                "/role/product_owner/events",
+                "read",
+                roleId: "product_owner");
+
+            var ctoEventId = Guid.NewGuid();
+            var productOwnerEventId = Guid.NewGuid();
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                ctoEventId,
+                PrincipalId,
+                "role",
+                "cto",
+                scopeRoleId: "cto");
+            await ApiDatabaseTestSupport.InsertSourceEventAsync(
+                databaseConnectionString,
+                productOwnerEventId,
+                PrincipalId,
+                "role",
+                "product_owner",
+                scopeRoleId: "product_owner");
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+            using var request = CreateAuthenticatedRequest(HttpMethod.Get, "/api/admin/source-events?roleId=cto&limit=20");
+
+            using var response = await client.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            using var payload = JsonDocument.Parse(body);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var sourceEvent = Assert.Single(payload.RootElement.GetProperty("events").EnumerateArray());
+            Assert.Equal(ctoEventId, sourceEvent.GetProperty("id").GetGuid());
+            Assert.Equal("role", sourceEvent.GetProperty("scope").GetProperty("scopeType").GetString());
+            Assert.Equal("cto", sourceEvent.GetProperty("scope").GetProperty("roleId").GetString());
+            Assert.DoesNotContain(productOwnerEventId.ToString(), body, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

@@ -283,8 +283,15 @@ public static class AdminConsoleEndpointExtensions
             scopeType,
             scopeId,
             NormalizeOptionalQuery(context, "memoryType"),
+            NormalizeRoleIdQuery(context, out var roleError),
             namespacePrefix,
             NormalizeOptionalQuery(context, "q"));
+        if (roleError is not null)
+        {
+            error = roleError;
+            return false;
+        }
+
         return true;
     }
 
@@ -372,10 +379,35 @@ public static class AdminConsoleEndpointExtensions
             sensitivity,
             trustLevel,
             redactionStatus,
+            NormalizeRoleIdQuery(context, out var roleError),
             createdFrom,
             createdTo,
             NormalizeOptionalQuery(context, "q"));
+        if (roleError is not null)
+        {
+            error = roleError;
+            return false;
+        }
+
         return true;
+    }
+
+    private static string? NormalizeRoleIdQuery(HttpContext context, out string? error)
+    {
+        error = null;
+        var value = NormalizeOptionalQuery(context, "roleId");
+        if (string.IsNullOrWhiteSpace(value) || string.Equals(value, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (MemoryScopePolicy.TryNormalizeRoleIdentifier(value, out var normalizedRoleId, out var roleError))
+        {
+            return normalizedRoleId;
+        }
+
+        error = roleError;
+        return null;
     }
 
     private static string? NormalizeOptionalQuery(HttpContext context, string key)

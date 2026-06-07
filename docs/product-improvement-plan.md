@@ -72,7 +72,7 @@ Status values:
 | IP-11 | P1 | Done | Security Professional | Access Boundary Review | [Access Boundary Review IP-11](access-boundary-review-ip11.md) adds `scripts/access-boundary-review.sh`, which wraps payload-safe permission-drift reporting into a weekly review queue for memberships, role assignments, namespace grants, service accounts, service credentials, OIDC bindings, break-glass posture, and audit evidence. |
 | IP-12 | P1 | Done | Product Owner | Backlog And Roadmap Memory Sync | [Backlog And Roadmap Memory Sync IP-12](backlog-roadmap-memory-sync-ip12.md) adds `scripts/backlog-roadmap-memory-sync.sh`, which validates that `docs/roadmap.md` and `docs/backlog.md` remain canonical while the source-backed knowledge seed carries current high-value roadmap/backlog memory with pinned source hashes and curated excerpts. |
 | IP-13 | P1 | Done | All Role Owners | Role Lens First Content Pass | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) adds `scripts/role-lens-first-pass.sh`, which resolves active source-backed responsibility base facts and seeds canonical `role_lens` memories for Product Owner, CTO, Security, Ops, Developer, QA, Release Manager, and Knowledge Steward. |
-| IP-14 | P2 | Todo | Product Owner + Developer | Admin UX Polish | Improve the admin UI around memory inspection, login state, source links, role filters, review routing, and operations status. |
+| IP-14 | P2 | Done | Product Owner + Developer | Admin UX Polish | [Admin UX Polish IP-14](admin-ux-polish-ip14.md) adds credential-state display, memory-type/role/namespace filters, role-aware admin query parameters, review-routing actions, and an Operations view backed by `/api/operations/summary`. |
 | IP-15 | P2 | Todo | Tester/QA + Knowledge Steward | Memory Quality Metrics | Track source-link coverage, stale-memory rate, useful feedback rate, missing-memory reports, role-boundary misses, and duplicate ratio. |
 | IP-16 | P2 | Todo | Product Owner + Knowledge Steward | Project Onboarding Runbook | Create a repeatable new-project setup flow for project scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
 | IP-17 | P2 | Todo | Release Manager + Ops | Release Evidence Bundle Automation | Generate one payload-safe evidence bundle for each release covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
@@ -464,3 +464,9 @@ IP-13](role-lens-first-content-pass-ip13.md).
 `scripts/role-lens-first-pass.sh` now validates role-lens source excerpts,
 resolves live base responsibility facts through `/api/admin/memory/facts`, and
 proposes canonical `role_lens` memories for the eight default operating roles.
+
+2026-06-07 update: IP-14 is implemented in [Admin UX Polish
+IP-14](admin-ux-polish-ip14.md). The `/admin/` console now shows credential
+state, adds memory-type/role/namespace filters, routes memory and source-event
+details to `/reviews/`, and includes an Operations view backed by
+`/api/operations/summary`.

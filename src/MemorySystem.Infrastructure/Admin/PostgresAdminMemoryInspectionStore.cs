@@ -88,6 +88,8 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
             scope is null ? DBNull.Value : scope.ScopeId;
         command.Parameters.Add("memory_type", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.MemoryType) ? DBNull.Value : query.MemoryType;
+        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : PostgresDomainMapping.RequireRoleId(query.RoleId);
         command.Parameters.Add("namespace_prefix", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.NamespacePrefix) ? DBNull.Value : query.NamespacePrefix;
         command.Parameters.Add("query", NpgsqlDbType.Text).Value =
@@ -117,6 +119,8 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
             string.IsNullOrWhiteSpace(query.TrustLevel) ? DBNull.Value : PostgresDomainMapping.RequireTrustLevel(query.TrustLevel);
         command.Parameters.Add("redaction_status", NpgsqlDbType.Text).Value =
             string.IsNullOrWhiteSpace(query.RedactionStatus) ? DBNull.Value : query.RedactionStatus;
+        command.Parameters.Add("role_id", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(query.RoleId) ? DBNull.Value : PostgresDomainMapping.RequireRoleId(query.RoleId);
         command.Parameters.Add("created_from", NpgsqlDbType.TimestampTz).Value =
             query.CreatedFrom.HasValue ? query.CreatedFrom.Value : DBNull.Value;
         command.Parameters.Add("created_to", NpgsqlDbType.TimestampTz).Value =
@@ -308,6 +312,15 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
                 AND (@scope_id IS NULL OR fact.scope_id = @scope_id)
                 AND (@memory_type IS NULL OR fact.memory_type = @memory_type)
                 AND (
+                    @role_id IS NULL
+                    OR fact.role_id = @role_id
+                    OR memory_required_role_id(
+                        fact.namespace,
+                        fact.scope_type,
+                        fact.scope_id,
+                        fact.role_id) = @role_id
+                )
+                AND (
                     @namespace_prefix IS NULL
                     OR fact.namespace = @namespace_prefix
                     OR left(fact.namespace, length(@namespace_prefix || '/')) = @namespace_prefix || '/'
@@ -415,6 +428,12 @@ public sealed class PostgresAdminMemoryInspectionStore(NpgsqlDataSource dataSour
                 AND (@sensitivity IS NULL OR event.sensitivity = @sensitivity)
                 AND (@trust_level IS NULL OR event.trust_level = @trust_level)
                 AND (@redaction_status IS NULL OR event.redaction_status = @redaction_status)
+                AND (
+                    @role_id IS NULL
+                    OR event.role_id = @role_id
+                    OR event.scope_role_id = @role_id
+                    OR (event.scope_type = 'role' AND event.scope_id = @role_id)
+                )
                 AND (@created_from IS NULL OR event.created_at >= @created_from)
                 AND (@created_to IS NULL OR event.created_at <= @created_to)
                 AND (

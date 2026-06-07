@@ -140,6 +140,24 @@ label {
   color: var(--muted);
 }
 
+.credential-state {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.credential-state strong {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--code);
+}
+
 input,
 select,
 textarea {
@@ -154,11 +172,28 @@ textarea {
 }
 
 .connection button,
-.primary-action {
+.primary-action,
+.secondary-action {
   min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.connection button,
+.primary-action {
   border-color: var(--accent);
   background: var(--accent);
   color: white;
+  font-weight: 700;
+}
+
+.secondary-action {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -248,7 +283,8 @@ textarea {
 .pill.tentative,
 .pill.expired,
 .pill.superseded,
-.pill.contradicted {
+.pill.contradicted,
+.pill.degraded {
   background: #fff6db;
   color: var(--warn);
 }
@@ -262,7 +298,10 @@ textarea {
 .pill.blocked,
 .pill.no_go,
 .pill.blocks_invite,
-.pill.required {
+.pill.required,
+.pill.needs_review,
+.pill.stale,
+.pill.no_benchmark {
   background: var(--danger-quiet);
   color: var(--danger);
 }
@@ -271,7 +310,8 @@ textarea {
 .pill.legal_hold,
 .pill.audit,
 .pill.pending,
-.pill.go_input {
+.pill.go_input,
+.pill.observed {
   background: #fff6db;
   color: var(--warn);
 }
@@ -283,7 +323,12 @@ textarea {
 .pill.user_scoped,
 .pill.done,
 .pill.go,
-.pill.not_blocking {
+.pill.not_blocking,
+.pill.clear,
+.pill.fresh,
+.pill.quiet,
+.pill.benchmark,
+.pill.reachable {
   background: #e8f7ef;
   color: var(--good);
 }
@@ -298,6 +343,12 @@ textarea {
   max-width: 76ch;
   line-height: 1.55;
   overflow-wrap: anywhere;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .hidden-content {

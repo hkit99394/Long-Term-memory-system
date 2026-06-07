@@ -185,8 +185,82 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
+
+
 
 
 
@@ -207,6 +281,8 @@ const state                    = {
   mode: "memory",
   facts: [],
   events: [],
+  operationsSummary: null,
+  selectedOperationId: null,
   complianceStatus: null,
   pilotReadiness: null,
   selectedFactId: null,
@@ -221,8 +297,12 @@ const state                    = {
 const elements = {
   apiBase: byId                  ("api-base"),
   apiKey: byId                  ("api-key"),
+  credentialState: byId             ("credential-state"),
   modeFilter: byId                   ("mode-filter"),
   statusFilter: byId                   ("status-filter"),
+  memoryTypeFilter: byId                   ("memory-type-filter"),
+  roleFilter: byId                   ("role-filter"),
+  namespacePrefixFilter: byId                  ("namespace-prefix-filter"),
   eventTypeFilter: byId                   ("event-type-filter"),
   retentionFilter: byId                   ("retention-filter"),
   sensitivityFilter: byId                   ("sensitivity-filter"),
@@ -245,10 +325,14 @@ const elements = {
 
 elements.apiBase.value = window.location.origin;
 elements.apiKey.value = sessionStorage.getItem(credentialStorageKey) ?? "";
+updateCredentialState();
 redirectToLoginIfMissingCredential("/admin/");
 elements.refresh.addEventListener("click", () => void loadCurrentMode());
 elements.logout.addEventListener("click", () => void logout());
-elements.apiKey.addEventListener("change", persistCredential);
+elements.apiKey.addEventListener("change", () => {
+  persistCredential();
+  updateCredentialState();
+});
 elements.query.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -265,6 +349,9 @@ elements.modeFilter.addEventListener("change", () => {
 });
 
 for (const element of [
+  elements.memoryTypeFilter,
+  elements.roleFilter,
+  elements.namespacePrefixFilter,
   elements.eventTypeFilter,
   elements.retentionFilter,
   elements.sensitivityFilter,
@@ -278,6 +365,12 @@ for (const element of [
 }
 
 elements.scopeIdFilter.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void loadCurrentMode();
+  }
+});
+elements.namespacePrefixFilter.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
     void loadCurrentMode();
@@ -306,6 +399,10 @@ function readMode()                            {
     return "access";
   }
 
+  if (elements.modeFilter.value === "operations") {
+    return "operations";
+  }
+
   if (elements.modeFilter.value === "compliance") {
     return "compliance";
   }
@@ -325,6 +422,11 @@ async function loadCurrentMode()                {
 
   if (state.mode === "compliance") {
     await loadCompliance();
+    return;
+  }
+
+  if (state.mode === "operations") {
+    await loadOperations();
     return;
   }
 
@@ -354,6 +456,12 @@ async function loadFacts()                {
     if (elements.statusFilter.value !== "all") {
       params.set("status", elements.statusFilter.value);
     }
+    addSelectParam(params, "memoryType", elements.memoryTypeFilter);
+
+    const namespacePrefix = elements.namespacePrefixFilter.value.trim();
+    if (namespacePrefix) {
+      params.set("namespacePrefix", namespacePrefix);
+    }
 
     const response = await apiFetch                          (`/api/admin/memory/facts?${params}`);
     state.facts = response.facts;
@@ -363,6 +471,28 @@ async function loadFacts()                {
     setStatus("Error");
     state.facts = [];
     state.selectedFactId = null;
+    state.selectedSource = null;
+    elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+async function loadOperations()                {
+  setBusy(true);
+  setStatus("Loading");
+  state.selectedSource = null;
+
+  try {
+    const response = await apiFetch                        ("/api/operations/summary");
+    state.operationsSummary = response;
+    state.selectedOperationId = state.selectedOperationId ?? "readiness";
+    setStatus(`Ops ${response.status}`);
+  } catch (error) {
+    setStatus("Error");
+    state.operationsSummary = null;
+    state.selectedOperationId = null;
     state.selectedSource = null;
     elements.sourceDetail.replaceChildren(emptyPanel(errorMessage(error)));
   } finally {
@@ -462,6 +592,8 @@ function commonParams()                  {
     params.set("q", query);
   }
 
+  addSelectParam(params, "roleId", elements.roleFilter);
+
   return params;
 }
 
@@ -537,6 +669,7 @@ function persistCredential()       {
   const credential = elements.apiKey.value.trim();
   if (credential) {
     sessionStorage.setItem(credentialStorageKey, credential);
+    sessionStorage.setItem(credentialKindStorageKey, looksLikeJwt(credential) ? "jwt" : "api_key");
   } else {
     sessionStorage.removeItem(credentialStorageKey);
     sessionStorage.removeItem(credentialKindStorageKey);
@@ -565,11 +698,24 @@ function looksLikeJwt(value        )          {
   return value.split(".").length === 3;
 }
 
+function updateCredentialState()       {
+  const credential = elements.apiKey.value.trim();
+
+  if (!credential) {
+    elements.credentialState.textContent = "Missing";
+    return;
+  }
+
+  elements.credentialState.textContent = looksLikeJwt(credential) ? "JWT" : "API key";
+}
+
 function render()       {
   elements.listTitle.textContent = state.mode === "events"
     ? "Source Events"
     : state.mode === "pilot"
       ? "Pilot Gates"
+    : state.mode === "operations"
+      ? "Operations"
     : state.mode === "compliance"
       ? "Compliance"
     : state.mode === "access"
@@ -579,6 +725,8 @@ function render()       {
     ? "Payload"
     : state.mode === "pilot"
       ? "Pilot Work"
+    : state.mode === "operations"
+      ? "Operator Links"
     : state.mode === "compliance"
       ? "Evidence Links"
     : state.mode === "access"
@@ -599,6 +747,11 @@ function renderResultList()       {
 
   if (state.mode === "compliance") {
     renderComplianceList();
+    return;
+  }
+
+  if (state.mode === "operations") {
+    renderOperationsList();
     return;
   }
 
@@ -686,6 +839,33 @@ function renderComplianceList()       {
   }
 }
 
+function renderOperationsList()       {
+  const summary = state.operationsSummary;
+
+  if (!summary) {
+    elements.resultList.append(emptyPanel("No operations summary"));
+    return;
+  }
+
+  for (const item of operationListItems(summary)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = item.id === state.selectedOperationId ? "memory-row selected" : "memory-row";
+    button.addEventListener("click", () => {
+      state.selectedOperationId = item.id;
+      state.selectedSource = null;
+      render();
+    });
+
+    button.append(
+      line(item.title, "memory-title"),
+      pillRow(item.pills),
+      line(item.summary, "memory-meta"),
+      line(item.detail, "memory-date"));
+    elements.resultList.append(button);
+  }
+}
+
 function renderMemoryList()       {
   if (state.facts.length === 0) {
     elements.resultList.append(emptyPanel("No memory facts"));
@@ -746,6 +926,11 @@ function renderDetail()       {
 
   if (state.mode === "compliance") {
     renderComplianceDetail();
+    return;
+  }
+
+  if (state.mode === "operations") {
+    renderOperationsDetail();
     return;
   }
 
@@ -945,6 +1130,112 @@ function renderComplianceDetail()       {
     metricList(item.metrics));
 }
 
+function renderOperationsDetail()       {
+  const summary = state.operationsSummary;
+
+  if (!summary) {
+    elements.detail.append(emptyPanel("Select an operations summary"));
+    return;
+  }
+
+  const selectedId = state.selectedOperationId ?? "readiness";
+
+  if (selectedId === "worker") {
+    elements.detail.append(
+      heading("Worker"),
+      detailGrid([
+        ["Type", summary.worker.workerType],
+        ["Observed", summary.worker.observed ? "yes" : "no"],
+        ["Status", summary.worker.status],
+        ["Worker", summary.worker.workerId ?? ""],
+        ["Stale", summary.worker.stale ? "yes" : "no"],
+        ["Last seen", summary.worker.lastSeenAt ? shortDate(summary.worker.lastSeenAt) : ""],
+        ["Last seen age", secondsText(summary.worker.lastSeenAgeSeconds)],
+        ["Last success", summary.worker.lastSuccessAt ? shortDate(summary.worker.lastSuccessAt) : ""],
+        ["Last error", summary.worker.lastError ?? ""]
+      ]));
+    return;
+  }
+
+  if (selectedId === "outbox") {
+    elements.detail.append(
+      heading("Outbox"),
+      detailGrid([
+        ["Ready pending", summary.outbox.readyPending.toString()],
+        ["Delayed pending", summary.outbox.delayedPending.toString()],
+        ["Processing", summary.outbox.processing.toString()],
+        ["Dead letter", summary.outbox.deadLetter.toString()],
+        ["Failed", summary.outbox.failed.toString()],
+        ["Retrying failed", summary.outbox.retryingFailed.toString()],
+        ["Expired processing", summary.outbox.expiredProcessing.toString()],
+        ["Oldest ready pending", secondsText(summary.outbox.oldestReadyPendingSeconds)]
+      ]));
+    return;
+  }
+
+  if (selectedId === "retrieval") {
+    elements.detail.append(
+      heading("Retrieval feedback"),
+      detailGrid([
+        ["Window", `${summary.retrievalFeedback.windowHours.toFixed(1)} hours`],
+        ["Total", summary.retrievalFeedback.total.toString()]
+      ]),
+      feedbackList(summary.retrievalFeedback.byType));
+    return;
+  }
+
+  if (selectedId === "reviews") {
+    elements.detail.append(
+      heading("Reviews and exports"),
+      detailGrid([
+        ["Pending reviews", summary.reviews.pending.toString()],
+        ["Stale vault exports", summary.vaultExports.stale.toString()]
+      ]),
+      actionRow([
+        linkAction("Open reviews", "/reviews/"),
+        linkAction("Open memory", "/admin/")
+      ]));
+    return;
+  }
+
+  if (selectedId === "context") {
+    elements.detail.append(
+      heading("Context product"),
+      detailGrid([
+        ["Packets", summary.contextProduct.runtime.packetCount.toString()],
+        ["Items", summary.contextProduct.runtime.itemCount.toString()],
+        ["Explained items", summary.contextProduct.runtime.explainedItemCount.toString()],
+        ["Feedback actions", summary.contextProduct.runtime.feedbackActionCount.toString()],
+        ["Explanation coverage", percentText(summary.contextProduct.runtime.explanationCoverage)],
+        ["Benchmark observed", summary.contextProduct.benchmark.observed ? "yes" : "no"],
+        ["Benchmark source", summary.contextProduct.benchmark.source],
+        ["Benchmark error", summary.contextProduct.benchmark.readError ?? ""]
+      ]),
+      feedbackList(summary.contextProduct.feedbackActions.byAction));
+    return;
+  }
+
+  if (selectedId === "embeddings") {
+    elements.detail.append(
+      heading("Embedding index failures"),
+      detailGrid([
+        ["Retrying failed", summary.embeddingFailures.retryingFailed.toString()],
+        ["Dead letter", summary.embeddingFailures.deadLetter.toString()],
+        ["Failed", summary.embeddingFailures.failed.toString()],
+        ["Expired processing", summary.embeddingFailures.expiredProcessing.toString()]
+      ]));
+    return;
+  }
+
+  elements.detail.append(
+    heading("Readiness"),
+    detailGrid([
+      ["Status", summary.status],
+      ["API", summary.api.status],
+      ["Generated", shortDate(summary.generatedAt)]
+    ]));
+}
+
 function renderMemoryDetail()       {
   const fact = selectedFact();
 
@@ -988,7 +1279,10 @@ function renderMemoryDetail()       {
     heading(displaySubject(fact)),
     paragraph(object, objectClass),
     detailGrid(rows),
-    openButton);
+    actionRow([
+      openButton,
+      linkAction("Open reviews", "/reviews/")
+    ]));
 }
 
 function renderEventDetail()       {
@@ -1030,7 +1324,14 @@ function renderEventDetail()       {
     openButton.textContent = "Open payload";
     openButton.disabled = state.busy;
     openButton.addEventListener("click", () => void openSource(sourceEvent.sourceLink));
-    elements.detail.append(openButton);
+    elements.detail.append(actionRow([
+      openButton,
+      linkAction("Open reviews", "/reviews/")
+    ]));
+  } else {
+    elements.detail.append(actionRow([
+      linkAction("Open reviews", "/reviews/")
+    ]));
   }
 }
 
@@ -1059,6 +1360,36 @@ function renderSourceDetail()       {
       requiredGoInputList(status.requiredToFlipToGo),
       evidenceList(Object.values(status.canonicalDocuments), "Canonical Docs"),
       nextWorkList(status.nextRecommendedWork));
+    return;
+  }
+
+  if (state.mode === "operations") {
+    elements.sourceDetail.append(linkList([
+      {
+        label: "Operations summary",
+        href: "/api/operations/summary",
+        kind: "api",
+        method: "GET"
+      },
+      {
+        label: "Operations metrics",
+        href: "/api/operations/metrics",
+        kind: "api",
+        method: "GET"
+      },
+      {
+        label: "Readiness health",
+        href: "/health/ready",
+        kind: "api",
+        method: "GET"
+      },
+      {
+        label: "Review queue",
+        href: "/reviews/",
+        kind: "ui",
+        method: "GET"
+      }
+    ]));
     return;
   }
 
@@ -1467,7 +1798,7 @@ function linkList(links                             )              {
     const row = document.createElement("div");
     row.className = "audit-row";
 
-    const target = document.createElement(link.kind === "api" && link.method === "GET" ? "a" : "span");
+    const target = document.createElement(link.method === "GET" ? "a" : "span");
     target.className = "memory-meta";
     target.textContent = link.href;
 
@@ -1518,6 +1849,140 @@ function referenceList(references                             )              {
 
   section.append(list);
   return section;
+}
+
+function operationListItems(summary                        )
+
+
+
+
+
+   {
+  const outboxRisk = summary.outbox.deadLetter + summary.outbox.failed + summary.outbox.retryingFailed + summary.outbox.expiredProcessing;
+  const embeddingRisk = summary.embeddingFailures.deadLetter
+    + summary.embeddingFailures.failed
+    + summary.embeddingFailures.retryingFailed
+    + summary.embeddingFailures.expiredProcessing;
+
+  return [
+    {
+      id: "readiness",
+      title: "Readiness",
+      pills: [summary.status, summary.api.status],
+      summary: `Generated ${shortDate(summary.generatedAt)}`,
+      detail: "/api/operations/summary"
+    },
+    {
+      id: "worker",
+      title: "Worker",
+      pills: [summary.worker.status, summary.worker.stale ? "stale" : "fresh"],
+      summary: summary.worker.observed ? summary.worker.workerType : "No heartbeat observed",
+      detail: summary.worker.lastSeenAgeSeconds === null ? "" : secondsText(summary.worker.lastSeenAgeSeconds)
+    },
+    {
+      id: "outbox",
+      title: "Outbox",
+      pills: [outboxRisk > 0 ? "needs_review" : "clear"],
+      summary: `${summary.outbox.readyPending} ready, ${summary.outbox.processing} processing`,
+      detail: `${outboxRisk} failure signals`
+    },
+    {
+      id: "retrieval",
+      title: "Retrieval feedback",
+      pills: [summary.retrievalFeedback.total > 0 ? "observed" : "quiet"],
+      summary: `${summary.retrievalFeedback.total} actions in ${summary.retrievalFeedback.windowHours.toFixed(0)}h`,
+      detail: topFeedbackLabel(summary.retrievalFeedback.byType)
+    },
+    {
+      id: "reviews",
+      title: "Reviews and exports",
+      pills: [summary.reviews.pending > 0 ? "needs_review" : "clear"],
+      summary: `${summary.reviews.pending} pending reviews`,
+      detail: `${summary.vaultExports.stale} stale vault exports`
+    },
+    {
+      id: "context",
+      title: "Context product",
+      pills: [summary.contextProduct.benchmark.observed ? "benchmark" : "no_benchmark"],
+      summary: `${summary.contextProduct.runtime.packetCount} packets`,
+      detail: `${percentText(summary.contextProduct.runtime.explanationCoverage)} explanation coverage`
+    },
+    {
+      id: "embeddings",
+      title: "Embeddings",
+      pills: [embeddingRisk > 0 ? "needs_review" : "clear"],
+      summary: `${summary.embeddingFailures.retryingFailed} retrying, ${summary.embeddingFailures.deadLetter} dead-letter`,
+      detail: `${embeddingRisk} failure signals`
+    }
+  ];
+}
+
+function feedbackList(items                               )              {
+  const section = document.createElement("section");
+  section.className = "audit-section";
+  section.append(heading("Feedback Types"));
+
+  if (items.length === 0) {
+    section.append(emptyPanel("No feedback rows"));
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "audit-list";
+
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.append(
+      line(item.feedbackType, "memory-title"),
+      pillRow([item.count > 0 ? "observed" : "quiet"]),
+      line(`${item.count} total`, "memory-meta"),
+      line(`${percentText(item.share)} share · ${item.perHour.toFixed(2)}/hour`, "memory-date"));
+    list.append(row);
+  }
+
+  section.append(list);
+  return section;
+}
+
+function actionRow(actions               )              {
+  const row = document.createElement("div");
+  row.className = "action-row";
+  row.append(...actions);
+  return row;
+}
+
+function linkAction(label        , href        )                    {
+  const link = document.createElement("a");
+  link.className = "secondary-action";
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+function topFeedbackLabel(items                               )         {
+  const top = [...items].sort((left, right) => right.count - left.count)[0];
+  return top && top.count > 0 ? `${top.feedbackType} leads` : "No feedback yet";
+}
+
+function secondsText(value               )         {
+  if (value === null) {
+    return "";
+  }
+
+  if (value < 60) {
+    return `${value.toFixed(0)}s`;
+  }
+
+  if (value < 3600) {
+    return `${(value / 60).toFixed(1)}m`;
+  }
+
+  return `${(value / 3600).toFixed(1)}h`;
+}
+
+function percentText(value        )         {
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function selectedFact()                         {
@@ -1638,8 +2103,16 @@ function updateFilterVisibility()       {
     element.hidden = state.mode !== "events";
   }
 
+  for (const element of document.querySelectorAll             ("[data-memory-filter]")) {
+    element.hidden = state.mode !== "memory";
+  }
+
+  for (const element of document.querySelectorAll             ("[data-role-filter]")) {
+    element.hidden = state.mode !== "memory" && state.mode !== "events";
+  }
+
   elements.statusFilter.closest("label") .hidden = state.mode !== "memory";
-  elements.scopeTypeFilter.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
-  elements.scopeIdFilter.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
-  elements.query.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot";
+  elements.scopeTypeFilter.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.scopeIdFilter.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.query.closest("label") .hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
 }

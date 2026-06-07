@@ -23,6 +23,7 @@
           <select id="mode-filter" name="mode">
             <option value="memory">Memory</option>
             <option value="events">Sources</option>
+            <option value="operations">Operations</option>
             <option value="pilot">Pilot</option>
             <option value="access">Access</option>
             <option value="compliance">Compliance</option>
@@ -36,6 +37,10 @@
           <span>JWT / Key</span>
           <input id="api-key" name="api-key" type="password" placeholder="OIDC JWT or break-glass key">
         </label>
+        <div class="credential-state" aria-live="polite">
+          <span>Credential</span>
+          <strong id="credential-state">Missing</strong>
+        </div>
         <label>
           <span>Status</span>
           <select id="status-filter" name="status">
@@ -48,6 +53,44 @@
             <option value="deleted">Deleted</option>
             <option value="redacted">Redacted</option>
           </select>
+        </label>
+        <label data-memory-filter>
+          <span>Type</span>
+          <select id="memory-type-filter" name="memoryType">
+            <option value="all">All</option>
+            <option value="goal">Goal</option>
+            <option value="target">Target</option>
+            <option value="fact">Fact</option>
+            <option value="decision">Decision</option>
+            <option value="rationale">Rationale</option>
+            <option value="risk">Risk</option>
+            <option value="assumption">Assumption</option>
+            <option value="constraint">Constraint</option>
+            <option value="requirement">Requirement</option>
+            <option value="release_evidence">Release evidence</option>
+          </select>
+        </label>
+        <label data-role-filter>
+          <span>Role</span>
+          <select id="role-filter" name="roleId">
+            <option value="all">All</option>
+            <option value="product_owner">Product Owner</option>
+            <option value="cto">CTO</option>
+            <option value="security_professional">Security</option>
+            <option value="it_manager">Ops</option>
+            <option value="developer">Developer</option>
+            <option value="tester_qa">QA</option>
+            <option value="release_manager">Release Manager</option>
+            <option value="knowledge_steward">Knowledge Steward</option>
+            <option value="designer">Designer</option>
+            <option value="cfo">CFO</option>
+            <option value="coo">COO</option>
+            <option value="ceo">CEO</option>
+          </select>
+        </label>
+        <label data-memory-filter>
+          <span>Namespace</span>
+          <input id="namespace-prefix-filter" name="namespacePrefix" placeholder="/project/...">
         </label>
         <label data-event-filter>
           <span>Event</span>

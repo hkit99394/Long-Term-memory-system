@@ -79,6 +79,12 @@ npm run build
 npm run check
 ```
 
+After changing the IP-14 admin polish contract, run the focused static test:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~AdminUxPolishIp14Tests
+```
+
 ```bash
 cd tools/vault-sync
 npm run build

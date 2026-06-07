@@ -18,6 +18,7 @@ public sealed record AdminMemoryFactListQuery(
     string? ScopeType = null,
     string? ScopeId = null,
     string? MemoryType = null,
+    string? RoleId = null,
     string? NamespacePrefix = null,
     string? Query = null);
 
@@ -64,6 +65,7 @@ public sealed record AdminSourceEventListQuery(
     string? Sensitivity = null,
     string? TrustLevel = null,
     string? RedactionStatus = null,
+    string? RoleId = null,
     DateTimeOffset? CreatedFrom = null,
     DateTimeOffset? CreatedTo = null,
     string? Query = null);

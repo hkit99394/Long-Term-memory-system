@@ -385,6 +385,7 @@ Rules:
 | `docs/access-boundary-review-ip11.md` | IP-11 access-boundary review contract for memberships, roles, grants, service accounts, OIDC bindings, break-glass posture, and permission drift. |
 | `docs/backlog-roadmap-memory-sync-ip12.md` | IP-12 roadmap/backlog Markdown-to-memory sync guard and source-backed seed workflow. |
 | `docs/role-lens-first-content-pass-ip13.md` | IP-13 source-backed first content pass for project role-lens memory. |
+| `docs/admin-ux-polish-ip14.md` | IP-14 admin console polish contract for filters, source/review routing, credential state, and operations status. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
