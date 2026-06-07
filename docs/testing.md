@@ -121,6 +121,7 @@ bash -n scripts/backup-restore-drill-schedule.sh
 bash -n scripts/access-boundary-review.sh
 bash -n scripts/project-onboarding-runbook.sh
 bash -n scripts/release-evidence-bundle.sh
+bash -n scripts/directory-sync-evaluation.sh
 bash -n scripts/backlog-roadmap-memory-sync.sh
 bash -n scripts/seed-production-memory-boundary.sh
 bash -n scripts/seed-production-knowledge-base.sh
@@ -234,6 +235,19 @@ payload-safe manifest without writing output files:
 bash -n scripts/release-evidence-bundle.sh
 scripts/release-evidence-bundle.sh --dry-run --release-id local-draft
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ReleaseEvidenceBundleAutomationIp17Tests
+```
+
+## Directory Sync Evaluation
+
+Use this after changing the IP-18 directory sync evaluation, EA-10/Decision
+0047 posture, access-boundary review docs, or local-grant authorization
+boundaries. The dry run validates that sync remains provisioning-only and that
+runtime authorization stays local:
+
+```bash
+bash -n scripts/directory-sync-evaluation.sh
+scripts/directory-sync-evaluation.sh --dry-run
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~DirectorySyncEvaluationIp18Tests
 ```
 
 ## Agent Memory Client Wrapper

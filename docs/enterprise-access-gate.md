@@ -233,6 +233,10 @@ The first pilot does not need SCIM or provider-specific group sync. OIDC,
 identity bindings, service-account lifecycle records, admin access management,
 audit export, and rollback smoke are enough for the first team.
 
+[Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) adds a
+payload-safe evaluation command for pilot closeout signals:
+`scripts/directory-sync-evaluation.sh --dry-run`.
+
 If directory sync is added later, it is provisioning-only. It may create or
 update local principals and identity bindings, or stage local membership, role,
 and namespace-grant proposals for operator approval. It must not authorize

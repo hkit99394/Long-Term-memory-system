@@ -107,6 +107,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Operations summary, Prometheus metrics, and admin readout for source-link coverage, stale/useful/missing feedback, role-boundary misses, and duplicates. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Payload-safe new-project setup flow for scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Payload-safe release bundle generator for tests, migration, health, operations, benchmark, backup/restore, and rollback evidence. |
+| [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Provisioning-only directory sync evaluation gate that keeps runtime authorization local. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -188,6 +189,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Enterprise Access Gate](enterprise-access-gate.md) | OIDC/SSO, service accounts, access-management UI, audit export, and migration plan. |
 | [Enterprise Access Pilot Operator Runbook](enterprise-access-pilot-operator-runbook.md) | Pilot workflow for OIDC, service accounts, grants, audit export, rollback, and break-glass keys. |
 | [Enterprise Directory Sync Evaluation EA-10](enterprise-directory-sync-evaluation-ea10.md) | Decision to defer SCIM/directory sync until after pilot evidence. |
+| [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Product-improvement evaluation gate for SCIM/group sync pressure signals. |
 | [Decision 0047: Directory Sync Is Provisioning Only](decisions/0047-directory-sync-provisioning-only.md) | Accepted constraint that future directory sync cannot bypass local memberships, roles, grants, previews, or audit records. |
 | [Context Productization Gate](context-productization-gate.md) | Explainable context packets, safe exclusions, reviewer action, feedback, and ranking plan. |
 
@@ -223,6 +225,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Memory Quality Metrics IP-15](memory-quality-metrics-ip15.md) | Tester/QA and Knowledge Steward quality metrics for operations, alerts, and admin review. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Repeatable setup plan for scope, role owners, grants, source-backed seeds, and reviews. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager workflow for the generated evidence bundle and strict promotion rule. |
+| [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Security/Ops workflow for deciding whether future provisioning-only sync is justified. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary
