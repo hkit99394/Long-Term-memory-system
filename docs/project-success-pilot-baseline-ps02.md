@@ -3,7 +3,8 @@
 Date: 2026-06-08
 
 Status: first pilot project selected and baseline recorded. PS-03 has started
-the observation runbook; the live observation window starts on 2026-06-15.
+the observation runbook, and PS-04 has started closeout preparation; the live
+observation window starts on 2026-06-15.
 
 Owners: Product Owner, Tester/QA, Knowledge Steward, Security Professional, and
 pilot operator.

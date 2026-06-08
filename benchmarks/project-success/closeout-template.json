@@ -1,0 +1,92 @@
+{
+  "kind": "memorysystem.project_success_closeout",
+  "schemaVersion": 1,
+  "benchmarkId": "PS-04",
+  "payloadSafe": true,
+  "rawSourcePayloadsIncluded": false,
+  "rawMemoryPayloadsIncluded": false,
+  "rawQueriesIncluded": false,
+  "pilotProject": {
+    "organizationId": "9f8e7d6c-5b4a-4321-9123-abcdef123001",
+    "projectId": "9f8e7d6c-5b4a-4321-9123-abcdef123002",
+    "projectName": "Long-Term Memory System",
+    "productOwner": "",
+    "pilotOperator": ""
+  },
+  "period": {
+    "planningStart": "2026-06-08",
+    "planningEnd": "2026-06-14",
+    "pilotStart": "2026-06-15",
+    "pilotEnd": "2026-06-28",
+    "closeoutStart": "2026-06-29",
+    "closeoutDue": "2026-07-05"
+  },
+  "requiredEvidence": {
+    "cycle1Record": "",
+    "cycle2Record": "",
+    "finalScorecard": "",
+    "operationsSummary": "",
+    "weeklyAdminReviewCycle1": "",
+    "weeklyAdminReviewCycle2": "",
+    "accessBoundaryReviewCycle1": "",
+    "accessBoundaryReviewCycle2": "",
+    "sourceBackedMemoryHygiene": "",
+    "backlogRoadmapSync": "",
+    "benchmarkReleaseGate": "",
+    "confidenceRatings": ""
+  },
+  "finalMetrics": {
+    "adoption": {
+      "activeMemoryUsersOrAgents": null,
+      "memoryInformedWorkItems": null,
+      "feedbackCoverage": null
+    },
+    "memoryQuality": {
+      "sourceLinkCoverage": null,
+      "usefulFeedbackRate": null,
+      "staleMemoryRate": null,
+      "missingMemoryReports": null,
+      "duplicateRatio": null
+    },
+    "trustAndSafety": {
+      "scopedSafetyLeaks": null,
+      "staleMemoryBenchmarkUsage": null,
+      "rawPayloadLeakage": null,
+      "weeklyAccessBoundaryReviewCompletion": null
+    },
+    "operatorBurden": {
+      "criticalReviewResolutionBusinessDays": null,
+      "oldestCriticalReviewAgeDays": null,
+      "manualEvidenceSteps": null,
+      "maintainerInterventions": null
+    },
+    "projectDeliveryImpact": {
+      "repeatedContextQuestionsAvoided": null,
+      "missedDecisionCount": null,
+      "firstPassTaskCompletionRate": null,
+      "newContributorOnboardingHours": null
+    },
+    "humanConfidence": {
+      "pilotUserConfidence": null,
+      "operatorConfidence": null,
+      "explainabilityPassRate": null
+    }
+  },
+  "hardGateChecks": {
+    "scopedSafetyLeaksPass": null,
+    "staleMemoryBenchmarkUsagePass": null,
+    "sourceLinkCoveragePass": null,
+    "rawPayloadLeakagePass": null,
+    "criticalReviewSlaPass": null,
+    "weeklyAccessBoundaryReviewPass": null,
+    "missingCycleReasonAccepted": null
+  },
+  "recommendation": {
+    "decision": "pending",
+    "reason": "",
+    "residualRisks": [],
+    "nextAction": "",
+    "decidedBy": "",
+    "decidedAtUtc": ""
+  }
+}

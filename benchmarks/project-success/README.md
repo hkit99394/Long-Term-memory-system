@@ -21,6 +21,8 @@ The first selected pilot and baseline are recorded in
 [`docs/project-success-pilot-baseline-ps02.md`](../../docs/project-success-pilot-baseline-ps02.md).
 The two-week observation runbook is recorded in
 [`docs/project-success-observation-ps03.md`](../../docs/project-success-observation-ps03.md).
+The closeout-prep runbook is recorded in
+[`docs/project-success-closeout-ps04.md`](../../docs/project-success-closeout-ps04.md).
 
 ## First Pilot Window
 
@@ -45,6 +47,13 @@ attached to pilot evidence.
 
 The weekly cycle artifact kind is
 `memorysystem.project_success_observation_cycle`.
+
+Use [`closeout-template.json`](closeout-template.json) for the PS-04 final
+decision record. Filled closeout records stay under
+`benchmarks/outputs/project-success/` unless a curated payload-safe summary is
+attached to pilot evidence.
+
+The closeout artifact kind is `memorysystem.project_success_closeout`.
 
 The scorecard is payload-safe. It stores ids, counts, percentages, ratings,
 dates, decisions, and links to evidence; it must not include raw source payloads,

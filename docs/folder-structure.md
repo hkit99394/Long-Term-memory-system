@@ -396,6 +396,8 @@ Rules:
 | `docs/project-success-pilot-baseline-ps02.md` | PS-02 selected pilot project and baseline before the live observation window. |
 | `docs/project-success-observation-ps03.md` | PS-03 two-week pilot observation runbook and evidence workflow. |
 | `benchmarks/project-success/weekly-cycle-template.json` | PS-03 payload-safe weekly observation cycle template. |
+| `docs/project-success-closeout-ps04.md` | PS-04 closeout-prep runbook and final recommendation workflow. |
+| `benchmarks/project-success/closeout-template.json` | PS-04 payload-safe GO/WATCH/NO-GO closeout decision template. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |

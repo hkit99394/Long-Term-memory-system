@@ -115,8 +115,11 @@ shows:
 
 ## PS-04 Handoff
 
-PS-04 may start after 2026-06-29 when both weekly cycle records exist or when the
-Product Owner explicitly records why a missing cycle should force `WATCH` or
-`NO-GO`. The closeout must use
+PS-04 closeout preparation may start before the observation window, but the
+final recommendation must wait until 2026-06-29 or later. Completion requires
+both weekly cycle records, or an explicit Product Owner record of why a missing
+cycle should force `WATCH` or `NO-GO`. The closeout must use
 [`benchmarks/project-success/scorecard-template.json`](../benchmarks/project-success/scorecard-template.json)
-and produce a payload-safe GO/WATCH/NO-GO recommendation by 2026-07-05.
+and
+[`benchmarks/project-success/closeout-template.json`](../benchmarks/project-success/closeout-template.json),
+then produce a payload-safe GO/WATCH/NO-GO recommendation by 2026-07-05.

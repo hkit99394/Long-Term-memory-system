@@ -83,9 +83,10 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 5. [Project Success Benchmark PS-01](project-success-benchmark-ps01.md)
 6. [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md)
 7. [Project Success Observation PS-03](project-success-observation-ps03.md)
-8. [Benchmark Release-Gate Report LR-03](benchmark-release-gate-lr03.md)
-9. [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
-10. [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
+8. [Project Success Closeout PS-04](project-success-closeout-ps04.md)
+9. [Benchmark Release-Gate Report LR-03](benchmark-release-gate-lr03.md)
+10. [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+11. [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
 
 ## Reference Index
 
@@ -114,6 +115,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Pilot scorecard for whether governed memory improves real project work. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | First dogfood pilot selection, baseline pains, starting metrics, and observation entry criteria. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | Two-week dogfood observation runbook, weekly cycle calendar, and evidence workflow. |
+| [Project Success Closeout PS-04](project-success-closeout-ps04.md) | Closeout-prep runbook, required evidence, decision rules, and GO/WATCH/NO-GO completion criteria. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -142,6 +144,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Post-MVP pilot scorecard for adoption, quality, safety, operator burden, delivery impact, and confidence. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | Selected Long-Term Memory System dogfood pilot and baseline before the two-week observation run. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | In-progress two-week observation workflow for weekly project-success evidence capture. |
+| [Project Success Closeout PS-04](project-success-closeout-ps04.md) | In-progress closeout workflow for the final project-success recommendation. |
 | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) | First local benchmark release-gate baseline. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Historical private-alpha baseline and verification notes. |
 
@@ -239,6 +242,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Product Owner workflow for proving real project-success impact after the technical MVP promotion. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | Product Owner baseline record for the first internal dogfood pilot. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | Product Owner observation runbook for two weekly project-success measurement cycles. |
+| [Project Success Closeout PS-04](project-success-closeout-ps04.md) | Product Owner closeout runbook for the final GO/WATCH/NO-GO recommendation. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

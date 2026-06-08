@@ -80,6 +80,7 @@ Status values:
 | PS-01 | P0 | Done | Product Owner + Tester/QA + Knowledge Steward | Pilot Project Success Scorecard | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) defines the post-MVP pilot scorecard, first-pilot dates, adoption, memory-quality, trust/safety, operator-burden, delivery-impact, and human-confidence targets, plus the payload-safe `memorysystem.project_success_scorecard` template under `benchmarks/project-success/`. |
 | PS-02 | P0 | Done | Product Owner + Knowledge Steward + Pilot Operator | First Pilot Selection And Baseline | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) selects the Long-Term Memory System internal dogfood pilot, records canonical organization/project scope, active roles, baseline repeated-context pains, starting metrics, evidence to collect, and PS-03 entry criteria. |
 | PS-03 | P0 | In Progress | Product Owner + Tester/QA + Knowledge Steward + Security Professional + Pilot Operator | Two-Week Pilot Observation | [Project Success Observation PS-03](project-success-observation-ps03.md) starts the observation runbook, keeps live success metrics gated until 2026-06-15, defines two weekly cycles, and points each cycle at the payload-safe `weekly-cycle-template.json` evidence contract. |
+| PS-04 | P0 | In Progress | Product Owner + Tester/QA + Knowledge Steward + Security Professional + Release Manager + Pilot Operator | Project Success Closeout | [Project Success Closeout PS-04](project-success-closeout-ps04.md) starts the closeout-prep runbook, keeps the final GO/WATCH/NO-GO recommendation gated until 2026-06-29, and points the closeout at the payload-safe `closeout-template.json` decision record. |
 
 ## Project Success Run: 1 Month
 
@@ -88,9 +89,9 @@ Goal: prove that the technically ready memory system improves real project work.
 Status: PS-01 is complete as the scorecard contract. PS-02 selected the
 Long-Term Memory System internal dogfood pilot and recorded the baseline. PS-03
 is in progress as the observation runbook and evidence scaffold; live success
-metrics must wait for the 2026-06-15 to 2026-06-28 observation window. The next
-execution work is capturing two weekly measurement cycles and producing a
-GO/WATCH/NO-GO project-success closeout by 2026-07-05.
+metrics must wait for the 2026-06-15 to 2026-06-28 observation window. PS-04 is
+in progress as closeout preparation; the final GO/WATCH/NO-GO recommendation
+must wait for the 2026-06-29 to 2026-07-05 closeout window.
 
 1. Select the first pilot project.
    - Name the Product Owner, pilot operator, target project scope, active roles,
