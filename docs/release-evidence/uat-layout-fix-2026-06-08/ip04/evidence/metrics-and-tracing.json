@@ -1,0 +1,37 @@
+{
+  "kind": "memorysystem.uat_metrics_and_tracing",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "operationsSummary": {
+    "status": 200,
+    "ok": true,
+    "summaryStatus": "healthy",
+    "workerStatus": "running"
+  },
+  "operationsMetrics": {
+    "status": 200,
+    "ok": true,
+    "bytes": 24805,
+    "requiredMetricsPresent": {
+      "memorysystem_api_requests_total": true,
+      "memorysystem_worker_heartbeat_age_seconds": false,
+      "memorysystem_outbox_dead_letter_total": false
+    },
+    "metricsSnapshotSha256": "sha256:40825be7ac98e9f903cc0e38e35f153c7da7d5c2e16d73035d9382dd76259165",
+    "rawMetricsEmbedded": false
+  },
+  "tracing": {
+    "mode": "runtime_trace_exporter_not_configured_for_local_uat",
+    "validation": "operations metrics and trace-covered endpoint paths were exercised through authenticated API calls; no raw traces embedded"
+  },
+  "omittedPayloadClasses": [
+    "raw metrics text",
+    "trace payloads",
+    "credentials",
+    "raw queries"
+  ]
+}

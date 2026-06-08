@@ -1,0 +1,33 @@
+{
+  "kind": "memorysystem.uat_governance_smoke",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "complianceStatusEndpoint": {
+    "path": "/api/admin/compliance/status",
+    "status": 200,
+    "ok": true,
+    "responseBytes": 4181
+  },
+  "pilotReadinessEndpoint": {
+    "path": "/api/admin/pilot/readiness",
+    "status": 200,
+    "ok": true,
+    "decisionStatus": "go"
+  },
+  "accessAudit": {
+    "auditEventCount": 110,
+    "payloadSafeMetadataPolicy": "access_audit_events metadata rejects raw payload fields by schema/test contract"
+  },
+  "governanceReviewer": "local-uat-operator",
+  "omittedPayloadClasses": [
+    "raw compliance body",
+    "audit export rows",
+    "raw source payloads",
+    "memory bodies",
+    "credentials"
+  ]
+}

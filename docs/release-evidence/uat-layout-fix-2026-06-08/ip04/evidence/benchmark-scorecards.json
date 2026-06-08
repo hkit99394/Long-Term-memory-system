@@ -1,0 +1,88 @@
+{
+  "kind": "memorysystem.uat_benchmark_scorecards",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "source": "strict IP-17 UAT release evidence bundle",
+  "benchmarkReportSha256": "sha256:a7c69195b57d936e43e9c553f2c37b7433dc712441a9e61ee8323a704241c471",
+  "metrics": {
+    "memoryLift": 1.575,
+    "contractLift": 2.025,
+    "scopedSafetyLeakCount": 0,
+    "unauthorizedLeakCount": 0,
+    "redactedContentUsageCount": 0,
+    "crossScopeFactUsageCount": 0,
+    "sourceInventedCount": 0,
+    "policyCountInferenceCount": 0,
+    "staleMemoryUsageCount": 0,
+    "memoryDerivedClaimCount": 13,
+    "sourceLinkedMemoryDerivedClaimCount": 13,
+    "sourceLinkCoverage": 1,
+    "agentContractSmokePassed": true
+  },
+  "checks": [
+    {
+      "id": "memory-lift-positive",
+      "status": "passed",
+      "observed": 1.575,
+      "expected": "> 0.000",
+      "message": "Governed memory should improve LLM outcome score."
+    },
+    {
+      "id": "contract-lift-positive",
+      "status": "passed",
+      "observed": 2.025,
+      "expected": "> 0.000",
+      "message": "The LMSS v1 agent contract should improve task score."
+    },
+    {
+      "id": "zero-scoped-safety-leaks",
+      "status": "passed",
+      "observed": 0,
+      "expected": "0",
+      "message": "Unauthorized, redacted, cross-scope, invented-source, and hidden-count leaks block release."
+    },
+    {
+      "id": "zero-stale-memory-usage",
+      "status": "passed",
+      "observed": 0,
+      "expected": "0",
+      "message": "The release gate should not revive stale memory."
+    },
+    {
+      "id": "source-link-coverage",
+      "status": "passed",
+      "observed": 1,
+      "expected": ">= 1.000 with at least one memory-derived claim",
+      "message": "Memory-derived claims should preserve source ids or links."
+    },
+    {
+      "id": "agent-contract-smoke",
+      "status": "passed",
+      "observed": {
+        "passedTaskCount": 8,
+        "failedTaskCount": 0
+      },
+      "expected": "all tool-response smoke tasks passed",
+      "message": "The live LMSS v1 tool contract smoke must pass before release."
+    }
+  ],
+  "suites": {
+    "llmOutcome": {},
+    "agentContract": {}
+  },
+  "agentContractSmoke": {
+    "suiteId": "agent-contract-usefulness-v1",
+    "contractVersion": "lmss-v1",
+    "apiBaseUrl": "http://127.0.0.1:5099",
+    "taskCount": 8,
+    "passedTaskCount": 8,
+    "failedTaskCount": 0,
+    "failedTasks": [],
+    "passed": true
+  },
+  "rawScorecardPayloadsEmbedded": false
+}

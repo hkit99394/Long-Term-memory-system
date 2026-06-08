@@ -392,11 +392,11 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
-        "sourceSha256": "14bcffa6181a543773f5d38662635d36d337a306f9150b76d7b6bdbabaa13145",
+        "sourceSha256": "2a0e86ee3d3f415fbf79971ac69b10d13e85be7de20912d93d58f1929b21e1ea",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [
-            "replacement. The next focus is attaching post-GO target-environment evidence",
+            "replacement. IP-04 now attaches verified UAT target-environment evidence",
             "| EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook.",
             "| CP-01 | P0 | Done | Define productized context packet schema."
         ],

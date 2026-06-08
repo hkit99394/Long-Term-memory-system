@@ -43,6 +43,7 @@ repo-root/
   docs/
     api/
     decisions/
+    release-evidence/
     scenarios/
   vault/
     AI Memory System/
@@ -405,6 +406,7 @@ Rules:
 | `docs/target-environment-evidence-hardening-ip04.md` | IP-04 target-environment evidence manifest, checksum verifier, and completion rule for real target artifacts. |
 | `docs/target-environment-evidence-manifest.schema.json` | JSON Schema for the payload-safe target evidence manifest. |
 | `docs/target-environment-evidence-manifest.example.json` | Copyable example manifest for a real target evidence bundle. |
+| `docs/release-evidence/uat-layout-fix-2026-06-08/ip04/` | Verified UAT target evidence manifest and payload-safe gate artifacts for IP-04. |
 | `docs/pilot-release-evidence-epr03-2026-06-04.md` | Payload-safe EPR-02/EPR-03 local pilot-equivalent release evidence record. |
 | `docs/external-pilot-go-no-go-epr04-2026-06-04.md` | Historical EPR-04 external-pilot NO-GO decision record and GO replacement requirements. |
 | `docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md` | Owner-approved EPR-04 GO replacement for version 1.0.0 external pilot. |

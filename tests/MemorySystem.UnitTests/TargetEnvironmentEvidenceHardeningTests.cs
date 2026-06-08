@@ -7,7 +7,7 @@ namespace MemorySystem.UnitTests;
 public sealed class TargetEnvironmentEvidenceHardeningTests
 {
     [Fact]
-    public void Ip04_target_environment_evidence_hardening_is_documented_scripted_and_marked_doing()
+    public void Ip04_target_environment_evidence_hardening_is_documented_scripted_and_marked_done_for_uat()
     {
         var root = FindRepositoryRoot();
         var productPlan = File.ReadAllText(Path.Combine(root, "docs", "product-improvement-plan.md"));
@@ -20,12 +20,19 @@ public sealed class TargetEnvironmentEvidenceHardeningTests
         var script = File.ReadAllText(Path.Combine(root, "scripts", "target-environment-evidence-verify.sh"));
         var schema = File.ReadAllText(Path.Combine(root, "docs", "target-environment-evidence-manifest.schema.json"));
         var example = File.ReadAllText(Path.Combine(root, "docs", "target-environment-evidence-manifest.example.json"));
+        var uatEvidence = File.ReadAllText(Path.Combine(root, "docs", "release-evidence", "uat-layout-fix-2026-06-08", "ip04", "README.md"));
+        var uatManifestPath = Path.Combine(root, "docs", "release-evidence", "uat-layout-fix-2026-06-08", "ip04", "target-environment-evidence-manifest.json");
+        var uatManifest = File.ReadAllText(uatManifestPath);
+        var verifierOutput = File.ReadAllText(Path.Combine(root, "docs", "release-evidence", "uat-layout-fix-2026-06-08", "ip04", "verifier-output.txt"));
 
-        Assert.Contains("| IP-04 | P0 | Doing | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening |", productPlan, StringComparison.Ordinal);
-        Assert.Contains("Status: started; target evidence manifest contract is implemented", hardening, StringComparison.Ordinal);
+        Assert.Contains("| IP-04 | P0 | Done | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening |", productPlan, StringComparison.Ordinal);
+        Assert.Contains("Status: done for the accepted UAT target environment.", hardening, StringComparison.Ordinal);
         Assert.Contains("memorysystem.target_environment_evidence", hardening, StringComparison.Ordinal);
         Assert.Contains("scripts/target-environment-evidence-verify.sh", hardening, StringComparison.Ordinal);
-        Assert.Contains("real target evidence is not attached", hardening, StringComparison.Ordinal);
+        Assert.Contains("UAT Target Evidence IP-04", hardening, StringComparison.Ordinal);
+        Assert.Contains("releaseId=uat-layout-fix-2026-06-08 environment=uat artifacts=11", verifierOutput, StringComparison.Ordinal);
+        Assert.Contains("\"environment\": \"uat\"", uatManifest, StringComparison.Ordinal);
+        Assert.Contains("\"payloadSafe\": true", uatManifest, StringComparison.Ordinal);
 
         foreach (var gate in RequiredGateIds())
         {
@@ -33,12 +40,16 @@ public sealed class TargetEnvironmentEvidenceHardeningTests
             Assert.Contains(gate, script, StringComparison.Ordinal);
             Assert.Contains(gate, schema, StringComparison.Ordinal);
             Assert.Contains(gate, example, StringComparison.Ordinal);
+            Assert.Contains(gate, uatManifest, StringComparison.Ordinal);
         }
 
         Assert.Contains("Target-Environment Evidence Hardening IP-04", docsIndex, StringComparison.Ordinal);
+        Assert.Contains("UAT Target Evidence IP-04", docsIndex, StringComparison.Ordinal);
+        Assert.Contains("Status: verified GO for the accepted UAT target environment.", uatEvidence, StringComparison.Ordinal);
         Assert.Contains("target-environment-evidence-hardening-ip04.md", folderStructure, StringComparison.Ordinal);
         Assert.Contains("target-environment-evidence-manifest.schema.json", folderStructure, StringComparison.Ordinal);
         Assert.Contains("target-environment-evidence-manifest.example.json", folderStructure, StringComparison.Ordinal);
+        Assert.Contains("docs/release-evidence/uat-layout-fix-2026-06-08/ip04/", folderStructure, StringComparison.Ordinal);
 
         Assert.Contains("target-environment-evidence-verify.sh", runbook, StringComparison.Ordinal);
         Assert.Contains("target-environment-evidence-verify.sh", releaseChecklist, StringComparison.Ordinal);
@@ -52,6 +63,7 @@ public sealed class TargetEnvironmentEvidenceHardeningTests
         Assert.Contains("must be a local file path for hash verification", script, StringComparison.Ordinal);
         Assert.DoesNotContain("cat \"$artifact_file\"", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("SELECT event.content", script, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(uatManifestPath));
     }
 
     [Fact]

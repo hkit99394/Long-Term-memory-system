@@ -2,11 +2,11 @@
   "$schema": "./external-pilot-readiness-status.schema.json",
   "schemaVersion": 1,
   "statusId": "external-pilot-readiness-2026-06-04",
-  "generatedAt": "2026-06-07",
+  "generatedAt": "2026-06-08",
   "scope": "external-pilot",
   "environment": {
     "target": "pilot",
-    "evidenceMode": "local_pilot_equivalent_owner_accepted",
+    "evidenceMode": "uat_target_environment_verified_owner_accepted",
     "externalInvite": "approved",
     "releaseVersion": "1.0.0"
   },
@@ -14,7 +14,7 @@
     "status": "go",
     "externalInviteApproved": true,
     "record": "docs/external-pilot-go-epr04-v1.0.0-2026-06-04.md",
-    "reason": "Owner approval in the workspace marks version 1.0.0 GO for external pilot based on the accepted P0-P3 evidence bundle; target-environment artifacts remain post-GO evidence hardening work."
+    "reason": "Owner approval in the workspace marks version 1.0.0 GO for external pilot based on the accepted P0-P3 evidence bundle; UAT target-environment evidence for uat-layout-fix-2026-06-08 is now attached and verifier-passed."
   },
   "payloadSafe": true,
   "rawSourcePayloadsIncluded": false,
@@ -26,6 +26,7 @@
     "truthCleanup": "docs/documentation-truth-cleanup-p1-2026-06-04.md",
     "statusContract": "docs/release-readiness-status-contract-p2.md",
     "targetEvidenceHardening": "docs/target-environment-evidence-hardening-ip04.md",
+    "uatTargetEvidence": "docs/release-evidence/uat-layout-fix-2026-06-08/ip04/README.md",
     "backlog": "docs/backlog.md"
   },
   "gates": [
@@ -123,8 +124,8 @@
   "nextRecommendedWork": [
     {
       "id": "V1-01",
-      "title": "Attach post-GO target-environment evidence package",
-      "uses": "docs/target-environment-evidence-hardening-ip04.md"
+      "title": "Use verified UAT target evidence for the production promotion decision",
+      "uses": "docs/release-evidence/uat-layout-fix-2026-06-08/ip04/README.md"
     }
   ]
 }

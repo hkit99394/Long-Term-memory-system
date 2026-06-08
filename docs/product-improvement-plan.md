@@ -1,6 +1,6 @@
 # Product Improvement Plan
 
-Last reviewed: 2026-06-06
+Last reviewed: 2026-06-08
 
 ## Purpose
 
@@ -62,7 +62,7 @@ Status values:
 | IP-01 | P0 | Done | Knowledge Steward + Product Owner | Memory vs Markdown Policy Cleanup | [Memory vs Markdown Policy](memory-vs-markdown-policy.md) defines what belongs in Markdown, memory, backlog, source evidence, role lenses, release evidence, and vault exports; the source-backed knowledge seed includes the policy. |
 | IP-02 | P0 | Done | Security Professional + Developer | Admin Human Login For Console | `/auth/login` validates OIDC JWTs for active human identity bindings, `/admin/` and `/reviews/` send JWTs as `Authorization: Bearer`, break-glass API keys remain an explicit human-only fallback, and no console session cookie is issued. |
 | IP-03 | P0 | Done | IT/Ops + CTO | External / Managed PostgreSQL Production Profile | [External / Managed PostgreSQL Production Profile](external-managed-postgres-profile.md) defines `local` versus `external` database modes; the production container tool validates managed TLS connection strings, renders API/worker/migrator without local `postgres` dependencies, keeps the protected Docker volume as the default local mode, and ships `external-postgres-profile-smoke.sh`. |
-| IP-04 | P0 | Doing | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) defines the payload-safe target evidence manifest and `scripts/target-environment-evidence-verify.sh` for real deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, evidence upload, rollback notes, and go/no-go signatures; status remains Doing until a real target manifest passes the verifier and is linked from release evidence. |
+| IP-04 | P0 | Done | Release Manager + Tester/QA + Ops | Target-Environment Evidence Hardening | [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) defines the payload-safe target evidence manifest and `scripts/target-environment-evidence-verify.sh`; [UAT Target Evidence IP-04](release-evidence/uat-layout-fix-2026-06-08/ip04/README.md) attaches the accepted UAT target manifest for deploy smoke, backup/restore, alert acknowledgement, benchmark scorecards, governance smoke, evidence upload, rollback notes, and go/no-go signatures, and the verifier passed for release `uat-layout-fix-2026-06-08`. |
 | IP-05 | P0 | Done | Product Owner + CTO | Project-Defined Roles | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) adds `project_role_definitions`, `POST /api/admin/access/project-roles`, project-aware role assignment/grant/lens validation, default role templates, and fail-closed handling for undefined or disabled custom project roles. |
 | IP-06 | P0 | Done | Knowledge Steward + Developer | Canonical Memory Types | [Canonical Memory Types IP-06](canonical-memory-types-ip06.md) defines the source-of-truth memory type vocabulary for `goal`, `target`, `fact`, `decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`, `release_evidence`, and `role_lens`, wires proposal/query validation through the domain value object, and keeps legacy aliases compatible. |
 | IP-07 | P1 | Done | Knowledge Steward + Tester/QA | Source-Backed Memory Hygiene Automation | [Source-Backed Memory Hygiene Automation IP-07](source-backed-memory-hygiene-ip07.md) adds `scripts/source-backed-memory-hygiene.sh`, pins source hashes in the production knowledge seed, validates stale source links, curated excerpt drift, duplicate memory identities, missing evidence, canonical memory types, and role-lens seed hygiene before source-backed project memory is written. |
@@ -399,10 +399,19 @@ that status through the authenticated admin Pilot view and readiness endpoint.
 Hardening IP-04](target-environment-evidence-hardening-ip04.md) adds the
 payload-safe manifest contract, example manifest, and
 `scripts/target-environment-evidence-verify.sh` checksum verifier for the real
-target run. The actual target-environment evidence bundle is still not attached
-in this workspace, so IP-04 remains Doing until that verifier passes against
-real target artifacts and the controlled evidence prefix is linked from release
-evidence.
+target run. At that point, the actual target-environment evidence bundle was
+not attached in this workspace, so IP-04 stayed Doing until the verifier could
+pass against real target artifacts and the controlled evidence prefix was linked
+from release evidence.
+
+2026-06-08 update: IP-04 is complete for the accepted UAT target environment.
+[UAT Target Evidence IP-04](release-evidence/uat-layout-fix-2026-06-08/ip04/README.md)
+attaches the payload-safe target manifest and all 11 required gate artifacts.
+The verifier passed with
+`releaseId=uat-layout-fix-2026-06-08 environment=uat artifacts=11`. This does
+not claim a separate managed production cloud target has been rehearsed; if
+production is later treated as a distinct target, it should produce its own
+target evidence manifest and verifier pass.
 
 2026-06-07 update: IP-05 is implemented in [Project-Defined Roles
 IP-05](project-defined-roles-ip05.md). Projects can now define active custom

@@ -162,7 +162,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Production Release Checklists PI-07](production-release-checklists-pi07.md) | Local, CI, pilot, and production release evidence gates. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager and Ops bundle automation for payload-safe release evidence manifests. |
 | [Production Platform Rehearsal PI-08](production-platform-rehearsal-pi08.md) | First isolated platform rehearsal evidence. |
-| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Payload-safe target evidence manifest, checksum verifier, and completion rule for post-GO target artifacts. |
+| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Payload-safe target evidence manifest, checksum verifier, and UAT completion rule for post-GO target artifacts. |
 | [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md) | Weekly, monthly, quarterly, post-erasure, and release-gate backup/restore drill cadence with RPO/RTO and evidence checks. |
 | [Terraform Platform PI-02/PI-04](../infra/terraform/README.md) | Terraform module and environment layout for the AWS pilot target. |
 | [Observability Artifacts](../observability/README.md) | Alerts, dashboard, trace coverage, and metric input manifests. |
@@ -201,7 +201,8 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Target-Environment Pilot Rehearsal P0](target-environment-pilot-rehearsal-p0.md) | Target-environment rehearsal gates, evidence bundle, and go/no-go template. |
 | [Pilot Release Evidence EPR-03](pilot-release-evidence-epr03-2026-06-04.md) | Local pilot-equivalent release evidence record. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Generates the per-release payload-safe bundle and artifact index for release evidence. |
-| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | In-progress post-GO target evidence manifest and verifier contract. |
+| [Target-Environment Evidence Hardening IP-04](target-environment-evidence-hardening-ip04.md) | Target evidence manifest and verifier contract, now completed for the accepted UAT target. |
+| [UAT Target Evidence IP-04](release-evidence/uat-layout-fix-2026-06-08/ip04/README.md) | Verified UAT target evidence manifest, verifier output, and payload-safe gate artifacts for `uat-layout-fix-2026-06-08`. |
 | [External Pilot Go/No-Go EPR-04](external-pilot-go-no-go-epr04-2026-06-04.md) | Historical no-go record retained for traceability. |
 | [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md) | Owner-approved GO replacement for version 1.0.0 external pilot. |
 | [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md) | Reconciliation record that points current release decisions to the v1.0.0 GO record. |

@@ -2,20 +2,51 @@
 
 Date started: 2026-06-07
 
-Status: started; target evidence manifest contract is implemented, but real
-target-environment evidence is not attached in this workspace yet.
+Status: done for the accepted UAT target environment. The UAT manifest is
+attached in
+[UAT Target Evidence IP-04](release-evidence/uat-layout-fix-2026-06-08/ip04/README.md)
+and passed `scripts/target-environment-evidence-verify.sh` on 2026-06-08.
 
 ## Purpose
 
 IP-04 turns the post-GO target evidence gap into a strict attachment contract.
 The historical EPR records stay intact: local pilot-equivalent evidence was
-accepted for the v1.0.0 GO decision, while real target-environment deploy,
+accepted for the v1.0.0 GO decision, and later target-environment deploy,
 backup/restore, alert acknowledgement, benchmark, governance, and rollback
-evidence still has to be attached after a target run.
+evidence has to be attached for whichever environment is accepted as the target.
 
 This hardening slice defines the required manifest and verifier for that real
-evidence. It does not claim target evidence exists before the target run has
-produced it.
+evidence. On 2026-06-08 the owner accepted UAT as the IP-04 target environment
+for `uat-layout-fix-2026-06-08`; that UAT target run produced verified
+payload-safe evidence. A later production-specific target claim still needs its
+own production manifest and verifier pass if production is treated as a distinct
+target environment.
+
+## UAT Completion
+
+The UAT evidence prefix is:
+
+```text
+docs/release-evidence/uat-layout-fix-2026-06-08/ip04/
+```
+
+The verified manifest is:
+
+```text
+docs/release-evidence/uat-layout-fix-2026-06-08/ip04/target-environment-evidence-manifest.json
+```
+
+Verifier output:
+
+```text
+Target environment evidence verification passed: releaseId=uat-layout-fix-2026-06-08 environment=uat artifacts=11
+```
+
+The UAT target evidence includes preflight, platform validation, deployment
+smoke, metrics/tracing, benchmark scorecards, governance smoke, backup/restore,
+alert acknowledgement, evidence upload receipt, rollback notes, and go/no-go
+signoff. The manifest records `payloadSafe: true` and links only local artifacts
+whose SHA-256 hashes were verified.
 
 ## Required Manifest
 
@@ -88,5 +119,5 @@ produces a payload-safe manifest that passes
 `scripts/target-environment-evidence-verify.sh`, and the verified evidence
 prefix is linked from the release evidence record.
 
-Until then, product planning should describe IP-04 as in progress: the gate is
-hardened, but the real target evidence is not attached.
+That rule is satisfied for the accepted UAT target by
+[UAT Target Evidence IP-04](release-evidence/uat-layout-fix-2026-06-08/ip04/README.md).

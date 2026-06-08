@@ -1,0 +1,25 @@
+{
+  "kind": "memorysystem.uat_evidence_upload_receipt",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "evidencePrefix": "docs/release-evidence/uat-layout-fix-2026-06-08/ip04/",
+  "storageMode": "committed_workspace_evidence_for_uat_target",
+  "strictIp17Bundle": {
+    "path": "/tmp/memorysystem-release-evidence/uat-layout-fix-2026-06-08-start/memorysystem-release-uat-uat-layout-fix-2026-06-08-2026-06-08T00-13-21Z.json",
+    "sha256": "sha256:b52744a521a9ab54a46a99188326f5382c20d52c586e263977d7c85cb4bbe5ef",
+    "status": "complete",
+    "bundleStatus": "complete",
+    "presentArtifacts": 7,
+    "requiredArtifacts": 7
+  },
+  "omittedPayloadClasses": [
+    "raw backup archive",
+    "raw source payloads",
+    "memory bodies",
+    "credentials"
+  ]
+}

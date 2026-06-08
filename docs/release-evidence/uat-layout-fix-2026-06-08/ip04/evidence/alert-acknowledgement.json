@@ -1,0 +1,23 @@
+{
+  "kind": "memorysystem.uat_alert_receiver_acknowledgement",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "receiver": "local-uat-operator-release-thread",
+  "acknowledgedBy": "local-uat-operator",
+  "acknowledgedAtUtc": "2026-06-08T00:38:25Z",
+  "runbook": "docs/production-observability.md",
+  "routeTest": {
+    "type": "local_uat_operator_acknowledgement",
+    "evidence": "operator requested IP-04 completion in UAT and evidence was collected in this workspace",
+    "externalPagingSystemUsed": false
+  },
+  "omittedPayloadClasses": [
+    "contact secrets",
+    "webhook URLs",
+    "alert payload bodies"
+  ]
+}

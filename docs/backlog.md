@@ -170,8 +170,10 @@ payload-safe governance/compliance admin console view. GC-08 adds the
 repeatable governance/compliance release smoke. EPR-02 and EPR-03 attach local
 pilot-equivalent evidence, P1/P2/P3 add the truth cleanup, status contract, and
 operator cockpit, and EPR-04 now has an owner-approved version 1.0.0 GO
-replacement. The next focus is attaching post-GO target-environment evidence
-under the controlled evidence trail.
+replacement. IP-04 now attaches verified UAT target-environment evidence under
+the controlled evidence trail for `uat-layout-fix-2026-06-08`; a distinct
+production target should produce its own manifest if production is later treated
+as separate from UAT.
 
 ## External Pilot Readiness P0
 

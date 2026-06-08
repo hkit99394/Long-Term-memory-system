@@ -1,0 +1,84 @@
+{
+  "kind": "memorysystem.uat_deployment_smoke",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "apiBase": "http://127.0.0.1:8083",
+  "loginPage": {
+    "status": 200,
+    "ok": true,
+    "hasLoginCss": true,
+    "hasLoginScript": true,
+    "hasEnvironmentLabel": true
+  },
+  "anonymousAdminRequest": {
+    "path": "/api/admin/source-events?limit=1",
+    "status": 401,
+    "expectedStatus": 401,
+    "passed": true
+  },
+  "consolePasswordLogin": {
+    "path": "/api/auth/console/password",
+    "status": 200,
+    "authenticated": true,
+    "principalType": "human",
+    "credentialKind": "console_password_api_key",
+    "credentialCapturedInEvidence": false
+  },
+  "health": {
+    "live": {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "status": "Healthy",
+        "checks": []
+      }
+    },
+    "ready": {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "status": "Healthy",
+        "checks": []
+      }
+    }
+  },
+  "authenticatedEndpoints": [
+    {
+      "path": "/api/admin/source-events?limit=5",
+      "status": 200,
+      "ok": true,
+      "responseBytes": 13
+    },
+    {
+      "path": "/api/admin/compliance/status",
+      "status": 200,
+      "ok": true,
+      "responseBytes": 4181
+    },
+    {
+      "path": "/api/admin/pilot/readiness",
+      "status": 200,
+      "ok": true,
+      "responseBytes": 4217
+    },
+    {
+      "path": "/api/operations/summary",
+      "status": 200,
+      "ok": true,
+      "responseBytes": 2726
+    }
+  ],
+  "workerHeartbeatCount": 1,
+  "allChecksPassed": true,
+  "omittedPayloadClasses": [
+    "credentials",
+    "source event payloads",
+    "memory bodies",
+    "review notes",
+    "raw endpoint response bodies"
+  ]
+}

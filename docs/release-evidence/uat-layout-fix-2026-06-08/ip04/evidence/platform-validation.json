@@ -1,0 +1,90 @@
+{
+  "kind": "memorysystem.uat_platform_validation",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "validationMode": "docker_compose_platform_validation_not_terraform",
+  "reasonTerraformNotUsed": "UAT target for this completion is the production compose stack on the local host, not a Terraform-managed cloud environment.",
+  "composeFile": "docker-compose.production.yml",
+  "envFile": ".env.uat",
+  "composeServices": [
+    "postgres",
+    "api",
+    "worker"
+  ],
+  "composeServiceCount": 3,
+  "runningServices": [
+    {
+      "name": "memorysystem-uat-api-1",
+      "service": "api",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "url": "127.0.0.1",
+          "targetPort": 8080,
+          "publishedPort": 8082,
+          "protocol": "tcp"
+        }
+      ]
+    },
+    {
+      "name": "memorysystem-uat-local-access-1",
+      "service": "local-access",
+      "state": "running",
+      "health": "",
+      "publishers": [
+        {
+          "url": "127.0.0.1",
+          "targetPort": 8081,
+          "publishedPort": 8083,
+          "protocol": "tcp"
+        }
+      ]
+    },
+    {
+      "name": "memorysystem-uat-postgres-1",
+      "service": "postgres",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "url": "",
+          "targetPort": 5432,
+          "publishedPort": 0,
+          "protocol": "tcp"
+        }
+      ]
+    },
+    {
+      "name": "memorysystem-uat-worker-1",
+      "service": "worker",
+      "state": "running",
+      "health": "",
+      "publishers": [
+        {
+          "url": "",
+          "targetPort": 8080,
+          "publishedPort": 0,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ],
+  "localAccess": {
+    "enabled": true,
+    "bind": "127.0.0.1",
+    "port": "8083"
+  },
+  "directApi": {
+    "bind": "127.0.0.1",
+    "port": "8082"
+  },
+  "omittedPayloadClasses": [
+    "rendered compose environment values",
+    "secret values"
+  ]
+}

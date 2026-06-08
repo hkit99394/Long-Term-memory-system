@@ -1,0 +1,54 @@
+{
+  "kind": "memorysystem.uat_environment_preflight",
+  "schemaVersion": 1,
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "status": "passed",
+  "payloadSafe": true,
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "targetEnvironment": {
+    "name": "uat",
+    "account": "local-codex-workspace",
+    "region": "local-host",
+    "networkBoundary": "loopback 127.0.0.1:8083 plus compose network 172.30.43.0/24"
+  },
+  "image": {
+    "tag": "memorysystem:uat-layout-fix-20260607225112",
+    "serviceVersion": "1.0.0-uat.layout-fix.20260607225112",
+    "sourceRevision": "803a224a7978-login-fix",
+    "buildDate": "2026-06-07T22:51:12Z",
+    "digest": "sha256:ab02ec060909260e9bbbdf4040b37f708d72210110f67a0ecbe0141b913b0b51"
+  },
+  "databaseTarget": {
+    "provider": "docker-compose-pgvector-postgresql-local-uat",
+    "endpointRef": "memorysystem-uat/postgres service via .env.uat secret source",
+    "databaseName": "memory_system",
+    "postgresProfile": "local",
+    "pgvectorVerified": true,
+    "schemaMigrationCount": 30,
+    "latestMigrations": [
+      "030_project_role_definitions.sql",
+      "029_expand_operating_roles.sql",
+      "028_service_account_lifecycle.sql",
+      "027_access_audit_events.sql",
+      "026_identity_bindings.sql"
+    ]
+  },
+  "owners": {
+    "releaseOwner": "local-uat-operator",
+    "rollbackOwner": "local-uat-operator",
+    "alertRouteOwner": "local-uat-operator",
+    "evidenceOwner": "local-uat-operator",
+    "benchmarkScorer": "local-uat-operator",
+    "governanceReviewer": "local-uat-operator"
+  },
+  "omittedPayloadClasses": [
+    "API keys",
+    "console password",
+    "database password",
+    "OpenAI key",
+    "raw connection strings",
+    "raw source payloads",
+    "memory bodies"
+  ]
+}

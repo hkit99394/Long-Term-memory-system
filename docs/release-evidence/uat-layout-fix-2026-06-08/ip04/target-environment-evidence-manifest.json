@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "kind": "memorysystem.target_environment_evidence",
+  "releaseId": "uat-layout-fix-2026-06-08",
+  "environment": "uat",
+  "targetEnvironment": {
+    "name": "uat",
+    "account": "local-codex-workspace",
+    "region": "local-host",
+    "networkBoundary": "loopback 127.0.0.1:8083 plus compose network 172.30.43.0/24"
+  },
+  "imageDigest": "sha256:ab02ec060909260e9bbbdf4040b37f708d72210110f67a0ecbe0141b913b0b51",
+  "databaseTarget": {
+    "provider": "docker-compose-pgvector-postgresql-local-uat",
+    "endpointRef": "memorysystem-uat/postgres service via .env.uat secret source",
+    "databaseName": "memory_system",
+    "pgvectorVerified": true
+  },
+  "evidencePrefix": "docs/release-evidence/uat-layout-fix-2026-06-08/ip04/",
+  "generatedAtUtc": "2026-06-08T00:38:25Z",
+  "payloadSafe": true,
+  "owners": {
+    "releaseOwner": "local-uat-operator",
+    "rollbackOwner": "local-uat-operator",
+    "alertRouteOwner": "local-uat-operator",
+    "evidenceOwner": "local-uat-operator",
+    "benchmarkScorer": "local-uat-operator",
+    "governanceReviewer": "local-uat-operator"
+  },
+  "gates": [
+    {
+      "id": "environment_preflight",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT target environment, image digest, network boundary, database reference, pgvector, migrations, and owners confirmed.",
+      "artifacts": [
+        {
+          "path": "evidence/environment-preflight.json",
+          "sha256": "sha256:d325c91725d46123018f7ef56ccc5b3375289fe2f573064ee12f59f3818e4c9e",
+          "description": "UAT target environment, image digest, network boundary, database reference, pgvector, migrations, and owners confirmed.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "terraform_validation",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT Docker Compose platform validation passed; Terraform is not used for this accepted UAT target.",
+      "artifacts": [
+        {
+          "path": "evidence/platform-validation.json",
+          "sha256": "sha256:e9a5fc8b6d7a313ecafaa0e8738b001704171fa6874bb5be1f7a5f61682dd4f1",
+          "description": "UAT Docker Compose platform validation passed; Terraform is not used for this accepted UAT target.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "deployment_smoke",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT login, anonymous admin 401, authenticated admin/API endpoints, health, readiness, and worker heartbeat passed.",
+      "artifacts": [
+        {
+          "path": "evidence/deployment-smoke.json",
+          "sha256": "sha256:aedbe1a914fcae95a71e1d5e7973bccafa4c8eb542710082ad11db982ea6319e",
+          "description": "UAT login, anonymous admin 401, authenticated admin/API endpoints, health, readiness, and worker heartbeat passed.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "metrics_and_tracing",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT operations summary and metrics endpoint passed with required metric names present; raw metrics are not embedded.",
+      "artifacts": [
+        {
+          "path": "evidence/metrics-and-tracing.json",
+          "sha256": "sha256:922aa252444f2c06bc1c1270f7504e847984c733cfb58dbad86aad1049b10738",
+          "description": "UAT operations summary and metrics endpoint passed with required metric names present; raw metrics are not embedded.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "benchmark_scorecards",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT release benchmark gate passed using the attached IP-17 benchmark report.",
+      "artifacts": [
+        {
+          "path": "evidence/benchmark-scorecards.json",
+          "sha256": "sha256:557e6165e0237d9f57f7e23000c0c6971909f18d4da6c44e6a7119ee3519efb3",
+          "description": "UAT release benchmark gate passed using the attached IP-17 benchmark report.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "governance_smoke",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT compliance, pilot readiness, and access-audit posture checks passed without raw payloads.",
+      "artifacts": [
+        {
+          "path": "evidence/governance-smoke.json",
+          "sha256": "sha256:22f0fc6e654c45caaf1e8c9d3d2316962c9aaa8d7a54a64ecd5bb9927fa3f0f0",
+          "description": "UAT compliance, pilot readiness, and access-audit posture checks passed without raw payloads.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "backup_restore",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:11:42Z",
+      "summary": "UAT logical backup, restore-to-temporary-database, migrations, table-count comparison, pgvector verification, and temp DB cleanup passed.",
+      "artifacts": [
+        {
+          "path": "evidence/backup-restore.json",
+          "sha256": "sha256:32a0fd26e41e24aa618d8d5dc6a4439c4f3b46fb44917849040c193488b72379",
+          "description": "UAT logical backup, restore-to-temporary-database, migrations, table-count comparison, pgvector verification, and temp DB cleanup passed.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "alert_receiver_acknowledgement",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "Local UAT operator acknowledged the target alert route for this UAT completion.",
+      "artifacts": [
+        {
+          "path": "evidence/alert-acknowledgement.json",
+          "sha256": "sha256:e2f128fc6b49e403c75f722bf22ee78bdf23c6723bc948ee447f03f2fda96bb4",
+          "description": "Local UAT operator acknowledged the target alert route for this UAT completion.",
+          "payloadSafe": true
+        }
+      ],
+      "acknowledgement": {
+        "receiver": "local-uat-operator-release-thread",
+        "acknowledgedBy": "local-uat-operator",
+        "acknowledgedAtUtc": "2026-06-08T00:38:25Z",
+        "runbook": "docs/production-observability.md"
+      }
+    },
+    {
+      "id": "evidence_upload",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "UAT evidence was persisted under the repository release evidence prefix.",
+      "artifacts": [
+        {
+          "path": "evidence/evidence-upload-receipt.json",
+          "sha256": "sha256:399da5cb619acb5de7b6ab9593575a246bca82af76226b7d50e814d947774147",
+          "description": "UAT evidence was persisted under the repository release evidence prefix.",
+          "payloadSafe": true
+        }
+      ]
+    },
+    {
+      "id": "rollback_notes",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "Rollback owner, boundary, previous digest, communication route, and procedure recorded.",
+      "artifacts": [
+        {
+          "path": "evidence/rollback-notes.md",
+          "sha256": "sha256:663a5747397967d53287716d6d673e9afa1c4ebe20ea4145a853c0db51825624",
+          "description": "Rollback owner, boundary, previous digest, communication route, and procedure recorded.",
+          "payloadSafe": true
+        }
+      ],
+      "rollback": {
+        "previousImageDigest": "sha256:120c219417d3977d8748dd316dfeb7b7f09ba7d8116f3dc32ec57401c05dd893",
+        "rollbackBoundary": "application image rollback before first production write after deploy smoke; database restore is a separate owner-approved recovery action",
+        "communicationRoute": "Codex workspace release thread and local operator console"
+      },
+      "signatures": {
+        "rollbackOwner": "local-uat-operator"
+      }
+    },
+    {
+      "id": "go_no_go",
+      "status": "passed",
+      "completedAtUtc": "2026-06-08T00:38:25Z",
+      "summary": "Release and rollback owner signed GO for UAT target evidence completion.",
+      "artifacts": [
+        {
+          "path": "evidence/go-no-go.md",
+          "sha256": "sha256:e917c31717cb4949528f28161323bad149735fc7719d8917ea7adf2bbc9a7fbf",
+          "description": "Release and rollback owner signed GO for UAT target evidence completion.",
+          "payloadSafe": true
+        }
+      ],
+      "decision": {
+        "decision": "GO",
+        "releaseOwnerSignature": "local-uat-operator",
+        "rollbackOwnerSignature": "local-uat-operator"
+      }
+    }
+  ]
+}
