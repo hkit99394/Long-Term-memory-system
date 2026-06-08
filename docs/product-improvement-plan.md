@@ -78,14 +78,16 @@ Status values:
 | IP-17 | P2 | Done | Release Manager + Ops | Release Evidence Bundle Automation | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) adds `scripts/release-evidence-bundle.sh`, which generates one payload-safe bundle per release with JSON, NDJSON, Markdown, and SHA-256 outputs covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
 | IP-18 | P3 | Done | Security Professional + IT/Ops | Directory Sync Evaluation | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) adds `scripts/directory-sync-evaluation.sh`, which evaluates pilot pressure signals after login and local grants are stable, keeps SCIM/group sync deferred by default, and preserves provisioning-only sync with local memberships, roles, grants, previews, and audit records as the authorization source. |
 | PS-01 | P0 | Done | Product Owner + Tester/QA + Knowledge Steward | Pilot Project Success Scorecard | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) defines the post-MVP pilot scorecard, first-pilot dates, adoption, memory-quality, trust/safety, operator-burden, delivery-impact, and human-confidence targets, plus the payload-safe `memorysystem.project_success_scorecard` template under `benchmarks/project-success/`. |
+| PS-02 | P0 | Done | Product Owner + Knowledge Steward + Pilot Operator | First Pilot Selection And Baseline | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) selects the Long-Term Memory System internal dogfood pilot, records canonical organization/project scope, active roles, baseline repeated-context pains, starting metrics, evidence to collect, and PS-03 entry criteria. |
 
 ## Project Success Run: 1 Month
 
 Goal: prove that the technically ready memory system improves real project work.
 
-Status: PS-01 is complete as the scorecard contract. The next execution work is
-selecting the first pilot project, running two weekly measurement cycles, and
-producing a GO/WATCH/NO-GO project-success closeout by 2026-07-05.
+Status: PS-01 is complete as the scorecard contract. PS-02 selected the
+Long-Term Memory System internal dogfood pilot and recorded the baseline. The
+next execution work is running two weekly measurement cycles and producing a
+GO/WATCH/NO-GO project-success closeout by 2026-07-05.
 
 1. Select the first pilot project.
    - Name the Product Owner, pilot operator, target project scope, active roles,

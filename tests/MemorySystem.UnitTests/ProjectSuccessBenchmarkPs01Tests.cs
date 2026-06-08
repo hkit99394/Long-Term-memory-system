@@ -21,7 +21,7 @@ public sealed class ProjectSuccessBenchmarkPs01Tests
 
         Assert.Contains("| PS-01 | P0 | Done | Product Owner + Tester/QA + Knowledge Steward | Pilot Project Success Scorecard |", productPlan, StringComparison.Ordinal);
         Assert.Contains("| PS-01 | P0 | Done | Define pilot project success scorecard. |", backlog, StringComparison.Ordinal);
-        Assert.Contains("| PS-02 | P0 | Todo | Select first pilot project and baseline. |", backlog, StringComparison.Ordinal);
+        Assert.Contains("| PS-02 | P0 | Done | Select first pilot project and baseline. |", backlog, StringComparison.Ordinal);
         Assert.Contains("# Project Success Benchmark PS-01", contract, StringComparison.Ordinal);
         Assert.Contains("[Project Success Benchmark PS-01](project-success-benchmark-ps01.md)", docsIndex, StringComparison.Ordinal);
         Assert.Contains("[Project Success Benchmark PS-01](project-success-benchmark-ps01.md)", benchmarking, StringComparison.Ordinal);

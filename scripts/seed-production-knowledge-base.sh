@@ -392,13 +392,13 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
-        "sourceSha256": "12009909cd5f46a4c800d74f70f156ff435c7098ebdad0a302b2c7334ee04c37",
+        "sourceSha256": "77b9c6ee12511af6c2ed524fc922d71427fb0c768ed3d18a02189a24bb8d2a57",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [
             "PS-01 now defines the post-MVP project-success scorecard",
-            "| EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook.",
-            "| PS-01 | P0 | Done | Define pilot project success scorecard."
+            "and PS-02 selects the Long-Term Memory System internal dogfood pilot",
+            "| PS-02 | P0 | Done | Select first pilot project and baseline."
         ],
         "items": [
             {
@@ -422,7 +422,7 @@ documents = {
                 "namespace": f"/project/{project_id}/risks",
                 "subject": "next backlog focus",
                 "predicate": "is",
-                "object": "Select the first pilot project, run two weekly project-success measurement cycles, and produce a GO/WATCH/NO-GO closeout by 2026-07-05.",
+                "object": "Run two weekly project-success measurement cycles for the Long-Term Memory System dogfood pilot and produce a GO/WATCH/NO-GO closeout by 2026-07-05.",
                 "confidence": 0.94
             }
         ]

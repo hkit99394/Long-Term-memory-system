@@ -307,12 +307,12 @@ verifier checks each SHA-256 hash before the evidence prefix is accepted.
 
 ## Project Success Benchmark
 
-Use this after changing PS-01 project-success benchmark docs or scorecard
+Use this after changing PS-01/PS-02 project-success benchmark docs or scorecard
 templates:
 
 ```bash
 python3 -m json.tool benchmarks/project-success/scorecard-template.json >/dev/null
-dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectSuccessBenchmarkPs01Tests
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectSuccessBenchmark
 ```
 
 Filled pilot scorecards should stay under `benchmarks/outputs/` unless a curated

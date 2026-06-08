@@ -17,6 +17,8 @@ Project success is measured across six areas:
 
 The canonical product contract is
 [`docs/project-success-benchmark-ps01.md`](../../docs/project-success-benchmark-ps01.md).
+The first selected pilot and baseline are recorded in
+[`docs/project-success-pilot-baseline-ps02.md`](../../docs/project-success-pilot-baseline-ps02.md).
 
 ## First Pilot Window
 

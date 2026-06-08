@@ -392,6 +392,8 @@ Rules:
 | `docs/project-onboarding-runbook-ip16.md` | IP-16 payload-safe new-project onboarding flow for scope, roles, grants, seed docs, source evidence, and review cadence. |
 | `docs/release-evidence-bundle-automation-ip17.md` | IP-17 release evidence bundle automation for tests, migration, health, operations, benchmark, backup/restore, and rollback. |
 | `docs/directory-sync-evaluation-ip18.md` | IP-18 provisioning-only directory sync evaluation gate for pilot pressure signals and local authorization preservation. |
+| `docs/project-success-benchmark-ps01.md` | PS-01 project-success benchmark scorecard contract for the first pilot. |
+| `docs/project-success-pilot-baseline-ps02.md` | PS-02 selected pilot project and baseline before the live observation window. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |
