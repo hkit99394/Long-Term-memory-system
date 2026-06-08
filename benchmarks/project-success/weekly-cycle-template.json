@@ -1,0 +1,93 @@
+{
+  "kind": "memorysystem.project_success_observation_cycle",
+  "schemaVersion": 1,
+  "benchmarkId": "PS-03",
+  "payloadSafe": true,
+  "rawSourcePayloadsIncluded": false,
+  "rawMemoryPayloadsIncluded": false,
+  "rawQueriesIncluded": false,
+  "pilotProject": {
+    "organizationId": "9f8e7d6c-5b4a-4321-9123-abcdef123001",
+    "projectId": "9f8e7d6c-5b4a-4321-9123-abcdef123002",
+    "projectName": "Long-Term Memory System",
+    "productOwner": "",
+    "pilotOperator": ""
+  },
+  "cycle": {
+    "cycleId": "",
+    "cycleNumber": null,
+    "windowStart": "",
+    "windowEnd": "",
+    "evidenceDue": "",
+    "status": "pending"
+  },
+  "measurements": {
+    "adoption": {
+      "activeMemoryUsersOrAgents": null,
+      "memoryInformedWorkItems": null,
+      "workItemsWithContextFeedback": null,
+      "feedbackCoverage": null
+    },
+    "memoryQuality": {
+      "sourceLinkCoverage": null,
+      "usefulFeedbackRate": null,
+      "staleMemoryRate": null,
+      "missingMemoryReports": null,
+      "duplicateRatio": null
+    },
+    "trustAndSafety": {
+      "scopedSafetyLeaks": null,
+      "staleMemoryBenchmarkUsage": null,
+      "rawPayloadLeakage": null,
+      "weeklyAccessBoundaryReviewCompletion": null
+    },
+    "operatorBurden": {
+      "criticalReviewResolutionBusinessDays": null,
+      "oldestCriticalReviewAgeDays": null,
+      "manualEvidenceSteps": null,
+      "maintainerInterventions": null
+    },
+    "projectDeliveryImpact": {
+      "repeatedContextQuestionsAvoided": null,
+      "repeatedContextQuestionsStillAsked": null,
+      "missedDecisionCount": null,
+      "firstPassTaskCompletionRate": null,
+      "newContributorOnboardingHours": null
+    },
+    "humanConfidence": {
+      "pilotUserConfidence": null,
+      "operatorConfidence": null,
+      "explainabilityPassRate": null
+    }
+  },
+  "evidence": {
+    "memoryPreworkRecords": [],
+    "contextFeedbackRecords": [],
+    "operationsSummary": "",
+    "weeklyAdminReview": "",
+    "accessBoundaryReview": "",
+    "benchmarkReleaseGate": "",
+    "sourceBackedMemoryHygiene": "",
+    "backlogRoadmapSync": "",
+    "confidenceSurvey": ""
+  },
+  "hardGateChecks": {
+    "scopedSafetyLeaksPass": null,
+    "staleMemoryBenchmarkUsagePass": null,
+    "sourceLinkCoveragePass": null,
+    "rawPayloadLeakagePass": null,
+    "criticalReviewSlaPass": null,
+    "weeklyAccessBoundaryReviewPass": null
+  },
+  "recommendationSignal": {
+    "cycleDecision": "pending",
+    "reason": "",
+    "decidedBy": "",
+    "decidedAtUtc": ""
+  },
+  "notes": {
+    "payloadSafeSummary": "",
+    "blockers": [],
+    "nextActions": []
+  }
+}

@@ -3,7 +3,8 @@
 Date started: 2026-06-08
 
 Status: implemented as the pilot scorecard contract. PS-02 has selected the
-first dogfood pilot; the first live observation run is follow-on execution work.
+first dogfood pilot, and PS-03 has started the observation runbook and weekly
+cycle evidence scaffold.
 
 Owners: Product Owner, Tester/QA, Knowledge Steward, and pilot operator.
 
@@ -121,5 +122,5 @@ Hard no-go conditions:
 | --- | --- | --- | --- | --- |
 | PS-01 | P0 | Done | Define pilot project success scorecard. | This document, the benchmark folder, and the JSON scorecard template define target dates, metrics, hard gates, payload-safety rules, and first-pilot targets. |
 | PS-02 | P0 | Done | Select first pilot project and baseline. | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) records the Long-Term Memory System dogfood pilot, canonical project scope, active roles, repeated-context pains, baseline metrics, and PS-03 entry criteria. |
-| PS-03 | P0 | Todo | Run two-week pilot observation. | Two weekly scorecard cycles are captured from real memory-informed work between 2026-06-15 and 2026-06-28. |
+| PS-03 | P0 | In Progress | Run two-week pilot observation. | [Project Success Observation PS-03](project-success-observation-ps03.md) defines the two weekly scorecard cycles, evidence due dates, measurement workflow, hard no-go checks, and payload-safe weekly cycle template for real memory-informed work between 2026-06-15 and 2026-06-28. |
 | PS-04 | P0 | Todo | Produce closeout and promotion recommendation. | By 2026-07-05, Product Owner records GO/WATCH/NO-GO, evidence links, residual risks, and next action. |

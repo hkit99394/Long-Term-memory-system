@@ -174,9 +174,11 @@ replacement. IP-04 now attaches verified UAT target-environment evidence under
 the controlled evidence trail for `uat-layout-fix-2026-06-08`; a distinct
 production target should produce its own manifest if production is later treated
 as separate from UAT. PS-01 now defines the post-MVP project-success scorecard,
-and PS-02 selects the Long-Term Memory System internal dogfood pilot with a
-payload-safe baseline. The next product execution work is running two weekly
-measurement cycles and producing a GO/WATCH/NO-GO closeout by 2026-07-05.
+PS-02 selects the Long-Term Memory System internal dogfood pilot with a
+payload-safe baseline, and PS-03 has started the observation runbook and weekly
+cycle evidence scaffold. The next product execution work is capturing two
+weekly measurement cycles during 2026-06-15 to 2026-06-28 and producing a
+GO/WATCH/NO-GO closeout by 2026-07-05.
 
 ## Project Success Benchmark
 
@@ -184,7 +186,7 @@ measurement cycles and producing a GO/WATCH/NO-GO closeout by 2026-07-05.
 | --- | --- | --- | --- | --- |
 | PS-01 | P0 | Done | Define pilot project success scorecard. | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) and `benchmarks/project-success/scorecard-template.json` define target dates, adoption, memory-quality, trust/safety, operator-burden, delivery-impact, human-confidence metrics, hard no-go gates, and payload-safety rules. |
 | PS-02 | P0 | Done | Select first pilot project and baseline. | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) records the Long-Term Memory System dogfood pilot, canonical scope, active roles, baseline repeated-context pains, starting workflow metrics, evidence to collect, and PS-03 entry criteria. |
-| PS-03 | P0 | Todo | Run two-week pilot observation. | Two weekly project-success measurement cycles are captured from real memory-informed work between 2026-06-15 and 2026-06-28. |
+| PS-03 | P0 | In Progress | Run two-week pilot observation. | [Project Success Observation PS-03](project-success-observation-ps03.md) starts the observation runbook, defines Cycle 1 and Cycle 2 evidence due dates, and uses `benchmarks/project-success/weekly-cycle-template.json` for payload-safe weekly records from real memory-informed work between 2026-06-15 and 2026-06-28. |
 | PS-04 | P0 | Todo | Produce project-success closeout. | By 2026-07-05, Product Owner records GO/WATCH/NO-GO, evidence links, residual risks, and the next action. |
 
 ## External Pilot Readiness P0

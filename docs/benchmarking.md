@@ -220,7 +220,7 @@ tasks pass.
 
 The canonical contract is
 [Project Success Benchmark PS-01](project-success-benchmark-ps01.md), and the
-scorecard template lives under
+scorecard and weekly-cycle templates live under
 [`benchmarks/project-success`](../benchmarks/project-success/README.md).
 
 The first pilot window is:

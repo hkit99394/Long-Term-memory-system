@@ -19,6 +19,8 @@ The canonical product contract is
 [`docs/project-success-benchmark-ps01.md`](../../docs/project-success-benchmark-ps01.md).
 The first selected pilot and baseline are recorded in
 [`docs/project-success-pilot-baseline-ps02.md`](../../docs/project-success-pilot-baseline-ps02.md).
+The two-week observation runbook is recorded in
+[`docs/project-success-observation-ps03.md`](../../docs/project-success-observation-ps03.md).
 
 ## First Pilot Window
 
@@ -35,6 +37,14 @@ scorecard. Keep generated filled scorecards under `benchmarks/outputs/` unless a
 curated summary is intentionally attached to release or pilot evidence.
 
 The scorecard artifact kind is `memorysystem.project_success_scorecard`.
+
+Use [`weekly-cycle-template.json`](weekly-cycle-template.json) for each PS-03
+weekly observation cycle. Filled cycle records stay under
+`benchmarks/outputs/project-success/` unless a curated payload-safe summary is
+attached to pilot evidence.
+
+The weekly cycle artifact kind is
+`memorysystem.project_success_observation_cycle`.
 
 The scorecard is payload-safe. It stores ids, counts, percentages, ratings,
 dates, decisions, and links to evidence; it must not include raw source payloads,

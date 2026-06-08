@@ -307,11 +307,12 @@ verifier checks each SHA-256 hash before the evidence prefix is accepted.
 
 ## Project Success Benchmark
 
-Use this after changing PS-01/PS-02 project-success benchmark docs or scorecard
-templates:
+Use this after changing PS-01/PS-02/PS-03 project-success benchmark docs,
+scorecard templates, or weekly cycle templates:
 
 ```bash
 python3 -m json.tool benchmarks/project-success/scorecard-template.json >/dev/null
+python3 -m json.tool benchmarks/project-success/weekly-cycle-template.json >/dev/null
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectSuccessBenchmark
 ```
 

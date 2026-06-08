@@ -2,8 +2,8 @@
 
 Date: 2026-06-08
 
-Status: first pilot project selected and baseline recorded. The live
-observation window starts on 2026-06-15.
+Status: first pilot project selected and baseline recorded. PS-03 has started
+the observation runbook; the live observation window starts on 2026-06-15.
 
 Owners: Product Owner, Tester/QA, Knowledge Steward, Security Professional, and
 pilot operator.
@@ -115,3 +115,6 @@ PS-03 may start when:
 
 If any entry criterion is not true by 2026-06-14, PS-03 should be delayed rather
 than treating an unmeasured pilot as success evidence.
+
+The PS-03 observation runbook is
+[Project Success Observation PS-03](project-success-observation-ps03.md).

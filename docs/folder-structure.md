@@ -394,6 +394,8 @@ Rules:
 | `docs/directory-sync-evaluation-ip18.md` | IP-18 provisioning-only directory sync evaluation gate for pilot pressure signals and local authorization preservation. |
 | `docs/project-success-benchmark-ps01.md` | PS-01 project-success benchmark scorecard contract for the first pilot. |
 | `docs/project-success-pilot-baseline-ps02.md` | PS-02 selected pilot project and baseline before the live observation window. |
+| `docs/project-success-observation-ps03.md` | PS-03 two-week pilot observation runbook and evidence workflow. |
+| `benchmarks/project-success/weekly-cycle-template.json` | PS-03 payload-safe weekly observation cycle template. |
 | `docs/production-platform-integration-lr05.md` | LR-05 platform integration boundary and follow-on production implementation plan. |
 | `docs/governance-compliance-gate-lr06.md` | LR-06 governance/compliance boundary and follow-on implementation plan. |
 | `docs/environment-governance-policy-gc01.md` | GC-01 environment governance policy contract for local, CI, pilot, and production. |

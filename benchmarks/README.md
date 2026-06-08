@@ -15,7 +15,7 @@ work is executed.
 | [agent-contract-usefulness-v1](agent-contract-usefulness-v1/README.md) | LMSS v1 benchmark tasks for fact finding, evidence use, contradiction handling, and safe scoped answers. | Fixture, prompt-pack generator, scorecard template, tool-response smoke, and Contract Lift summarizer. |
 | [context-product-v1](context-product-v1/README.md) | CP-08 context-product smoke checks for explainable packets, safe exclusions, feedback hygiene, stale avoidance, source-link coverage, and feedback ranking deltas. | Fixture task list and live API smoke runner. |
 | [release-gate](release-gate/README.md) | MR-12 release gate that combines Memory Lift, Contract Lift, safety counters, source-link coverage, and agent-contract smoke. | Executable fixture and release runner. |
-| [project-success](project-success/README.md) | PS-01 pilot scorecard for whether memory improves real project work. | Payload-safe scorecard template for adoption, quality, safety, operator burden, delivery impact, and confidence. |
+| [project-success](project-success/README.md) | PS-01/PS-03 pilot scorecards and observation cycles for whether memory improves real project work. | Payload-safe scorecard and weekly-cycle templates for adoption, quality, safety, operator burden, delivery impact, and confidence. |
 
 ## Generated Output
 
