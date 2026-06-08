@@ -457,6 +457,53 @@ textarea {
   gap: 10px;
 }
 
+.registration-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.registration-row.seed-doc-row {
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+}
+
+.registration-row .secondary-action {
+  min-width: 112px;
+}
+
+.registration-check-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.registration-check-group legend {
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.registration-check-group label {
+  min-width: 116px;
+  flex: 0 1 132px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.registration-wide-field {
+  flex-basis: 100%;
+}
+
 .empty {
   margin-top: 12px;
   padding: 12px;
@@ -492,6 +539,11 @@ textarea {
   }
 
   .connection {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-row,
+  .registration-row.seed-doc-row {
     grid-template-columns: 1fr;
   }
 }

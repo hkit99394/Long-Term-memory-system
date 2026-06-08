@@ -95,6 +95,7 @@ loop, and weekly admin review habit.
 The operator principal receives explicit project-scoped admin grants for:
 
 ```text
+/project/9f8e7d6c-5b4a-4321-9123-abcdef123002
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/goals
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/facts
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/decisions
@@ -114,6 +115,14 @@ The operator principal receives explicit project-scoped admin grants for:
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/coo/lens
 /project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/ceo/lens
 ```
+
+The operator must not receive root namespace admin grants such as `/project`,
+`/org`, `/global`, `/user`, `/role`, `/agent`, or `/session` for the normal
+canonical project boundary. Bootstrap project admin access is tracked by
+[Access Boundary Accepted Findings](access-boundary-accepted-findings.json) and
+must be reviewed or narrowed by 2026-07-05. The project-root grant above is a
+project-specific admin anchor for access-management and permission-drift review
+endpoints; it is not permission to grant `/project` root administration.
 
 Canonical durable memory types for project work are `goal`, `target`, `fact`,
 `decision`, `rationale`, `risk`, `assumption`, `constraint`, `requirement`,

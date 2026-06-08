@@ -385,6 +385,7 @@ Rules:
 | `docs/weekly-admin-review-workflow-ip09.md` | IP-09 weekly admin review workflow and payload-safe queue contract. |
 | `docs/production-backup-restore-drill-schedule-ip10.md` | IP-10 recurring backup/restore drill cadence, evidence, RPO/RTO, protected-volume, and export checks. |
 | `docs/access-boundary-review-ip11.md` | IP-11 access-boundary review contract for memberships, roles, grants, service accounts, OIDC bindings, break-glass posture, and permission drift. |
+| `docs/access-boundary-accepted-findings.json` | Payload-safe, owner-reviewed accepted finding rules for time-bound bootstrap or break-glass access. |
 | `docs/backlog-roadmap-memory-sync-ip12.md` | IP-12 roadmap/backlog Markdown-to-memory sync guard and source-backed seed workflow. |
 | `docs/role-lens-first-content-pass-ip13.md` | IP-13 source-backed first content pass for project role-lens memory. |
 | `docs/admin-ux-polish-ip14.md` | IP-14 admin console polish contract for filters, source/review routing, credential state, and operations status. |
@@ -392,6 +393,7 @@ Rules:
 | `docs/project-onboarding-runbook-ip16.md` | IP-16 payload-safe new-project onboarding flow for scope, roles, grants, seed docs, source evidence, and review cadence. |
 | `docs/release-evidence-bundle-automation-ip17.md` | IP-17 release evidence bundle automation for tests, migration, health, operations, benchmark, backup/restore, and rollback. |
 | `docs/directory-sync-evaluation-ip18.md` | IP-18 provisioning-only directory sync evaluation gate for pilot pressure signals and local authorization preservation. |
+| `docs/project-registration-ux-plan.md` | Planned Product Owner registration workflow, target dates, required fields, UX requirements, and success targets. |
 | `docs/project-success-benchmark-ps01.md` | PS-01 project-success benchmark scorecard contract for the first pilot. |
 | `docs/project-success-pilot-baseline-ps02.md` | PS-02 selected pilot project and baseline before the live observation window. |
 | `docs/project-success-observation-ps03.md` | PS-03 two-week pilot observation runbook and evidence workflow. |

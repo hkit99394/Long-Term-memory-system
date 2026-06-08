@@ -228,7 +228,7 @@ The first pilot window is:
 | Phase | Dates | Output |
 | --- | --- | --- |
 | Planning | 2026-06-08 to 2026-06-14 | Pilot project, owner, project scope, baseline pain, and scorecard approval. |
-| Observation | 2026-06-15 to 2026-06-28 | Two weekly cycles of adoption, memory-quality, review, access, delivery, and confidence measurements. |
+| Observation | 2026-06-15 to 2026-06-28 | Two weekly cycles of adoption, memory-quality, review, access, delivery, registration success, and confidence measurements. |
 | Closeout | 2026-06-29 to 2026-07-05 | GO/WATCH/NO-GO recommendation with payload-safe evidence links. |
 
 Hard no-go conditions include scoped safety leaks above zero, stale-memory

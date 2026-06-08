@@ -91,6 +91,25 @@ public sealed class ProductionContainerSecurityHardeningTests
         Assert.Contains("MEMORYSYSTEM_CONSOLE_ENVIRONMENT_LABEL=Production", envExample, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Production_seed_operator_removes_legacy_root_admin_grants()
+    {
+        var script = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "scripts", "production-container.sh"));
+
+        Assert.Contains("project-scoped admin namespace grants", script, StringComparison.Ordinal);
+        Assert.Contains("DELETE FROM memory_access_grants", script, StringComparison.Ordinal);
+        Assert.Contains("namespace_prefix IN", script, StringComparison.Ordinal);
+        Assert.Contains("'/global'", script, StringComparison.Ordinal);
+        Assert.Contains("'/org'", script, StringComparison.Ordinal);
+        Assert.Contains("'/project'", script, StringComparison.Ordinal);
+        Assert.Contains("('/project/' || :'project_id')", script, StringComparison.Ordinal);
+        Assert.Contains("('/project/' || :'project_id' || '/goals')", script, StringComparison.Ordinal);
+        Assert.Contains("('/project/' || :'project_id' || '/role/product_owner/lens')", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("('/global'),", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("('/org'),", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("('/project'),", script, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

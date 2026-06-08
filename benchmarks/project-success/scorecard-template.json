@@ -30,7 +30,12 @@
     "weeklyAccessBoundaryReviewCompletionMinimum": 1.0,
     "weeklyMemoryReviewCompletionMinimum": 1.0,
     "pilotUserConfidenceMinimum": 4.0,
-    "operatorConfidenceMinimum": 4.0
+    "operatorConfidenceMinimum": 4.0,
+    "registrationDurationMinutesMaximum": 30,
+    "registrationValidationFailuresMaximum": 0,
+    "registrationAccessDriftMaximum": 0,
+    "registrationSourceLinkCoverageMinimum": 1.0,
+    "registrationUserConfidenceMinimum": 4.0
   },
   "metrics": {
     "adoption": {
@@ -68,6 +73,13 @@
       "pilotUserConfidence": null,
       "operatorConfidence": null,
       "explainabilityPassRate": null
+    },
+    "projectRegistration": {
+      "registrationDurationSeconds": null,
+      "validationFailureCount": null,
+      "accessDriftFindingCount": null,
+      "sourceLinkCoverage": null,
+      "userConfidence": null
     }
   },
   "evidence": {
@@ -76,6 +88,7 @@
     "weeklyAdminReview": "",
     "accessBoundaryReview": "",
     "benchmarkReleaseGate": "",
+    "registrationSuccessBenchmark": "",
     "pilotNotes": ""
   },
   "recommendation": {

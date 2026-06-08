@@ -85,6 +85,35 @@ After changing the IP-14 admin polish contract, run the focused static test:
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~AdminUxPolishIp14Tests
 ```
 
+After changing the REG-03 Project Registration wizard, run the focused static
+test:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg03Tests
+```
+
+After changing the REG-04 bootstrap-admin separation contract, run the focused
+static and access-management integration tests:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg04Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminAccessManagementTests.Post_admin_access_management_requires_break_glass_evidence_for_namespace_admin
+```
+
+After changing the REG-05 source-backed seed readiness UX, run the focused
+static test:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg05Tests
+```
+
+After changing the REG-06 registration success benchmark, run the focused
+static test:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg06Tests
+```
+
 ```bash
 cd tools/vault-sync
 npm run build
@@ -154,13 +183,14 @@ scripts/backup-restore-drill-schedule.sh \
 ## Access Boundary Review
 
 Use this after changing the IP-11 access-boundary workflow, permission-drift
-review, service-account posture, OIDC bindings, break-glass handling, or weekly
-security review docs. The dry run validates the payload-safe review contract
-without API calls:
+review, accepted-finding rules, service-account posture, OIDC bindings,
+break-glass handling, or weekly security review docs. The dry run validates the
+payload-safe review contract without API calls:
 
 ```bash
 bash -n scripts/access-boundary-review.sh
 scripts/access-boundary-review.sh --dry-run
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~AccessBoundaryReviewIp11Tests
 ```
 
 When a local API is available, collect the canonical project access review:
@@ -215,13 +245,23 @@ scripts/role-lens-first-pass.sh
 ## Project Onboarding Runbook
 
 Use this after changing the IP-16 onboarding workflow, project memory boundary
-docs, role owner vocabulary, namespace grants, source-backed seed docs, or
-review cadence. The dry run emits a payload-safe setup plan without API calls:
+docs, project registration plan, role owner vocabulary, namespace grants,
+source-backed seed docs, or review cadence. The dry run emits a payload-safe
+setup plan without API calls:
 
 ```bash
 bash -n scripts/project-onboarding-runbook.sh
 scripts/project-onboarding-runbook.sh --dry-run
+scripts/project-onboarding-runbook.sh --dry-run \
+  --product-owner-principal-id 11111111-1111-4111-8111-111111111111 \
+  --knowledge-steward-principal-id 22222222-2222-4222-8222-222222222222 \
+  --security-ops-principal-id 33333333-3333-4333-8333-333333333333 \
+  --custom-role research_lead="Research Lead" \
+  --deferred-role cfo
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectOnboardingRunbookIp16Tests
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationUxPlanTests
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg02Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminProjectRegistrationTests
 ```
 
 ## Release Evidence Bundle

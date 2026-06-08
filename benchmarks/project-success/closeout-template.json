@@ -33,6 +33,7 @@
     "sourceBackedMemoryHygiene": "",
     "backlogRoadmapSync": "",
     "benchmarkReleaseGate": "",
+    "registrationSuccessBenchmark": "",
     "confidenceRatings": ""
   },
   "finalMetrics": {
@@ -70,6 +71,13 @@
       "pilotUserConfidence": null,
       "operatorConfidence": null,
       "explainabilityPassRate": null
+    },
+    "projectRegistration": {
+      "registrationDurationSeconds": null,
+      "validationFailureCount": null,
+      "accessDriftFindingCount": null,
+      "sourceLinkCoverage": null,
+      "userConfidence": null
     }
   },
   "hardGateChecks": {

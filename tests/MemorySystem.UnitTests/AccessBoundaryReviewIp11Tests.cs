@@ -17,6 +17,7 @@ public sealed class AccessBoundaryReviewIp11Tests
         var weeklyWorkflow = File.ReadAllText(Path.Combine(root, "docs", "weekly-admin-review-workflow-ip09.md"));
         var permissionDrift = File.ReadAllText(Path.Combine(root, "docs", "permission-drift-report-gc02.md"));
         var testing = File.ReadAllText(Path.Combine(root, "docs", "testing.md"));
+        var acceptedFindings = File.ReadAllText(Path.Combine(root, "docs", "access-boundary-accepted-findings.json"));
         var script = File.ReadAllText(Path.Combine(root, "scripts", "access-boundary-review.sh"));
         var weeklyScript = File.ReadAllText(Path.Combine(root, "scripts", "weekly-admin-review-workflow.sh"));
 
@@ -24,6 +25,7 @@ public sealed class AccessBoundaryReviewIp11Tests
         Assert.Contains("# Access Boundary Review IP-11", contract, StringComparison.Ordinal);
         Assert.Contains("[Access Boundary Review IP-11](access-boundary-review-ip11.md)", docsIndex, StringComparison.Ordinal);
         Assert.Contains("docs/access-boundary-review-ip11.md", folderStructure, StringComparison.Ordinal);
+        Assert.Contains("docs/access-boundary-accepted-findings.json", folderStructure, StringComparison.Ordinal);
         Assert.Contains("scripts/access-boundary-review.sh", runbook, StringComparison.Ordinal);
         Assert.Contains("scripts/access-boundary-review.sh", weeklyWorkflow, StringComparison.Ordinal);
         Assert.Contains("scripts/access-boundary-review.sh", permissionDrift, StringComparison.Ordinal);
@@ -41,7 +43,11 @@ public sealed class AccessBoundaryReviewIp11Tests
             "identityBindings",
             "break_glass_key_review",
             "oidc_identity_binding_review",
-            "audit_export_evidence"
+            "audit_export_evidence",
+            "accepted_finding_owner_review",
+            "acceptedFindingSource",
+            "acceptedFindings",
+            "unacceptedFindings"
         })
         {
             Assert.Contains(required, script, StringComparison.Ordinal);
@@ -56,12 +62,16 @@ public sealed class AccessBoundaryReviewIp11Tests
             "service credentials",
             "OIDC identity bindings",
             "break-glass",
-            "permission drift"
+            "permission drift",
+            "accepted-finding"
         })
         {
             Assert.Contains(required, contract, StringComparison.OrdinalIgnoreCase);
         }
 
+        Assert.Contains("\"kind\": \"memorysystem.access_boundary_accepted_findings\"", acceptedFindings, StringComparison.Ordinal);
+        Assert.Contains("\"payloadSafe\": true", acceptedFindings, StringComparison.Ordinal);
+        Assert.Contains("\"rawSourcePayloadsIncluded\": false", acceptedFindings, StringComparison.Ordinal);
         Assert.Contains("accessBoundaryReviewCommand", weeklyScript, StringComparison.Ordinal);
         Assert.Contains("access_boundary_permission_drift", weeklyScript, StringComparison.Ordinal);
         Assert.Contains("/api/admin/access/permission-drift", weeklyScript, StringComparison.Ordinal);
@@ -112,7 +122,14 @@ public sealed class AccessBoundaryReviewIp11Tests
         Assert.Contains("oidc_identity_binding_review", checks);
         Assert.Contains("break_glass_key_review", checks);
         Assert.Contains("permission_drift_findings", checks);
+        Assert.Contains("accepted_finding_owner_review", checks);
         Assert.Contains("audit_export_evidence", checks);
+
+        var acceptedFindingSource = rootElement.GetProperty("acceptedFindingSource");
+        Assert.Equal("docs/access-boundary-accepted-findings.json", acceptedFindingSource.GetProperty("path").GetString());
+        Assert.True(acceptedFindingSource.GetProperty("exists").GetBoolean());
+        Assert.Equal(1, acceptedFindingSource.GetProperty("schemaVersion").GetInt32());
+        Assert.True(acceptedFindingSource.GetProperty("ruleCount").GetInt32() >= 4);
 
         var endpoints = rootElement.GetProperty("endpoints").EnumerateArray()
             .Select(element => element.GetString())
@@ -135,6 +152,7 @@ public sealed class AccessBoundaryReviewIp11Tests
         Assert.Contains("namespaceGrants", reportSections);
         Assert.Contains("effectiveAccessPreviews", reportSections);
         Assert.Contains("findings", reportSections);
+        Assert.Contains("acceptedFindings", reportSections);
 
         var manualCheckIds = rootElement.GetProperty("manualChecks").EnumerateArray()
             .Select(element => element.GetProperty("id").GetString())
@@ -154,6 +172,59 @@ public sealed class AccessBoundaryReviewIp11Tests
         Assert.Contains(
             "access_boundary_permission_drift",
             weeklyRoot.GetProperty("checks").EnumerateArray().Select(element => element.GetString()).ToArray());
+    }
+
+    [Fact]
+    public void Accepted_access_boundary_findings_are_payload_safe_and_narrow()
+    {
+        var root = FindRepositoryRoot();
+        var acceptedFindingsPath = Path.Combine(root, "docs", "access-boundary-accepted-findings.json");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(acceptedFindingsPath));
+        var rootElement = document.RootElement;
+
+        Assert.Equal("memorysystem.access_boundary_accepted_findings", rootElement.GetProperty("kind").GetString());
+        Assert.Equal(1, rootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.True(rootElement.GetProperty("payloadSafe").GetBoolean());
+        Assert.False(rootElement.GetProperty("rawSourcePayloadsIncluded").GetBoolean());
+        Assert.Equal("project", rootElement.GetProperty("targetScopeType").GetString());
+        Assert.Equal("9f8e7d6c-5b4a-4321-9123-abcdef123002", rootElement.GetProperty("targetScopeId").GetString());
+
+        var forbiddenRootNamespaces = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "/global",
+            "/org",
+            "/project",
+            "/user",
+            "/role",
+            "/agent",
+            "/session"
+        };
+
+        var rules = rootElement.GetProperty("rules").EnumerateArray().ToArray();
+        Assert.True(rules.Length >= 4);
+
+        foreach (var rule in rules)
+        {
+            Assert.Equal("active", rule.GetProperty("status").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(rule.GetProperty("ownerRole").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(rule.GetProperty("acceptedByRole").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(rule.GetProperty("acceptedReason").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(rule.GetProperty("cleanupAction").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(rule.GetProperty("reviewDue").GetString()));
+
+            if (rule.TryGetProperty("namespacePrefixes", out var namespacePrefixes))
+            {
+                foreach (var namespacePrefix in namespacePrefixes.EnumerateArray())
+                {
+                    Assert.DoesNotContain(namespacePrefix.GetString()!, forbiddenRootNamespaces);
+                }
+            }
+        }
+
+        Assert.Contains(
+            rules,
+            rule => rule.GetProperty("id").GetString() == "ip11-canonical-project-bootstrap-namespace-admin");
     }
 
     private static async Task<ScriptResult> RunScriptAsync(string root, IReadOnlyList<string> arguments)

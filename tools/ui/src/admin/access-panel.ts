@@ -89,7 +89,7 @@ function renderAccessDetail(): void {
         selectField("targetType", "Target", ["principal", "role"]),
         textField("targetId", "Target ID"),
         textField("namespacePrefix", "Namespace"),
-        selectField("permission", "Permission", ["read", "write", "review", "admin"]),
+        selectField("permission", "Permission", ["read", "write", "review"]),
         selectField("scopeType", "Scope", ["project", "org"]),
         textField("scopeId", "Scope ID")
       ],
@@ -105,6 +105,37 @@ function renderAccessDetail(): void {
           scopeId: formValue(form, "scopeId")
         });
       }),
+    accessForm(
+      "Break-glass namespace admin",
+      [
+        textField("principalId", "Principal ID"),
+        textField("namespacePrefix", "Namespace"),
+        selectField("scopeType", "Scope", ["project", "org"]),
+        textField("scopeId", "Scope ID"),
+        selectField("ownerRole", "Owner role", defaultRoleIds),
+        selectField("acceptedByRole", "Accepted by role", defaultRoleIds),
+        textField("reason", "Reason"),
+        dateField("reviewDue", "Review due"),
+        textField("cleanupAction", "Cleanup action"),
+        textField("auditEvidenceId", "Audit evidence ID")
+      ],
+      "Grant",
+      form => postAccess("/api/admin/access/namespace-grants", {
+        principalId: formValue(form, "principalId"),
+        roleId: null,
+        namespacePrefix: formValue(form, "namespacePrefix"),
+        permission: "admin",
+        scopeType: formValue(form, "scopeType"),
+        scopeId: formValue(form, "scopeId"),
+        breakGlassEvidence: {
+          ownerRole: formValue(form, "ownerRole"),
+          acceptedByRole: formValue(form, "acceptedByRole"),
+          reason: formValue(form, "reason"),
+          reviewDue: formValue(form, "reviewDue"),
+          cleanupAction: formValue(form, "cleanupAction"),
+          auditEvidenceId: formValue(form, "auditEvidenceId")
+        }
+      })),
     accessForm(
       "Effective preview",
       [

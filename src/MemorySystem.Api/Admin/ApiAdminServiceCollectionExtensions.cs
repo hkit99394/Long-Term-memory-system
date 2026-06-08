@@ -14,6 +14,7 @@ public static class ApiAdminServiceCollectionExtensions
         services.AddSingleton<IAdminMemoryInspectionStore, PostgresAdminMemoryInspectionStore>();
         services.AddSingleton<IAdminGovernanceStore, PostgresAdminGovernanceStore>();
         services.AddSingleton<IAdminAccessManagementStore, PostgresAdminAccessManagementStore>();
+        services.AddSingleton<IAdminProjectRegistrationStore, PostgresAdminProjectRegistrationStore>();
         services.AddSingleton<IProjectRoleDefinitionStore, PostgresProjectRoleDefinitionStore>();
         services.AddSingleton<IAdminPermissionDriftReportStore, PostgresAdminPermissionDriftReportStore>();
         services.AddSingleton<IAdminAuditExportStore, PostgresAdminAuditExportStore>();

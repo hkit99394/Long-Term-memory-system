@@ -38,6 +38,17 @@ public sealed class PostgresAdminAccessManagementStore(
         MemoryScopeType.Project
     };
 
+    private static readonly IReadOnlySet<string> RootNamespacePrefixes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "/global",
+        "/org",
+        "/project",
+        "/user",
+        "/role",
+        "/agent",
+        "/session"
+    };
+
     public async Task<AdminOrganizationMembershipRecord> UpsertOrganizationMembershipAsync(
         AdminOrganizationMembershipCommand command,
         CancellationToken cancellationToken = default)
@@ -238,6 +249,7 @@ public sealed class PostgresAdminAccessManagementStore(
             cancellationToken);
         var namespacePrefix = NormalizeNamespacePrefix(command.NamespacePrefix);
         var permission = NormalizeAllowed(command.Permission, MemoryAccessPermissions.All, "Namespace grant permission");
+        ValidateBreakGlassNamespaceAdminGrant(command, scopeType, namespacePrefix, permission, target);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var existing = await FindNamespaceGrantAsync(
@@ -250,7 +262,7 @@ public sealed class PostgresAdminAccessManagementStore(
 
         if (existing is not null)
         {
-            await RecordNamespaceGrantAuditAsync(command.ActorPrincipalId, scopeType, command.ScopeId, existing, operation: "upserted", cancellationToken);
+            await RecordNamespaceGrantAuditAsync(command, scopeType, existing, operation: "upserted", cancellationToken);
             return existing;
         }
 
@@ -283,7 +295,7 @@ public sealed class PostgresAdminAccessManagementStore(
         }
 
         var record = ReadNamespaceGrant(reader);
-        await RecordNamespaceGrantAuditAsync(command.ActorPrincipalId, scopeType, command.ScopeId, record, operation: "created", cancellationToken);
+        await RecordNamespaceGrantAuditAsync(command, scopeType, record, operation: "created", cancellationToken);
 
         return record;
     }
@@ -362,25 +374,40 @@ public sealed class PostgresAdminAccessManagementStore(
     }
 
     private async Task RecordNamespaceGrantAuditAsync(
-        Guid actorPrincipalId,
+        AdminNamespaceGrantCommand command,
         string scopeType,
-        Guid scopeId,
         AdminNamespaceGrantRecord record,
         string operation,
         CancellationToken cancellationToken)
     {
+        var metadata = new Dictionary<string, string?>
+        {
+            ["operation"] = operation
+        };
+
+        if (command.BreakGlassEvidence is { } evidence)
+        {
+            metadata["breakGlass"] = "true";
+            metadata["breakGlassOwnerRole"] = evidence.OwnerRole;
+            metadata["breakGlassAcceptedByRole"] = evidence.AcceptedByRole;
+            metadata["breakGlassReason"] = evidence.Reason;
+            metadata["breakGlassReviewDue"] = evidence.ReviewDue.ToString("yyyy-MM-dd");
+            metadata["breakGlassCleanupAction"] = evidence.CleanupAction;
+            metadata["breakGlassAuditEvidenceId"] = evidence.AuditEvidenceId;
+        }
+
         await RecordAuditAsync(
             AccessAuditActionTypes.NamespaceGrantChange,
-            actorPrincipalId,
+            command.ActorPrincipalId,
             record.PrincipalId,
             scopeType: scopeType,
-            scopeId: scopeId.ToString("D"),
+            scopeId: command.ScopeId.ToString("D"),
             resourceType: "memory_access_grant",
             resourceId: record.GrantId.ToString("D"),
             roleId: record.RoleId,
             namespacePrefix: record.NamespacePrefix,
             permission: record.Permission,
-            metadata: new Dictionary<string, string?> { ["operation"] = operation },
+            metadata: metadata,
             cancellationToken: cancellationToken);
     }
 
@@ -543,6 +570,66 @@ public sealed class PostgresAdminAccessManagementStore(
         }
 
         return normalized.TrimEnd('/');
+    }
+
+    private static void ValidateBreakGlassNamespaceAdminGrant(
+        AdminNamespaceGrantCommand command,
+        string scopeType,
+        string namespacePrefix,
+        string permission,
+        (Guid? PrincipalId, string? RoleId) target)
+    {
+        if (permission != MemoryAccessPermissions.Admin)
+        {
+            return;
+        }
+
+        if (command.BreakGlassEvidence is null)
+        {
+            throw new ArgumentException("Break-glass evidence is required for namespace admin grants.");
+        }
+
+        if (!target.PrincipalId.HasValue || target.RoleId is not null)
+        {
+            throw new ArgumentException("Break-glass namespace admin grants must target exactly one principal id.");
+        }
+
+        ValidateBreakGlassEvidence(command.BreakGlassEvidence);
+
+        if (RootNamespacePrefixes.Contains(namespacePrefix))
+        {
+            throw new ArgumentException("Root namespace admin grants must stay absent.");
+        }
+
+        var scopeRoot = scopeType == MemoryScopeType.Project
+            ? $"/project/{command.ScopeId:D}"
+            : $"/org/{command.ScopeId:D}";
+
+        if (namespacePrefix == scopeRoot)
+        {
+            throw new ArgumentException(scopeType == MemoryScopeType.Project
+                ? "Project root namespace admin grants must stay absent."
+                : "Organization root namespace admin grants must stay absent.");
+        }
+
+        if (!namespacePrefix.StartsWith($"{scopeRoot}/", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Break-glass namespace admin grants must stay under the selected scope root.");
+        }
+    }
+
+    private static void ValidateBreakGlassEvidence(AdminBreakGlassGrantEvidenceCommand evidence)
+    {
+        _ = NormalizeRequiredText(evidence.OwnerRole, "Break-glass owner role");
+        _ = NormalizeRequiredText(evidence.AcceptedByRole, "Break-glass accepted-by role");
+        _ = NormalizeRequiredText(evidence.Reason, "Break-glass reason");
+        _ = NormalizeRequiredText(evidence.CleanupAction, "Break-glass cleanup action");
+        _ = NormalizeRequiredText(evidence.AuditEvidenceId, "Break-glass audit evidence id");
+
+        if (evidence.ReviewDue < DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime))
+        {
+            throw new ArgumentException("Break-glass review due must be today or later.");
+        }
     }
 
     private static string NormalizeAllowed(

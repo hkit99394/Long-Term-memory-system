@@ -12,7 +12,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 repo_root = Path(sys.argv[1])
@@ -21,6 +21,7 @@ argv = sys.argv[3:]
 
 default_org_id = "9f8e7d6c-5b4a-4321-9123-abcdef123001"
 default_project_id = "9f8e7d6c-5b4a-4321-9123-abcdef123002"
+default_accepted_findings_path = "docs/access-boundary-accepted-findings.json"
 
 
 class WorkflowError(RuntimeError):
@@ -112,8 +113,12 @@ def count_by(rows, field_name):
     return dict(sorted(Counter(row.get(field_name) for row in rows if row.get(field_name)).items()))
 
 
-def safe_findings(report, limit):
-    findings = report.get("findings") or []
+def safe_findings(findings_or_report, limit):
+    if isinstance(findings_or_report, dict):
+        findings = findings_or_report.get("findings") or []
+    else:
+        findings = findings_or_report or []
+
     safe = []
     for finding in findings[:limit]:
         safe.append(
@@ -128,6 +133,9 @@ def safe_findings(report, limit):
                 "namespacePrefix": finding.get("namespacePrefix"),
                 "detail": finding.get("detail"),
                 "recommendedAction": finding.get("recommendedAction"),
+                "acceptedFindingRuleId": finding.get("acceptedFindingRuleId"),
+                "acceptedOwnerRole": finding.get("acceptedOwnerRole"),
+                "reviewDue": finding.get("reviewDue"),
             }
         )
     return safe
@@ -154,6 +162,164 @@ def break_glass_checks():
             "suggestedAction": "Rotate or remove the key after every break-glass activation and before stale review windows close.",
         },
     ]
+
+
+def relative_path(path):
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+
+def as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
+def parse_review_due(value, rule_id):
+    if not value:
+        raise WorkflowError(f"Accepted finding rule {rule_id} is missing reviewDue.")
+
+    text = str(value)
+    try:
+        if "T" in text:
+            return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+        return date.fromisoformat(text)
+    except ValueError as exc:
+        raise WorkflowError(f"Accepted finding rule {rule_id} has invalid reviewDue: {text}") from exc
+
+
+def load_accepted_findings(path_text):
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = repo_root / path
+
+    source = {
+        "path": relative_path(path),
+        "exists": path.exists(),
+        "schemaVersion": None,
+        "ruleCount": 0,
+        "activeRuleCount": 0,
+        "expiredRuleIds": [],
+    }
+
+    if not path.exists():
+        return {"source": source, "rules": []}
+
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise WorkflowError(f"Accepted findings file is not valid JSON: {relative_path(path)}") from exc
+
+    if document.get("kind") != "memorysystem.access_boundary_accepted_findings":
+        raise WorkflowError("Accepted findings file has the wrong kind.")
+    if document.get("schemaVersion") != 1:
+        raise WorkflowError("Accepted findings file must use schemaVersion 1.")
+    if document.get("payloadSafe") is not True or document.get("rawSourcePayloadsIncluded") is not False:
+        raise WorkflowError("Accepted findings file must be payload-safe and omit raw source payloads.")
+
+    rules = document.get("rules")
+    if not isinstance(rules, list):
+        raise WorkflowError("Accepted findings file must contain a rules array.")
+
+    today = datetime.now(timezone.utc).date()
+    active_rules = []
+    expired_rule_ids = []
+    source["schemaVersion"] = document.get("schemaVersion")
+    source["ruleCount"] = len(rules)
+
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise WorkflowError("Every accepted finding rule must be an object.")
+
+        rule_id = str(rule.get("id") or "")
+        if not rule_id:
+            raise WorkflowError("Every accepted finding rule must include an id.")
+
+        for required in ("ownerRole", "acceptedByRole", "acceptedReason", "cleanupAction"):
+            if not str(rule.get(required) or "").strip():
+                raise WorkflowError(f"Accepted finding rule {rule_id} is missing {required}.")
+
+        review_due = parse_review_due(rule.get("reviewDue"), rule_id)
+        if review_due < today:
+            expired_rule_ids.append(rule_id)
+            continue
+
+        if str(rule.get("status") or "active") != "active":
+            continue
+
+        active_rules.append(rule)
+
+    source["activeRuleCount"] = len(active_rules)
+    source["expiredRuleIds"] = expired_rule_ids
+    return {"source": source, "rules": active_rules}
+
+
+def namespace_matches(candidate, allowed_prefix):
+    if not candidate:
+        return False
+
+    allowed = allowed_prefix.rstrip("/")
+    return candidate == allowed or candidate.startswith(allowed + "/")
+
+
+def field_matches(finding, field_name, allowed_values):
+    if not allowed_values:
+        return True
+
+    value = finding.get(field_name)
+    if value is None:
+        return False
+
+    return str(value) in allowed_values
+
+
+def finding_matches_rule(finding, rule):
+    if not field_matches(finding, "code", as_list(rule.get("findingCodes"))):
+        return False
+    if not field_matches(finding, "severity", as_list(rule.get("severities"))):
+        return False
+    if not field_matches(finding, "resourceType", as_list(rule.get("resourceTypes"))):
+        return False
+    if not field_matches(finding, "principalId", as_list(rule.get("principalIds"))):
+        return False
+    if not field_matches(finding, "scopeType", as_list(rule.get("scopeTypes"))):
+        return False
+    if not field_matches(finding, "scopeId", as_list(rule.get("scopeIds"))):
+        return False
+
+    namespace_prefixes = as_list(rule.get("namespacePrefixes"))
+    if namespace_prefixes:
+        finding_namespace = finding.get("namespacePrefix")
+        if not any(namespace_matches(finding_namespace, prefix) for prefix in namespace_prefixes):
+            return False
+
+    return True
+
+
+def classify_findings(findings, accepted_findings):
+    accepted = []
+    unaccepted = []
+
+    for finding in findings:
+        matching_rule = next(
+            (rule for rule in accepted_findings["rules"] if finding_matches_rule(finding, rule)),
+            None,
+        )
+        if matching_rule is None:
+            unaccepted.append(finding)
+            continue
+
+        enriched = dict(finding)
+        enriched["acceptedFindingRuleId"] = matching_rule["id"]
+        enriched["acceptedOwnerRole"] = matching_rule.get("ownerRole")
+        enriched["reviewDue"] = matching_rule.get("reviewDue")
+        accepted.append(enriched)
+
+    return accepted, unaccepted
 
 
 def review_sections(report):
@@ -242,10 +408,15 @@ def review_sections(report):
     }
 
 
-def summarize(report, args):
+def summarize(report, args, accepted_findings):
     findings = report.get("findings") or []
+    accepted, unaccepted = classify_findings(findings, accepted_findings)
     severity_counts = Counter(finding.get("severity") for finding in findings if finding.get("severity"))
     code_counts = Counter(finding.get("code") for finding in findings if finding.get("code"))
+    accepted_severity_counts = Counter(finding.get("severity") for finding in accepted if finding.get("severity"))
+    accepted_code_counts = Counter(finding.get("code") for finding in accepted if finding.get("code"))
+    unaccepted_severity_counts = Counter(finding.get("severity") for finding in unaccepted if finding.get("severity"))
+    unaccepted_code_counts = Counter(finding.get("code") for finding in unaccepted if finding.get("code"))
 
     queue_counts = {
         "principals": len(report.get("principals") or []),
@@ -257,27 +428,41 @@ def summarize(report, args):
         "roleAssignments": len(report.get("roleAssignments") or []),
         "namespaceGrants": len(report.get("namespaceGrants") or []),
         "effectiveAccessPreviews": len(report.get("effectiveAccessPreviews") or []),
-        "findings": len(findings),
-        "highSeverityFindings": severity_counts.get("high", 0),
+        "findings": len(unaccepted),
+        "rawPermissionDriftFindings": len(findings),
+        "acceptedFindings": len(accepted),
+        "unacceptedFindings": len(unaccepted),
+        "highSeverityFindings": unaccepted_severity_counts.get("high", 0),
+        "rawHighSeverityFindings": severity_counts.get("high", 0),
+        "acceptedHighSeverityFindings": accepted_severity_counts.get("high", 0),
+        "unacceptedHighSeverityFindings": unaccepted_severity_counts.get("high", 0),
         "breakGlassManualChecks": len(break_glass_checks()),
     }
 
     return {
-        "status": "needs_review" if findings else "clear",
+        "status": "needs_review" if unaccepted else "clear",
         "generatedAt": utc_now(),
         "payloadSafe": True,
         "rawSourcePayloadsIncluded": False,
         "targetScopeType": args.scope_type,
         "targetScopeId": args.scope_id,
         "namespacePrefix": args.namespace_prefix or default_namespace_prefix(args.scope_type, args.scope_id),
+        "acceptedFindingSource": accepted_findings["source"],
+        "acceptedFindings": len(accepted),
+        "unacceptedFindings": len(unaccepted),
         "permissionDriftReport": {
             "reportId": report.get("reportId"),
             "generatedAt": report.get("generatedAt"),
             "staleAfterDays": report.get("staleAfterDays"),
             "counts": queue_counts,
-            "findingsBySeverity": dict(sorted(severity_counts.items())),
-            "findingsByCode": dict(sorted(code_counts.items())),
-            "topFindings": safe_findings(report, args.finding_limit),
+            "rawFindingsBySeverity": dict(sorted(severity_counts.items())),
+            "rawFindingsByCode": dict(sorted(code_counts.items())),
+            "acceptedFindingsBySeverity": dict(sorted(accepted_severity_counts.items())),
+            "acceptedFindingsByCode": dict(sorted(accepted_code_counts.items())),
+            "findingsBySeverity": dict(sorted(unaccepted_severity_counts.items())),
+            "findingsByCode": dict(sorted(unaccepted_code_counts.items())),
+            "topFindings": safe_findings(unaccepted, args.finding_limit),
+            "topAcceptedFindings": safe_findings(accepted, args.finding_limit),
         },
         "reviewSections": review_sections(report),
         "queueCounts": queue_counts,
@@ -287,12 +472,13 @@ def summarize(report, args):
             "Confirm service-account owners, review dates, expiry dates, credential rotation, and least-privilege grants.",
             "Confirm OIDC identity bindings still map to active human principals and do not grant memory access from token claims.",
             "Review break-glass key owner, scope, last use, audit export, and rotation/removal evidence.",
+            "Review accepted access findings before their reviewDue date and complete the recorded cleanup action.",
             "Attach an audit export for access-management changes or break-glass activation windows.",
         ],
     }
 
 
-def dry_run(args):
+def dry_run(args, accepted_findings):
     request = report_request(args)
     return {
         "status": "dry_run",
@@ -301,6 +487,7 @@ def dry_run(args):
         "targetScopeType": args.scope_type,
         "targetScopeId": args.scope_id,
         "namespacePrefix": request["namespacePrefix"],
+        "acceptedFindingSource": accepted_findings["source"],
         "permissionDriftRequest": {
             "method": "POST",
             "endpoint": "/api/admin/access/permission-drift",
@@ -315,6 +502,7 @@ def dry_run(args):
             "oidc_identity_binding_review",
             "break_glass_key_review",
             "permission_drift_findings",
+            "accepted_finding_owner_review",
             "audit_export_evidence",
         ],
         "endpoints": [
@@ -337,6 +525,7 @@ def dry_run(args):
             "namespaceGrants",
             "effectiveAccessPreviews",
             "findings",
+            "acceptedFindings",
         ],
     }
 
@@ -356,6 +545,11 @@ def build_parser():
     parser.add_argument("--stale-after-days", type=int, default=90, help="Stale identity/credential window.")
     parser.add_argument("--max-preview-principals", type=int, default=20, help="Effective-access preview principal cap.")
     parser.add_argument("--finding-limit", type=int, default=25, help="Maximum finding details to include.")
+    parser.add_argument(
+        "--accepted-findings",
+        default=os.environ.get("MEMORYSYSTEM_ACCESS_BOUNDARY_ACCEPTED_FINDINGS", default_accepted_findings_path),
+        help="Payload-safe accepted finding rules with owner, reason, cleanup action, and review due date.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print planned checks without API calls.")
     return parser
 
@@ -366,9 +560,11 @@ try:
     if parsed.scope_type == "org" and parsed.scope_id == default_project_id:
         parsed.scope_id = os.environ.get("MEMORYSYSTEM_CANONICAL_ORG_ID", default_org_id)
 
-    payload = dry_run(parsed) if parsed.dry_run else summarize(
+    accepted_findings = load_accepted_findings(parsed.accepted_findings)
+    payload = dry_run(parsed, accepted_findings) if parsed.dry_run else summarize(
         request_json("POST", "/api/admin/access/permission-drift", report_request(parsed)),
         parsed,
+        accepted_findings,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
 except WorkflowError as exc:

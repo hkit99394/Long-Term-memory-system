@@ -45,7 +45,16 @@ public sealed record AdminNamespaceGrantCommand(
     string ScopeType,
     Guid ScopeId,
     string NamespacePrefix,
-    string Permission);
+    string Permission,
+    AdminBreakGlassGrantEvidenceCommand? BreakGlassEvidence);
+
+public sealed record AdminBreakGlassGrantEvidenceCommand(
+    string OwnerRole,
+    string AcceptedByRole,
+    string Reason,
+    DateOnly ReviewDue,
+    string CleanupAction,
+    string AuditEvidenceId);
 
 public sealed record AdminOrganizationMembershipRecord(
     Guid OrgId,

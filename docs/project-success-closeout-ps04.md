@@ -49,6 +49,8 @@ paths for:
 - source-backed memory hygiene output
 - backlog/roadmap memory sync dry-run output
 - benchmark release-gate output when relevant
+- REG-06 registration success benchmark evidence when project registration or
+  onboarding is in scope
 - Product Owner and operator confidence ratings
 - residual risks and next recommended action
 
@@ -95,12 +97,14 @@ Hard no-go checks:
    `benchmarks/project-success/scorecard-template.json`.
 3. Fill the PS-04 closeout decision record from
    `benchmarks/project-success/closeout-template.json`.
-4. Run source-backed memory hygiene and backlog/roadmap memory sync checks.
-5. Verify every evidence link is payload-safe and excludes raw payloads, memory
+4. Attach REG-06 registration success benchmark evidence when project
+   registration or onboarding is in scope.
+5. Run source-backed memory hygiene and backlog/roadmap memory sync checks.
+6. Verify every evidence link is payload-safe and excludes raw payloads, memory
    bodies, raw queries, review notes, credentials, and secrets.
-6. Record the Product Owner recommendation, residual risks, and next action by
+7. Record the Product Owner recommendation, residual risks, and next action by
    2026-07-05.
-7. If the decision is `GO`, define the next pilot expansion or promotion
+8. If the decision is `GO`, define the next pilot expansion or promotion
    boundary. If the decision is `WATCH`, define the next measurement cycle. If
    the decision is `NO-GO`, define the blocking remediation before another
    project-success claim.

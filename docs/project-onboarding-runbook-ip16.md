@@ -27,9 +27,9 @@ Render a plan for a different project:
 
 ```bash
 scripts/project-onboarding-runbook.sh --dry-run \
-  --organization-id 00000000-0000-0000-0000-000000000001 \
+  --organization-id 11111111-1111-4111-8111-111111111001 \
   --organization-name "Example Org" \
-  --project-id 00000000-0000-0000-0000-000000000002 \
+  --project-id 22222222-2222-4222-8222-222222222002 \
   --project-name "Example Project"
 ```
 
@@ -100,6 +100,45 @@ The JSON report includes:
     Record onboarding feedback through `/api/memory/context/feedback`, run the
     weekly memory review queue, run the weekly access-boundary review, and
     rerun roadmap/backlog sync whenever product plan state changes.
+
+## Project Registration Step
+
+Project onboarding keeps the runbook as the payload-safe planning foundation,
+and [Project Registration UX Plan](project-registration-ux-plan.md) now
+implements the Product Owner registration path so a Product Owner can create a
+new governed memory boundary without editing SQL, shell scripts, or raw
+namespace strings.
+
+The registration step captures or generates organization and project ids, names,
+status, runtime boundary, Product Owner, Knowledge Steward, Security/Ops
+principal, active and deferred roles, custom project role definitions, source
+documents, source owners, and least-privilege grant presets. Review cadence
+stays in the onboarding and closeout evidence loop.
+
+REG-01 adds the dry-run contract. `scripts/project-onboarding-runbook.sh
+--dry-run` now emits `registrationContract` and `registrationValidation`
+sections with required fields, validation rules, least-privilege and
+bootstrap-admin presets, owner assignments, namespace grant matrix,
+source-document checks, effective-access preview plan, audit evidence plan,
+planned operations, preflight checklist, and closeout criteria.
+
+REG-02 adds the first live API contract at `POST
+/api/admin/projects/register`. The endpoint requires admin authentication and an
+`Idempotency-Key`, creates or updates organization/project rows, project role
+definitions, owner memberships, role assignments, namespace grants, and a
+payload-safe `project_registration` audit event. It rejects root namespace,
+project-root, and live admin namespace grants in the normal path.
+
+REG-03 exposes the first `/admin/` Project Registration wizard. The wizard keeps
+the normal Product Owner path in seven steps: Scope, Owners/Roles, Grants, Seed
+Docs, Preflight, Register, and Closeout. It runs effective-access preview before
+commit and posts the REG-02 registration payload with `Idempotency-Key`.
+
+The normal registration path must preview effective access before commit and
+must not create root namespace grants such as `/project`, `/org`, `/global`,
+`/user`, `/role`, `/agent`, or `/session`. Any temporary admin grant requires
+owner role, approver role, reason, cleanup action, review due date, and audit
+evidence.
 
 ## Verification
 

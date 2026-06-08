@@ -65,14 +65,15 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 5. [Project Memory Boundary](project-memory-boundary.md)
 6. [Project Memory Runbook](project-memory-runbook.md)
 7. [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md)
-8. [Production Observability and Alerting](production-observability.md)
-9. [Backup and Restore Runbook](backup-restore.md)
-10. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
-11. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
-12. [Retention Policy](retention-policy.md)
-13. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-14. [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
-15. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+8. [Project Registration UX Plan](project-registration-ux-plan.md)
+9. [Production Observability and Alerting](production-observability.md)
+10. [Backup and Restore Runbook](backup-restore.md)
+11. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
+12. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
+13. [Retention Policy](retention-policy.md)
+14. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+15. [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
+16. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -112,6 +113,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Payload-safe new-project setup flow for scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Payload-safe release bundle generator for tests, migration, health, operations, benchmark, backup/restore, and rollback evidence. |
 | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Provisioning-only directory sync evaluation gate that keeps runtime authorization local. |
+| [Project Registration UX Plan](project-registration-ux-plan.md) | Guided project registration plan and `/admin/` wizard for least-privilege grants, source-doc readiness, access preview, idempotent registration, and closeout. |
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Pilot scorecard for whether governed memory improves real project work. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | First dogfood pilot selection, baseline pains, starting metrics, and observation entry criteria. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | Two-week dogfood observation runbook, weekly cycle calendar, and evidence workflow. |
@@ -162,6 +164,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project-Defined Roles IP-05](project-defined-roles-ip05.md) | Project role-definition table, admin API, validation rules, and default role templates. |
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Product Owner and Knowledge Steward onboarding flow for a new project memory boundary. |
+| [Project Registration UX Plan](project-registration-ux-plan.md) | Product Owner wizard for registering project scope, owners, roles, grants, seed docs, access preview, and closeout. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Weekly payload-safe memory review queue collector and role-owner operating procedure. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly security review for permission drift, service accounts, OIDC bindings, break-glass keys, and audit evidence. |
 | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | Role-owner seed workflow for source-backed project role lenses. |
@@ -239,6 +242,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Repeatable setup plan for scope, role owners, grants, source-backed seeds, and reviews. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager workflow for the generated evidence bundle and strict promotion rule. |
 | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Security/Ops workflow for deciding whether future provisioning-only sync is justified. |
+| [Project Registration UX Plan](project-registration-ux-plan.md) | Product Owner workflow for guided project registration and closeout. |
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Product Owner workflow for proving real project-success impact after the technical MVP promotion. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | Product Owner baseline record for the first internal dogfood pilot. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | Product Owner observation runbook for two weekly project-success measurement cycles. |

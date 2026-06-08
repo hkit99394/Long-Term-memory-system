@@ -25,6 +25,13 @@ scripts/access-boundary-review.sh \
   --scope-id 9f8e7d6c-5b4a-4321-9123-abcdef123002
 ```
 
+The review also loads
+`docs/access-boundary-accepted-findings.json` by default. Accepted findings
+must be payload-safe and must include owner role, approver role, accepted
+reason, cleanup action, and review due date. Accepted findings are still
+reported in the JSON output, but they do not block `status: clear` while they
+remain current and exactly match the accepted rule.
+
 The live command calls:
 
 ```text
@@ -53,8 +60,11 @@ safely inferred from secret values.
 
 - `payloadSafe: true`
 - `rawSourcePayloadsIncluded: false`
+- `acceptedFindingSource` with the accepted-finding file path and active rule
+  count
+- `acceptedFindings` and `unacceptedFindings`
 - `permissionDriftReport` summary with counts, findings by severity/code, and
-  bounded finding details
+  bounded finding details for unresolved and accepted findings
 - `reviewSections.memberships`
 - `reviewSections.roleAssignments`
 - `reviewSections.namespaceGrants`
@@ -82,7 +92,9 @@ scripts/access-boundary-review.sh \
 
 Close the weekly access review only when:
 
-1. every high-severity permission-drift finding has an owner or cleanup action
+1. every high-severity permission-drift finding is resolved or covered by a
+   current accepted-finding rule with owner, reason, cleanup action, and review
+   due date
 2. admin memberships, global roles, namespace admin grants, and effective admin
    previews are approved or narrowed
 3. service-account owners, review dates, expiry dates, and credential rotation
@@ -113,7 +125,8 @@ principals must not be accepted by the console break-glass login.
 
 The weekly access review is not clear when:
 
-- permission-drift findings remain unowned
+- permission-drift findings remain unowned, unaccepted, or past the accepted
+  review due date
 - inactive principals, disabled bindings, or disabled service accounts retain
   access records
 - service credentials are expired, stale, or past review due date
@@ -123,6 +136,20 @@ The weekly access review is not clear when:
 - provider groups, token roles, token scopes, or directory claims are used as
   runtime authorization instead of local memberships, role assignments, and
   namespace grants
+
+## Accepted Finding Rules
+
+The accepted-finding file records short-lived exceptions for bootstrap or
+break-glass access that cannot be safely removed yet. It is not a suppression
+list. The script still reports raw drift counts and accepted finding matches.
+
+Accepted rules must not approve root namespace grants such as `/project`,
+`/org`, `/global`, `/user`, `/role`, `/agent`, or `/session`. Root grants must
+be removed or narrowed because they cross project-registration and
+least-privilege boundaries. A project-specific root such as
+`/project/{projectId}` may be accepted only as a time-bound bootstrap or
+break-glass admin anchor with owner, reason, cleanup action, and review due
+date.
 
 ## Completion Evidence
 

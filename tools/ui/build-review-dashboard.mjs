@@ -9,7 +9,7 @@ await build(
   ["src/review-dashboard.ts"],
   "../../src/MemorySystem.Api/wwwroot/reviews/review-dashboard.js");
 await build(
-  ["src/admin/access-panel.ts", "src/admin-console.ts"],
+  ["src/admin/access-panel.ts", "src/admin/registration-panel.ts", "src/admin-console.ts"],
   "../../src/MemorySystem.Api/wwwroot/admin/admin-console.js");
 
 async function build(sourceRelativePaths, outputRelativePath) {

@@ -176,10 +176,16 @@ production target should produce its own manifest if production is later treated
 as separate from UAT. PS-01 now defines the post-MVP project-success scorecard,
 PS-02 selects the Long-Term Memory System internal dogfood pilot with a
 payload-safe baseline, PS-03 has started the observation runbook and weekly
-cycle evidence scaffold, and PS-04 has started the closeout-prep runbook. The
-next product execution work is capturing two weekly measurement cycles during
-2026-06-15 to 2026-06-28, then producing a GO/WATCH/NO-GO closeout during
-2026-06-29 to 2026-07-05.
+cycle evidence scaffold, and PS-04 has started the closeout-prep runbook.
+REG-01 through REG-06 now define and implement the project registration
+specification, first API contract, admin wizard MVP, least-privilege bootstrap
+cleanup, source-backed seed readiness UX, and registration success benchmark so
+a Product Owner can validate a governed project boundary without raw SQL,
+namespace hand-editing, default admin grants, raw source payload entry, or an
+unmeasured closeout. The next product execution work is
+capturing two weekly measurement cycles during 2026-06-15 to 2026-06-28,
+producing a GO/WATCH/NO-GO closeout during 2026-06-29 to 2026-07-05, and
+feeding registration success evidence into that project-success loop.
 
 ## Project Success Benchmark
 
@@ -189,6 +195,17 @@ next product execution work is capturing two weekly measurement cycles during
 | PS-02 | P0 | Done | Select first pilot project and baseline. | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) records the Long-Term Memory System dogfood pilot, canonical scope, active roles, baseline repeated-context pains, starting workflow metrics, evidence to collect, and PS-03 entry criteria. |
 | PS-03 | P0 | In Progress | Run two-week pilot observation. | [Project Success Observation PS-03](project-success-observation-ps03.md) starts the observation runbook, defines Cycle 1 and Cycle 2 evidence due dates, and uses `benchmarks/project-success/weekly-cycle-template.json` for payload-safe weekly records from real memory-informed work between 2026-06-15 and 2026-06-28. |
 | PS-04 | P0 | In Progress | Produce project-success closeout. | [Project Success Closeout PS-04](project-success-closeout-ps04.md) starts the closeout-prep runbook, defines required evidence, decision rules, and completion criteria, and uses `benchmarks/project-success/closeout-template.json` for a payload-safe final GO/WATCH/NO-GO record by 2026-07-05. |
+
+## Project Registration UX
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| REG-01 | P0 | Done | Define project registration specification and dry-run contract. | [Project Registration UX Plan](project-registration-ux-plan.md) records required fields, validation rules, least-privilege presets, source-doc checks, access preview, audit evidence, planned operations, and closeout criteria in `scripts/project-onboarding-runbook.sh --dry-run`. |
+| REG-02 | P0 | Done | Add first project registration API contract. | `POST /api/admin/projects/register` creates or updates organization/project rows, project role definitions, owner memberships, role assignments, namespace grants, and payload-safe `project_registration` audit evidence idempotently. |
+| REG-03 | P0 | Done | Build admin Project Registration wizard MVP. | `/admin/` exposes Scope, Owners/Roles, Grants, Seed Docs, Preflight, Register, and Closeout steps, calls effective-access preview before commit, and submits the idempotent registration API. |
+| REG-04 | P0 | Done | Separate bootstrap admin from normal registration. | Root and scope-root namespace admin grants stay absent, default registration and normal namespace grants use read/write/review presets, and break-glass namespace admin is separate, principal-targeted, owner-reviewed, time-bound, and audit-evidenced. |
+| REG-05 | P1 | Done | Add source-backed seed readiness UX. | The wizard shows source-doc path coverage, hash status, source owners, canonical memory type coverage, role-lens readiness, context checks, and feedback closeout without raw payload exposure. |
+| REG-06 | P1 | Done | Measure registration success. | Registration duration, validation failures, access drift after registration, source-link coverage, and user confidence are tracked in the wizard evidence rail and project-success evidence templates by 2026-07-17. |
 
 ## External Pilot Readiness P0
 

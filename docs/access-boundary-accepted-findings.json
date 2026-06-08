@@ -1,0 +1,135 @@
+{
+  "kind": "memorysystem.access_boundary_accepted_findings",
+  "schemaVersion": 1,
+  "payloadSafe": true,
+  "rawSourcePayloadsIncluded": false,
+  "targetScopeType": "project",
+  "targetScopeId": "9f8e7d6c-5b4a-4321-9123-abcdef123002",
+  "rules": [
+    {
+      "id": "ip11-canonical-project-bootstrap-namespace-admin",
+      "status": "active",
+      "ownerRole": "Security Professional",
+      "acceptedByRole": "Product Owner + Security Professional",
+      "acceptedAt": "2026-06-08",
+      "reviewDue": "2026-07-05",
+      "findingCodes": [
+        "over_broad_namespace_admin_grant",
+        "broad_namespace_prefix"
+      ],
+      "resourceTypes": [
+        "memory_access_grant"
+      ],
+      "principalIds": [
+        "6857a2ff-cd59-4190-b023-e2f7e0c2144b"
+      ],
+      "scopeTypes": [
+        "project"
+      ],
+      "scopeIds": [
+        "9f8e7d6c-5b4a-4321-9123-abcdef123002"
+      ],
+      "namespacePrefixes": [
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/goals",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/facts",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/decisions",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/rationale",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/risks",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/release-evidence",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/product_owner/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/cto/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/security_professional/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/it_manager/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/developer/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/tester_qa/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/release_manager/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/knowledge_steward/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/designer/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/cfo/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/coo/lens",
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002/role/ceo/lens"
+      ],
+      "acceptedReason": "The host-local canonical operator remains the bootstrap admin for the internal dogfood project while the project registration workflow is planned and built.",
+      "cleanupAction": "Project Registration REG-01 through REG-04 now provisions day-to-day project roles with read/write/review presets and separates break-glass namespace admin into an owner-reviewed, time-bound, audit-evidenced path; remove this bootstrap namespace admin grant set after the 2026-07-05 project-success closeout."
+    },
+    {
+      "id": "ip11-canonical-project-effective-admin-preview",
+      "status": "active",
+      "ownerRole": "Security Professional",
+      "acceptedByRole": "Product Owner + Security Professional",
+      "acceptedAt": "2026-06-08",
+      "reviewDue": "2026-07-05",
+      "findingCodes": [
+        "effective_admin_access"
+      ],
+      "resourceTypes": [
+        "effective_access_preview"
+      ],
+      "principalIds": [
+        "6857a2ff-cd59-4190-b023-e2f7e0c2144b"
+      ],
+      "scopeTypes": [
+        "project"
+      ],
+      "scopeIds": [
+        "9f8e7d6c-5b4a-4321-9123-abcdef123002"
+      ],
+      "namespacePrefixes": [
+        "/project/9f8e7d6c-5b4a-4321-9123-abcdef123002"
+      ],
+      "acceptedReason": "The operator API key must be able to call admin endpoints for the canonical internal dogfood project until the registration flow separates day-to-day project setup from break-glass administration.",
+      "cleanupAction": "Use the REG-04 break-glass namespace admin path only for owner-reviewed, time-bound repair, then replace operator effective admin access with least-privilege role presets before or during the 2026-07-05 closeout."
+    },
+    {
+      "id": "ip11-canonical-project-bootstrap-project-admin-membership",
+      "status": "active",
+      "ownerRole": "Security Professional",
+      "acceptedByRole": "Product Owner + Security Professional",
+      "acceptedAt": "2026-06-08",
+      "reviewDue": "2026-07-05",
+      "findingCodes": [
+        "over_broad_project_membership"
+      ],
+      "resourceTypes": [
+        "project_membership"
+      ],
+      "principalIds": [
+        "6857a2ff-cd59-4190-b023-e2f7e0c2144b"
+      ],
+      "scopeTypes": [
+        "project"
+      ],
+      "scopeIds": [
+        "9f8e7d6c-5b4a-4321-9123-abcdef123002"
+      ],
+      "acceptedReason": "The canonical operator owns project bootstrap and repair for the internal dogfood scope during PS-03 and PS-04 evidence collection.",
+      "cleanupAction": "Project registration should create named Product Owner, Knowledge Steward, and Security/Ops responsibilities with narrower project access, then remove this operator project admin membership or move it to break-glass."
+    },
+    {
+      "id": "ip11-canonical-project-bootstrap-org-owner-membership",
+      "status": "active",
+      "ownerRole": "Security Professional",
+      "acceptedByRole": "Product Owner + Security Professional",
+      "acceptedAt": "2026-06-08",
+      "reviewDue": "2026-07-05",
+      "findingCodes": [
+        "over_broad_org_membership"
+      ],
+      "resourceTypes": [
+        "organization_membership"
+      ],
+      "principalIds": [
+        "6857a2ff-cd59-4190-b023-e2f7e0c2144b"
+      ],
+      "scopeTypes": [
+        "project"
+      ],
+      "scopeIds": [
+        "9f8e7d6c-5b4a-4321-9123-abcdef123002"
+      ],
+      "acceptedReason": "The host-local canonical operator is the current bootstrap owner for the single internal dogfood organization.",
+      "cleanupAction": "REG-02 through REG-04 now support owner assignment, access previews, and separate break-glass namespace admin; replace the bootstrap org owner membership with named owner records before or during the 2026-07-05 closeout."
+    }
+  ]
+}

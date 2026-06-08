@@ -132,6 +132,7 @@ app.MapMemorySystemVaultExportEndpoints();
 app.MapMemorySystemAdminConsoleEndpoints();
 app.MapMemorySystemAdminGovernanceEndpoints();
 app.MapMemorySystemAdminAccessManagementEndpoints();
+app.MapMemorySystemAdminProjectRegistrationEndpoints();
 app.MapMemorySystemAdminAuditExportEndpoints();
 
 if (app.Environment.IsEnvironment("Testing"))

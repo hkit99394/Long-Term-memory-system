@@ -279,7 +279,7 @@ const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
 const consoleReturnUrl = "/admin/";
 
 interface AdminConsoleState {
-  mode: "memory" | "events" | "operations" | "access" | "compliance" | "pilot";
+  mode: "memory" | "events" | "operations" | "access" | "registration" | "compliance" | "pilot";
   facts: AdminMemoryFact[];
   events: AdminSourceEvent[];
   operationsSummary: AdminOperationsSummary | null;
@@ -290,8 +290,10 @@ interface AdminConsoleState {
   selectedEventId: string | null;
   selectedComplianceId: string | null;
   selectedPilotGateId: string | null;
+  selectedRegistrationStepId: RegistrationStepId;
   selectedSource: SourceEventResponse | null;
   accessResult: AdminAccessResult | null;
+  registrationResult: Record<string, unknown> | null;
   busy: boolean;
 }
 
@@ -307,8 +309,10 @@ const state: AdminConsoleState = {
   selectedEventId: null,
   selectedComplianceId: null,
   selectedPilotGateId: null,
+  selectedRegistrationStepId: "scope",
   selectedSource: null,
   accessResult: null,
+  registrationResult: null,
   busy: false
 };
 
@@ -420,6 +424,10 @@ function readMode(): AdminConsoleState["mode"] {
     return "access";
   }
 
+  if (elements.modeFilter.value === "registration") {
+    return "registration";
+  }
+
   if (elements.modeFilter.value === "operations") {
     return "operations";
   }
@@ -458,6 +466,12 @@ async function loadCurrentMode(): Promise<void> {
 
   if (state.mode === "access") {
     setStatus("Access");
+    render();
+    return;
+  }
+
+  if (state.mode === "registration") {
+    setStatus("Registration");
     render();
     return;
   }
@@ -793,6 +807,8 @@ function render(): void {
       ? "Operations"
     : state.mode === "compliance"
       ? "Compliance"
+    : state.mode === "registration"
+      ? "Registration Steps"
     : state.mode === "access"
       ? "Access Actions"
       : "Memory Facts";
@@ -804,6 +820,8 @@ function render(): void {
       ? "Operator Links"
     : state.mode === "compliance"
       ? "Evidence Links"
+    : state.mode === "registration"
+      ? "Registration Evidence"
     : state.mode === "access"
       ? "Result"
       : "Source Evidence";
@@ -840,6 +858,11 @@ function renderResultList(): void {
     return;
   }
 
+  if (state.mode === "registration") {
+    renderRegistrationList();
+    return;
+  }
+
   renderMemoryList();
 }
 
@@ -847,8 +870,10 @@ function renderAccessList(): void {
   for (const action of [
     "Organization membership",
     "Project membership",
+    "Project role definition",
     "Role assignment",
     "Namespace grant",
+    "Break-glass admin",
     "Effective preview",
     "Audit export"
   ]) {
@@ -1016,6 +1041,11 @@ function renderDetail(): void {
 
   if (state.mode === "access") {
     renderAccessDetail();
+    return;
+  }
+
+  if (state.mode === "registration") {
+    renderRegistrationDetail();
     return;
   }
 
@@ -1379,6 +1409,11 @@ function renderSourceDetail(): void {
     return;
   }
 
+  if (state.mode === "registration") {
+    renderRegistrationSourceDetail();
+    return;
+  }
+
   if (!state.selectedSource) {
     elements.sourceDetail.append(emptyPanel("No source opened"));
     return;
@@ -1556,6 +1591,17 @@ function dateTimeField(name: string, labelText: string): HTMLElement {
   span.textContent = labelText;
   input.name = name;
   input.type = "datetime-local";
+  label.append(span, input);
+  return label;
+}
+
+function dateField(name: string, labelText: string): HTMLElement {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  const input = document.createElement("input");
+  span.textContent = labelText;
+  input.name = name;
+  input.type = "date";
   label.append(span, input);
   return label;
 }
@@ -2092,7 +2138,7 @@ function updateFilterVisibility(): void {
   }
 
   elements.statusFilter.closest("label")!.hidden = state.mode !== "memory";
-  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
-  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
-  elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
 }

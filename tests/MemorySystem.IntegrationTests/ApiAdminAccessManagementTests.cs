@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MemorySystem.Application.AccessAuditing;
+using MemorySystem.Application.Admin;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -335,6 +338,164 @@ public sealed class ApiAdminAccessManagementTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_admin_access_management_requires_break_glass_evidence_for_namespace_admin()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_access_break_glass_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareAccessFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var missingEvidenceResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/namespace-grants",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = (string?)null,
+                    namespacePrefix = $"/project/{ProjectId}/decisions/break-glass",
+                    permission = "admin",
+                    scopeType = "project",
+                    scopeId = ProjectId
+                }));
+            var missingEvidenceBody = await missingEvidenceResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, missingEvidenceResponse.StatusCode);
+            Assert.Contains("Break-glass evidence is required for namespace admin grants.", missingEvidenceBody, StringComparison.Ordinal);
+
+            using var roleAdminResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/namespace-grants",
+                new
+                {
+                    principalId = (Guid?)null,
+                    roleId = "cto",
+                    namespacePrefix = $"/project/{ProjectId}/decisions/break-glass",
+                    permission = "admin",
+                    scopeType = "project",
+                    scopeId = ProjectId,
+                    breakGlassEvidence = ValidBreakGlassEvidence()
+                }));
+            var roleAdminBody = await roleAdminResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, roleAdminResponse.StatusCode);
+            Assert.Contains("Break-glass namespace admin grants must target exactly one principal id.", roleAdminBody, StringComparison.Ordinal);
+
+            using var projectRootAdminResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/namespace-grants",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = (string?)null,
+                    namespacePrefix = $"/project/{ProjectId}",
+                    permission = "admin",
+                    scopeType = "project",
+                    scopeId = ProjectId,
+                    breakGlassEvidence = ValidBreakGlassEvidence()
+                }));
+            var projectRootAdminBody = await projectRootAdminResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, projectRootAdminResponse.StatusCode);
+            Assert.Contains("Project root namespace admin grants must stay absent.", projectRootAdminBody, StringComparison.Ordinal);
+
+            using var grantResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/namespace-grants",
+                new
+                {
+                    principalId = TargetPrincipalId,
+                    roleId = (string?)null,
+                    namespacePrefix = $"/project/{ProjectId}/decisions/break-glass",
+                    permission = "admin",
+                    scopeType = "project",
+                    scopeId = ProjectId,
+                    breakGlassEvidence = ValidBreakGlassEvidence()
+                }));
+            var grantBody = await grantResponse.Content.ReadAsStringAsync();
+            using var grantPayload = JsonDocument.Parse(grantBody);
+
+            Assert.Equal(HttpStatusCode.OK, grantResponse.StatusCode);
+            Assert.Equal("admin", grantPayload.RootElement.GetProperty("permission").GetString());
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.True(await HasNamespaceGrantAsync(dataSource, TargetPrincipalId, $"/project/{ProjectId}/decisions/break-glass", "admin"));
+            var auditMetadata = await ReadLatestNamespaceGrantAuditMetadataAsync(dataSource);
+            Assert.Equal("true", auditMetadata.BreakGlass);
+            Assert.Equal("security_professional", auditMetadata.AcceptedByRole);
+            Assert.Equal("2099-12-31", auditMetadata.ReviewDue);
+            Assert.Equal("reg04-break-glass-test", auditMetadata.AuditEvidenceId);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Admin_access_store_rejects_direct_namespace_admin_without_break_glass_contract()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_access_store_break_glass_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareAccessFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var scope = factory.Services.CreateScope();
+            var store = scope.ServiceProvider.GetRequiredService<IAdminAccessManagementStore>();
+
+            var missingEvidence = await Assert.ThrowsAsync<ArgumentException>(() =>
+                store.UpsertNamespaceGrantAsync(new AdminNamespaceGrantCommand(
+                    ActorPrincipalId,
+                    TargetPrincipalId,
+                    RoleId: null,
+                    ScopeType: "project",
+                    ScopeId: ProjectId,
+                    NamespacePrefix: $"/project/{ProjectId}/decisions/direct",
+                    Permission: "admin",
+                    BreakGlassEvidence: null)));
+            Assert.Contains("Break-glass evidence is required for namespace admin grants.", missingEvidence.Message, StringComparison.Ordinal);
+
+            var rootNamespace = await Assert.ThrowsAsync<ArgumentException>(() =>
+                store.UpsertNamespaceGrantAsync(new AdminNamespaceGrantCommand(
+                    ActorPrincipalId,
+                    TargetPrincipalId,
+                    RoleId: null,
+                    ScopeType: "project",
+                    ScopeId: ProjectId,
+                    NamespacePrefix: $"/project/{ProjectId}",
+                    Permission: "admin",
+                    BreakGlassEvidence: ValidBreakGlassEvidenceCommand())));
+            Assert.Contains("Project root namespace admin grants must stay absent.", rootNamespace.Message, StringComparison.Ordinal);
+
+            var roleTarget = await Assert.ThrowsAsync<ArgumentException>(() =>
+                store.UpsertNamespaceGrantAsync(new AdminNamespaceGrantCommand(
+                    ActorPrincipalId,
+                    PrincipalId: null,
+                    RoleId: "cto",
+                    ScopeType: "project",
+                    ScopeId: ProjectId,
+                    NamespacePrefix: $"/project/{ProjectId}/decisions/direct",
+                    Permission: "admin",
+                    BreakGlassEvidence: ValidBreakGlassEvidenceCommand())));
+            Assert.Contains("Break-glass namespace admin grants must target exactly one principal id.", roleTarget.Message, StringComparison.Ordinal);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.False(await HasNamespaceGrantAsync(dataSource, TargetPrincipalId, $"/project/{ProjectId}/decisions/direct", "admin"));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_admin_access_effective_preview_rejects_invalid_permission()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -367,6 +528,30 @@ public sealed class ApiAdminAccessManagementTests
         {
             await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
         }
+    }
+
+    private static object ValidBreakGlassEvidence()
+    {
+        return new
+        {
+            ownerRole = "product_owner",
+            acceptedByRole = "security_professional",
+            reason = "Temporary admin repair for a bounded project namespace.",
+            reviewDue = "2099-12-31",
+            cleanupAction = "Remove the namespace admin grant after repair.",
+            auditEvidenceId = "reg04-break-glass-test"
+        };
+    }
+
+    private static AdminBreakGlassGrantEvidenceCommand ValidBreakGlassEvidenceCommand()
+    {
+        return new AdminBreakGlassGrantEvidenceCommand(
+            "product_owner",
+            "security_professional",
+            "Temporary admin repair for a bounded project namespace.",
+            DateOnly.Parse("2099-12-31", CultureInfo.InvariantCulture),
+            "Remove the namespace admin grant after repair.",
+            "reg04-break-glass-test");
     }
 
     private static async Task PrepareAccessFixtureAsync(string connectionString)
@@ -478,6 +663,38 @@ public sealed class ApiAdminAccessManagementTests
         command.Parameters.AddWithValue("permission", permission);
 
         return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<(string? BreakGlass, string? AcceptedByRole, string? ReviewDue, string? AuditEvidenceId)> ReadLatestNamespaceGrantAuditMetadataAsync(
+        NpgsqlDataSource dataSource)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT
+                audit_metadata->>'breakGlass',
+                audit_metadata->>'breakGlassAcceptedByRole',
+                audit_metadata->>'breakGlassReviewDue',
+                audit_metadata->>'breakGlassAuditEvidenceId'
+            FROM access_audit_events
+            WHERE actor_principal_id = @actor_principal_id
+                AND action_type = @action_type
+            ORDER BY occurred_at DESC
+            LIMIT 1;
+            """);
+        command.Parameters.AddWithValue("actor_principal_id", ActorPrincipalId);
+        command.Parameters.AddWithValue("action_type", AccessAuditActionTypes.NamespaceGrantChange);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            throw new InvalidOperationException("Namespace-grant audit metadata was not returned.");
+        }
+
+        return (
+            reader.IsDBNull(0) ? null : reader.GetString(0),
+            reader.IsDBNull(1) ? null : reader.GetString(1),
+            reader.IsDBNull(2) ? null : reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3));
     }
 
     private static async Task<bool> HasProjectRoleDefinitionAsync(

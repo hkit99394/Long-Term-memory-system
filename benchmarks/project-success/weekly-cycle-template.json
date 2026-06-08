@@ -58,6 +58,13 @@
       "pilotUserConfidence": null,
       "operatorConfidence": null,
       "explainabilityPassRate": null
+    },
+    "projectRegistration": {
+      "registrationDurationSeconds": null,
+      "validationFailureCount": null,
+      "accessDriftFindingCount": null,
+      "sourceLinkCoverage": null,
+      "userConfidence": null
     }
   },
   "evidence": {
@@ -69,6 +76,7 @@
     "benchmarkReleaseGate": "",
     "sourceBackedMemoryHygiene": "",
     "backlogRoadmapSync": "",
+    "registrationSuccessBenchmark": "",
     "confidenceSurvey": ""
   },
   "hardGateChecks": {

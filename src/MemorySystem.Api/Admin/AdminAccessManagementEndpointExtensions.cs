@@ -1,3 +1,4 @@
+using System.Globalization;
 using MemorySystem.Api.Http;
 using MemorySystem.Api.Idempotency;
 using MemorySystem.Application.Access;
@@ -11,6 +12,17 @@ namespace MemorySystem.Api.Admin;
 
 public static class AdminAccessManagementEndpointExtensions
 {
+    private static readonly IReadOnlySet<string> RootNamespacePrefixes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "/global",
+        "/org",
+        "/project",
+        "/user",
+        "/role",
+        "/agent",
+        "/session"
+    };
+
     public static IEndpointRouteBuilder MapMemorySystemAdminAccessManagementEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost(
@@ -355,6 +367,16 @@ public static class AdminAccessManagementEndpointExtensions
             return BadRequest("Namespace grant request is invalid.", error!);
         }
 
+        AdminBreakGlassGrantEvidenceCommand? breakGlassEvidence = null;
+        if (requestedPermission == MemoryAccessPermissions.Admin)
+        {
+            var validation = ValidateBreakGlassNamespaceAdminGrant(request, scope, out breakGlassEvidence);
+            if (validation is not null)
+            {
+                return validation;
+            }
+        }
+
         var authorizationNamespace = ShouldAuthorizeProjectRoleNamespaceGrantByScopeOnly(
             scope,
             request.NamespacePrefix)
@@ -381,7 +403,8 @@ public static class AdminAccessManagementEndpointExtensions
                     scope.ScopeType,
                     Guid.Parse(scope.ScopeId),
                     request.NamespacePrefix,
-                    request.Permission),
+                    request.Permission,
+                    breakGlassEvidence),
                 cancellationToken);
 
             return Results.Ok(new AdminNamespaceGrantResponse(
@@ -527,6 +550,138 @@ public static class AdminAccessManagementEndpointExtensions
         }
     }
 
+    private static IResult? ValidateBreakGlassNamespaceAdminGrant(
+        AdminNamespaceGrantRequest request,
+        MemoryScopeResolution scope,
+        out AdminBreakGlassGrantEvidenceCommand? evidence)
+    {
+        evidence = null;
+
+        if (!request.PrincipalId.HasValue || !string.IsNullOrWhiteSpace(request.RoleId))
+        {
+            return BadRequest(
+                "Namespace grant request is invalid.",
+                "Break-glass namespace admin grants must target exactly one principal id.");
+        }
+
+        var namespacePrefix = NormalizeOptionalNamespace(request.NamespacePrefix);
+        if (namespacePrefix is null)
+        {
+            return BadRequest("Namespace grant request is invalid.", "Namespace prefix is required.");
+        }
+
+        if (RootNamespacePrefixes.Contains(namespacePrefix))
+        {
+            return BadRequest("Namespace grant request is invalid.", "Root namespace admin grants must stay absent.");
+        }
+
+        if (scope.ScopeType == MemoryScopeType.Project && scope.ProjectId is Guid projectId)
+        {
+            var projectRoot = $"/project/{projectId:D}";
+            if (namespacePrefix == projectRoot)
+            {
+                return BadRequest("Namespace grant request is invalid.", "Project root namespace admin grants must stay absent.");
+            }
+
+            if (!IsWithinNamespaceRoot(namespacePrefix, projectRoot))
+            {
+                return BadRequest(
+                    "Namespace grant request is invalid.",
+                    "Project break-glass namespace admin grants must stay inside the target project namespace.");
+            }
+        }
+
+        if (scope.ScopeType == MemoryScopeType.Organization && scope.OrgId is Guid orgId)
+        {
+            var organizationRoot = $"/org/{orgId:D}";
+            if (namespacePrefix == organizationRoot)
+            {
+                return BadRequest("Namespace grant request is invalid.", "Organization root namespace admin grants must stay absent.");
+            }
+
+            if (!IsWithinNamespaceRoot(namespacePrefix, organizationRoot))
+            {
+                return BadRequest(
+                    "Namespace grant request is invalid.",
+                    "Organization break-glass namespace admin grants must stay inside the target organization namespace.");
+            }
+        }
+
+        if (!TryCreateBreakGlassEvidence(request.BreakGlassEvidence, out evidence, out var error))
+        {
+            return BadRequest("Namespace grant request is invalid.", error!);
+        }
+
+        return null;
+    }
+
+    private static bool TryCreateBreakGlassEvidence(
+        AdminBreakGlassGrantEvidenceRequest? request,
+        out AdminBreakGlassGrantEvidenceCommand? evidence,
+        out string? error)
+    {
+        evidence = null;
+
+        if (request is null)
+        {
+            error = "Break-glass evidence is required for namespace admin grants.";
+            return false;
+        }
+
+        string ownerRole;
+        string acceptedByRole;
+        string reason;
+        string cleanupAction;
+        string auditEvidenceId;
+        string reviewDueText;
+        try
+        {
+            ownerRole = NormalizeRequiredText(request.OwnerRole, "Break-glass owner role");
+            acceptedByRole = NormalizeRequiredText(request.AcceptedByRole, "Break-glass accepted-by role");
+            reason = NormalizeRequiredText(request.Reason, "Break-glass reason");
+            cleanupAction = NormalizeRequiredText(request.CleanupAction, "Break-glass cleanup action");
+            auditEvidenceId = NormalizeRequiredText(request.AuditEvidenceId, "Break-glass audit evidence id");
+            reviewDueText = NormalizeRequiredText(request.ReviewDue, "Break-glass review due");
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+
+        if (!DateOnly.TryParseExact(
+                reviewDueText,
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var reviewDue))
+        {
+            error = "Break-glass review due must use yyyy-MM-dd.";
+            return false;
+        }
+
+        if (reviewDue < DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime))
+        {
+            error = "Break-glass review due must be today or later.";
+            return false;
+        }
+
+        evidence = new AdminBreakGlassGrantEvidenceCommand(
+            ownerRole,
+            acceptedByRole,
+            reason,
+            reviewDue,
+            cleanupAction,
+            auditEvidenceId);
+        error = null;
+        return true;
+    }
+
+    private static bool IsWithinNamespaceRoot(string namespacePrefix, string root)
+    {
+        return namespacePrefix.StartsWith($"{root}/", StringComparison.Ordinal);
+    }
+
     private static async Task<IResult?> AuthorizeOperatorAsync(
         IMemoryAccessAuthorizer accessAuthorizer,
         Guid actorPrincipalId,
@@ -641,6 +796,14 @@ public static class AdminAccessManagementEndpointExtensions
     {
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized.ToLowerInvariant();
+    }
+
+    private static string NormalizeRequiredText(string? value, string fieldName)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrWhiteSpace(normalized)
+            ? throw new ArgumentException($"{fieldName} is required.")
+            : normalized;
     }
 
     private static bool TryNormalizeAllowed(

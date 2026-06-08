@@ -85,9 +85,11 @@ At the end of each weekly cycle:
 2. Run the weekly admin review workflow and record payload-safe output links.
 3. Run the access-boundary review and record payload-safe output links.
 4. Run source-backed memory hygiene and backlog/roadmap memory sync checks.
-5. Record feedback coverage, review SLA status, confidence ratings, manual
+5. Attach REG-06 registration success benchmark evidence when project
+   registration or onboarding happened during the cycle.
+6. Record feedback coverage, review SLA status, confidence ratings, manual
    evidence steps, maintainer interventions, and missed decisions.
-6. Fill one weekly cycle JSON record from the PS-03 template.
+7. Fill one weekly cycle JSON record from the PS-03 template.
 
 ## Metrics To Capture
 
@@ -99,6 +101,7 @@ At the end of each weekly cycle:
 | Operator burden | critical review resolution age, oldest critical review age, manual evidence steps, maintainer interventions | Weekly admin review and operator notes. |
 | Project delivery impact | repeated context questions avoided, missed decisions, first-pass task completion, onboarding time if relevant | Product Owner weekly review. |
 | Human confidence | pilot user confidence, operator confidence, explainability pass rate | Weekly numeric rating and short payload-safe note. |
+| Project registration | registration duration, validation failures, access drift findings, source-link coverage, user confidence | REG-06 wizard evidence rail and access-boundary review. |
 
 ## Hard No-Go Checks
 

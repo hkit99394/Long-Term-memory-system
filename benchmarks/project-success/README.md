@@ -15,6 +15,11 @@ Project success is measured across six areas:
 - project delivery impact
 - human confidence
 
+Project registration success is tracked as supporting Product Owner evidence for
+adoption and closeout. The registration benchmark stores duration, blocked
+validation attempts, access drift status, source-link coverage, and user
+confidence from the payload-safe Project Registration wizard evidence rail.
+
 The canonical product contract is
 [`docs/project-success-benchmark-ps01.md`](../../docs/project-success-benchmark-ps01.md).
 The first selected pilot and baseline are recorded in

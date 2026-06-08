@@ -170,6 +170,7 @@ DO UPDATE SET
 
 WITH namespace_roots(namespace_prefix) AS (
     VALUES
+        ('/project/' || :'project_id'),
         ('/project/' || :'project_id' || '/goals'),
         ('/project/' || :'project_id' || '/facts'),
         ('/project/' || :'project_id' || '/decisions'),

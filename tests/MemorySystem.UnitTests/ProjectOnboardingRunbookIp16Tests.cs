@@ -158,6 +158,33 @@ public sealed class ProjectOnboardingRunbookIp16Tests
         Assert.Empty(rootElement.GetProperty("errors").EnumerateArray());
     }
 
+    [Fact]
+    public async Task Project_onboarding_documented_example_ids_pass_dry_run_validation()
+    {
+        var root = FindRepositoryRoot();
+
+        var result = await RunScriptAsync(
+            root,
+            [
+                "scripts/project-onboarding-runbook.sh",
+                "--dry-run",
+                "--organization-id",
+                "11111111-1111-4111-8111-111111111001",
+                "--organization-name",
+                "Example Org",
+                "--project-id",
+                "22222222-2222-4222-8222-222222222002",
+                "--project-name",
+                "Example Project"
+            ]);
+
+        Assert.Equal(0, result.ExitCode);
+        using var document = JsonDocument.Parse(result.StandardOutput);
+        Assert.Equal(
+            "22222222-2222-4222-8222-222222222002",
+            document.RootElement.GetProperty("targetScope").GetProperty("scopeId").GetString());
+    }
+
     private static readonly string[] ExpectedRoleIds =
     [
         "product_owner",

@@ -30,7 +30,16 @@ public sealed record AdminNamespaceGrantRequest(
     string NamespacePrefix,
     string Permission,
     string ScopeType,
-    Guid ScopeId);
+    Guid ScopeId,
+    AdminBreakGlassGrantEvidenceRequest? BreakGlassEvidence = null);
+
+public sealed record AdminBreakGlassGrantEvidenceRequest(
+    string OwnerRole,
+    string AcceptedByRole,
+    string Reason,
+    string ReviewDue,
+    string CleanupAction,
+    string AuditEvidenceId);
 
 public sealed record AdminEffectiveAccessPreviewRequest(
     Guid PrincipalId,

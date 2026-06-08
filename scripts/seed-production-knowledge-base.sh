@@ -277,7 +277,7 @@ documents = {
     },
     "project-memory-boundary": {
         "path": "docs/project-memory-boundary.md",
-        "sourceSha256": "715a1727dd8f4fb70ba7ef495bef4e5fdbb6ef3c0ccd44213fdcd9c2aad57c95",
+        "sourceSha256": "f275f0d7b5eae8df33fba4b1717d79a2b4cad1fe0a4324e447a862f5a255820c",
         "title": "Project Memory Boundary",
         "summary": "Canonical production memory scope, protected runtime habits, namespaces, and first-class role responsibilities.",
         "excerpts": [
@@ -392,7 +392,7 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
-        "sourceSha256": "a395315b63a8a32a033600ca9a7aa8c62ee90852bd9d9a5d0925b8b63684ebba",
+        "sourceSha256": "c62f13799d379cff7caa7aa9c40c9e8f8b7902a83f63b32b48d634a2ca2954f8",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [

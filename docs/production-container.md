@@ -224,6 +224,13 @@ The operator principal and any service-account credential must already exist in
 the database for authenticated API calls to succeed. Health endpoints remain
 anonymous, but operator and agent calls require active principals and grants.
 
+For local bootstrap repair, `scripts/production-container.sh seed-operator`
+creates the configured operator principal and project-scoped admin grants for
+the canonical project namespaces. It also removes legacy root admin grants at
+`/global`, `/org`, `/project`, `/user`, `/role`, `/agent`, and `/session` for
+that operator principal. Normal project registration should use least-privilege
+role and grant presets rather than root namespace administration.
+
 ## Rollback
 
 Application rollback is an image rollback:

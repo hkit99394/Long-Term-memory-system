@@ -8,6 +8,7 @@ public static class AccessAuditActionTypes
     public const string IdentityBindingChange = "identity_binding_change";
     public const string OrganizationMembershipChange = "organization_membership_change";
     public const string ProjectMembershipChange = "project_membership_change";
+    public const string ProjectRegistration = "project_registration";
     public const string ProjectRoleDefinitionChange = "project_role_definition_change";
     public const string RoleAssignmentChange = "role_assignment_change";
     public const string NamespaceGrantChange = "namespace_grant_change";
@@ -22,6 +23,7 @@ public static class AccessAuditActionTypes
         IdentityBindingChange,
         OrganizationMembershipChange,
         ProjectMembershipChange,
+        ProjectRegistration,
         ProjectRoleDefinitionChange,
         RoleAssignmentChange,
         NamespaceGrantChange,

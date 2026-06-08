@@ -24,7 +24,7 @@ Commands:
   enable-local-access
             Enable host-local browser access on 127.0.0.1:8081.
   seed-operator
-            Seed the configured operator principal and admin namespace grants.
+            Seed the configured operator principal and project-scoped admin namespace grants.
   health    Check API liveness and readiness inside the API container.
   status    Show production container status.
   logs      Follow production container logs. Pass service names as args.
@@ -292,6 +292,7 @@ seed_operator() {
   local db_user
   local principal_id
   local display_name
+  local project_id
   local psql_command=()
 
   validate_guid MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID
@@ -300,6 +301,7 @@ seed_operator() {
   db_user="$(read_env_value MEMORYSYSTEM_POSTGRES_USER memory_system)"
   principal_id="$(read_env_value MEMORYSYSTEM_OPERATOR_PRINCIPAL_ID "")"
   display_name="$(read_env_value MEMORYSYSTEM_OPERATOR_DISPLAY_NAME "Production Operator")"
+  project_id="$(read_env_value MEMORYSYSTEM_CANONICAL_PROJECT_ID "9f8e7d6c-5b4a-4321-9123-abcdef123002")"
 
   if is_external_postgres_profile; then
     validate_external_postgres_connection_string
@@ -316,7 +318,8 @@ seed_operator() {
   "${psql_command[@]}" \
     -v ON_ERROR_STOP=1 \
     -v principal_id="$principal_id" \
-    -v display_name="$display_name" <<'SQL'
+    -v display_name="$display_name" \
+    -v project_id="$project_id" <<'SQL'
 INSERT INTO principals (
     id,
     principal_type,
@@ -336,15 +339,40 @@ DO UPDATE SET
     status = EXCLUDED.status,
     updated_at = now();
 
+DELETE FROM memory_access_grants
+WHERE principal_id = :'principal_id'::uuid
+  AND permission = 'admin'
+  AND namespace_prefix IN (
+      '/global',
+      '/org',
+      '/project',
+      '/user',
+      '/role',
+      '/agent',
+      '/session'
+  );
+
 WITH namespace_roots(namespace_prefix) AS (
     VALUES
-        ('/global'),
-        ('/org'),
-        ('/project'),
-        ('/user'),
-        ('/role'),
-        ('/agent'),
-        ('/session')
+        ('/project/' || :'project_id'),
+        ('/project/' || :'project_id' || '/goals'),
+        ('/project/' || :'project_id' || '/facts'),
+        ('/project/' || :'project_id' || '/decisions'),
+        ('/project/' || :'project_id' || '/rationale'),
+        ('/project/' || :'project_id' || '/risks'),
+        ('/project/' || :'project_id' || '/release-evidence'),
+        ('/project/' || :'project_id' || '/role/product_owner/lens'),
+        ('/project/' || :'project_id' || '/role/cto/lens'),
+        ('/project/' || :'project_id' || '/role/security_professional/lens'),
+        ('/project/' || :'project_id' || '/role/it_manager/lens'),
+        ('/project/' || :'project_id' || '/role/developer/lens'),
+        ('/project/' || :'project_id' || '/role/tester_qa/lens'),
+        ('/project/' || :'project_id' || '/role/release_manager/lens'),
+        ('/project/' || :'project_id' || '/role/knowledge_steward/lens'),
+        ('/project/' || :'project_id' || '/role/designer/lens'),
+        ('/project/' || :'project_id' || '/role/cfo/lens'),
+        ('/project/' || :'project_id' || '/role/coo/lens'),
+        ('/project/' || :'project_id' || '/role/ceo/lens')
 )
 INSERT INTO memory_access_grants (
     id,
@@ -374,7 +402,7 @@ DO UPDATE SET
     permission = EXCLUDED.permission;
 SQL
 
-  printf 'Seeded operator principal and admin namespace grants for %s.\n' "$principal_id"
+  printf 'Seeded operator principal and project-scoped admin namespace grants for %s in project %s.\n' "$principal_id" "$project_id"
 }
 
 build_image() {
