@@ -27,6 +27,7 @@ for LMSS v1 agent-contract usefulness.
 | Broker write quality | Did the system remember the right things? | Durable write precision, duplicate handling, contradiction routing |
 | LLM outcome quality | Did the LLM do better work with memory? | Memory Lift over no-memory and naive-notes baselines |
 | Agent contract usefulness | Did the v1 tool contract help the LLM find, verify, and safely use memory? | Contract Lift over a memory-off baseline |
+| Project success | Did governed memory improve real pilot project work? | Adoption, memory quality, trust/safety, operator burden, delivery impact, and confidence scorecard |
 | Safety and governance | Did memory stay scoped, current, and auditable? | Leak count, stale fact usage, redaction failures |
 | Performance | Did the system stay responsive as memory grows? | p50/p95 latency and worker throughput |
 | Operations | Can operators trust the system under load and recovery? | Outbox age, dead-letter rate, backup/restore success |
@@ -210,6 +211,31 @@ Metrics:
 
 The benchmark should distinguish general reasoning from project-specific claims.
 Project-specific claims should be grounded in memory or docs.
+
+## Project Success Benchmark
+
+PS-01 adds the post-MVP product-success layer. It asks whether one real pilot
+project benefits from governed memory over time, not only whether controlled
+tasks pass.
+
+The canonical contract is
+[Project Success Benchmark PS-01](project-success-benchmark-ps01.md), and the
+scorecard template lives under
+[`benchmarks/project-success`](../benchmarks/project-success/README.md).
+
+The first pilot window is:
+
+| Phase | Dates | Output |
+| --- | --- | --- |
+| Planning | 2026-06-08 to 2026-06-14 | Pilot project, owner, project scope, baseline pain, and scorecard approval. |
+| Observation | 2026-06-15 to 2026-06-28 | Two weekly cycles of adoption, memory-quality, review, access, delivery, and confidence measurements. |
+| Closeout | 2026-06-29 to 2026-07-05 | GO/WATCH/NO-GO recommendation with payload-safe evidence links. |
+
+Hard no-go conditions include scoped safety leaks above zero, stale-memory
+benchmark usage above zero, source-link coverage below 100 percent for active
+memory-derived claims, raw payload leakage in committed evidence, unresolved
+critical review items after 2 business days, or a missed weekly access-boundary
+review.
 
 ## Agent Contract Usefulness Benchmarks
 

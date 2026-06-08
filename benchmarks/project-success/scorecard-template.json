@@ -1,0 +1,87 @@
+{
+  "kind": "memorysystem.project_success_scorecard",
+  "schemaVersion": 1,
+  "benchmarkId": "PS-01",
+  "releaseVersion": "1.0.0",
+  "payloadSafe": true,
+  "rawSourcePayloadsIncluded": false,
+  "rawMemoryPayloadsIncluded": false,
+  "pilotProject": {
+    "organizationId": "",
+    "projectId": "",
+    "projectName": "",
+    "productOwner": "",
+    "pilotOperator": ""
+  },
+  "period": {
+    "planningStart": "2026-06-08",
+    "planningEnd": "2026-06-14",
+    "pilotStart": "2026-06-15",
+    "pilotEnd": "2026-06-28",
+    "closeoutDue": "2026-07-05"
+  },
+  "targets": {
+    "sourceLinkCoverageMinimum": 1.0,
+    "scopedSafetyLeaksMaximum": 0,
+    "staleMemoryBenchmarkUsageMaximum": 0,
+    "rawPayloadLeakageMaximum": 0,
+    "criticalReviewResolutionBusinessDaysMaximum": 2,
+    "feedbackCoverageMinimum": 0.7,
+    "weeklyAccessBoundaryReviewCompletionMinimum": 1.0,
+    "weeklyMemoryReviewCompletionMinimum": 1.0,
+    "pilotUserConfidenceMinimum": 4.0,
+    "operatorConfidenceMinimum": 4.0
+  },
+  "metrics": {
+    "adoption": {
+      "projectOnboardingHours": null,
+      "activeMemoryUsersOrAgents": null,
+      "memoryInformedWorkItems": null,
+      "feedbackCoverage": null
+    },
+    "memoryQuality": {
+      "sourceLinkCoverage": null,
+      "usefulFeedbackRate": null,
+      "staleMemoryRate": null,
+      "missingMemoryReports": null,
+      "duplicateRatio": null
+    },
+    "trustAndSafety": {
+      "scopedSafetyLeaks": null,
+      "staleMemoryBenchmarkUsage": null,
+      "rawPayloadLeakage": null,
+      "weeklyAccessBoundaryReviewCompletion": null
+    },
+    "operatorBurden": {
+      "criticalReviewResolutionBusinessDays": null,
+      "oldestCriticalReviewAgeDays": null,
+      "manualEvidenceSteps": null,
+      "maintainerInterventions": null
+    },
+    "projectDeliveryImpact": {
+      "repeatedContextQuestionsAvoided": null,
+      "missedDecisionCount": null,
+      "firstPassTaskCompletionRate": null,
+      "newContributorOnboardingHours": null
+    },
+    "humanConfidence": {
+      "pilotUserConfidence": null,
+      "operatorConfidence": null,
+      "explainabilityPassRate": null
+    }
+  },
+  "evidence": {
+    "operationsSummary": "",
+    "memoryQualityReport": "",
+    "weeklyAdminReview": "",
+    "accessBoundaryReview": "",
+    "benchmarkReleaseGate": "",
+    "pilotNotes": ""
+  },
+  "recommendation": {
+    "decision": "WATCH",
+    "reason": "",
+    "decidedBy": "",
+    "decidedAtUtc": ""
+  }
+}

@@ -77,6 +77,34 @@ Status values:
 | IP-16 | P2 | Done | Product Owner + Knowledge Steward | Project Onboarding Runbook | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) adds `scripts/project-onboarding-runbook.sh`, which emits a payload-safe new-project setup plan for project scope, role owners, namespace grants, canonical memory types, seed documents, source evidence, context verification, and review cadence. |
 | IP-17 | P2 | Done | Release Manager + Ops | Release Evidence Bundle Automation | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) adds `scripts/release-evidence-bundle.sh`, which generates one payload-safe bundle per release with JSON, NDJSON, Markdown, and SHA-256 outputs covering tests, migration status, health, operations summary, benchmark, backup/restore, and rollback. |
 | IP-18 | P3 | Done | Security Professional + IT/Ops | Directory Sync Evaluation | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) adds `scripts/directory-sync-evaluation.sh`, which evaluates pilot pressure signals after login and local grants are stable, keeps SCIM/group sync deferred by default, and preserves provisioning-only sync with local memberships, roles, grants, previews, and audit records as the authorization source. |
+| PS-01 | P0 | Done | Product Owner + Tester/QA + Knowledge Steward | Pilot Project Success Scorecard | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) defines the post-MVP pilot scorecard, first-pilot dates, adoption, memory-quality, trust/safety, operator-burden, delivery-impact, and human-confidence targets, plus the payload-safe `memorysystem.project_success_scorecard` template under `benchmarks/project-success/`. |
+
+## Project Success Run: 1 Month
+
+Goal: prove that the technically ready memory system improves real project work.
+
+Status: PS-01 is complete as the scorecard contract. The next execution work is
+selecting the first pilot project, running two weekly measurement cycles, and
+producing a GO/WATCH/NO-GO project-success closeout by 2026-07-05.
+
+1. Select the first pilot project.
+   - Name the Product Owner, pilot operator, target project scope, active roles,
+     and baseline repeated-context pain by 2026-06-14.
+
+2. Run the two-week observation window.
+   - Use real memory-informed work from 2026-06-15 through 2026-06-28.
+   - Capture weekly memory review, access-boundary review, memory-quality
+     metrics, feedback coverage, and human confidence.
+
+3. Produce the project-success closeout.
+   - Complete the payload-safe scorecard from
+     `benchmarks/project-success/scorecard-template.json`.
+   - Record GO/WATCH/NO-GO, evidence links, residual risks, and the next action
+     by 2026-07-05.
+
+First-pilot success metric: one real project uses governed memory repeatedly
+without safety regressions, while pilot users and operators can explain,
+correct, remove, and trust memory with at least 4/5 confidence.
 
 ## Short Run: 1-2 Weeks
 

@@ -31,6 +31,7 @@ repo-root/
     agent-contract-usefulness-v1/
     context-product-v1/
     llm-outcome-v0/
+    project-success/
     release-gate/
   infra/
     terraform/

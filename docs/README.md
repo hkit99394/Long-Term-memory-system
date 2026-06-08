@@ -80,9 +80,10 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 2. [Roadmap](roadmap.md)
 3. [Backlog](backlog.md)
 4. [Benchmarking Plan](benchmarking.md)
-5. [Benchmark Release-Gate Report LR-03](benchmark-release-gate-lr03.md)
-6. [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
-7. [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
+5. [Project Success Benchmark PS-01](project-success-benchmark-ps01.md)
+6. [Benchmark Release-Gate Report LR-03](benchmark-release-gate-lr03.md)
+7. [External Pilot GO EPR-04 v1.0.0](external-pilot-go-epr04-v1.0.0-2026-06-04.md)
+8. [Documentation Truth Cleanup P1](documentation-truth-cleanup-p1-2026-06-04.md)
 
 ## Reference Index
 
@@ -108,6 +109,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Payload-safe new-project setup flow for scope, roles, grants, memory types, seed docs, source evidence, and review cadence. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Payload-safe release bundle generator for tests, migration, health, operations, benchmark, backup/restore, and rollback evidence. |
 | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Provisioning-only directory sync evaluation gate that keeps runtime authorization local. |
+| [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Pilot scorecard for whether governed memory improves real project work. |
 | [Agent-Facing Memory Contract](agent-facing-memory-contract.md) | LMSS v1 agent-tool contract and safety semantics. |
 | [Domain Model Extraction LR-04](domain-model-extraction-lr04.md) | Plan for moving stable IO-free concepts into `MemorySystem.Domain`. |
 | [Decision 0044: Domain Model Extraction Slice](decisions/0044-domain-model-extraction-slice.md) | Accepted staged extraction boundary for stable IO-free domain concepts. |
@@ -133,6 +135,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Scenario 0001](scenarios/0001-user-preference-project-decision-cto-context.md) | Seeded demo story used by local workflows and benchmarks. |
 | [Testing Commands](testing.md) | Fast, database-backed, TypeScript, backup/restore, benchmark, and smoke commands. |
 | [Benchmarking Plan](benchmarking.md) | Product-level benchmark strategy and release gate criteria. |
+| [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Post-MVP pilot scorecard for adoption, quality, safety, operator burden, delivery impact, and confidence. |
 | [LR-03 Benchmark Release-Gate Report](benchmark-release-gate-lr03.md) | First local benchmark release-gate baseline. |
 | [Private Alpha 0.1 Release Notes](private-alpha-0.1-release.md) | Historical private-alpha baseline and verification notes. |
 
@@ -227,6 +230,7 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Repeatable setup plan for scope, role owners, grants, source-backed seeds, and reviews. |
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Release Manager workflow for the generated evidence bundle and strict promotion rule. |
 | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Security/Ops workflow for deciding whether future provisioning-only sync is justified. |
+| [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Product Owner workflow for proving real project-success impact after the technical MVP promotion. |
 | [Decisions](decisions/) | Architecture and implementation decision records. |
 
 ## Glossary

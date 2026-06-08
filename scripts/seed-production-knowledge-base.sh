@@ -392,13 +392,13 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
-        "sourceSha256": "2a0e86ee3d3f415fbf79971ac69b10d13e85be7de20912d93d58f1929b21e1ea",
+        "sourceSha256": "12009909cd5f46a4c800d74f70f156ff435c7098ebdad0a302b2c7334ee04c37",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [
-            "replacement. IP-04 now attaches verified UAT target-environment evidence",
+            "PS-01 now defines the post-MVP project-success scorecard",
             "| EPR-01 | P0 | Done | Define the target-environment pilot rehearsal runbook.",
-            "| CP-01 | P0 | Done | Define productized context packet schema."
+            "| PS-01 | P0 | Done | Define pilot project success scorecard."
         ],
         "items": [
             {
@@ -422,7 +422,7 @@ documents = {
                 "namespace": f"/project/{project_id}/risks",
                 "subject": "next backlog focus",
                 "predicate": "is",
-                "object": "Attach post-GO target-environment evidence under the controlled evidence trail.",
+                "object": "Select the first pilot project, run two weekly project-success measurement cycles, and produce a GO/WATCH/NO-GO closeout by 2026-07-05.",
                 "confidence": 0.94
             }
         ]

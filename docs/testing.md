@@ -305,6 +305,19 @@ verifier checks each SHA-256 hash before the evidence prefix is accepted.
 ./scripts/target-environment-evidence-verify.sh /path/to/target-environment-evidence-manifest.json
 ```
 
+## Project Success Benchmark
+
+Use this after changing PS-01 project-success benchmark docs or scorecard
+templates:
+
+```bash
+python3 -m json.tool benchmarks/project-success/scorecard-template.json >/dev/null
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectSuccessBenchmarkPs01Tests
+```
+
+Filled pilot scorecards should stay under `benchmarks/outputs/` unless a curated
+payload-safe summary is intentionally attached to release or pilot evidence.
+
 ## Governance/Compliance Release Smoke
 
 Use this before pilot readiness review or after changing governance policy,
