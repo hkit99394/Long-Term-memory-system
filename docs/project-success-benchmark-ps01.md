@@ -93,6 +93,7 @@ parallel measurement system:
 | Access safety | [Access Boundary Review IP-11](access-boundary-review-ip11.md) and permission-drift reports. |
 | Onboarding | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md). |
 | Project registration success | REG-06 Project Registration wizard benchmark evidence for duration, validation failures, access drift, source-link coverage, and user confidence. |
+| Organization/project management success | OPM-06 Management evidence for find/inspect duration, safe modification, operation failures, access drift, SQL fallback, raw payload leakage, and Product Owner confidence. |
 | Release safety | [Benchmark Release Gate LR-03](benchmark-release-gate-lr03.md) and target evidence records. |
 | Operator evidence | Weekly review queue, compliance status, backup/restore status, alert acknowledgement, and release evidence bundles. |
 | Human confidence | Weekly Product Owner and operator ratings recorded as payload-safe numeric scores and notes. |

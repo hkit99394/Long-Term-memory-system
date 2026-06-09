@@ -20,6 +20,13 @@ adoption and closeout. The registration benchmark stores duration, blocked
 validation attempts, access drift status, source-link coverage, and user
 confidence from the payload-safe Project Registration wizard evidence rail.
 
+Organization/project management success is tracked as supporting Product Owner
+evidence after registration. The OPM-06 benchmark stores Management view
+find/inspect duration, safe modification duration, operation failures, access
+drift status, SQL fallback status, raw payload leakage count, and Product Owner
+confidence from the payload-safe Management evidence rail. Scorecards store
+these values in the `organizationProjectManagement` metric block.
+
 The canonical product contract is
 [`docs/project-success-benchmark-ps01.md`](../../docs/project-success-benchmark-ps01.md).
 The first selected pilot and baseline are recorded in

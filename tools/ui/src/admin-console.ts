@@ -279,7 +279,7 @@ const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
 const consoleReturnUrl = "/admin/";
 
 interface AdminConsoleState {
-  mode: "memory" | "events" | "operations" | "access" | "registration" | "compliance" | "pilot";
+  mode: "memory" | "events" | "operations" | "management" | "access" | "registration" | "compliance" | "pilot";
   facts: AdminMemoryFact[];
   events: AdminSourceEvent[];
   operationsSummary: AdminOperationsSummary | null;
@@ -294,6 +294,7 @@ interface AdminConsoleState {
   selectedSource: SourceEventResponse | null;
   accessResult: AdminAccessResult | null;
   registrationResult: Record<string, unknown> | null;
+  management: AdminManagementViewState;
   busy: boolean;
 }
 
@@ -313,6 +314,7 @@ const state: AdminConsoleState = {
   selectedSource: null,
   accessResult: null,
   registrationResult: null,
+  management: createManagementViewState(),
   busy: false
 };
 
@@ -322,6 +324,7 @@ const elements = {
   credentialState: byId<HTMLElement>("credential-state"),
   modeFilter: byId<HTMLSelectElement>("mode-filter"),
   statusFilter: byId<HTMLSelectElement>("status-filter"),
+  projectStatusFilter: byId<HTMLSelectElement>("project-status-filter"),
   memoryTypeFilter: byId<HTMLSelectElement>("memory-type-filter"),
   roleFilter: byId<HTMLSelectElement>("role-filter"),
   namespacePrefixFilter: byId<HTMLInputElement>("namespace-prefix-filter"),
@@ -365,6 +368,7 @@ elements.query.addEventListener("keydown", event => {
   }
 });
 elements.statusFilter.addEventListener("change", () => void loadFacts());
+elements.projectStatusFilter.addEventListener("change", () => void loadManagement());
 elements.modeFilter.addEventListener("change", () => {
   state.mode = readMode();
   state.selectedSource = null;
@@ -432,6 +436,10 @@ function readMode(): AdminConsoleState["mode"] {
     return "operations";
   }
 
+  if (elements.modeFilter.value === "management") {
+    return "management";
+  }
+
   if (elements.modeFilter.value === "compliance") {
     return "compliance";
   }
@@ -461,6 +469,11 @@ async function loadCurrentMode(): Promise<void> {
 
   if (state.mode === "pilot") {
     await loadPilotReadiness();
+    return;
+  }
+
+  if (state.mode === "management") {
+    await loadManagement();
     return;
   }
 
@@ -805,6 +818,8 @@ function render(): void {
       ? "Pilot Gates"
     : state.mode === "operations"
       ? "Operations"
+    : state.mode === "management"
+      ? "Organizations & Projects"
     : state.mode === "compliance"
       ? "Compliance"
     : state.mode === "registration"
@@ -818,6 +833,8 @@ function render(): void {
       ? "Pilot Work"
     : state.mode === "operations"
       ? "Operator Links"
+    : state.mode === "management"
+      ? "Management Evidence"
     : state.mode === "compliance"
       ? "Evidence Links"
     : state.mode === "registration"
@@ -850,6 +867,11 @@ function renderResultList(): void {
 
   if (state.mode === "pilot") {
     renderPilotList();
+    return;
+  }
+
+  if (state.mode === "management") {
+    renderManagementList();
     return;
   }
 
@@ -1036,6 +1058,11 @@ function renderDetail(): void {
 
   if (state.mode === "pilot") {
     renderPilotDetail();
+    return;
+  }
+
+  if (state.mode === "management") {
+    renderManagementDetail();
     return;
   }
 
@@ -1393,6 +1420,11 @@ function renderSourceDetail(): void {
         method: "GET"
       }
     ]));
+    return;
+  }
+
+  if (state.mode === "management") {
+    renderManagementSourceDetail();
     return;
   }
 
@@ -2133,12 +2165,16 @@ function updateFilterVisibility(): void {
     element.hidden = state.mode !== "memory";
   }
 
+  for (const element of document.querySelectorAll<HTMLElement>("[data-management-filter]")) {
+    element.hidden = state.mode !== "management";
+  }
+
   for (const element of document.querySelectorAll<HTMLElement>("[data-role-filter]")) {
     element.hidden = state.mode !== "memory" && state.mode !== "events";
   }
 
   elements.statusFilter.closest("label")!.hidden = state.mode !== "memory";
-  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
-  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
+  elements.scopeTypeFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations" || state.mode === "management";
+  elements.scopeIdFilter.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations" || state.mode === "management";
   elements.query.closest("label")!.hidden = state.mode === "access" || state.mode === "registration" || state.mode === "compliance" || state.mode === "pilot" || state.mode === "operations";
 }

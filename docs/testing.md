@@ -114,6 +114,89 @@ static test:
 dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~ProjectRegistrationReg06Tests
 ```
 
+After changing the OPM-01 organization/project management read model, run the
+focused static and database-backed tests:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm01Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminOrganizationProjectManagementTests
+```
+
+After changing the OPM-02 Management UI shell, run the focused static and UI
+bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm02Tests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-03 lifecycle/scope settings workflow, run the focused
+static, database-backed, and UI bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm03Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminProjectLifecycleSettingsTests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-04 access inventory/revocation workflow, run the focused
+static, database-backed, and UI bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm04Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminAccessInventoryTests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-05 grant matrix workflow, run the focused static,
+database-backed, and UI bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm05Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminGrantMatrixTests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-06 management success benchmark, run the focused static
+and UI bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm06Tests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-07 management activity timeline, run the focused static,
+database-backed, and UI bundle checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm07Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminManagementActivityTests
+cd tools/ui
+npm run build
+npm run check
+```
+
+After changing the OPM-08 project role definition management workflow, run the
+focused static, database-backed, UI bundle, and browser smoke checks:
+
+```bash
+dotnet test tests/MemorySystem.UnitTests/MemorySystem.UnitTests.csproj --filter FullyQualifiedName~OrganizationProjectManagementOpm08Tests
+MEMORYSYSTEM_REQUIRE_DATABASE_TESTS=true dotnet test tests/MemorySystem.IntegrationTests/MemorySystem.IntegrationTests.csproj --filter FullyQualifiedName~ApiAdminProjectRoleDefinitionManagementTests
+cd tools/ui
+npm run build
+npm run check
+```
+
 ```bash
 cd tools/vault-sync
 npm run build

@@ -66,14 +66,22 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 6. [Project Memory Runbook](project-memory-runbook.md)
 7. [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md)
 8. [Project Registration UX Plan](project-registration-ux-plan.md)
-9. [Production Observability and Alerting](production-observability.md)
-10. [Backup and Restore Runbook](backup-restore.md)
-11. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
-12. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
-13. [Retention Policy](retention-policy.md)
-14. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
-15. [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
-16. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
+9. [Organization And Project Management OPM-01](organization-project-management-opm01.md)
+10. [Organization And Project Management OPM-02](organization-project-management-opm02.md)
+11. [Organization And Project Management OPM-03](organization-project-management-opm03.md)
+12. [Organization And Project Management OPM-04](organization-project-management-opm04.md)
+13. [Organization And Project Management OPM-05](organization-project-management-opm05.md)
+14. [Organization And Project Management OPM-06](organization-project-management-opm06.md)
+15. [Organization And Project Management OPM-07](organization-project-management-opm07.md)
+16. [Organization And Project Management OPM-08](organization-project-management-opm08.md)
+17. [Production Observability and Alerting](production-observability.md)
+18. [Backup and Restore Runbook](backup-restore.md)
+19. [Production Backup And Restore Drill Schedule IP-10](production-backup-restore-drill-schedule-ip10.md)
+20. [Access Boundary Review IP-11](access-boundary-review-ip11.md)
+21. [Retention Policy](retention-policy.md)
+22. [Governance And Compliance Gate LR-06](governance-compliance-gate-lr06.md)
+23. [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md)
+24. [Governance/Compliance Release Smoke GC-08](governance-compliance-release-smoke-gc08.md)
 
 ### Planning And Release History
 
@@ -114,6 +122,14 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Release Evidence Bundle Automation IP-17](release-evidence-bundle-automation-ip17.md) | Payload-safe release bundle generator for tests, migration, health, operations, benchmark, backup/restore, and rollback evidence. |
 | [Directory Sync Evaluation IP-18](directory-sync-evaluation-ip18.md) | Provisioning-only directory sync evaluation gate that keeps runtime authorization local. |
 | [Project Registration UX Plan](project-registration-ux-plan.md) | Guided project registration plan and `/admin/` wizard for least-privilege grants, source-doc readiness, access preview, idempotent registration, and closeout. |
+| [Organization And Project Management OPM-01](organization-project-management-opm01.md) | Payload-safe admin read model for listing and inspecting organizations/projects before lifecycle, settings, access inventory, and grant-matrix workflows. |
+| [Organization And Project Management OPM-02](organization-project-management-opm02.md) | `/admin/` Management UI shell for Organizations and Projects backed by the OPM-01 read endpoints. |
+| [Organization And Project Management OPM-03](organization-project-management-opm03.md) | Guarded project lifecycle/status and scope settings workflows with payload-safe audit evidence. |
+| [Organization And Project Management OPM-04](organization-project-management-opm04.md) | Payload-safe org/project access inventory, stale-access prompts, and audited revocation for memberships, role assignments, and namespace grants. |
+| [Organization And Project Management OPM-05](organization-project-management-opm05.md) | Payload-safe role/namespace grant matrix review and replacement using least-privilege presets and effective-access previews. |
+| [Organization And Project Management OPM-06](organization-project-management-opm06.md) | Payload-safe Management success benchmark for find/inspect duration, safe modification, operation failures, access drift, SQL fallback, raw payload leakage, and confidence. |
+| [Organization And Project Management OPM-07](organization-project-management-opm07.md) | Payload-safe organization/project management activity timeline backed by audit events with whitelisted metadata only. |
+| [Organization And Project Management OPM-08](organization-project-management-opm08.md) | Payload-safe custom project role definition management with dependency guards, audited evidence, and Management UI support. |
 | [Project Success Benchmark PS-01](project-success-benchmark-ps01.md) | Pilot scorecard for whether governed memory improves real project work. |
 | [Project Success Pilot Baseline PS-02](project-success-pilot-baseline-ps02.md) | First dogfood pilot selection, baseline pains, starting metrics, and observation entry criteria. |
 | [Project Success Observation PS-03](project-success-observation-ps03.md) | Two-week dogfood observation runbook, weekly cycle calendar, and evidence workflow. |
@@ -165,6 +181,13 @@ The root [README](../README.md) has the fastest copy-paste quick start.
 | [Project Memory Runbook](project-memory-runbook.md) | Repeatable first execution slice, role-lens context checks, feedback loop, and weekly admin review habit. |
 | [Project Onboarding Runbook IP-16](project-onboarding-runbook-ip16.md) | Product Owner and Knowledge Steward onboarding flow for a new project memory boundary. |
 | [Project Registration UX Plan](project-registration-ux-plan.md) | Product Owner wizard for registering project scope, owners, roles, grants, seed docs, access preview, and closeout. |
+| [Organization And Project Management OPM-01](organization-project-management-opm01.md) | Product Owner and admin read model for existing organization/project management boundaries. |
+| [Organization And Project Management OPM-02](organization-project-management-opm02.md) | Product Owner and admin Management view for existing organization/project boundaries. |
+| [Organization And Project Management OPM-03](organization-project-management-opm03.md) | Product Owner and security workflow for lifecycle/status and scope settings changes. |
+| [Organization And Project Management OPM-05](organization-project-management-opm05.md) | Product Owner and Knowledge Steward workflow for role/namespace grant matrix review and least-privilege updates. |
+| [Organization And Project Management OPM-06](organization-project-management-opm06.md) | Product Owner and Tester/QA benchmark for measuring organization/project management success. |
+| [Organization And Project Management OPM-07](organization-project-management-opm07.md) | Product Owner and Security workflow for auditing organization/project management changes without raw payload exposure. |
+| [Organization And Project Management OPM-08](organization-project-management-opm08.md) | Product Owner and Knowledge Steward workflow for managing custom project role definitions safely. |
 | [Weekly Admin Review Workflow IP-09](weekly-admin-review-workflow-ip09.md) | Weekly payload-safe memory review queue collector and role-owner operating procedure. |
 | [Access Boundary Review IP-11](access-boundary-review-ip11.md) | Weekly security review for permission drift, service accounts, OIDC bindings, break-glass keys, and audit evidence. |
 | [Role Lens First Content Pass IP-13](role-lens-first-content-pass-ip13.md) | Role-owner seed workflow for source-backed project role lenses. |

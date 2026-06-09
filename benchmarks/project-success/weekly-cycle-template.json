@@ -65,6 +65,15 @@
       "accessDriftFindingCount": null,
       "sourceLinkCoverage": null,
       "userConfidence": null
+    },
+    "organizationProjectManagement": {
+      "managementFindInspectDurationSeconds": null,
+      "managementModificationDurationSeconds": null,
+      "managementOperationFailureCount": null,
+      "accessDriftFindingCount": null,
+      "sqlFallbackCount": null,
+      "rawPayloadLeakageCount": null,
+      "userConfidence": null
     }
   },
   "evidence": {
@@ -77,6 +86,7 @@
     "sourceBackedMemoryHygiene": "",
     "backlogRoadmapSync": "",
     "registrationSuccessBenchmark": "",
+    "organizationProjectManagementBenchmark": "",
     "confidenceSurvey": ""
   },
   "hardGateChecks": {

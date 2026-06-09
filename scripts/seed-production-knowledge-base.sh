@@ -392,7 +392,7 @@ documents = {
     },
     "backlog": {
         "path": "docs/backlog.md",
-        "sourceSha256": "c62f13799d379cff7caa7aa9c40c9e8f8b7902a83f63b32b48d634a2ca2954f8",
+        "sourceSha256": "87886f30ea525e9c2d7670510db07df3148d14042c40c74f278d21b69e00dc33",
         "title": "Backlog",
         "summary": "Current backlog state and immediate next work after completed gates.",
         "excerpts": [

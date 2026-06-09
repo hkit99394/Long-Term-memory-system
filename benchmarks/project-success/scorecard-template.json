@@ -35,7 +35,14 @@
     "registrationValidationFailuresMaximum": 0,
     "registrationAccessDriftMaximum": 0,
     "registrationSourceLinkCoverageMinimum": 1.0,
-    "registrationUserConfidenceMinimum": 4.0
+    "registrationUserConfidenceMinimum": 4.0,
+    "managementFindInspectDurationSecondsMaximum": 120,
+    "managementModificationDurationSecondsMaximum": 300,
+    "managementOperationFailuresMaximum": 0,
+    "managementAccessDriftMaximum": 0,
+    "managementSqlFallbackMaximum": 0,
+    "managementRawPayloadLeakageMaximum": 0,
+    "managementUserConfidenceMinimum": 4.0
   },
   "metrics": {
     "adoption": {
@@ -80,6 +87,15 @@
       "accessDriftFindingCount": null,
       "sourceLinkCoverage": null,
       "userConfidence": null
+    },
+    "organizationProjectManagement": {
+      "managementFindInspectDurationSeconds": null,
+      "managementModificationDurationSeconds": null,
+      "managementOperationFailureCount": null,
+      "accessDriftFindingCount": null,
+      "sqlFallbackCount": null,
+      "rawPayloadLeakageCount": null,
+      "userConfidence": null
     }
   },
   "evidence": {
@@ -89,6 +105,7 @@
     "accessBoundaryReview": "",
     "benchmarkReleaseGate": "",
     "registrationSuccessBenchmark": "",
+    "organizationProjectManagementBenchmark": "",
     "pilotNotes": ""
   },
   "recommendation": {

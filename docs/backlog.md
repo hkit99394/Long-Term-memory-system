@@ -182,7 +182,10 @@ specification, first API contract, admin wizard MVP, least-privilege bootstrap
 cleanup, source-backed seed readiness UX, and registration success benchmark so
 a Product Owner can validate a governed project boundary without raw SQL,
 namespace hand-editing, default admin grants, raw source payload entry, or an
-unmeasured closeout. The next product execution work is
+unmeasured closeout. OPM-01 now adds the first organization/project management
+read model so Product Owners and authorized project admins can find and inspect
+existing boundaries before later lifecycle, settings, inventory, and grant
+matrix workflows. The next product execution work is
 capturing two weekly measurement cycles during 2026-06-15 to 2026-06-28,
 producing a GO/WATCH/NO-GO closeout during 2026-06-29 to 2026-07-05, and
 feeding registration success evidence into that project-success loop.
@@ -206,6 +209,19 @@ feeding registration success evidence into that project-success loop.
 | REG-04 | P0 | Done | Separate bootstrap admin from normal registration. | Root and scope-root namespace admin grants stay absent, default registration and normal namespace grants use read/write/review presets, and break-glass namespace admin is separate, principal-targeted, owner-reviewed, time-bound, and audit-evidenced. |
 | REG-05 | P1 | Done | Add source-backed seed readiness UX. | The wizard shows source-doc path coverage, hash status, source owners, canonical memory type coverage, role-lens readiness, context checks, and feedback closeout without raw payload exposure. |
 | REG-06 | P1 | Done | Measure registration success. | Registration duration, validation failures, access drift after registration, source-link coverage, and user confidence are tracked in the wizard evidence rail and project-success evidence templates by 2026-07-17. |
+
+## Organization And Project Management
+
+| ID | Priority | Status | Item | Acceptance Criteria |
+| --- | --- | --- | --- | --- |
+| OPM-01 | P0 | Done | Add admin organization/project read model. | [Organization And Project Management OPM-01](organization-project-management-opm01.md) adds access-filtered list/detail endpoints with pagination, counts, project statuses, and latest payload-safe registration evidence. |
+| OPM-02 | P0 | Done | Add admin management UI shell. | [Organization And Project Management OPM-02](organization-project-management-opm02.md) adds `/admin/` Management navigation backed by OPM-01 endpoints, with Organizations and Projects sections, project status filtering, payload-safe details, and empty/loading/error/not-visible states. |
+| OPM-03 | P0 | Done | Add lifecycle and scope settings. | [Organization And Project Management OPM-03](organization-project-management-opm03.md) lets authorized operators update guarded project lifecycle/status and scope settings with payload-safe audit evidence and no raw payload exposure. |
+| OPM-04 | P0 | Done | Add access inventory and revocation. | [Organization And Project Management OPM-04](organization-project-management-opm04.md) lets authorized operators inspect payload-safe org/project access inventory, see stale-access prompts, and revoke memberships, role assignments, or namespace grants with audit evidence. |
+| OPM-05 | P1 | Done | Add grant matrix management. | [Organization And Project Management OPM-05](organization-project-management-opm05.md) lets authorized Product Owners review and replace role/namespace grant matrices with least-privilege presets, effective-access previews, and payload-safe audit evidence. |
+| OPM-06 | P1 | Done | Measure management success. | [Organization And Project Management OPM-06](organization-project-management-opm06.md) tracks whether Product Owners can find, inspect, and safely modify organization/project management data without SQL, raw payload exposure, or unmeasured access drift, and feeds those metrics into project-success evidence templates. |
+| OPM-07 | P1 | Done | Add management activity timeline. | [Organization And Project Management OPM-07](organization-project-management-opm07.md) adds payload-safe organization/project management activity endpoints and UI timeline backed by `access_audit_events` with whitelisted metadata only. |
+| OPM-08 | P1 | Done | Add project role definition management. | [Organization And Project Management OPM-08](organization-project-management-opm08.md) lets authorized Product Owners list, create, update, and disable custom project role definitions with dependency guards, payload-safe audit evidence, and Management UI support. |
 
 ## External Pilot Readiness P0
 

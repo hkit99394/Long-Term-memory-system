@@ -504,6 +504,197 @@ textarea {
   flex-basis: 100%;
 }
 
+.management-section {
+  display: grid;
+  gap: 8px;
+}
+
+.management-section + .management-section {
+  margin-top: 10px;
+}
+
+.management-section-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.management-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.management-count {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.management-count-value {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.management-count-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.management-form {
+  margin-top: 4px;
+}
+
+.management-access-inventory,
+.management-access-group,
+.management-role-definitions,
+.management-role-list,
+.management-grant-matrix,
+.management-grant-roles,
+.management-activity,
+.management-activity-list,
+.management-success-benchmark {
+  display: grid;
+  gap: 10px;
+}
+
+.management-access-group {
+  padding-top: 4px;
+}
+
+.management-access-record {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.management-access-title {
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.management-access-meta,
+.management-access-prompt {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.management-access-prompt {
+  color: var(--warn);
+}
+
+.management-access-prompts {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #f1d48a;
+  border-radius: 6px;
+  background: #fffaf0;
+}
+
+.management-revoke-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) minmax(96px, max-content);
+  gap: 8px;
+  align-items: end;
+}
+
+.management-role-definition,
+.management-grant-role {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.management-role-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.management-role-create-form {
+  margin-top: 2px;
+}
+
+.management-activity-entry {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.management-activity-meta {
+  display: grid;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.management-activity-meta-row {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.management-grant-list,
+.management-grant-previews {
+  display: grid;
+  gap: 5px;
+}
+
+.management-grant-row,
+.management-grant-preview-good,
+.management-grant-preview-warn {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.management-grant-preview-good {
+  color: var(--good);
+}
+
+.management-grant-preview-warn {
+  color: var(--warn);
+}
+
+.management-grant-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.management-wide-field {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+.management-check-field {
+  min-height: 38px;
+  display: inline-flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  align-self: end;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.management-check-field input {
+  width: auto;
+  min-height: 0;
+}
+
 .empty {
   margin-top: 12px;
   padding: 12px;

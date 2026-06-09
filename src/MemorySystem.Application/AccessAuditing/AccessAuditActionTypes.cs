@@ -9,6 +9,8 @@ public static class AccessAuditActionTypes
     public const string OrganizationMembershipChange = "organization_membership_change";
     public const string ProjectMembershipChange = "project_membership_change";
     public const string ProjectRegistration = "project_registration";
+    public const string ProjectLifecycleChange = "project_lifecycle_change";
+    public const string ProjectScopeSettingsChange = "project_scope_settings_change";
     public const string ProjectRoleDefinitionChange = "project_role_definition_change";
     public const string RoleAssignmentChange = "role_assignment_change";
     public const string NamespaceGrantChange = "namespace_grant_change";
@@ -24,6 +26,8 @@ public static class AccessAuditActionTypes
         OrganizationMembershipChange,
         ProjectMembershipChange,
         ProjectRegistration,
+        ProjectLifecycleChange,
+        ProjectScopeSettingsChange,
         ProjectRoleDefinitionChange,
         RoleAssignmentChange,
         NamespaceGrantChange,
