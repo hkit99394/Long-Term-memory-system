@@ -98,7 +98,7 @@ The request is JSON and includes:
 - `ownerAssignments` with principal id, role id, project access level, and optional label
 - `namespaceGrants` with exactly one `principalId` or `roleId`, a project namespace prefix, and `read`, `write`, or `review`
 - `sourceDocuments` with path, source hash, and optional source owner role
-- `accessPreviewReportId` and optional `auditExportId`
+- `accessPreviewReportId` and optional `auditExportId`; each audit metadata id is capped at 500 characters
 
 The endpoint returns `contractId: REG-02`, `status: registered`,
 organization/project records, role definitions, owner assignments, namespace
@@ -109,6 +109,7 @@ id, action type, resource type, and resource id.
 Safety rules:
 
 - The response is payload-safe and does not echo raw source payloads.
+- Audit metadata ids must be 500 characters or fewer before the project and access rows are committed.
 - Operators must have admin access to the target project or owner/admin access to the target organization.
 - `planned` and `active` are the registration project statuses; normal first registration uses `active`.
 - Owner project memberships are limited to `reader`, `contributor`, or `reviewer`.

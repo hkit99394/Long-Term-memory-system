@@ -255,7 +255,7 @@ function clearStoredCredential(): void {
 }
 
 function isAuthenticationFailure(response: Response): boolean {
-  return response.status === 401 || response.status === 403;
+  return response.status === 401;
 }
 
 function loginUrl(returnUrl: string): string {

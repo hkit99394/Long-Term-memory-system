@@ -5,6 +5,7 @@ using MemorySystem.Application.Admin;
 using MemorySystem.Application.Scopes;
 using MemorySystem.Domain.Roles;
 using MemorySystem.Domain.Scopes;
+using MemorySystem.Infrastructure.AccessAuditing;
 using Npgsql;
 
 namespace MemorySystem.Infrastructure.Admin;
@@ -12,10 +13,11 @@ namespace MemorySystem.Infrastructure.Admin;
 public sealed class PostgresAdminGrantMatrixStore(
     NpgsqlDataSource dataSource,
     IMemoryAccessAuthorizer accessAuthorizer,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminGrantMatrixStore
+    PostgresAccessAuditEventStore accessAuditEventStore) : IAdminGrantMatrixStore
 {
     private const string ContractId = "OPM-05";
     private const string CustomPresetId = "custom";
+    private const int MaxRequiredTextLength = 500;
 
     private static readonly IReadOnlySet<string> MatrixPermissions = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -151,6 +153,7 @@ public sealed class PostgresAdminGrantMatrixStore(
         }
 
         var previousGrantCount = 0;
+        AccessAuditEventRecord audit;
         await using (var transaction = await connection.BeginTransactionAsync(cancellationToken))
         {
             await using (var delete = new NpgsqlCommand(
@@ -202,33 +205,35 @@ public sealed class PostgresAdminGrantMatrixStore(
                 await insert.ExecuteNonQueryAsync(cancellationToken);
             }
 
+            audit = await accessAuditEventStore.RecordAsync(
+                new AccessAuditEventCommand(
+                    AccessAuditActionTypes.NamespaceGrantChange,
+                    AccessAuditOutcomes.Succeeded,
+                    ActorPrincipalId: command.ActorPrincipalId,
+                    ScopeType: MemoryScopeType.Project,
+                    ScopeId: command.ProjectId.ToString("D"),
+                    RoleId: roleId,
+                    ResourceType: "grant_matrix",
+                    ResourceId: $"{command.ProjectId:D}:{roleId}",
+                    RequestMethod: NormalizeOptionalText(command.RequestMethod)?.ToUpperInvariant(),
+                    RequestPath: NormalizeOptionalText(command.RequestPath),
+                    CorrelationId: NormalizeOptionalText(command.CorrelationId),
+                    Metadata: new Dictionary<string, string?>
+                    {
+                        ["contractId"] = ContractId,
+                        ["operation"] = "grant_matrix_replaced",
+                        ["presetId"] = presetId,
+                        ["reason"] = reason,
+                        ["auditEvidenceId"] = auditEvidenceId,
+                        ["previousGrantCount"] = previousGrantCount.ToString(CultureInfo.InvariantCulture),
+                        ["newGrantCount"] = desiredGrants.Count.ToString(CultureInfo.InvariantCulture)
+                    }),
+                connection,
+                transaction,
+                cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
         }
-
-        var audit = await accessAuditEventStore.RecordAsync(
-            new AccessAuditEventCommand(
-                AccessAuditActionTypes.NamespaceGrantChange,
-                AccessAuditOutcomes.Succeeded,
-                ActorPrincipalId: command.ActorPrincipalId,
-                ScopeType: MemoryScopeType.Project,
-                ScopeId: command.ProjectId.ToString("D"),
-                RoleId: roleId,
-                ResourceType: "grant_matrix",
-                ResourceId: $"{command.ProjectId:D}:{roleId}",
-                RequestMethod: NormalizeOptionalText(command.RequestMethod)?.ToUpperInvariant(),
-                RequestPath: NormalizeOptionalText(command.RequestPath),
-                CorrelationId: NormalizeOptionalText(command.CorrelationId),
-                Metadata: new Dictionary<string, string?>
-                {
-                    ["contractId"] = ContractId,
-                    ["operation"] = "grant_matrix_replaced",
-                    ["presetId"] = presetId,
-                    ["reason"] = reason,
-                    ["auditEvidenceId"] = auditEvidenceId,
-                    ["previousGrantCount"] = previousGrantCount.ToString(CultureInfo.InvariantCulture),
-                    ["newGrantCount"] = desiredGrants.Count.ToString(CultureInfo.InvariantCulture)
-                }),
-            cancellationToken);
 
         var matrix = await GetProjectGrantMatrixAsync(command.ProjectId, cancellationToken)
             ?? throw new InvalidOperationException("Project grant matrix was not found after update.");
@@ -699,9 +704,17 @@ public sealed class PostgresAdminGrantMatrixStore(
     private static string NormalizeRequiredText(string? value, string fieldName)
     {
         var normalized = value?.Trim();
-        return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ArgumentException($"{fieldName} is required.")
-            : normalized;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"{fieldName} is required.");
+        }
+
+        if (normalized.Length > MaxRequiredTextLength)
+        {
+            throw new ArgumentException($"{fieldName} must be {MaxRequiredTextLength} characters or fewer.");
+        }
+
+        return normalized;
     }
 
     private static string? NormalizeOptionalText(string? value)

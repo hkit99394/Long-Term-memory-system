@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using MemorySystem.Application.Admin;
 using MemorySystem.Application.AccessAuditing;
+using MemorySystem.Infrastructure.AccessAuditing;
+using MemorySystem.Infrastructure.Admin;
 using Npgsql;
 
 namespace MemorySystem.IntegrationTests;
@@ -139,6 +142,43 @@ public sealed class ApiAdminProjectLifecycleSettingsTests
             Assert.Equal("active", await ReadProjectStatusAsync(dataSource));
             Assert.Equal(1L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.AuthorizationDenied, OtherPrincipalId));
             Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectLifecycleChange, OtherPrincipalId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Project_lifecycle_update_rolls_back_when_audit_evidence_write_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_opm03_audit_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareFixtureAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var auditStore = new PostgresAccessAuditEventStore(dataSource);
+            var store = new PostgresAdminProjectLifecycleSettingsStore(dataSource, auditStore);
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateLifecycleAsync(
+                new AdminProjectLifecycleUpdateCommand(
+                    ActorPrincipalId,
+                    ProjectId,
+                    "archived",
+                    "Audit failure should roll back the lifecycle update.",
+                    "opm03-audit-rollback",
+                    RequestMethod: "PATCH",
+                    RequestPath: "not-a-path",
+                    CorrelationId: "opm03-audit-rollback")));
+
+            Assert.Contains("Request path", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("active", await ReadProjectStatusAsync(dataSource));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectLifecycleChange, ActorPrincipalId));
         }
         finally
         {

@@ -1,14 +1,17 @@
 using System.Globalization;
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
+using MemorySystem.Infrastructure.AccessAuditing;
 using Npgsql;
 
 namespace MemorySystem.Infrastructure.Admin;
 
 public sealed class PostgresAdminProjectLifecycleSettingsStore(
     NpgsqlDataSource dataSource,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminProjectLifecycleSettingsStore
+    PostgresAccessAuditEventStore accessAuditEventStore) : IAdminProjectLifecycleSettingsStore
 {
+    private const int MaxRequiredTextLength = 500;
+
     private static readonly IReadOnlySet<string> ProjectStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
         "planned",
@@ -95,6 +98,7 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
         var previousProject = await ReadProjectContextAsync(connection, command.ProjectId, cancellationToken)
             ?? throw new InvalidOperationException("Project was not found.");
 
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var update = new NpgsqlCommand(
             """
             UPDATE projects
@@ -102,7 +106,8 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
             WHERE id = @project_id
             RETURNING id, org_id, name, status;
             """,
-            connection);
+            connection,
+            transaction);
         update.Parameters.AddWithValue("project_id", command.ProjectId);
         update.Parameters.AddWithValue("project_status", projectStatus);
 
@@ -138,7 +143,11 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
                     ["reason"] = reason,
                     ["auditEvidenceId"] = auditEvidenceId
                 }),
+            connection,
+            transaction,
             cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AdminProjectLifecycleUpdateRecord(
             "OPM-03",
@@ -180,6 +189,7 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
             ?? throw new InvalidOperationException("Project was not found.");
         var previousSettings = await GetScopeSettingsAsync(command.ProjectId, cancellationToken);
 
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var update = new NpgsqlCommand(
             """
             INSERT INTO project_scope_settings (
@@ -215,7 +225,8 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
                 created_at,
                 updated_at;
             """,
-            connection);
+            connection,
+            transaction);
         update.Parameters.AddWithValue("project_id", command.ProjectId);
         update.Parameters.AddWithValue("default_namespace_prefix", namespacePrefix);
         update.Parameters.AddWithValue("source_hash_required", command.SourceHashRequired);
@@ -259,7 +270,11 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
                     ["reason"] = reason,
                     ["auditEvidenceId"] = auditEvidenceId
                 }),
+            connection,
+            transaction,
             cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AdminProjectScopeSettingsUpdateRecord(
             "OPM-03",
@@ -358,9 +373,17 @@ public sealed class PostgresAdminProjectLifecycleSettingsStore(
     private static string NormalizeRequiredText(string? value, string fieldName)
     {
         var normalized = value?.Trim();
-        return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ArgumentException($"{fieldName} is required.")
-            : normalized;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"{fieldName} is required.");
+        }
+
+        if (normalized.Length > MaxRequiredTextLength)
+        {
+            throw new ArgumentException($"{fieldName} must be {MaxRequiredTextLength} characters or fewer.");
+        }
+
+        return normalized;
     }
 
     private static string? NormalizeOptionalText(string? value)

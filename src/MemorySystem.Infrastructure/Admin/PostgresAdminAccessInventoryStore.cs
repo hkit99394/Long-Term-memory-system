@@ -1,5 +1,6 @@
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
+using MemorySystem.Infrastructure.AccessAuditing;
 using MemorySystem.Domain.Scopes;
 using Npgsql;
 using NpgsqlTypes;
@@ -8,9 +9,10 @@ namespace MemorySystem.Infrastructure.Admin;
 
 public sealed class PostgresAdminAccessInventoryStore(
     NpgsqlDataSource dataSource,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminAccessInventoryStore
+    PostgresAccessAuditEventStore accessAuditEventStore) : IAdminAccessInventoryStore
 {
     private const string ContractId = "OPM-04";
+    private const int MaxRequiredTextLength = 500;
 
     private static readonly IReadOnlySet<string> ScopeTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -121,10 +123,12 @@ public sealed class PostgresAdminAccessInventoryStore(
             _ => null
         } ?? throw new InvalidOperationException("Access inventory scope was not found.");
 
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var revoked = accessRecordType switch
         {
             "organization_membership" => await RevokeOrganizationMembershipAsync(
                 connection,
+                transaction,
                 command.ActorPrincipalId,
                 scope,
                 command.PrincipalId,
@@ -133,6 +137,7 @@ public sealed class PostgresAdminAccessInventoryStore(
                 cancellationToken),
             "project_membership" => await RevokeProjectMembershipAsync(
                 connection,
+                transaction,
                 command.ActorPrincipalId,
                 scope,
                 command.PrincipalId,
@@ -141,6 +146,7 @@ public sealed class PostgresAdminAccessInventoryStore(
                 cancellationToken),
             "role_assignment" => await RevokeRoleAssignmentAsync(
                 connection,
+                transaction,
                 command.ActorPrincipalId,
                 scope,
                 command.AccessRecordId,
@@ -149,6 +155,7 @@ public sealed class PostgresAdminAccessInventoryStore(
                 cancellationToken),
             "namespace_grant" => await RevokeNamespaceGrantAsync(
                 connection,
+                transaction,
                 command.ActorPrincipalId,
                 scope,
                 command.AccessRecordId,
@@ -182,7 +189,11 @@ public sealed class PostgresAdminAccessInventoryStore(
                     ["reason"] = reason,
                     ["auditEvidenceId"] = auditEvidenceId
                 }),
+            connection,
+            transaction,
             cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AdminAccessRevocationRecord(
             ContractId,
@@ -566,6 +577,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<RevokedAccessMutation> RevokeOrganizationMembershipAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid actorPrincipalId,
         AdminAccessInventoryScopeRecord scope,
         Guid? principalId,
@@ -583,17 +595,18 @@ public sealed class PostgresAdminAccessInventoryStore(
 
         var record = await ReadOrganizationMembershipForRevocationAsync(
             connection,
+            transaction,
             scope.OrganizationId,
             targetPrincipalId,
             cancellationToken) ?? throw new InvalidOperationException("Organization membership was not found.");
 
         if (record.AccessLevel == "owner"
-            && await CountOtherOrganizationOwnersAsync(connection, scope.OrganizationId, targetPrincipalId, cancellationToken) == 0)
+            && await CountOtherOrganizationOwnersAsync(connection, transaction, scope.OrganizationId, targetPrincipalId, cancellationToken) == 0)
         {
             throw new InvalidOperationException("Cannot revoke the last organization owner.");
         }
 
-        await DeleteOrganizationMembershipAsync(connection, scope.OrganizationId, targetPrincipalId, cancellationToken);
+        await DeleteOrganizationMembershipAsync(connection, transaction, scope.OrganizationId, targetPrincipalId, cancellationToken);
 
         var accessRecordId = $"{scope.OrganizationId:D}:{targetPrincipalId:D}";
         return new RevokedAccessMutation(
@@ -614,6 +627,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<RevokedAccessMutation> RevokeProjectMembershipAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid actorPrincipalId,
         AdminAccessInventoryScopeRecord scope,
         Guid? principalId,
@@ -631,11 +645,12 @@ public sealed class PostgresAdminAccessInventoryStore(
 
         var record = await ReadProjectMembershipForRevocationAsync(
             connection,
+            transaction,
             scope.ProjectId.Value,
             targetPrincipalId,
             cancellationToken) ?? throw new InvalidOperationException("Project membership was not found.");
 
-        await DeleteProjectMembershipAsync(connection, scope.ProjectId.Value, targetPrincipalId, cancellationToken);
+        await DeleteProjectMembershipAsync(connection, transaction, scope.ProjectId.Value, targetPrincipalId, cancellationToken);
 
         var accessRecordId = $"{scope.ProjectId.Value:D}:{targetPrincipalId:D}";
         return new RevokedAccessMutation(
@@ -656,6 +671,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<RevokedAccessMutation> RevokeRoleAssignmentAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid actorPrincipalId,
         AdminAccessInventoryScopeRecord scope,
         Guid? accessRecordId,
@@ -666,12 +682,13 @@ public sealed class PostgresAdminAccessInventoryStore(
         var assignmentId = NormalizeRequiredId(accessRecordId, "Access record id");
         var record = await ReadRoleAssignmentForRevocationAsync(
             connection,
+            transaction,
             scope,
             assignmentId,
             cancellationToken) ?? throw new InvalidOperationException("Role assignment was not found.");
 
         PreventSelfRevocation(actorPrincipalId, record.PrincipalId);
-        await DeleteRoleAssignmentAsync(connection, assignmentId, cancellationToken);
+        await DeleteRoleAssignmentAsync(connection, transaction, assignmentId, cancellationToken);
 
         return new RevokedAccessMutation(
             AccessAuditActionTypes.RoleAssignmentChange,
@@ -691,6 +708,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<RevokedAccessMutation> RevokeNamespaceGrantAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid actorPrincipalId,
         AdminAccessInventoryScopeRecord scope,
         Guid? accessRecordId,
@@ -701,6 +719,7 @@ public sealed class PostgresAdminAccessInventoryStore(
         var grantId = NormalizeRequiredId(accessRecordId, "Access record id");
         var record = await ReadNamespaceGrantForRevocationAsync(
             connection,
+            transaction,
             scope,
             grantId,
             cancellationToken) ?? throw new InvalidOperationException("Namespace grant was not found.");
@@ -710,7 +729,7 @@ public sealed class PostgresAdminAccessInventoryStore(
             PreventSelfRevocation(actorPrincipalId, record.PrincipalId.Value);
         }
 
-        await DeleteNamespaceGrantAsync(connection, grantId, cancellationToken);
+        await DeleteNamespaceGrantAsync(connection, transaction, grantId, cancellationToken);
 
         return new RevokedAccessMutation(
             AccessAuditActionTypes.NamespaceGrantChange,
@@ -730,6 +749,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<MembershipRevocationRow?> ReadOrganizationMembershipForRevocationAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid organizationId,
         Guid principalId,
         CancellationToken cancellationToken)
@@ -743,7 +763,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             WHERE membership.org_id = @organization_id
                 AND membership.principal_id = @principal_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("organization_id", organizationId);
         command.Parameters.AddWithValue("principal_id", principalId);
 
@@ -755,6 +776,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<MembershipRevocationRow?> ReadProjectMembershipForRevocationAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid projectId,
         Guid principalId,
         CancellationToken cancellationToken)
@@ -768,7 +790,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             WHERE membership.project_id = @project_id
                 AND membership.principal_id = @principal_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("project_id", projectId);
         command.Parameters.AddWithValue("principal_id", principalId);
 
@@ -780,6 +803,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<RoleAssignmentRevocationRow?> ReadRoleAssignmentForRevocationAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         AdminAccessInventoryScopeRecord scope,
         Guid assignmentId,
         CancellationToken cancellationToken)
@@ -790,32 +814,12 @@ public sealed class PostgresAdminAccessInventoryStore(
             FROM role_assignments AS assignment
             INNER JOIN principals AS principal
                 ON principal.id = assignment.principal_id
-            LEFT JOIN projects AS project_scope
-                ON assignment.scope_type = 'project'
-                AND project_scope.id = assignment.scope_id
             WHERE assignment.id = @assignment_id
-                AND (
-                    (
-                        @scope_type = 'project'
-                        AND assignment.scope_type = 'project'
-                        AND assignment.scope_id = @scope_id
-                    )
-                    OR (
-                        @scope_type = 'org'
-                        AND (
-                            (
-                                assignment.scope_type = 'org'
-                                AND assignment.scope_id = @scope_id
-                            )
-                            OR (
-                                assignment.scope_type = 'project'
-                                AND project_scope.org_id = @scope_id
-                            )
-                        )
-                    )
-                );
+                AND assignment.scope_type = @scope_type
+                AND assignment.scope_id = @scope_id;
             """,
-            connection);
+            connection,
+            transaction);
         AddScopeFilterParameters(command, scope);
         command.Parameters.AddWithValue("assignment_id", assignmentId);
 
@@ -827,13 +831,14 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<NamespaceGrantRevocationRow?> ReadNamespaceGrantForRevocationAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         AdminAccessInventoryScopeRecord scope,
         Guid grantId,
         CancellationToken cancellationToken)
     {
         var scopeFilter = scope.ScopeType == MemoryScopeType.Project
             ? ProjectNamespacePredicate("@scope_id")
-            : OrganizationNamespacePredicate("@scope_id");
+            : OrganizationOnlyNamespacePredicate("@scope_id");
         await using var command = new NpgsqlCommand(
             $$"""
             SELECT
@@ -848,7 +853,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             WHERE grant_record.id = @grant_id
                 AND {{scopeFilter}};
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("scope_id", scope.ScopeId);
         command.Parameters.AddWithValue("grant_id", grantId);
 
@@ -865,6 +871,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task<long> CountOtherOrganizationOwnersAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid organizationId,
         Guid principalId,
         CancellationToken cancellationToken)
@@ -877,7 +884,8 @@ public sealed class PostgresAdminAccessInventoryStore(
                 AND principal_id <> @principal_id
                 AND access_level = 'owner';
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("organization_id", organizationId);
         command.Parameters.AddWithValue("principal_id", principalId);
 
@@ -887,6 +895,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task DeleteOrganizationMembershipAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid organizationId,
         Guid principalId,
         CancellationToken cancellationToken)
@@ -897,7 +906,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             WHERE org_id = @organization_id
                 AND principal_id = @principal_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("organization_id", organizationId);
         command.Parameters.AddWithValue("principal_id", principalId);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -905,6 +915,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task DeleteProjectMembershipAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid projectId,
         Guid principalId,
         CancellationToken cancellationToken)
@@ -915,7 +926,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             WHERE project_id = @project_id
                 AND principal_id = @principal_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("project_id", projectId);
         command.Parameters.AddWithValue("principal_id", principalId);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -923,6 +935,7 @@ public sealed class PostgresAdminAccessInventoryStore(
 
     private static async Task DeleteRoleAssignmentAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid assignmentId,
         CancellationToken cancellationToken)
     {
@@ -931,13 +944,15 @@ public sealed class PostgresAdminAccessInventoryStore(
             DELETE FROM role_assignments
             WHERE id = @assignment_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("assignment_id", assignmentId);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task DeleteNamespaceGrantAsync(
         NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid grantId,
         CancellationToken cancellationToken)
     {
@@ -946,7 +961,8 @@ public sealed class PostgresAdminAccessInventoryStore(
             DELETE FROM memory_access_grants
             WHERE id = @grant_id;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("grant_id", grantId);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -991,9 +1007,17 @@ public sealed class PostgresAdminAccessInventoryStore(
     private static string NormalizeRequiredText(string? value, string fieldName)
     {
         var normalized = value?.Trim();
-        return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ArgumentException($"{fieldName} is required.")
-            : normalized;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"{fieldName} is required.");
+        }
+
+        if (normalized.Length > MaxRequiredTextLength)
+        {
+            throw new ArgumentException($"{fieldName} must be {MaxRequiredTextLength} characters or fewer.");
+        }
+
+        return normalized;
     }
 
     private static Guid NormalizeRequiredId(Guid? value, string fieldName)
@@ -1061,6 +1085,19 @@ public sealed class PostgresAdminAccessInventoryStore(
                         ) = '/project/' || grant_project.id::text || '/'
                     )
             )
+        )
+        """;
+    }
+
+    private static string OrganizationOnlyNamespacePredicate(string organizationIdExpression)
+    {
+        return $"""
+        (
+            grant_record.namespace_prefix = '/org/' || {organizationIdExpression}::text
+            OR left(
+                grant_record.namespace_prefix,
+                length('/org/' || {organizationIdExpression}::text || '/')
+            ) = '/org/' || {organizationIdExpression}::text || '/'
         )
         """;
     }

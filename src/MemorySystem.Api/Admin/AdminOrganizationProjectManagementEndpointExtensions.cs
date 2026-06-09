@@ -13,6 +13,12 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
     private const string ContractId = "OPM-01";
     private const int DefaultLimit = 50;
     private const int MaxLimit = 100;
+    private const string OrganizationManagementNotFoundTitle = "Admin organization management resource was not found.";
+    private const string OrganizationManagementNotFoundDetail = "Organization was not found or is not visible to the caller.";
+    private const string ProjectManagementNotFoundTitle = "Admin project management resource was not found.";
+    private const string ProjectManagementNotFoundDetail = "Project was not found or is not visible to the caller.";
+    private const string AccessRevocationTargetNotFoundTitle = "Admin access revocation target was not found.";
+    private const string AccessRevocationTargetNotFoundDetail = "Access revocation target was not found or is not visible to the caller.";
 
     private static readonly IReadOnlySet<string> ProjectStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -274,7 +280,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
                 cancellationToken);
             if (record is null)
             {
-                return NotFound("Admin organization detail was not found.", "Organization was not found or is not visible to the caller.");
+                return OrganizationManagementNotFound();
             }
 
             return Results.Ok(new AdminOrganizationDetailResponse(
@@ -313,7 +319,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
                 cancellationToken);
             if (record is null)
             {
-                return NotFound("Admin organization management activity was not found.", "Organization was not found.");
+                return OrganizationManagementNotFound();
             }
 
             var authorization = await AuthorizeOrganizationManagementAsync(
@@ -405,7 +411,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
                 cancellationToken);
             if (record is null)
             {
-                return NotFound("Admin project detail was not found.", "Project was not found or is not visible to the caller.");
+                return ProjectManagementNotFound();
             }
 
             return Results.Ok(new AdminProjectDetailResponse(
@@ -445,7 +451,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
                 cancellationToken);
             if (record is null)
             {
-                return NotFound("Admin project management activity was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -483,7 +489,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project role definitions were not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -498,7 +504,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
 
             var record = await store.GetProjectRoleDefinitionsAsync(projectId, cancellationToken);
             return record is null
-                ? NotFound("Admin project role definitions were not found.", "Project was not found.")
+                ? ProjectManagementNotFound()
                 : Results.Ok(ToResponse(record));
         }
         catch (ArgumentException exception)
@@ -540,7 +546,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project role definition was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -578,7 +584,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
         }
         catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return NotFound("Admin project role definition was not found.", exception.Message);
+            return ProjectManagementNotFound();
         }
         catch (InvalidOperationException exception)
         {
@@ -603,7 +609,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project scope settings were not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -656,7 +662,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project lifecycle was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -695,6 +701,10 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
         {
             return BadRequest("Admin project lifecycle request is invalid.", exception.Message);
         }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectManagementNotFound();
+        }
         catch (InvalidOperationException exception)
         {
             return BadRequest("Admin project lifecycle request is invalid.", exception.Message);
@@ -727,7 +737,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project scope settings were not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -769,6 +779,10 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
         {
             return BadRequest("Admin project scope settings request is invalid.", exception.Message);
         }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectManagementNotFound();
+        }
         catch (InvalidOperationException exception)
         {
             return BadRequest("Admin project scope settings request is invalid.", exception.Message);
@@ -792,7 +806,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var inventory = await store.GetOrganizationInventoryAsync(organizationId, cancellationToken);
             if (inventory is null)
             {
-                return NotFound("Admin organization access inventory was not found.", "Organization was not found.");
+                return OrganizationManagementNotFound();
             }
 
             var authorization = await AuthorizeOrganizationManagementAsync(
@@ -830,7 +844,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var inventory = await store.GetProjectInventoryAsync(projectId, cancellationToken);
             if (inventory is null)
             {
-                return NotFound("Admin project access inventory was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -909,7 +923,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
         }
         catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return NotFound("Admin access revocation target was not found.", exception.Message);
+            return AccessRevocationTargetNotFound();
         }
         catch (InvalidOperationException exception)
         {
@@ -934,7 +948,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project grant matrix was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -949,7 +963,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
 
             var matrix = await store.GetProjectGrantMatrixAsync(projectId, cancellationToken);
             return matrix is null
-                ? NotFound("Admin project grant matrix was not found.", "Project was not found.")
+                ? ProjectManagementNotFound()
                 : Results.Ok(ToResponse(matrix));
         }
         catch (ArgumentException exception)
@@ -991,7 +1005,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var project = await store.GetProjectContextAsync(projectId, cancellationToken);
             if (project is null)
             {
-                return NotFound("Admin project grant matrix was not found.", "Project was not found.");
+                return ProjectManagementNotFound();
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -1028,7 +1042,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
         }
         catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return NotFound("Admin project grant matrix was not found.", exception.Message);
+            return ProjectManagementNotFound();
         }
         catch (InvalidOperationException exception)
         {
@@ -1483,8 +1497,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var inventory = await store.GetOrganizationInventoryAsync(scopeId, cancellationToken);
             if (inventory is null)
             {
-                return new RevocationAuthorizationResult(
-                    NotFound("Admin access revocation scope was not found.", "Organization was not found."));
+                return new RevocationAuthorizationResult(OrganizationManagementNotFound());
             }
 
             var authorization = await AuthorizeOrganizationManagementAsync(
@@ -1501,8 +1514,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             var inventory = await store.GetProjectInventoryAsync(scopeId, cancellationToken);
             if (inventory is null)
             {
-                return new RevocationAuthorizationResult(
-                    NotFound("Admin access revocation scope was not found.", "Project was not found."));
+                return new RevocationAuthorizationResult(ProjectManagementNotFound());
             }
 
             var authorization = await AuthorizeProjectManagementAsync(
@@ -1537,10 +1549,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
 
         return organizationDecision.Allowed
             ? null
-            : Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Admin organization management request is forbidden.",
-                detail: organizationDecision.Reason);
+            : OrganizationManagementNotFound();
     }
 
     private static async Task<IResult?> AuthorizeProjectManagementAsync(
@@ -1585,9 +1594,7 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             return null;
         }
 
-        return NotFound(
-            "Admin project management resource was not found.",
-            "Project was not found or is not visible to the caller.");
+        return ProjectManagementNotFound();
     }
 
     private static bool TryReadPaging(
@@ -1686,6 +1693,21 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             statusCode: StatusCodes.Status400BadRequest,
             title: title,
             detail: detail);
+    }
+
+    private static IResult OrganizationManagementNotFound()
+    {
+        return NotFound(OrganizationManagementNotFoundTitle, OrganizationManagementNotFoundDetail);
+    }
+
+    private static IResult ProjectManagementNotFound()
+    {
+        return NotFound(ProjectManagementNotFoundTitle, ProjectManagementNotFoundDetail);
+    }
+
+    private static IResult AccessRevocationTargetNotFound()
+    {
+        return NotFound(AccessRevocationTargetNotFoundTitle, AccessRevocationTargetNotFoundDetail);
     }
 
     private static IResult NotFound(string title, string detail)

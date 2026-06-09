@@ -46,8 +46,8 @@ organization, or admin access to the active project / owner-admin access to its
 parent organization. Inactive projects follow the OPM-03 rule and require
 organization authorization.
 
-Project inventory and project-scoped revocation authorization failures return
-generic `404` responses for missing or inaccessible project scopes.
+Organization and project inventory/revocation authorization failures return
+generic `404` responses for missing or inaccessible scopes.
 
 Revocation removes concrete access records:
 
@@ -55,6 +55,10 @@ Revocation removes concrete access records:
 - project memberships
 - role assignments
 - namespace grants
+
+Role-assignment and namespace-grant revocations must target the concrete row
+scope. Project rows surfaced from an organization inventory cannot be revoked
+with the organization scope; callers must send the project row scope/id.
 
 The workflow rejects self-revocation and rejects removal of the last
 organization owner. Principal deletion, credential disablement, and directory
@@ -64,6 +68,10 @@ Successful revocations create payload-safe access audit events using the
 existing action family for the removed record, with `operation: revoked`,
 `contractId: OPM-04`, reason text, audit evidence id, request path, method, and
 correlation id.
+
+Revocation reason and audit evidence ids are required and capped at 500
+characters. The access mutation and audit event commit atomically; audit-write
+failure rolls back the access mutation.
 
 ## UI Scope
 

@@ -51,6 +51,16 @@ public sealed class OrganizationProjectManagementOpm04Tests
         Assert.Contains("Cannot revoke the last organization owner", store, StringComparison.Ordinal);
         Assert.Contains("Operators cannot revoke their own access record", store, StringComparison.Ordinal);
         Assert.Contains("operation\"] = \"revoked\"", store, StringComparison.Ordinal);
+        Assert.Contains("PostgresAccessAuditEventStore", store, StringComparison.Ordinal);
+        Assert.Contains("BeginTransactionAsync", store, StringComparison.Ordinal);
+        Assert.Contains("transaction.CommitAsync", store, StringComparison.Ordinal);
+        Assert.Contains("assignment.scope_type = @scope_type", store, StringComparison.Ordinal);
+        Assert.Contains("OrganizationOnlyNamespacePredicate", store, StringComparison.Ordinal);
+        Assert.Contains("MaxRequiredTextLength = 500", store, StringComparison.Ordinal);
+        Assert.Contains("OrganizationManagementNotFound()", endpoint, StringComparison.Ordinal);
+        Assert.Contains("ProjectManagementNotFound()", endpoint, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Organization was not found.\"", endpoint, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Project was not found.\"", endpoint, StringComparison.Ordinal);
 
         foreach (var fragment in new[]
                  {

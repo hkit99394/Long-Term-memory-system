@@ -42,6 +42,12 @@ public sealed class ProjectRegistrationReg02Tests
         Assert.Contains("MemoryAccessPermissions.Review", store, StringComparison.Ordinal);
         Assert.DoesNotContain("MemoryAccessPermissions.Admin", store, StringComparison.Ordinal);
         Assert.Contains("AccessAuditActionTypes.ProjectRegistration", store, StringComparison.Ordinal);
+        Assert.Contains("PostgresAccessAuditEventStore", store, StringComparison.Ordinal);
+        Assert.Contains("BeginTransactionAsync", store, StringComparison.Ordinal);
+        Assert.Contains("transaction.CommitAsync", store, StringComparison.Ordinal);
+        Assert.Contains("MaxAuditMetadataTextLength = 500", store, StringComparison.Ordinal);
+        Assert.Contains("NormalizeRequiredAuditMetadataText(command.AccessPreviewReportId", store, StringComparison.Ordinal);
+        Assert.Contains("NormalizeOptionalAuditMetadataText(command.AuditExportId", store, StringComparison.Ordinal);
 
         Assert.Contains("IAdminProjectRegistrationStore, PostgresAdminProjectRegistrationStore", registration, StringComparison.Ordinal);
         Assert.Contains("MapMemorySystemAdminProjectRegistrationEndpoints", program, StringComparison.Ordinal);
@@ -54,6 +60,7 @@ public sealed class ProjectRegistrationReg02Tests
         Assert.Contains("## REG-02 API Contract", registrationPlan, StringComparison.Ordinal);
         Assert.Contains("Idempotency-Key", registrationPlan, StringComparison.Ordinal);
         Assert.Contains("payload-safe audit event", registrationPlan, StringComparison.Ordinal);
+        Assert.Contains("audit metadata id is capped at 500 characters", registrationPlan, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

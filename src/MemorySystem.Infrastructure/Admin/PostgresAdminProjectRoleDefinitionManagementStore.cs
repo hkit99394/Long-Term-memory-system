@@ -3,6 +3,7 @@ using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
 using MemorySystem.Domain.Roles;
 using MemorySystem.Domain.Scopes;
+using MemorySystem.Infrastructure.AccessAuditing;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -10,9 +11,10 @@ namespace MemorySystem.Infrastructure.Admin;
 
 public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
     NpgsqlDataSource dataSource,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminProjectRoleDefinitionManagementStore
+    PostgresAccessAuditEventStore accessAuditEventStore) : IAdminProjectRoleDefinitionManagementStore
 {
     private const string ContractId = "OPM-08";
+    private const int MaxRequiredTextLength = 500;
 
     private static readonly IReadOnlySet<string> RoleStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -86,6 +88,8 @@ public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
         }
 
         AdminProjectRoleDefinitionRecord role;
+        AccessAuditEventRecord audit;
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using (var sql = new NpgsqlCommand(
             """
             INSERT INTO project_role_definitions (
@@ -121,7 +125,8 @@ public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
                 created_at,
                 updated_at;
             """,
-            connection))
+            connection,
+            transaction))
         {
             sql.Parameters.AddWithValue("project_id", command.ProjectId);
             sql.Parameters.AddWithValue("role_id", roleId);
@@ -142,7 +147,7 @@ public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
         }
 
         var operation = role.Status == "disabled" ? "disabled" : "upserted";
-        var audit = await accessAuditEventStore.RecordAsync(
+        audit = await accessAuditEventStore.RecordAsync(
             new AccessAuditEventCommand(
                 AccessAuditActionTypes.ProjectRoleDefinitionChange,
                 AccessAuditOutcomes.Succeeded,
@@ -167,7 +172,11 @@ public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
                     ["reason"] = reason,
                     ["auditEvidenceId"] = auditEvidenceId
                 }),
+            connection,
+            transaction,
             cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AdminProjectRoleDefinitionUpdateRecord(
             ContractId,
@@ -443,9 +452,17 @@ public sealed class PostgresAdminProjectRoleDefinitionManagementStore(
     private static string NormalizeRequiredText(string? value, string fieldName)
     {
         var normalized = value?.Trim();
-        return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ArgumentException($"{fieldName} is required.")
-            : normalized;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"{fieldName} is required.");
+        }
+
+        if (normalized.Length > MaxRequiredTextLength)
+        {
+            throw new ArgumentException($"{fieldName} must be {MaxRequiredTextLength} characters or fewer.");
+        }
+
+        return normalized;
     }
 
     private static string? NormalizeOptionalText(string? value)

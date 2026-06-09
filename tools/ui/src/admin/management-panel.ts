@@ -619,9 +619,18 @@ async function loadSelectedManagementDetail(showBusy: boolean): Promise<void> {
 async function loadOptionalManagementDetail<T>(request: Promise<T>): Promise<T | null> {
   try {
     return await request;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isExpectedOptionalManagementDetailError(error)) {
+      return null;
+    }
+
+    throw error;
   }
+}
+
+function isExpectedOptionalManagementDetailError(error: unknown): boolean {
+  return error instanceof ApiFetchError
+    && (error.status === 403 || error.status === 404);
 }
 
 async function refreshManagementActivityDetail(): Promise<void> {

@@ -25,7 +25,8 @@ public sealed class ConsoleLoginFlowTests
 
         foreach (var script in new[] { adminScript, reviewScript })
         {
-            Assert.Contains("response.status === 401 || response.status === 403", script, StringComparison.Ordinal);
+            Assert.Contains("response.status === 401", script, StringComparison.Ordinal);
+            Assert.DoesNotContain("response.status === 401 || response.status === 403", script, StringComparison.Ordinal);
             Assert.Contains("sessionStorage.removeItem(credentialStorageKey)", script, StringComparison.Ordinal);
             Assert.Contains("sessionStorage.removeItem(credentialKindStorageKey)", script, StringComparison.Ordinal);
             Assert.Contains("readStoredCredential()", script, StringComparison.Ordinal);

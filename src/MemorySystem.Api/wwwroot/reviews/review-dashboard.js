@@ -177,7 +177,7 @@ function clearStoredCredential() {
     sessionStorage.removeItem(credentialKindStorageKey);
 }
 function isAuthenticationFailure(response) {
-    return response.status === 401 || response.status === 403;
+    return response.status === 401;
 }
 function loginUrl(returnUrl) {
     return `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;

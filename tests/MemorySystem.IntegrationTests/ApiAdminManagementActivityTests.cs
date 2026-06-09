@@ -126,11 +126,26 @@ public sealed class ApiAdminManagementActivityTests
             using var client = factory.CreateClient();
 
             using var response = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/projects/{ProjectId:D}/management-activity"));
-            var body = await response.Content.ReadAsStringAsync();
+            var problem = await ReadProblemSummaryAsync(response);
+            using var missingProjectResponse = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/projects/{Guid.NewGuid():D}/management-activity"));
+            var missingProjectProblem = await ReadProblemSummaryAsync(missingProjectResponse);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-            Assert.DoesNotContain("Actor must", body, StringComparison.Ordinal);
-            Assert.DoesNotContain("parent organization", body, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(HttpStatusCode.NotFound, missingProjectResponse.StatusCode);
+            Assert.Equal(missingProjectProblem, problem);
+            Assert.DoesNotContain("Actor must", problem.Detail ?? string.Empty, StringComparison.Ordinal);
+            Assert.DoesNotContain("parent organization", problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            using var organizationResponse = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/organizations/{OrgId:D}/management-activity"));
+            var organizationProblem = await ReadProblemSummaryAsync(organizationResponse);
+            using var missingOrganizationResponse = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/organizations/{Guid.NewGuid():D}/management-activity"));
+            var missingOrganizationProblem = await ReadProblemSummaryAsync(missingOrganizationResponse);
+
+            Assert.Equal(HttpStatusCode.NotFound, organizationResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, missingOrganizationResponse.StatusCode);
+            Assert.Equal(missingOrganizationProblem, organizationProblem);
+            Assert.DoesNotContain("forbidden", organizationProblem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Actor must", organizationProblem.Detail ?? string.Empty, StringComparison.Ordinal);
         }
         finally
         {
@@ -325,6 +340,16 @@ public sealed class ApiAdminManagementActivityTests
     {
         var body = await response.Content.ReadAsStringAsync();
         return JsonDocument.Parse(body);
+    }
+
+    private static async Task<(string? Title, string? Detail)> ReadProblemSummaryAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        return (
+            root.TryGetProperty("title", out var title) ? title.GetString() : null,
+            root.TryGetProperty("detail", out var detail) ? detail.GetString() : null);
     }
 
     private static IReadOnlyDictionary<string, string> ReadMetadata(JsonElement entry)

@@ -36,6 +36,8 @@ Responses use `contractId: OPM-05`, `payloadSafe: true`, and
 Updates replace only the selected role's grants under the selected project
 namespace. Request bodies include `roleId`, optional `presetId`, grant rows,
 `reason`, and `auditEvidenceId`.
+Free-form `reason` and audit evidence ids are required and capped at 500
+characters.
 
 ## Guardrails
 
@@ -59,6 +61,10 @@ Successful updates create payload-safe `namespace_grant_change` audit events
 with `contractId: OPM-05`, `operation: grant_matrix_replaced`, preset id, reason,
 audit evidence id, request path, method, correlation id, and previous/new grant
 counts.
+
+Grant replacement and audit evidence commit in the same database transaction.
+If audit evidence cannot be written, the grant matrix replacement is rolled
+back.
 
 ## UI Scope
 

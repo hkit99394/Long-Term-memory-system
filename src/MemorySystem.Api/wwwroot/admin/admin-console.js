@@ -1630,9 +1630,16 @@ async function loadOptionalManagementDetail(request) {
     try {
         return await request;
     }
-    catch {
-        return null;
+    catch (error) {
+        if (isExpectedOptionalManagementDetailError(error)) {
+            return null;
+        }
+        throw error;
     }
+}
+function isExpectedOptionalManagementDetailError(error) {
+    return error instanceof ApiFetchError
+        && (error.status === 403 || error.status === 404);
 }
 async function refreshManagementActivityDetail() {
     const selected = state.management.selectedItem;
@@ -2910,6 +2917,14 @@ function applyManagementLifecycleResponse(response) {
 }
 
 "use strict";
+class ApiFetchError extends Error {
+    status;
+    constructor(status, detail) {
+        super(`${status} ${detail}`);
+        this.status = status;
+        this.name = "ApiFetchError";
+    }
+}
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
 const consoleReturnUrl = "/admin/";
@@ -3263,15 +3278,33 @@ async function apiFetch(path, init = {}) {
         headers
     });
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : null;
+    let payload = null;
+    try {
+        payload = text ? JSON.parse(text) : null;
+    }
+    catch (error) {
+        if (response.ok) {
+            throw error;
+        }
+    }
     if (!response.ok) {
-        const detail = payload?.detail ?? payload?.title ?? response.statusText;
+        const detail = responseDetail(payload, response.statusText, text);
         if (isAuthenticationFailure(response)) {
             redirectToLoginAfterAuthenticationFailure();
         }
-        throw new Error(`${response.status} ${detail}`);
+        throw new ApiFetchError(response.status, detail);
     }
     return payload;
+}
+function responseDetail(payload, fallback, text) {
+    if (payload && typeof payload === "object") {
+        const record = payload;
+        const detail = record.detail ?? record.title;
+        if (typeof detail === "string" && detail.trim()) {
+            return detail;
+        }
+    }
+    return text.trim() || fallback;
 }
 async function logout() {
     setBusy(true);
@@ -3297,7 +3330,7 @@ function clearStoredCredential() {
     sessionStorage.removeItem(credentialKindStorageKey);
 }
 function isAuthenticationFailure(response) {
-    return response.status === 401 || response.status === 403;
+    return response.status === 401;
 }
 function loginUrl(returnUrl) {
     return `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
@@ -4056,7 +4089,7 @@ async function apiFetchText(path, init = {}) {
         catch {
             detail = text || detail;
         }
-        throw new Error(`${response.status} ${detail}`);
+        throw new ApiFetchError(response.status, detail);
     }
     return {
         text,

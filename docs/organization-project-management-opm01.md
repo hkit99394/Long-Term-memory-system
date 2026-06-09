@@ -47,16 +47,18 @@ credential material, or free-form registration notes.
 ## Access Rules
 
 Organization list/detail is visible only to callers with direct `admin` or
-`owner` organization membership.
+`owner` organization membership. Detail endpoints return `404` for missing or
+inaccessible organizations so callers cannot distinguish absence from lack of
+visibility.
 
 Project list/detail is visible to callers with direct `admin` or `owner`
 membership on the parent organization, or direct `admin` membership on the
 project. Detail endpoints return `404` for missing or inaccessible resources so
 callers cannot distinguish absence from lack of visibility.
 
-Project-scoped management section endpoints use the same no-leak rule. Missing
-or inaccessible projects return generic `404` responses rather than exposing
-the parent organization id or authorization decision details.
+Organization- and project-scoped management section endpoints use the same
+no-leak rule. Missing or inaccessible scopes return generic `404` responses
+rather than exposing parent ids or authorization decision details.
 
 Direct project admins can list and inspect their projects without org directory leak.
 Organization directory access still requires direct organization admin or owner

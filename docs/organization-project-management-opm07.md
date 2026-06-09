@@ -50,7 +50,9 @@ metadata blobs.
 ## Access Rules
 
 Organization activity uses the existing organization management boundary:
-callers must have admin access to the organization.
+callers must have admin access to the organization. Missing or inaccessible
+organization scopes return generic `404` responses so callers cannot infer
+hidden organizations.
 
 Project activity uses the existing project management boundary: callers must
 have admin access to the active project or owner/admin access to the parent

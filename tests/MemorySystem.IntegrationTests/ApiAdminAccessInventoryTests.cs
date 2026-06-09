@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MemorySystem.Application.AccessAuditing;
+using MemorySystem.Application.Admin;
+using MemorySystem.Infrastructure.AccessAuditing;
+using MemorySystem.Infrastructure.Admin;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using NpgsqlTypes;
@@ -14,6 +17,7 @@ public sealed class ApiAdminAccessInventoryTests
     private static readonly Guid ActorPrincipalId = Guid.Parse("11111111-1111-4111-8111-111111111111");
     private static readonly Guid TargetPrincipalId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid DisabledPrincipalId = Guid.Parse("33333333-3333-4333-8333-333333333333");
+    private static readonly Guid OtherPrincipalId = Guid.Parse("88888888-8888-4888-8888-888888888888");
     private static readonly Guid OrgId = Guid.Parse("44444444-4444-4444-8444-444444444444");
     private static readonly Guid ProjectId = Guid.Parse("55555555-5555-4555-8555-555555555555");
     private static readonly Guid RoleAssignmentId = Guid.Parse("66666666-6666-4666-8666-666666666666");
@@ -212,11 +216,196 @@ public sealed class ApiAdminAccessInventoryTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Organization_access_inventory_rejects_forbidden_operator_without_org_existence_leak()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_opm04_org_forbidden_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString, OtherPrincipalId);
+            using var client = factory.CreateClient();
+
+            using var response = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/organizations/{OrgId:D}/access-inventory"));
+            var problem = await ReadProblemSummaryAsync(response);
+            using var missingResponse = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/organizations/{Guid.NewGuid():D}/access-inventory"));
+            var missingProblem = await ReadProblemSummaryAsync(missingResponse);
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+            Assert.Equal(missingProblem, problem);
+            Assert.DoesNotContain("forbidden", problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Actor must", problem.Detail ?? string.Empty, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Access_revocation_scope_returns_same_problem_for_hidden_and_missing_resources()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_opm04_scope_no_leak_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString, OtherPrincipalId);
+            using var client = factory.CreateClient();
+
+            using var hiddenResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/revocations",
+                new
+                {
+                    scopeType = "project",
+                    scopeId = ProjectId,
+                    accessRecordType = "project_membership",
+                    accessRecordId = (Guid?)null,
+                    principalId = TargetPrincipalId,
+                    reason = "Hidden project should look like a missing project.",
+                    auditEvidenceId = "opm04-hidden-project"
+                }));
+            using var missingResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/revocations",
+                new
+                {
+                    scopeType = "project",
+                    scopeId = Guid.NewGuid(),
+                    accessRecordType = "project_membership",
+                    accessRecordId = (Guid?)null,
+                    principalId = TargetPrincipalId,
+                    reason = "Missing project should match hidden project.",
+                    auditEvidenceId = "opm04-missing-project"
+                }));
+
+            var hiddenProblem = await ReadProblemSummaryAsync(hiddenResponse);
+            var missingProblem = await ReadProblemSummaryAsync(missingResponse);
+
+            Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+            Assert.Equal(missingProblem, hiddenProblem);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.True(await HasProjectMembershipAsync(dataSource, TargetPrincipalId));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectMembershipChange, OtherPrincipalId));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Access_revocation_rejects_org_scope_for_project_records_without_deleting_or_auditing()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_opm04_scope_guard_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            using var roleResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/revocations",
+                new
+                {
+                    scopeType = "org",
+                    scopeId = OrgId,
+                    accessRecordType = "role_assignment",
+                    accessRecordId = RoleAssignmentId,
+                    principalId = (Guid?)null,
+                    reason = "Attempt org-scoped project role revocation.",
+                    auditEvidenceId = "opm04-role-scope-mismatch"
+                }));
+            using var grantResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/revocations",
+                new
+                {
+                    scopeType = "org",
+                    scopeId = OrgId,
+                    accessRecordType = "namespace_grant",
+                    accessRecordId = NamespaceGrantId,
+                    principalId = (Guid?)null,
+                    reason = "Attempt org-scoped project grant revocation.",
+                    auditEvidenceId = "opm04-grant-scope-mismatch"
+                }));
+
+            Assert.Equal(HttpStatusCode.NotFound, roleResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, grantResponse.StatusCode);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.True(await HasRoleAssignmentAsync(dataSource));
+            Assert.True(await HasNamespaceGrantAsync(dataSource));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.RoleAssignmentChange));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.NamespaceGrantChange));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task Access_revocation_rolls_back_when_audit_evidence_write_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_opm04_audit_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareFixtureAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var auditStore = new PostgresAccessAuditEventStore(dataSource);
+            var store = new PostgresAdminAccessInventoryStore(dataSource, auditStore);
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => store.RevokeAccessAsync(
+                new AdminAccessRevocationCommand(
+                    ActorPrincipalId,
+                    "project",
+                    ProjectId,
+                    "role_assignment",
+                    RoleAssignmentId,
+                    null,
+                    "Audit failure should roll back the role assignment delete.",
+                    "opm04-audit-rollback",
+                    RequestMethod: "POST",
+                    RequestPath: "not-a-path",
+                    CorrelationId: "opm04-audit-rollback")));
+
+            Assert.Contains("Request path", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(await HasRoleAssignmentAsync(dataSource));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.RoleAssignmentChange));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task PrepareFixtureAsync(string connectionString)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
         await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, ActorPrincipalId, displayName: "Organization Owner");
         await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, TargetPrincipalId, displayName: "Managed User");
+        await ApiDatabaseTestSupport.InsertPrincipalAsync(connectionString, OtherPrincipalId, displayName: "No Access");
         await InsertPrincipalAsync(connectionString, DisabledPrincipalId, "Disabled User", "disabled");
         await ApiDatabaseTestSupport.InsertOrganizationAndProjectAsync(
             connectionString,
@@ -302,9 +491,14 @@ public sealed class ApiAdminAccessInventoryTests
         await command.ExecuteNonQueryAsync();
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(string postgresConnectionString)
+    private static WebApplicationFactory<Program> CreateFactory(
+        string postgresConnectionString,
+        Guid? principalId = null)
     {
-        return MemorySystemApiTestFactory.Create(postgresConnectionString, TestApiKey, ActorPrincipalId.ToString("D"));
+        return MemorySystemApiTestFactory.Create(
+            postgresConnectionString,
+            TestApiKey,
+            (principalId ?? ActorPrincipalId).ToString("D"));
     }
 
     private static HttpRequestMessage CreateAuthenticatedGetRequest(string path)
@@ -328,6 +522,16 @@ public sealed class ApiAdminAccessInventoryTests
     {
         var body = await response.Content.ReadAsStringAsync();
         return JsonDocument.Parse(body);
+    }
+
+    private static async Task<(string? Title, string? Detail)> ReadProblemSummaryAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        return (
+            root.TryGetProperty("title", out var title) ? title.GetString() : null,
+            root.TryGetProperty("detail", out var detail) ? detail.GetString() : null);
     }
 
     private static async Task<bool> HasRoleAssignmentAsync(NpgsqlDataSource dataSource)
@@ -374,6 +578,23 @@ public sealed class ApiAdminAccessInventoryTests
         command.Parameters.AddWithValue("project_id", ProjectId);
         command.Parameters.AddWithValue("principal_id", principalId);
         return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<long> CountAuditEventsAsync(
+        NpgsqlDataSource dataSource,
+        string actionType,
+        Guid? actorPrincipalId = null)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT count(*)
+            FROM access_audit_events
+            WHERE actor_principal_id = @actor_principal_id
+                AND action_type = @action_type;
+            """);
+        command.Parameters.AddWithValue("actor_principal_id", actorPrincipalId ?? ActorPrincipalId);
+        command.Parameters.AddWithValue("action_type", actionType);
+        return (long)(await command.ExecuteScalarAsync() ?? 0L);
     }
 
     private static async Task<(string? Operation, string? ContractId, string? AuditEvidenceId)> ReadAuditMetadataAsync(

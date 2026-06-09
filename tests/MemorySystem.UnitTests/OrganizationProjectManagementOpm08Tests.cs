@@ -61,7 +61,11 @@ public sealed class OrganizationProjectManagementOpm08Tests
                      "project_role_definition",
                      "roleAssignmentCount",
                      "roleGrantCount",
-                     "auditEvidenceId"
+                     "auditEvidenceId",
+                     "PostgresAccessAuditEventStore",
+                     "BeginTransactionAsync",
+                     "transaction.CommitAsync",
+                     "MaxRequiredTextLength = 500"
                  })
         {
             Assert.Contains(fragment, store, StringComparison.Ordinal);

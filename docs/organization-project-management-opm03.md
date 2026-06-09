@@ -34,6 +34,9 @@ and cross-project prefixes are rejected. Retention is limited to `ephemeral`,
 Responses use `contractId: OPM-03`, `payloadSafe: true`, and
 `rawSourcePayloadsIncluded: false`.
 
+Free-form `reason` and audit evidence ids are required and capped at 500
+characters.
+
 ## Audit And Access
 
 All writes require admin access to the active project or owner/admin access to
@@ -51,6 +54,10 @@ Successful writes create payload-safe audit events:
 
 Audit metadata records only ids, status names, namespace prefixes, reason text,
 retention class, cadence, and caller-supplied audit evidence id.
+
+Lifecycle and scope-settings mutations commit in the same database transaction
+as their audit event. If audit evidence cannot be written, the management
+change is rolled back.
 
 ## UI Scope
 

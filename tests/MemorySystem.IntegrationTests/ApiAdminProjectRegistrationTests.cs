@@ -196,6 +196,50 @@ public sealed class ApiAdminProjectRegistrationTests
 
     [DatabaseFact]
     [Trait("Category", "Database")]
+    public async Task Post_admin_project_registration_rejects_overlong_audit_metadata_ids()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_project_registration_metadata_length_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareRegistrationFixtureAsync(databaseConnectionString);
+
+            using var factory = CreateFactory(databaseConnectionString);
+            using var client = factory.CreateClient();
+
+            var overlongId = new string('x', 501);
+            using var previewResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/projects/register",
+                CreateRegistrationBody(accessPreviewReportId: overlongId),
+                "reg02-overlong-preview"));
+            var previewBody = await previewResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, previewResponse.StatusCode);
+            Assert.Contains("Access preview report id must be 500 characters or fewer.", previewBody, StringComparison.Ordinal);
+
+            using var exportResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/projects/register",
+                CreateRegistrationBody(auditExportId: overlongId),
+                "reg02-overlong-export"));
+            var exportBody = await exportResponse.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.BadRequest, exportResponse.StatusCode);
+            Assert.Contains("Audit export id must be 500 characters or fewer.", exportBody, StringComparison.Ordinal);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            Assert.Null(await ReadProjectStatusAsync(dataSource));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectRegistration));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
     public async Task Post_admin_project_registration_requires_governance_owner_roles()
     {
         var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
@@ -295,7 +339,9 @@ public sealed class ApiAdminProjectRegistrationTests
     private static object CreateRegistrationBody(
         object[]? namespaceGrants = null,
         object[]? ownerAssignments = null,
-        object[]? sourceDocuments = null)
+        object[]? sourceDocuments = null,
+        string? accessPreviewReportId = null,
+        string? auditExportId = null)
     {
         return new
         {
@@ -344,8 +390,8 @@ public sealed class ApiAdminProjectRegistrationTests
                     }
                 ],
             sourceDocuments = sourceDocuments ?? CreateSourceDocuments(),
-            accessPreviewReportId = "preview-reg02-001",
-            auditExportId = "audit-export-reg02-001",
+            accessPreviewReportId = accessPreviewReportId ?? "preview-reg02-001",
+            auditExportId = auditExportId ?? "audit-export-reg02-001",
             registrationNote = "Payload-safe registration test note."
         };
     }

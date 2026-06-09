@@ -3,6 +3,7 @@ using MemorySystem.Application.Access;
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
 using MemorySystem.Domain.Roles;
+using MemorySystem.Infrastructure.AccessAuditing;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -10,8 +11,10 @@ namespace MemorySystem.Infrastructure.Admin;
 
 public sealed class PostgresAdminProjectRegistrationStore(
     NpgsqlDataSource dataSource,
-    IAccessAuditEventStore accessAuditEventStore) : IAdminProjectRegistrationStore
+    PostgresAccessAuditEventStore accessAuditEventStore) : IAdminProjectRegistrationStore
 {
+    private const int MaxAuditMetadataTextLength = 500;
+
     private static readonly IReadOnlySet<string> ProjectStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
         "planned",
@@ -71,8 +74,8 @@ public sealed class PostgresAdminProjectRegistrationStore(
         var organizationName = NormalizeRequiredText(command.OrganizationName, "Organization name");
         var projectName = NormalizeRequiredText(command.ProjectName, "Project name");
         var projectStatus = NormalizeAllowed(command.ProjectStatus, ProjectStatuses, "Project status");
-        var accessPreviewReportId = NormalizeRequiredText(command.AccessPreviewReportId, "Access preview report id");
-        var auditExportId = NormalizeOptionalText(command.AuditExportId);
+        var accessPreviewReportId = NormalizeRequiredAuditMetadataText(command.AccessPreviewReportId, "Access preview report id");
+        var auditExportId = NormalizeOptionalAuditMetadataText(command.AuditExportId, "Audit export id");
         var requestMethod = NormalizeOptionalText(command.RequestMethod)?.ToUpperInvariant();
         var requestPath = NormalizeOptionalText(command.RequestPath);
         var correlationId = NormalizeOptionalText(command.CorrelationId);
@@ -192,8 +195,6 @@ public sealed class PostgresAdminProjectRegistrationStore(
             ? 100
             : 100 * sourceDocuments.Count(document => !string.IsNullOrWhiteSpace(document.SourceContentSha256)) / sourceDocuments.Count;
 
-        await transaction.CommitAsync(cancellationToken);
-
         var auditEvent = await accessAuditEventStore.RecordAsync(
             new AccessAuditEventCommand(
                 AccessAuditActionTypes.ProjectRegistration,
@@ -223,7 +224,11 @@ public sealed class PostgresAdminProjectRegistrationStore(
                     ["auditExportId"] = auditExportId,
                     ["registrationNotePresent"] = (!string.IsNullOrWhiteSpace(command.RegistrationNote)).ToString()
                 }),
+            connection,
+            transaction,
             cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AdminProjectRegistrationRecord(
             "REG-02",
@@ -950,10 +955,26 @@ public sealed class PostgresAdminProjectRegistrationStore(
             : normalized;
     }
 
+    private static string NormalizeRequiredAuditMetadataText(string? value, string fieldName)
+    {
+        var normalized = NormalizeRequiredText(value, fieldName);
+        return normalized.Length > MaxAuditMetadataTextLength
+            ? throw new ArgumentException($"{fieldName} must be {MaxAuditMetadataTextLength} characters or fewer.")
+            : normalized;
+    }
+
     private static string? NormalizeOptionalText(string? value)
     {
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string? NormalizeOptionalAuditMetadataText(string? value, string fieldName)
+    {
+        var normalized = NormalizeOptionalText(value);
+        return normalized is not null && normalized.Length > MaxAuditMetadataTextLength
+            ? throw new ArgumentException($"{fieldName} must be {MaxAuditMetadataTextLength} characters or fewer.")
+            : normalized;
     }
 
     private static Guid? NormalizeOptionalId(Guid? value, string fieldName)

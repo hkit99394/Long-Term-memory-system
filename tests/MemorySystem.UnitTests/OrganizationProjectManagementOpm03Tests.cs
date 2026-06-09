@@ -47,6 +47,10 @@ public sealed class OrganizationProjectManagementOpm03Tests
         Assert.Contains("NormalizeProjectNamespace", store, StringComparison.Ordinal);
         Assert.Contains("AccessAuditActionTypes.ProjectLifecycleChange", store, StringComparison.Ordinal);
         Assert.Contains("AccessAuditActionTypes.ProjectScopeSettingsChange", store, StringComparison.Ordinal);
+        Assert.Contains("PostgresAccessAuditEventStore", store, StringComparison.Ordinal);
+        Assert.Contains("BeginTransactionAsync", store, StringComparison.Ordinal);
+        Assert.Contains("transaction.CommitAsync", store, StringComparison.Ordinal);
+        Assert.Contains("MaxRequiredTextLength = 500", store, StringComparison.Ordinal);
 
         foreach (var fragment in new[]
                  {

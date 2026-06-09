@@ -55,7 +55,11 @@ public sealed class OrganizationProjectManagementOpm05Tests
                      "grant_matrix_replaced",
                      "Project root namespace grants must stay absent",
                      "Role lens namespace grants must match the selected role id",
-                     "MatrixPermissions"
+                     "MatrixPermissions",
+                     "PostgresAccessAuditEventStore",
+                     "BeginTransactionAsync",
+                     "transaction.CommitAsync",
+                     "MaxRequiredTextLength = 500"
                  })
         {
             Assert.Contains(fragment, store, StringComparison.Ordinal);

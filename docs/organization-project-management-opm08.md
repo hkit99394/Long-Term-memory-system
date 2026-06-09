@@ -45,6 +45,9 @@ The update request requires:
 - `reason`
 - `auditEvidenceId`
 
+Free-form `reason` and audit evidence ids are required and capped at 500
+characters.
+
 Default role templates such as `developer`, `product_owner`, and
 `knowledge_steward` are not accepted as project-defined role ids. They remain
 platform templates and can only be used as optional templates for custom roles.
@@ -60,6 +63,10 @@ Successful writes record `project_role_definition_change` audit evidence with
 `contractId: OPM-08`, operation, status, previous status, template role id,
 dependency counts, reason, audit evidence id, request path, method, and
 correlation id.
+
+Role-definition updates and audit evidence commit in the same database
+transaction. If audit evidence cannot be written, the role-definition change is
+rolled back.
 
 OPM-07 management activity can show OPM-08 events, but only through the existing
 safe metadata allow-list. The free-form reason stays in audit storage and is not

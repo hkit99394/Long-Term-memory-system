@@ -274,6 +274,16 @@ interface TextFetchResult {
   headers: Headers;
 }
 
+class ApiFetchError extends Error {
+  constructor(
+    public readonly status: number,
+    detail: string)
+  {
+    super(`${status} ${detail}`);
+    this.name = "ApiFetchError";
+  }
+}
+
 const credentialStorageKey = "memorySystem.consoleCredential";
 const credentialKindStorageKey = "memorySystem.consoleCredentialKind";
 const consoleReturnUrl = "/admin/";
@@ -686,18 +696,37 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers
   });
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: unknown = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch (error) {
+    if (response.ok) {
+      throw error;
+    }
+  }
 
   if (!response.ok) {
-    const detail = payload?.detail ?? payload?.title ?? response.statusText;
+    const detail = responseDetail(payload, response.statusText, text);
     if (isAuthenticationFailure(response)) {
       redirectToLoginAfterAuthenticationFailure();
     }
 
-    throw new Error(`${response.status} ${detail}`);
+    throw new ApiFetchError(response.status, detail);
   }
 
   return payload as T;
+}
+
+function responseDetail(payload: unknown, fallback: string, text: string): string {
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    const detail = record.detail ?? record.title;
+    if (typeof detail === "string" && detail.trim()) {
+      return detail;
+    }
+  }
+
+  return text.trim() || fallback;
 }
 
 async function logout(): Promise<void> {
@@ -729,7 +758,7 @@ function clearStoredCredential(): void {
 }
 
 function isAuthenticationFailure(response: Response): boolean {
-  return response.status === 401 || response.status === 403;
+  return response.status === 401;
 }
 
 function loginUrl(returnUrl: string): string {
@@ -1697,7 +1726,7 @@ async function apiFetchText(path: string, init: RequestInit = {}): Promise<TextF
       detail = text || detail;
     }
 
-    throw new Error(`${response.status} ${detail}`);
+    throw new ApiFetchError(response.status, detail);
   }
 
   return {
