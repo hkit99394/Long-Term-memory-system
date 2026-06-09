@@ -52,7 +52,8 @@ public sealed class ProjectRegistrationUxPlanTests
             "registrationValidation",
             "least-privilege",
             "bootstrap-admin",
-            "Scope, Owners/Roles, Grants, Seed Docs, Preflight, Register, Closeout",
+            "Project Details, People & Responsibilities, Seed Evidence, Access Rules, Review & Validate, Register, Finish Setup",
+            "REG-UX-01 Beginner-Friendly Registration Wizard",
             "zero root namespace grants",
             "effective access"
         })

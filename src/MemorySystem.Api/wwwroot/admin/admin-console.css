@@ -474,6 +474,54 @@ textarea {
   min-width: 112px;
 }
 
+.registration-info,
+.registration-advanced {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.registration-info ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.registration-info li + li {
+  margin-top: 4px;
+}
+
+.registration-info-warn {
+  border-color: #d7a923;
+  background: #fffaf0;
+}
+
+.registration-advanced summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.registration-advanced .access-grid,
+.registration-advanced .source-json {
+  margin-top: 10px;
+}
+
+.registration-blocker-list {
+  display: grid;
+  gap: 8px;
+}
+
+.registration-blocker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) max-content;
+  gap: 10px;
+  align-items: center;
+}
+
 .registration-check-group {
   min-width: 0;
   margin: 0;
@@ -735,6 +783,10 @@ textarea {
 
   .registration-row,
   .registration-row.seed-doc-row {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-blocker-row {
     grid-template-columns: 1fr;
   }
 }

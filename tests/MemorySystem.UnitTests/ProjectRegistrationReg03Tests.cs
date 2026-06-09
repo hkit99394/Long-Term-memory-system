@@ -27,13 +27,13 @@ public sealed class ProjectRegistrationReg03Tests
 
         foreach (var step in new[]
                  {
-                     "Scope",
-                     "Owners/Roles",
-                     "Grants",
-                     "Seed Docs",
-                     "Preflight",
+                     "Project Details",
+                     "People & Responsibilities",
+                     "Seed Evidence",
+                     "Access Rules",
+                     "Review & Validate",
                      "Register",
-                     "Closeout"
+                     "Finish Setup"
                  })
         {
             Assert.Contains(step, registrationPanel, StringComparison.Ordinal);
@@ -51,12 +51,15 @@ public sealed class ProjectRegistrationReg03Tests
                      "sourceContentSha256",
                      "registrationValidationItems",
                      "registrationAccessPlanFingerprint",
-                     "preview is stale after access-plan edits",
+                     "access check is stale after plan edits",
                      "registrationDraftChanged",
-                     "registrationReadOnlyField(`registration-grant-namespace-${index}`, \"Namespace\", grant.namespacePrefix)",
+                     "registrationReadOnlyField(`registration-grant-namespace-${index}`, \"Technical path\", grant.namespacePrefix)",
                      "roleIsKnown(source.sourceOwnerRoleId)",
                      "registrationSeedReadinessItems",
-                     "\"read\", \"write\", \"review\""
+                     "\"read\", \"write\", \"review\"",
+                     "Before you start",
+                     "Retry safety key",
+                     "registrationBlockingPanel"
                  })
         {
             Assert.Contains(fragment, registrationPanel, StringComparison.Ordinal);

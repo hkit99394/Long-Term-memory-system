@@ -20,10 +20,10 @@ or namespace hand-editing during normal project setup.
 | --- | --- | --- | --- | --- |
 | REG-01 | 2026-06-12 | Product Owner + Security Professional | Registration specification and dry-run contract | Done. Required fields, validation rules, least-privilege presets, source-doc checks, access preview, audit evidence, and closeout criteria are documented and covered by `scripts/project-onboarding-runbook.sh --dry-run`. |
 | REG-02 | 2026-06-19 | Developer + Security Professional | First registration API contract | Done. `POST /api/admin/projects/register` creates or updates organization/project rows, role definitions, owner memberships, namespace grants, and payload-safe audit evidence idempotently. |
-| REG-03 | 2026-06-26 | Designer + Developer | Admin wizard MVP | Done. `/admin/` exposes a guided Project Registration flow with Scope, Owners/Roles, Grants, Seed Docs, Preflight, Register, and Closeout steps, backed by access preview and the idempotent registration API. |
+| REG-03 | 2026-06-26 | Designer + Developer | Admin wizard MVP | Done. `/admin/` exposes a guided Project Registration flow with Project Details, People & Responsibilities, Seed Evidence, Access Rules, Review & Validate, Register, and Finish Setup steps, backed by access checks and the idempotent registration API. |
 | REG-04 | 2026-07-03 | Security Professional + Ops | Least-privilege bootstrap cleanup | Done. Root namespace admin grants stay absent, day-to-day setup uses read/write/review presets, and break-glass namespace admin is separated, owner-reviewed, time-bound, and audit-evidenced. |
-| REG-05 | 2026-07-10 | Knowledge Steward + Product Owner | Source-backed seed UX | Done. The wizard shows source-doc hash status, source owners, memory type coverage, role-lens readiness, context checks, and feedback closeout without raw payload exposure. |
-| REG-06 | 2026-07-17 | Product Owner + Tester/QA | Registration success benchmark | Done. Registration duration, validation failures, access drift after registration, source-link coverage, and user confidence are tracked in the wizard evidence rail and the project-success scorecard, weekly-cycle, and closeout templates. |
+| REG-05 | 2026-07-10 | Knowledge Steward + Product Owner | Source-backed seed UX | Done. The wizard shows source-document fingerprint status, source owners, evidence type coverage, role-specific guidance readiness, retrieval checks, and feedback closeout without raw payload exposure. |
+| REG-06 | 2026-07-17 | Product Owner + Tester/QA | Registration success benchmark | Done. Registration duration, validation failures, access changes after registration, source evidence coverage, and user confidence are tracked in the wizard evidence rail and the project-success scorecard, weekly-cycle, and closeout templates. |
 
 ## Required Registration Inputs
 
@@ -36,7 +36,7 @@ generate:
 - active roles, deferred roles, and custom project role definitions
 - membership level per owner and role
 - namespace grant preset per memory area: read, write, review, or admin only for break-glass
-- seed document paths, source owners, source hashes, and intended memory types
+- seed document paths, source owners, source hashes, and intended evidence types
 - review cadence evidence for memory hygiene, access boundary, roadmap/backlog sync, release evidence, and project-success measurement
 
 ## REG-01 Dry-Run Contract
@@ -127,23 +127,39 @@ checked in as `tools/ui/src/admin/registration-panel.ts` and bundled into
 
 The wizard step list is:
 
-- Scope
-- Owners/Roles
-- Grants
-- Seed Docs
-- Preflight
+- Project Details
+- People & Responsibilities
+- Seed Evidence
+- Access Rules
+- Review & Validate
 - Register
-- Closeout
+- Finish Setup
 
 The MVP keeps the Product Owner path API-backed and payload-safe:
 
-- Scope captures organization/project IDs and names, project status, and the idempotency key.
-- Owners/Roles captures owner principal assignments, default role templates, and optional custom project role definitions.
-- Grants uses project namespace area presets for read, write, and review grants; live admin grants stay outside the normal registration path.
-- Seed Docs captures source document paths, SHA-256 hashes, and owner roles without raw source payloads.
-- Preflight runs local validation and calls `POST /api/admin/access/effective-preview` for planned principal/namespace checks before commit.
+- Project Details captures organization/project IDs and names plus project status; the retry safety key is available under advanced settings.
+- People & Responsibilities captures owner person assignments, default responsibility templates, and optional custom project responsibilities.
+- Seed Evidence captures source document paths, SHA-256 fingerprints, owner responsibilities, and evidence types without raw source payloads.
+- Access Rules uses project memory-area presets for read, write, and review grants; live admin grants stay outside the normal registration path.
+- Review & Validate shows blockers, links each blocker back to the right step, and calls `POST /api/admin/access/effective-preview` for planned people/access checks before commit.
 - Register calls `POST /api/admin/projects/register` with `Idempotency-Key` and stores the payload-safe response in the evidence rail.
-- Closeout keeps the access-boundary review, context retrieval check, and feedback follow-up visible after registration.
+- Finish Setup keeps access confirmation, context retrieval check, feedback follow-up, and success benchmark evidence visible after registration.
+
+## REG-UX-01 Beginner-Friendly Registration Wizard
+
+REG-UX-01 applies the UX review findings across the implemented REG-03 to
+REG-06 flow. The wizard uses operator-facing language for normal work while
+keeping technical IDs and payload-safe evidence available where needed.
+
+The UX pass:
+
+- Renames internal step terms to Project Details, People & Responsibilities, Seed Evidence, Access Rules, Review & Validate, Register, and Finish Setup.
+- Adds a "Before you start" panel that tells operators which names, person IDs, source paths, and SHA-256 fingerprints they need.
+- Moves the retry safety key into an advanced section so new users do not start with idempotency terminology.
+- Puts seed evidence before access rules so operators define the project evidence before deciding who can read, write, or review it.
+- Shows registration blockers in a recovery panel with "Go to" actions for the step that fixes each issue.
+- Disables Register while blocking checks remain.
+- Rewords evidence-rail labels around source evidence coverage, role-specific guidance, access changes from plan, and access check reports.
 
 REG-03 is covered by `ProjectRegistrationReg03Tests`, the `tools/ui` TypeScript
 build/check, and the existing REG-02 API/integration coverage.
@@ -186,7 +202,7 @@ without storing raw source payloads or secrets.
 
 ## REG-05 Source-Backed Seed Readiness UX
 
-REG-05 expands the Project Registration wizard's Seed Docs step from a simple
+REG-05 expands the Project Registration wizard's Seed Evidence step from a simple
 source list into a source-backed seed readiness panel. The registration API
 payload remains payload-safe and continues to send only source document path,
 SHA-256 hash, and source owner role; the richer readiness state is shown in the
@@ -197,22 +213,22 @@ Seed document rows now capture:
 - source document path
 - SHA-256 content hash
 - source owner role
-- intended canonical memory types
+- intended canonical evidence types
 
 The readiness panel shows:
 
 - source document path coverage
 - SHA-256 hash coverage
 - source owner role coverage
-- canonical memory type coverage
-- role-lens coverage for registered owner roles
-- context check status
+- canonical evidence type coverage
+- role-specific guidance coverage for registered owner responsibilities
+- retrieval check status
 - feedback closeout status
 - raw source payload status as not included
 
-Preflight now includes seed readiness evidence next to access preview evidence.
-Registration is blocked when source paths, SHA-256 hashes, owner roles, memory
-types, or context checks are invalid. Role-lens coverage and feedback closeout
+Review & Validate now includes seed readiness evidence next to access check evidence.
+Registration is blocked when source paths, SHA-256 hashes, owner roles, evidence
+types, or retrieval checks are invalid. Role-specific guidance and feedback closeout
 show as `needs_review` until completed, because registration creates the project
 boundary while durable memory seed writes happen after source evidence and
 closeout checks are available.
@@ -230,8 +246,8 @@ The benchmark records:
 - registration duration in seconds
 - blocked validation submit attempts
 - current blocking validation checks
-- post-registration access drift status from the access-boundary review
-- source-link coverage for seed documents with path, SHA-256 hash, and owner role
+- post-registration access change status from the access-boundary review
+- source evidence coverage for seed documents with path, SHA-256 hash, and owner role
 - Product Owner/user confidence rating from 1 to 5
 
 The benchmark evidence keeps `payloadSafe: true`,
@@ -239,10 +255,10 @@ The benchmark evidence keeps `payloadSafe: true`,
 It does not send benchmark-only fields to `POST /api/admin/projects/register`;
 the registration API remains focused on creating the governed project boundary.
 
-Access drift is recorded as `pending`, `clear`, or `drift_found`. The first UI
+Access changes from plan are recorded as `pending`, `clear`, or `drift_found`. The first UI
 capture is an evidence field controlled during closeout; live drift detection
 continues to come from the access-boundary review workflow. A `clear` drift
-status, 100% source-link coverage, and confidence of at least 4/5 complete the
+status, 100% source evidence coverage, and confidence of at least 4/5 complete the
 REG-06 success benchmark.
 
 ## UX Requirements
@@ -250,12 +266,12 @@ REG-06 success benchmark.
 - Generate stable IDs by default and let advanced operators paste known IDs.
 - Use role and namespace presets instead of free-text namespace entry for the normal path.
 - Show inline validation before registration: invalid project id, invalid role id, missing owner, broad namespace, disabled custom role, missing seed document path, and invalid SHA-256 hash format.
-- Preview effective access before commit, grouped by principal and namespace.
-- Show source-backed seed readiness before durable memory writes: path coverage, hash coverage, owner roles, canonical memory types, role-lens coverage, context checks, and feedback closeout.
-- Track registration success before closeout: duration, validation failures, access drift status, source-link coverage, and user confidence.
+- Check effective access before commit, grouped by person and memory area.
+- Show source-backed seed readiness before durable memory writes: path coverage, hash coverage, source owners, canonical evidence types, role-specific guidance, retrieval checks, and feedback closeout.
+- Track registration success before finish setup: duration, validation failures, access changes from plan, source evidence coverage, and user confidence.
 - Keep review cadence visible as onboarding and closeout evidence through the runbook and project-success loop.
 - Make the destructive or privileged path explicit: admin grants require owner, reason, review due date, cleanup action, and audit evidence.
-- Keep the primary flow in a stepper with a persistent summary rail: Scope, Owners/Roles, Grants, Seed Docs, Preflight, Register, Closeout.
+- Keep the primary flow in a stepper with a persistent summary rail: Project Details, People & Responsibilities, Seed Evidence, Access Rules, Review & Validate, Register, Finish Setup.
 - Keep payload safety visible through status and evidence labels, not raw source payloads or secret values.
 
 ## Success Targets
@@ -265,7 +281,7 @@ REG-06 success benchmark.
 - Every break-glass admin grant has owner, reason, review due date, cleanup action, and audit evidence.
 - Source-backed seed readiness reaches 100% hash coverage before durable memory writes.
 - Registration closeout includes one successful access-boundary review, one context retrieval check, and recorded feedback.
-- Registration success evidence reaches clear access drift, 100% source-link coverage, and Product Owner confidence of at least 4/5.
+- Registration success evidence reaches clear access-change status, 100% source evidence coverage, and Product Owner confidence of at least 4/5.
 
 ## Risks
 

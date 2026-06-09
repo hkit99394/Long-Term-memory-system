@@ -31,8 +31,8 @@ public sealed class ProjectRegistrationReg05Tests
                      "registrationRoleLensReadinessLabel",
                      "seedContextCheckStatus",
                      "seedFeedbackStatus",
-                     "Memory types",
-                     "Role-lens readiness",
+                     "Evidence types",
+                     "Role-specific guidance",
                      "Raw source payloads",
                      "not included"
                  })

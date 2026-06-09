@@ -141,13 +141,13 @@ function renderAccessDetail() {
 
 "use strict";
 const registrationSteps = [
-    { id: "scope", title: "Scope" },
-    { id: "owners_roles", title: "Owners/Roles" },
-    { id: "grants", title: "Grants" },
-    { id: "seed_docs", title: "Seed Docs" },
-    { id: "preflight", title: "Preflight" },
+    { id: "scope", title: "Project Details" },
+    { id: "owners_roles", title: "People & Responsibilities" },
+    { id: "seed_docs", title: "Seed Evidence" },
+    { id: "grants", title: "Access Rules" },
+    { id: "preflight", title: "Review & Validate" },
     { id: "register", title: "Register" },
-    { id: "closeout", title: "Closeout" }
+    { id: "closeout", title: "Finish Setup" }
 ];
 const registrationNamespaceAreas = [
     "goals",
@@ -301,20 +301,20 @@ function renderRegistrationSourceDetail() {
             seedReadiness,
             successBenchmark
         }, null, 2);
-        elements.sourceDetail.append(heading("Registration Result"), detailGrid([
+        elements.sourceDetail.append(heading(registrationSucceeded() ? "Project registration complete" : "Registration needs attention"), detailGrid([
             ["Contract", readStringValue(state.registrationResult, "contractId")],
             ["Status", readStringValue(state.registrationResult, "status")],
             ["Payload safe", readBooleanValue(state.registrationResult, "payloadSafe")],
             ["Raw source payloads", readBooleanValue(state.registrationResult, "rawSourcePayloadsIncluded")],
             ["Source hash coverage", `${readNumberValue(state.registrationResult, "sourceHashCoveragePercent")}%`],
-            ["Memory types", registrationCoveredMemoryTypes().join(", ")],
+            ["Evidence types", registrationDisplayList(registrationCoveredMemoryTypes())],
             ["Seed readiness", readStringValue(seedReadiness, "status")],
             ["Duration", formatRegistrationDuration()],
             ["Validation failures", registrationDraft.registrationValidationFailureCount.toString()],
-            ["Access drift", registrationDraft.accessDriftStatus],
-            ["Source-link coverage", `${registrationSourceLinkCoveragePercent()}%`],
+            ["Access changed from plan", registrationDraft.accessDriftStatus],
+            ["Source evidence coverage", `${registrationSourceLinkCoveragePercent()}%`],
             ["User confidence", registrationUserConfidenceLabel()]
-        ]), json);
+        ]), registrationTechnicalJsonDetails(json.textContent));
         return;
     }
     const previewJson = document.createElement("pre");
@@ -327,24 +327,24 @@ function renderRegistrationSourceDetail() {
         seedReadiness: registrationSeedReadinessEvidence(),
         successBenchmark: registrationSuccessBenchmarkEvidence()
     }, null, 2);
-    elements.sourceDetail.append(heading("Preflight Evidence"), detailGrid([
-        ["Preview report", registrationDraft.accessPreviewReportId],
-        ["Preview rows", registrationPreviewResults.length.toString()],
+    elements.sourceDetail.append(heading("Setup readiness"), detailGrid([
+        ["Access check report", registrationDraft.accessPreviewReportId],
+        ["Access checks", registrationPreviewResults.length.toString()],
         ["Hash coverage", `${registrationSourceHashCoveragePercent()}%`],
-        ["Source-link coverage", `${registrationSourceLinkCoveragePercent()}%`],
-        ["Memory types", registrationCoveredMemoryTypes().join(", ")],
-        ["Role-lens readiness", registrationRoleLensReadinessLabel()],
+        ["Source evidence coverage", `${registrationSourceLinkCoveragePercent()}%`],
+        ["Evidence types", registrationDisplayList(registrationCoveredMemoryTypes())],
+        ["Role-specific guidance", registrationRoleLensReadinessLabel()],
         ["Benchmark status", registrationSuccessBenchmarkStatusText()],
-        ["Idempotency key", registrationDraft.idempotencyKey]
-    ]), previewJson);
+        ["Retry safety key", registrationDraft.idempotencyKey]
+    ]), registrationTechnicalJsonDetails(previewJson.textContent));
 }
 function renderRegistrationScopeStep() {
-    const section = registrationSection("Scope", [
-        registrationTextField("registration-organization-id", "Org ID", registrationDraft.organizationId, value => {
+    const section = registrationSection("Project Details", [
+        registrationTextField("registration-organization-id", "Organization ID", registrationDraft.organizationId, value => {
             registrationDraft.organizationId = value;
             registrationDraftChanged();
         }),
-        registrationTextField("registration-organization-name", "Org name", registrationDraft.organizationName, value => {
+        registrationTextField("registration-organization-name", "Organization name", registrationDraft.organizationName, value => {
             registrationDraft.organizationName = value;
             registrationDraftChanged();
         }),
@@ -357,13 +357,9 @@ function renderRegistrationScopeStep() {
             registrationDraft.projectName = value;
             registrationDraftChanged();
         }),
-        registrationSelectField("registration-project-status", "Status", registrationDraft.projectStatus, ["active", "planned"], value => {
+        registrationSelectField("registration-project-status", "Project status", registrationDraft.projectStatus, ["active", "planned"], value => {
             registrationDraft.projectStatus = value;
             registrationDraftChanged();
-        }),
-        registrationTextField("registration-idempotency-key", "Idempotency key", registrationDraft.idempotencyKey, value => {
-            registrationDraft.idempotencyKey = value;
-            registrationDraftChanged(false);
         })
     ], [
         registrationButton("Generate IDs", "secondary-action", () => {
@@ -378,22 +374,37 @@ function renderRegistrationScopeStep() {
             registrationDraftChanged();
             render();
         }),
-        registrationStepButton("Owners/Roles", "owners_roles")
+        registrationStepButton("People & Responsibilities", "owners_roles")
+    ], [
+        registrationInfoPanel("Before you start", [
+            "Have the organization name, project name, three person IDs, and at least one source document path ready.",
+            "Each source document needs a SHA-256 fingerprint so the registration can prove which evidence was used.",
+            "Active projects are available immediately after registration; planned projects stay staged for later activation."
+        ]),
+        registrationAdvancedSection("Advanced retry settings", [
+            registrationTextField("registration-idempotency-key", "Retry safety key", registrationDraft.idempotencyKey, value => {
+                registrationDraft.idempotencyKey = value;
+                registrationDraftChanged(false);
+            })
+        ])
     ]);
     elements.detail.append(section);
 }
 function renderRegistrationOwnersRolesStep() {
     const section = document.createElement("section");
     section.className = "access-forms";
-    section.append(heading("Owners/Roles"));
+    section.append(heading("People & Responsibilities"), registrationInfoPanel("Required people", [
+        "Add the people who will own product decisions, knowledge quality, and security review for this project.",
+        "Use Person ID values from the organization directory or existing principal records."
+    ]));
     const owners = document.createElement("section");
     owners.className = "access-form";
-    owners.append(heading("Owner assignments"));
+    owners.append(heading("People"));
     for (let index = 0; index < registrationDraft.ownerAssignments.length; index += 1) {
         owners.append(registrationOwnerRow(index, registrationDraft.ownerAssignments[index]));
     }
     owners.append(actionRow([
-        registrationButton("Add owner", "secondary-action", () => {
+        registrationButton("Add person", "secondary-action", () => {
             registrationDraft.ownerAssignments.push({
                 principalId: "",
                 roleId: "developer",
@@ -406,7 +417,7 @@ function renderRegistrationOwnersRolesStep() {
     ]));
     const roles = document.createElement("section");
     roles.className = "access-form";
-    roles.append(heading("Custom roles"));
+    roles.append(heading("Optional custom responsibilities"));
     if (registrationDraft.roleDefinitions.length === 0) {
         roles.append(emptyPanel("No custom roles"));
     }
@@ -414,7 +425,7 @@ function renderRegistrationOwnersRolesStep() {
         roles.append(registrationRoleRow(index, registrationDraft.roleDefinitions[index]));
     }
     roles.append(actionRow([
-        registrationButton("Add custom role", "secondary-action", () => {
+        registrationButton("Add responsibility", "secondary-action", () => {
             registrationDraft.roleDefinitions.push({
                 roleId: "",
                 displayName: "",
@@ -425,7 +436,7 @@ function renderRegistrationOwnersRolesStep() {
             registrationDraftChanged();
             render();
         }),
-        registrationStepButton("Grants", "grants")
+        registrationStepButton("Seed Evidence", "seed_docs")
     ]));
     section.append(owners, roles);
     elements.detail.append(section);
@@ -434,14 +445,17 @@ function renderRegistrationGrantsStep() {
     syncRegistrationGrantNamespaces();
     const section = document.createElement("section");
     section.className = "access-forms";
-    section.append(heading("Grants"));
+    section.append(heading("Access Rules"), registrationInfoPanel("Standard least-privilege setup", [
+        "Access rules decide who can read, write, or review project memory in each area.",
+        "Normal registration does not create admin access or project-root grants."
+    ]));
     const grants = document.createElement("section");
     grants.className = "access-form";
     for (let index = 0; index < registrationDraft.namespaceGrants.length; index += 1) {
         grants.append(registrationGrantRow(index, registrationDraft.namespaceGrants[index]));
     }
     grants.append(actionRow([
-        registrationButton("Add grant", "secondary-action", () => {
+        registrationButton("Add access rule", "secondary-action", () => {
             registrationDraft.namespaceGrants.push({
                 targetType: "role",
                 targetId: "developer",
@@ -452,7 +466,7 @@ function renderRegistrationGrantsStep() {
             registrationDraftChanged();
             render();
         }),
-        registrationStepButton("Seed Docs", "seed_docs")
+        registrationStepButton("Review & Validate", "preflight")
     ]));
     section.append(grants);
     elements.detail.append(section);
@@ -460,7 +474,10 @@ function renderRegistrationGrantsStep() {
 function renderRegistrationSeedDocsStep() {
     const section = document.createElement("section");
     section.className = "access-forms";
-    section.append(heading("Seed Docs"));
+    section.append(heading("Seed Evidence"), registrationInfoPanel("Evidence for the first memory setup", [
+        "Add source documents that explain why the project exists, what it should remember, and who owns each source.",
+        "Only paths, fingerprints, owner roles, and evidence types are stored here; raw document contents are not included."
+    ]));
     const docs = document.createElement("section");
     docs.className = "access-form";
     for (let index = 0; index < registrationDraft.sourceDocuments.length; index += 1) {
@@ -477,11 +494,11 @@ function renderRegistrationSeedDocsStep() {
             registrationDraftChanged(false);
             render();
         }),
-        registrationStepButton("Preflight", "preflight")
+        registrationStepButton("Access Rules", "grants")
     ]));
     const readiness = document.createElement("section");
     readiness.className = "access-form";
-    readiness.append(heading("Seed readiness"), detailGrid(registrationSeedReadinessSummaryRows()), registrationValidationList(registrationSeedReadinessItems()), registrationSeedReadinessControls());
+    readiness.append(heading("Evidence readiness"), detailGrid(registrationSeedReadinessSummaryRows()), registrationValidationList(registrationSeedReadinessItems()), registrationSeedReadinessControls());
     section.append(docs, readiness);
     elements.detail.append(section);
 }
@@ -489,53 +506,63 @@ function renderRegistrationPreflightStep() {
     const validation = registrationValidationItems();
     const section = document.createElement("section");
     section.className = "access-forms";
-    section.append(heading("Preflight"));
+    section.append(heading("Review & Validate"), registrationInfoPanel("Ready check", [
+        "Review every blocker before registration. The access check confirms the planned people and rules work before anything is created.",
+        "If you change people, evidence, or access rules after checking, run the access check again."
+    ]));
     const checks = document.createElement("section");
     checks.className = "audit-section";
-    checks.append(registrationValidationList(validation));
+    checks.append(registrationBlockingPanel(validation), registrationValidationList(validation));
     const previewRequests = registrationPreviewRequests();
     checks.append(detailGrid([
-        ["Preview candidates", previewRequests.length.toString()],
-        ["Preview report", registrationDraft.accessPreviewReportId],
-        ["Source docs", compactRegistrationSources().length.toString()],
+        ["Access checks", previewRequests.length.toString()],
+        ["Access check report", registrationDraft.accessPreviewReportId],
+        ["Source documents", compactRegistrationSources().length.toString()],
         ["Hash coverage", `${registrationSourceHashCoveragePercent()}%`],
-        ["Memory types", registrationCoveredMemoryTypes().join(", ")],
+        ["Evidence types", registrationDisplayList(registrationCoveredMemoryTypes())],
         ["Blocking checks", validation.filter(item => item.status === "blocked").length.toString()]
     ]));
     checks.append(actionRow([
-        registrationButton("Run preview", "primary-action", () => void runRegistrationPreview()),
+        registrationButton("Check access plan", "primary-action", () => void runRegistrationPreview()),
         registrationStepButton("Register", "register")
     ]));
     section.append(checks);
     elements.detail.append(section);
 }
 function renderRegistrationRegisterStep() {
+    const validation = registrationValidationItems();
+    const blockers = validation.filter(item => item.status === "blocked");
     const section = document.createElement("section");
     section.className = "access-forms";
     section.append(heading("Register"));
     const summary = document.createElement("section");
     summary.className = "access-form";
-    summary.append(detailGrid([
-        ["Org", `${registrationDraft.organizationName} ${registrationDraft.organizationId}`.trim()],
+    const registerButton = registrationButton("Register project", "primary-action", () => void submitRegistration());
+    if (blockers.length > 0) {
+        registerButton.disabled = true;
+        registerButton.title = `Fix ${blockers.length} blocker${blockers.length === 1 ? "" : "s"} before registering.`;
+    }
+    summary.append(registrationBlockingPanel(validation), detailGrid([
+        ["Organization", `${registrationDraft.organizationName} ${registrationDraft.organizationId}`.trim()],
         ["Project", `${registrationDraft.projectName} ${registrationDraft.projectId}`.trim()],
-        ["Owners", compactRegistrationOwners().length.toString()],
-        ["Custom roles", compactRegistrationRoles().length.toString()],
-        ["Namespace grants", compactRegistrationGrants().length.toString()],
-        ["Seed docs", compactRegistrationSources().length.toString()],
+        ["People", compactRegistrationOwners().length.toString()],
+        ["Custom responsibilities", compactRegistrationRoles().length.toString()],
+        ["Access rules", compactRegistrationGrants().length.toString()],
+        ["Source documents", compactRegistrationSources().length.toString()],
         ["Hash coverage", `${registrationSourceHashCoveragePercent()}%`],
-        ["Source-link coverage", `${registrationSourceLinkCoveragePercent()}%`],
+        ["Source evidence coverage", `${registrationSourceLinkCoveragePercent()}%`],
         ["Seed readiness", registrationSeedReadinessStatusText()],
         ["Duration", formatRegistrationDuration()],
         ["Validation failures", registrationDraft.registrationValidationFailureCount.toString()],
         ["Benchmark status", registrationSuccessBenchmarkStatusText()],
-        ["Preview report", registrationDraft.accessPreviewReportId],
-        ["Idempotency key", registrationDraft.idempotencyKey]
+        ["Access check report", registrationDraft.accessPreviewReportId],
+        ["Retry safety key", registrationDraft.idempotencyKey]
     ]), registrationTextarea("registration-note", "Note", registrationDraft.registrationNote, value => {
         registrationDraft.registrationNote = value;
         registrationDraftChanged(false);
     }), actionRow([
-        registrationButton("Register", "primary-action", () => void submitRegistration()),
-        registrationStepButton("Closeout", "closeout")
+        registerButton,
+        registrationStepButton("Finish Setup", "closeout")
     ]));
     section.append(summary);
     elements.detail.append(section);
@@ -544,22 +571,24 @@ function renderRegistrationCloseoutStep() {
     const result = state.registrationResult;
     const section = document.createElement("section");
     section.className = "access-forms";
-    section.append(heading("Closeout"));
+    section.append(heading("Finish Setup"));
     const status = document.createElement("section");
     status.className = "access-form";
-    status.append(detailGrid([
+    status.append(registrationInfoPanel(registrationSucceeded() ? "Project registration complete" : "Registration is not complete", registrationSucceeded()
+        ? ["Save the registration evidence, confirm access matches the plan, run a retrieval check, and record feedback."]
+        : ["Register the project before completing setup."]), detailGrid([
         ["Registration", registrationSucceeded() ? readStringValue(result, "status") : "pending"],
-        ["Access-boundary review", registrationSucceeded() ? "queued" : "pending"],
+        ["Confirm access matches plan", registrationSucceeded() ? "queued" : "pending"],
         ["Context retrieval check", registrationSucceeded() ? "required" : "pending"],
         ["Feedback", registrationSucceeded() ? "required" : "pending"],
         ["Seed readiness", registrationSeedReadinessStatusText()],
-        ["Role-lens readiness", registrationRoleLensReadinessLabel()],
+        ["Role-specific guidance", registrationRoleLensReadinessLabel()],
         ["Benchmark status", registrationSuccessBenchmarkStatusText()],
         ["Payload safe", registrationSucceeded() ? readBooleanValue(result, "payloadSafe") : ""],
         ["Raw source payloads", registrationSucceeded() ? readBooleanValue(result, "rawSourcePayloadsIncluded") : ""]
     ]), registrationValidationList(registrationSeedReadinessItems()), actionRow([
-        linkAction("Open Access", "/admin/"),
-        linkAction("Open reviews", "/reviews/")
+        linkAction("Open Access Management", "/admin/"),
+        linkAction("Open Reviews", "/reviews/")
     ]));
     const benchmark = document.createElement("section");
     benchmark.className = "access-form";
@@ -570,16 +599,16 @@ function renderRegistrationCloseoutStep() {
 function registrationOwnerRow(index, owner) {
     const row = document.createElement("div");
     row.className = "registration-row";
-    row.append(registrationTextField(`registration-owner-principal-${index}`, "Principal ID", owner.principalId, value => {
+    row.append(registrationTextField(`registration-owner-principal-${index}`, "Person ID", owner.principalId, value => {
         owner.principalId = value;
         registrationDraftChanged();
-    }), registrationSelectField(`registration-owner-role-${index}`, "Role", owner.roleId, registrationRoleOptions(), value => {
+    }), registrationSelectField(`registration-owner-role-${index}`, "Responsibility", owner.roleId, registrationRoleOptions(), value => {
         owner.roleId = value;
         registrationDraftChanged();
-    }), registrationSelectField(`registration-owner-access-${index}`, "Access", owner.projectAccessLevel, ["reader", "contributor", "reviewer"], value => {
+    }), registrationSelectField(`registration-owner-access-${index}`, "Project access", owner.projectAccessLevel, ["reader", "contributor", "reviewer"], value => {
         owner.projectAccessLevel = value;
         registrationDraftChanged();
-    }), registrationTextField(`registration-owner-label-${index}`, "Label", owner.principalLabel, value => {
+    }), registrationTextField(`registration-owner-label-${index}`, "Name or label", owner.principalLabel, value => {
         owner.principalLabel = value;
         registrationDraftChanged();
     }), registrationButton("Remove", "secondary-action", () => {
@@ -592,10 +621,10 @@ function registrationOwnerRow(index, owner) {
 function registrationRoleRow(index, role) {
     const row = document.createElement("div");
     row.className = "registration-row";
-    row.append(registrationTextField(`registration-role-id-${index}`, "Role ID", role.roleId, value => {
+    row.append(registrationTextField(`registration-role-id-${index}`, "Responsibility ID", role.roleId, value => {
         role.roleId = value;
         registrationDraftChanged();
-    }), registrationTextField(`registration-role-display-${index}`, "Display", role.displayName, value => {
+    }), registrationTextField(`registration-role-display-${index}`, "Display name", role.displayName, value => {
         role.displayName = value;
         registrationDraftChanged();
     }), registrationSelectField(`registration-role-template-${index}`, "Template", role.templateRoleId, ["", ...defaultRoleIds], value => {
@@ -617,18 +646,18 @@ function registrationRoleRow(index, role) {
 function registrationGrantRow(index, grant) {
     const row = document.createElement("div");
     row.className = "registration-row";
-    row.append(registrationSelectField(`registration-grant-target-type-${index}`, "Target", grant.targetType, ["role", "principal"], value => {
+    row.append(registrationSelectField(`registration-grant-target-type-${index}`, "Applies to", grant.targetType, ["role", "principal"], value => {
         grant.targetType = value === "principal" ? "principal" : "role";
         registrationDraftChanged();
-    }), registrationTextField(`registration-grant-target-id-${index}`, "Target ID", grant.targetId, value => {
+    }), registrationTextField(`registration-grant-target-id-${index}`, "Role or person ID", grant.targetId, value => {
         grant.targetId = value;
         registrationDraftChanged();
-    }), registrationSelectField(`registration-grant-area-${index}`, "Area", grant.namespaceArea, registrationNamespaceAreas, value => {
+    }), registrationSelectField(`registration-grant-area-${index}`, "Memory area", grant.namespaceArea, registrationNamespaceAreas, value => {
         grant.namespaceArea = value;
         grant.namespacePrefix = registrationNamespaceFromArea(value);
         registrationDraftChanged();
         render();
-    }), registrationReadOnlyField(`registration-grant-namespace-${index}`, "Namespace", grant.namespacePrefix), registrationSelectField(`registration-grant-permission-${index}`, "Permission", grant.permission, ["read", "write", "review"], value => {
+    }), registrationReadOnlyField(`registration-grant-namespace-${index}`, "Technical path", grant.namespacePrefix), registrationSelectField(`registration-grant-permission-${index}`, "Permission", grant.permission, ["read", "write", "review"], value => {
         grant.permission = value;
         registrationDraftChanged();
     }), registrationButton("Remove", "secondary-action", () => {
@@ -641,13 +670,13 @@ function registrationGrantRow(index, grant) {
 function registrationSourceDocumentRow(index, source) {
     const row = document.createElement("div");
     row.className = "registration-row seed-doc-row";
-    row.append(registrationTextField(`registration-source-path-${index}`, "Path", source.path, value => {
+    row.append(registrationTextField(`registration-source-path-${index}`, "Source path", source.path, value => {
         source.path = value;
         registrationDraftChanged(false);
-    }), registrationTextField(`registration-source-hash-${index}`, "SHA-256", source.sourceContentSha256, value => {
+    }), registrationTextField(`registration-source-hash-${index}`, "SHA-256 fingerprint", source.sourceContentSha256, value => {
         source.sourceContentSha256 = value.toLowerCase();
         registrationDraftChanged(false);
-    }), registrationSelectField(`registration-source-owner-${index}`, "Owner role", source.sourceOwnerRoleId, registrationRoleOptions(), value => {
+    }), registrationSelectField(`registration-source-owner-${index}`, "Source owner", source.sourceOwnerRoleId, registrationRoleOptions(), value => {
         source.sourceOwnerRoleId = value;
         registrationDraftChanged(false);
     }), registrationMemoryTypeChecklist(`registration-source-memory-types-${index}`, source.memoryTypes, values => {
@@ -660,14 +689,49 @@ function registrationSourceDocumentRow(index, source) {
     }));
     return row;
 }
-function registrationSection(title, fields, actions) {
+function registrationSection(title, fields, actions, intro = []) {
     const section = document.createElement("section");
     section.className = "access-form";
     const grid = document.createElement("div");
     grid.className = "access-grid";
     grid.append(...fields);
-    section.append(heading(title), grid, actionRow(actions));
+    section.append(heading(title), ...intro, grid, actionRow(actions));
     return section;
+}
+function registrationInfoPanel(title, items) {
+    const panel = document.createElement("div");
+    panel.className = "registration-info";
+    panel.append(line(title, "memory-title"));
+    const list = document.createElement("ul");
+    for (const item of items) {
+        const row = document.createElement("li");
+        row.textContent = item;
+        list.append(row);
+    }
+    panel.append(list);
+    return panel;
+}
+function registrationAdvancedSection(title, fields) {
+    const details = document.createElement("details");
+    details.className = "registration-advanced";
+    const summary = document.createElement("summary");
+    summary.textContent = title;
+    const grid = document.createElement("div");
+    grid.className = "access-grid";
+    grid.append(...fields);
+    details.append(summary, grid);
+    return details;
+}
+function registrationTechnicalJsonDetails(jsonText) {
+    const details = document.createElement("details");
+    details.className = "registration-advanced";
+    const summary = document.createElement("summary");
+    const json = document.createElement("pre");
+    summary.textContent = "Technical evidence JSON";
+    json.className = "source-json";
+    json.textContent = jsonText ?? "{}";
+    details.append(summary, json);
+    return details;
 }
 function registrationTextField(id, labelText, value, onInput) {
     const label = document.createElement("label");
@@ -716,7 +780,7 @@ function registrationSelectField(id, labelText, value, values, onChange) {
     for (const optionValue of values) {
         const option = document.createElement("option");
         option.value = optionValue;
-        option.textContent = optionValue;
+        option.textContent = registrationOptionLabel(optionValue);
         option.selected = optionValue === value;
         select.append(option);
     }
@@ -728,7 +792,7 @@ function registrationMemoryTypeChecklist(idPrefix, selectedValues, onChange) {
     const fieldset = document.createElement("fieldset");
     fieldset.className = "registration-check-group";
     const legend = document.createElement("legend");
-    legend.textContent = "Memory types";
+    legend.textContent = "Evidence types";
     fieldset.append(legend);
     for (const memoryType of registrationMemoryTypes) {
         const label = document.createElement("label");
@@ -737,7 +801,7 @@ function registrationMemoryTypeChecklist(idPrefix, selectedValues, onChange) {
         input.id = `${idPrefix}-${memoryType}`;
         input.type = "checkbox";
         input.checked = selectedValues.includes(memoryType);
-        span.textContent = memoryType;
+        span.textContent = registrationMemoryTypeLabel(memoryType);
         input.addEventListener("change", () => {
             const next = new Set(selectedValues);
             if (input.checked) {
@@ -769,6 +833,25 @@ function registrationStepButton(label, stepId) {
         render();
     });
 }
+function registrationBlockingPanel(items) {
+    const blockers = items.filter(item => item.status === "blocked");
+    if (blockers.length === 0) {
+        return registrationInfoPanel("Ready to continue", ["No blocking checks remain."]);
+    }
+    const panel = document.createElement("div");
+    panel.className = "registration-info registration-info-warn";
+    panel.append(line(`Fix ${blockers.length} blocker${blockers.length === 1 ? "" : "s"} before registering`, "memory-title"));
+    const list = document.createElement("div");
+    list.className = "registration-blocker-list";
+    for (const blocker of blockers) {
+        const row = document.createElement("div");
+        row.className = "registration-blocker-row";
+        row.append(line(blocker.label, "memory-title"), line(blocker.detail, "memory-meta"), registrationStepButton(`Go to ${registrationStepTitle(registrationStepForValidationItem(blocker.id))}`, registrationStepForValidationItem(blocker.id)));
+        list.append(row);
+    }
+    panel.append(list);
+    return panel;
+}
 function registrationValidationList(items) {
     const list = document.createElement("div");
     list.className = "audit-list";
@@ -779,6 +862,59 @@ function registrationValidationList(items) {
         list.append(row);
     }
     return list;
+}
+function registrationStepForValidationItem(itemId) {
+    if (itemId.startsWith("scope_")) {
+        return "scope";
+    }
+    if (itemId === "owners_present" || itemId === "roles_active") {
+        return "owners_roles";
+    }
+    if (itemId === "grants_safe") {
+        return "grants";
+    }
+    if (itemId.startsWith("source_")
+        || itemId === "memory_type_coverage"
+        || itemId === "role_lens_readiness"
+        || itemId === "context_checks"
+        || itemId === "feedback_closeout") {
+        return "seed_docs";
+    }
+    return "preflight";
+}
+function registrationStepTitle(stepId) {
+    return registrationSteps.find(step => step.id === stepId)?.title ?? "Review & Validate";
+}
+function registrationOptionLabel(value) {
+    if (value === "") {
+        return "";
+    }
+    if (value === "principal") {
+        return "person";
+    }
+    if (value === "active") {
+        return "active";
+    }
+    if (value === "planned") {
+        return "planned";
+    }
+    return value;
+}
+function registrationMemoryTypeLabel(value) {
+    if (value === "role_lens") {
+        return "Role-specific guidance";
+    }
+    if (value === "release_evidence") {
+        return "Release evidence";
+    }
+    return value
+        .split("_")
+        .filter(Boolean)
+        .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+        .join(" ");
+}
+function registrationDisplayList(values) {
+    return values.length === 0 ? "" : values.map(registrationMemoryTypeLabel).join(", ");
 }
 function registrationSeedReadinessControls() {
     const grid = document.createElement("div");
@@ -803,13 +939,13 @@ function registrationSeedReadinessItems() {
     return [
         {
             id: "source_doc_paths",
-            label: "Source document paths",
+            label: "Source documents",
             status: sourceCount > 0 && sources.every(source => source.path) ? "done" : "blocked",
             detail: sourceCount === 0 ? "at least one source document required" : `${sourceCount} source document${sourceCount === 1 ? "" : "s"}`
         },
         {
             id: "source_hash_status",
-            label: "Source hash coverage",
+            label: "Source fingerprints",
             status: sourceCount > 0 && sources.every(source => sha256IsValid(source.sourceContentSha256)) ? "done" : "blocked",
             detail: `${registrationSourceHashCoveragePercent()}% valid SHA-256 coverage`
         },
@@ -817,26 +953,26 @@ function registrationSeedReadinessItems() {
             id: "source_owner_status",
             label: "Source owners",
             status: sourceCount > 0 && sources.every(source => roleIsKnown(source.sourceOwnerRoleId)) ? "done" : "blocked",
-            detail: ownerRoles.length === 0 ? "source owner role required" : ownerRoles.join(", ")
+            detail: ownerRoles.length === 0 ? "source owner required" : ownerRoles.join(", ")
         },
         {
             id: "memory_type_coverage",
-            label: "Memory type coverage",
+            label: "Evidence type coverage",
             status: sourceCount > 0
                 && sources.every(source => source.memoryTypes.length > 0 && source.memoryTypes.every(registrationMemoryTypeIsCanonical))
                 ? "done"
                 : "blocked",
-            detail: coveredMemoryTypes.length === 0 ? "canonical memory type required" : coveredMemoryTypes.join(", ")
+            detail: coveredMemoryTypes.length === 0 ? "choose at least one evidence type" : registrationDisplayList(coveredMemoryTypes)
         },
         {
             id: "role_lens_readiness",
-            label: "Role-lens readiness",
+            label: "Role-specific guidance",
             status: missingRoleLensRoles.length === 0 && registrationRoleLensOwnerRoles().length > 0 ? "done" : "needs_review",
             detail: registrationRoleLensReadinessLabel()
         },
         {
             id: "context_checks",
-            label: "Context checks",
+            label: "Retrieval check",
             status: registrationDraft.seedContextCheckStatus === "passed"
                 ? "done"
                 : registrationDraft.seedContextCheckStatus === "failed" ? "blocked" : "needs_review",
@@ -844,7 +980,7 @@ function registrationSeedReadinessItems() {
         },
         {
             id: "feedback_closeout",
-            label: "Feedback closeout",
+            label: "Feedback recorded",
             status: registrationDraft.seedFeedbackStatus === "recorded" ? "done" : "needs_review",
             detail: registrationDraft.seedFeedbackStatus
         }
@@ -853,11 +989,11 @@ function registrationSeedReadinessItems() {
 function registrationSeedReadinessSummaryRows() {
     const missingRoleLensRoles = registrationMissingRoleLensRoles();
     return [
-        ["Source docs", compactRegistrationSources().length.toString()],
+        ["Source documents", compactRegistrationSources().length.toString()],
         ["Hash coverage", `${registrationSourceHashCoveragePercent()}%`],
         ["Source owners", registrationSourceOwnerRoles().join(", ")],
-        ["Memory types", registrationCoveredMemoryTypes().join(", ")],
-        ["Role-lens missing", missingRoleLensRoles.length === 0 ? "none" : missingRoleLensRoles.join(", ")],
+        ["Evidence types", registrationDisplayList(registrationCoveredMemoryTypes())],
+        ["Role-specific guidance missing", missingRoleLensRoles.length === 0 ? "none" : missingRoleLensRoles.join(", ")],
         ["Context check", registrationDraft.seedContextCheckStatus],
         ["Feedback", registrationDraft.seedFeedbackStatus],
         ["Raw source payloads", "not included"]
@@ -881,7 +1017,7 @@ function registrationSeedReadinessEvidence() {
 function registrationSuccessBenchmarkControls() {
     const grid = document.createElement("div");
     grid.className = "access-grid";
-    grid.append(registrationReadOnlyField("registration-started-at", "Started", registrationDraft.registrationStartedAt || "pending"), registrationReadOnlyField("registration-completed-at", "Completed", registrationDraft.registrationCompletedAt || "pending"), registrationSelectField("registration-access-drift", "Access drift", registrationDraft.accessDriftStatus, ["pending", "clear", "drift_found"], value => {
+    grid.append(registrationReadOnlyField("registration-started-at", "Started", registrationDraft.registrationStartedAt || "pending"), registrationReadOnlyField("registration-completed-at", "Completed", registrationDraft.registrationCompletedAt || "pending"), registrationSelectField("registration-access-drift", "Access changed from plan", registrationDraft.accessDriftStatus, ["pending", "clear", "drift_found"], value => {
         registrationDraft.accessDriftStatus = value === "clear" || value === "drift_found" ? value : "pending";
         render();
     }), registrationSelectField("registration-confidence-score", "Confidence", registrationDraft.userConfidenceScore, ["", "1", "2", "3", "4", "5"], value => {
@@ -910,7 +1046,7 @@ function registrationSuccessBenchmarkItems() {
         },
         {
             id: "registration_access_drift",
-            label: "Access drift",
+            label: "Access changed from plan",
             status: registrationDraft.accessDriftStatus === "clear"
                 ? "done"
                 : registrationDraft.accessDriftStatus === "drift_found" ? "blocked" : "needs_review",
@@ -918,7 +1054,7 @@ function registrationSuccessBenchmarkItems() {
         },
         {
             id: "registration_source_link_coverage",
-            label: "Source-link coverage",
+            label: "Source evidence coverage",
             status: sourceLinkCoverage === 100 ? "done" : "blocked",
             detail: `${sourceLinkCoverage}% path/hash/owner coverage`
         },
@@ -937,8 +1073,8 @@ function registrationSuccessBenchmarkSummaryRows() {
         ["Duration", formatRegistrationDuration()],
         ["Validation failures", registrationDraft.registrationValidationFailureCount.toString()],
         ["Current blocking checks", registrationCurrentBlockingValidationCount().toString()],
-        ["Access drift", registrationDraft.accessDriftStatus],
-        ["Source-link coverage", `${registrationSourceLinkCoveragePercent()}%`],
+        ["Access changed from plan", registrationDraft.accessDriftStatus],
+        ["Source evidence coverage", `${registrationSourceLinkCoveragePercent()}%`],
         ["User confidence", registrationUserConfidenceLabel()],
         ["Project-success evidence", registrationSuccessBenchmarkStatusText()],
         ["Raw source payloads", "not included"]
@@ -984,19 +1120,19 @@ function registrationValidationItems() {
         && registrationPreviewFingerprint === registrationAccessPlanFingerprint();
     items.push({
         id: "scope_ids",
-        label: "Scope IDs",
+        label: "Project and organization IDs",
         status: isGuid(registrationDraft.organizationId) && isGuid(registrationDraft.projectId) ? "done" : "blocked",
-        detail: "organizationId and projectId must be UUIDs"
+        detail: "Organization ID and Project ID must be valid UUIDs"
     });
     items.push({
         id: "scope_names",
-        label: "Scope names",
+        label: "Project and organization names",
         status: registrationDraft.organizationName && registrationDraft.projectName ? "done" : "blocked",
-        detail: "organizationName and projectName are required"
+        detail: "Organization name and Project name are required"
     });
     items.push({
         id: "owners_present",
-        label: "Owner assignments",
+        label: "People and responsibilities",
         status: owners.length > 0
             && owners.every(owner => isGuid(owner.principalId) && roleIsKnown(owner.roleId))
             && registrationMissingRequiredOwnerRoles(owners).length === 0
@@ -1006,31 +1142,31 @@ function registrationValidationItems() {
     });
     items.push({
         id: "roles_active",
-        label: "Custom role definitions",
+        label: "Custom responsibilities",
         status: roles.every(role => role.roleId && role.displayName && roleIdentifierIsValid(role.roleId)) ? "done" : "blocked",
-        detail: roles.length === 0 ? "default role templates only" : `${roles.length} custom role definition${roles.length === 1 ? "" : "s"}`
+        detail: roles.length === 0 ? "using standard responsibilities only" : `${roles.length} custom responsibilit${roles.length === 1 ? "y" : "ies"}`
     });
     items.push({
         id: "grants_safe",
-        label: "Namespace grants",
+        label: "Access rules",
         status: grants.length > 0
             && grants.every(grant => registrationGrantIsSafe(grant, projectPrefix, customRoleIds))
             ? "done"
             : "blocked",
-        detail: "read/write/review grants must stay below the project namespace"
+        detail: "read/write/review access must stay under this project"
     });
     items.push(...registrationSeedReadinessItems());
     items.push({
         id: "access_preview",
-        label: "Access preview",
+        label: "Access plan check",
         status: previewIsCurrent ? "done" : "blocked",
         detail: registrationDraft.accessPreviewReportId
-            ? "preview is stale after access-plan edits"
-            : "run preview before registration"
+            ? "access check is stale after plan edits"
+            : "check access plan before registration"
     });
     items.push({
         id: "closeout",
-        label: "Closeout evidence",
+        label: "Finish setup",
         status: registrationSucceeded() ? "done" : "needs_review",
         detail: registrationSucceeded() ? "audit evidence captured" : "registration result pending"
     });
@@ -1066,32 +1202,32 @@ function registrationStepSummary(stepId) {
         return registrationDraft.projectName || registrationDraft.projectId || "Project boundary";
     }
     if (stepId === "owners_roles") {
-        return `${compactRegistrationOwners().length} owners, ${compactRegistrationRoles().length} custom roles`;
+        return `${compactRegistrationOwners().length} people, ${compactRegistrationRoles().length} custom responsibilities`;
     }
     if (stepId === "grants") {
-        return `${compactRegistrationGrants().length} namespace grants`;
+        return `${compactRegistrationGrants().length} access rules`;
     }
     if (stepId === "seed_docs") {
-        return `${compactRegistrationSources().length} source docs, ${registrationSourceHashCoveragePercent()}% hash`;
+        return `${compactRegistrationSources().length} source documents, ${registrationSourceHashCoveragePercent()}% hash`;
     }
     if (stepId === "preflight") {
-        return registrationDraft.accessPreviewReportId || "Preview required";
+        return registrationDraft.accessPreviewReportId || "Access check required";
     }
     if (stepId === "register") {
         return registrationSucceeded() ? readStringValue(state.registrationResult, "status") : "Not submitted";
     }
-    return registrationSucceeded() ? "Closeout required" : "Waiting for registration";
+    return registrationSucceeded() ? "Finish setup required" : "Waiting for registration";
 }
 async function runRegistrationPreview() {
     const requests = registrationPreviewRequests();
     if (requests.length === 0) {
-        registrationPreviewResults = [{ error: "No preview candidates. Add owner assignments and grants first." }];
-        setStatus("Preview blocked");
+        registrationPreviewResults = [{ error: "No access checks yet. Add people and access rules first." }];
+        setStatus("Access check blocked");
         render();
         return;
     }
     setBusy(true);
-    setStatus("Previewing");
+    setStatus("Checking access");
     try {
         const results = [];
         for (const request of requests) {
@@ -1107,11 +1243,11 @@ async function runRegistrationPreview() {
         registrationPreviewResults = results;
         registrationDraft.accessPreviewReportId = `admin-wizard-preview-${new Date().toISOString().replaceAll(":", "").replaceAll(".", "")}`;
         registrationPreviewFingerprint = registrationAccessPlanFingerprint();
-        setStatus(`${results.length} previews`);
+        setStatus(`${results.length} access checks`);
     }
     catch (error) {
         registrationPreviewResults = [{ error: errorMessage(error) }];
-        setStatus("Preview error");
+        setStatus("Access check error");
     }
     finally {
         setBusy(false);
@@ -1124,10 +1260,10 @@ async function submitRegistration() {
     if (blocking.length > 0) {
         registrationDraft.registrationValidationFailureCount += 1;
         registrationPreviewResults = [{
-                error: "Registration blocked by preflight",
+                error: "Registration blocked by readiness checks",
                 blocking
             }];
-        setStatus("Registration blocked");
+        setStatus("Registration not ready");
         render();
         return;
     }
@@ -1147,8 +1283,10 @@ async function submitRegistration() {
         setStatus("Registered");
     }
     catch (error) {
-        state.registrationResult = { error: errorMessage(error) };
-        setStatus("Registration error");
+        state.registrationResult = {
+            error: `Registration was not created. Retry with the same retry safety key, or fix the issue below. ${errorMessage(error)}`
+        };
+        setStatus("Registration not created");
     }
     finally {
         setBusy(false);
@@ -1406,16 +1544,16 @@ function registrationMissingRequiredOwnerRoles(owners = compactRegistrationOwner
 }
 function registrationOwnerAssignmentDetail(owners) {
     if (owners.length === 0) {
-        return "Product Owner, Knowledge Steward, and Security/Ops owner principals are required";
+        return "Add Product Owner, Knowledge Steward, and Security/Ops people";
     }
     if (owners.some(owner => !isGuid(owner.principalId) || !roleIsKnown(owner.roleId))) {
-        return "owner principals must be UUIDs and owner roles must be active or known";
+        return "Person IDs must be valid UUIDs and responsibilities must be active or known";
     }
     const missingRequiredRoles = registrationMissingRequiredOwnerRoles(owners);
     if (missingRequiredRoles.length > 0) {
-        return `missing required owner roles: ${missingRequiredRoles.join(", ")}`;
+        return `Missing required responsibilities: ${missingRequiredRoles.join(", ")}`;
     }
-    return "Product Owner, Knowledge Steward, and Security/Ops owner principals are required";
+    return "Required people and responsibilities are present";
 }
 function roleIsKnown(roleId) {
     return defaultRoleIds.includes(roleId) || compactRegistrationRoles().some(role => role.roleId === roleId && role.status === "active");
