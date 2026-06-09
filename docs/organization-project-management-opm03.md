@@ -41,6 +41,9 @@ the parent organization. Inactive project lifecycle and settings changes use
 organization authorization, because project-scope runtime authorization is
 intentionally active-project only.
 
+Missing or inaccessible project-management scopes return generic `404`
+responses, matching OPM-01 no-leak project detail behavior.
+
 Successful writes create payload-safe audit events:
 
 - `project_lifecycle_change`

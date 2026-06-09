@@ -60,7 +60,13 @@ public sealed class OrganizationProjectManagementOpm04Tests
                      "Revoke",
                      "/api/admin/access/revocations",
                      "/api/admin/projects/${selected.id}/access-inventory",
-                     "/api/admin/organizations/${selected.id}/access-inventory"
+                     "/api/admin/organizations/${selected.id}/access-inventory",
+                     "scopeType: \"org\"",
+                     "scopeId: row.organizationId",
+                     "scopeType: \"project\"",
+                     "scopeId: row.projectId",
+                     "scopeType: target.scopeType",
+                     "scopeId: target.scopeId"
                  })
         {
             Assert.Contains(fragment, sourcePanel, StringComparison.Ordinal);

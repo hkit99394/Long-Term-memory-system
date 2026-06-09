@@ -1595,13 +1595,13 @@ async function loadSelectedManagementDetail(showBusy) {
             state.management.evidencePayload = managementActivity;
         }
         else {
-            const [projectDetail, scopeSettings, accessInventory, roleDefinitions, grantMatrix, managementActivity] = await Promise.all([
-                apiFetch(`/api/admin/projects/${selected.id}`),
-                apiFetch(`/api/admin/projects/${selected.id}/scope-settings`),
-                apiFetch(`/api/admin/projects/${selected.id}/access-inventory`),
-                apiFetch(`/api/admin/projects/${selected.id}/role-definitions`),
-                apiFetch(`/api/admin/projects/${selected.id}/grant-matrix`),
-                apiFetch(`/api/admin/projects/${selected.id}/management-activity?limit=20`)
+            const projectDetail = await apiFetch(`/api/admin/projects/${selected.id}`);
+            const [scopeSettings, accessInventory, roleDefinitions, grantMatrix, managementActivity] = await Promise.all([
+                loadOptionalManagementDetail(apiFetch(`/api/admin/projects/${selected.id}/scope-settings`)),
+                loadOptionalManagementDetail(apiFetch(`/api/admin/projects/${selected.id}/access-inventory`)),
+                loadOptionalManagementDetail(apiFetch(`/api/admin/projects/${selected.id}/role-definitions`)),
+                loadOptionalManagementDetail(apiFetch(`/api/admin/projects/${selected.id}/grant-matrix`)),
+                loadOptionalManagementDetail(apiFetch(`/api/admin/projects/${selected.id}/management-activity?limit=20`))
             ]);
             state.management.projectDetail = projectDetail;
             state.management.scopeSettingsDetail = scopeSettings;
@@ -1609,7 +1609,7 @@ async function loadSelectedManagementDetail(showBusy) {
             state.management.roleDefinitionsDetail = roleDefinitions;
             state.management.grantMatrixDetail = grantMatrix;
             state.management.managementActivityDetail = managementActivity;
-            state.management.evidencePayload = managementActivity;
+            state.management.evidencePayload = managementActivity ?? roleDefinitions ?? grantMatrix ?? accessInventory ?? scopeSettings ?? projectDetail;
         }
         markManagementDetailLoaded();
         setStatus("Management detail");
@@ -1626,6 +1626,14 @@ async function loadSelectedManagementDetail(showBusy) {
         }
     }
 }
+async function loadOptionalManagementDetail(request) {
+    try {
+        return await request;
+    }
+    catch {
+        return null;
+    }
+}
 async function refreshManagementActivityDetail() {
     const selected = state.management.selectedItem;
     if (!selected) {
@@ -1635,6 +1643,14 @@ async function refreshManagementActivityDetail() {
     state.management.managementActivityDetail = selected.type === "organization"
         ? await apiFetch(`/api/admin/organizations/${selected.id}/management-activity?limit=20`)
         : await apiFetch(`/api/admin/projects/${selected.id}/management-activity?limit=20`);
+}
+async function refreshManagementActivityDetailBestEffort() {
+    try {
+        await refreshManagementActivityDetail();
+    }
+    catch {
+        state.management.managementActivityDetail = null;
+    }
 }
 function renderManagementList() {
     if (state.management.loading) {
@@ -1782,34 +1798,42 @@ function managementAccessInventorySection(inventory) {
         accessRecordType: row.accessRecordType,
         accessRecordId: null,
         principalId: row.principalId,
+        scopeType: "org",
+        scopeId: row.organizationId,
         title: row.principalDisplayName,
         meta: `${row.accessLevel} · ${row.principalStatus} · ${row.organizationName}`,
         reviewPrompt: row.reviewPrompt
-    })), inventory.scope), managementAccessInventoryGroup("Project memberships", inventory.projectMemberships.map(row => ({
+    }))), managementAccessInventoryGroup("Project memberships", inventory.projectMemberships.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: null,
         principalId: row.principalId,
+        scopeType: "project",
+        scopeId: row.projectId,
         title: row.principalDisplayName,
         meta: `${row.accessLevel} · ${row.principalStatus} · ${row.projectName} · ${row.projectStatus}`,
         reviewPrompt: row.reviewPrompt
-    })), inventory.scope), managementAccessInventoryGroup("Role assignments", inventory.roleAssignments.map(row => ({
+    }))), managementAccessInventoryGroup("Role assignments", inventory.roleAssignments.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: row.accessRecordId,
         principalId: row.principalId,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
         title: `${row.principalDisplayName} · ${row.roleId}`,
         meta: `${row.scopeName} · ${row.scopeType}${row.projectStatus ? ` · ${row.projectStatus}` : ""}`,
         reviewPrompt: row.reviewPrompt
-    })), inventory.scope), managementAccessInventoryGroup("Namespace grants", inventory.namespaceGrants.map(row => ({
+    }))), managementAccessInventoryGroup("Namespace grants", inventory.namespaceGrants.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: row.accessRecordId,
         principalId: row.principalId,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
         title: row.principalDisplayName ?? `Role ${row.roleId ?? "target"}`,
         meta: `${row.permission} · ${row.namespacePrefix} · ${row.scopeName}`,
         reviewPrompt: row.reviewPrompt
-    })), inventory.scope));
+    }))));
     return section;
 }
-function managementAccessInventoryGroup(title, rows, scope) {
+function managementAccessInventoryGroup(title, rows) {
     const group = document.createElement("section");
     group.className = "management-access-group";
     group.append(line(title, "management-section-title"));
@@ -1818,11 +1842,11 @@ function managementAccessInventoryGroup(title, rows, scope) {
         return group;
     }
     for (const row of rows) {
-        group.append(managementAccessInventoryRecord(row, scope));
+        group.append(managementAccessInventoryRecord(row));
     }
     return group;
 }
-function managementAccessInventoryRecord(row, scope) {
+function managementAccessInventoryRecord(row) {
     const card = document.createElement("div");
     card.className = "management-access-record";
     card.append(line(row.title, "management-access-title"), line(row.meta, "management-access-meta"));
@@ -1840,7 +1864,7 @@ function managementAccessInventoryRecord(row, scope) {
     form.append(button);
     form.addEventListener("submit", event => {
         event.preventDefault();
-        void revokeManagementAccess(scope, row, form);
+        void revokeManagementAccess(row, form);
     });
     card.append(form);
     return card;
@@ -2714,7 +2738,7 @@ async function updateManagementLifecycle(projectId, form) {
             })
         });
         applyManagementLifecycleResponse(response);
-        await refreshManagementActivityDetail();
+        await refreshManagementActivityDetailBestEffort();
         markManagementModificationCompleted("project_lifecycle");
         state.management.evidencePayload = response;
         setStatus("Lifecycle updated");
@@ -2822,7 +2846,7 @@ async function updateManagementScopeSettings(projectId, form) {
             payloadSafe: response.payloadSafe,
             rawSourcePayloadsIncluded: response.rawSourcePayloadsIncluded
         };
-        await refreshManagementActivityDetail();
+        await refreshManagementActivityDetailBestEffort();
         markManagementModificationCompleted("scope_settings");
         state.management.evidencePayload = response;
         setStatus("Settings updated");
@@ -2837,7 +2861,7 @@ async function updateManagementScopeSettings(projectId, form) {
         render();
     }
 }
-async function revokeManagementAccess(scope, target, form) {
+async function revokeManagementAccess(target, form) {
     setBusy(true);
     setStatus("Revoking access");
     try {
@@ -2847,8 +2871,8 @@ async function revokeManagementAccess(scope, target, form) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                scopeType: scope.scopeType,
-                scopeId: scope.scopeId,
+                scopeType: target.scopeType,
+                scopeId: target.scopeId,
                 accessRecordType: target.accessRecordType,
                 accessRecordId: target.accessRecordId,
                 principalId: target.principalId,

@@ -1585,14 +1585,9 @@ public static class AdminOrganizationProjectManagementEndpointExtensions
             return null;
         }
 
-        var projectReason = projectDecision is null
-            ? $"Project {project.ProjectId:D} is not active; project-scope admin management requires organization admin or owner access."
-            : projectDecision.Reason;
-
-        return Results.Problem(
-            statusCode: StatusCodes.Status403Forbidden,
-            title: "Admin project management request is forbidden.",
-            detail: $"Actor must have admin access to the active project or owner/admin access to the parent organization. Project check: {projectReason} Organization check: {organizationDecision.Reason}");
+        return NotFound(
+            "Admin project management resource was not found.",
+            "Project was not found or is not visible to the caller.");
     }
 
     private static bool TryReadPaging(

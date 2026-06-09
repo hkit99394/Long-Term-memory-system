@@ -54,6 +54,10 @@ membership on the parent organization, or direct `admin` membership on the
 project. Detail endpoints return `404` for missing or inaccessible resources so
 callers cannot distinguish absence from lack of visibility.
 
+Project-scoped management section endpoints use the same no-leak rule. Missing
+or inaccessible projects return generic `404` responses rather than exposing
+the parent organization id or authorization decision details.
+
 Direct project admins can list and inspect their projects without org directory leak.
 Organization directory access still requires direct organization admin or owner
 membership.

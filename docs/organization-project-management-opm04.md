@@ -46,6 +46,9 @@ organization, or admin access to the active project / owner-admin access to its
 parent organization. Inactive projects follow the OPM-03 rule and require
 organization authorization.
 
+Project inventory and project-scoped revocation authorization failures return
+generic `404` responses for missing or inaccessible project scopes.
+
 Revocation removes concrete access records:
 
 - organization memberships
@@ -67,7 +70,10 @@ correlation id.
 The `/admin/` Management detail pane now loads access inventory for the
 selected organization or project. It shows grouped rows for memberships, role
 assignments, namespace grants, and review prompts. Each row has a compact
-revocation form requiring reason and audit evidence id.
+revocation form requiring reason and audit evidence id. The revoke request uses
+the concrete row's scope and id, so project memberships listed from an
+organization inventory are revoked against their project scope rather than the
+selected organization scope.
 
 The source evidence pane shows the payload-safe inventory by default and the
 payload-safe revocation response after a revoke action.

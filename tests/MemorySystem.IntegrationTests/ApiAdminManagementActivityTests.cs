@@ -126,8 +126,11 @@ public sealed class ApiAdminManagementActivityTests
             using var client = factory.CreateClient();
 
             using var response = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/projects/{ProjectId:D}/management-activity"));
+            var body = await response.Content.ReadAsStringAsync();
 
-            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.DoesNotContain("Actor must", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("parent organization", body, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

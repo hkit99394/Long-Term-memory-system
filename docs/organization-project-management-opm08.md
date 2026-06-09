@@ -29,6 +29,9 @@ PUT /api/admin/projects/{projectId}/role-definitions/{roleId}
 Responses use `contractId: OPM-08`, `payloadSafe: true`, and
 `rawSourcePayloadsIncluded: false`.
 
+Missing or inaccessible project scopes return generic `404` responses, matching
+the OPM-01 project detail no-leak rule.
+
 The list response returns the project context, custom project role definitions,
 active/disabled counts, assignment counts, and role-targeted grant counts.
 

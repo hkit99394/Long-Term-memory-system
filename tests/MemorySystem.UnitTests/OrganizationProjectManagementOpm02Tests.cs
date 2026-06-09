@@ -41,6 +41,8 @@ public sealed class OrganizationProjectManagementOpm02Tests
                      "renderManagementList",
                      "renderManagementDetail",
                      "renderManagementSourceDetail",
+                     "loadOptionalManagementDetail",
+                     "refreshManagementActivityDetailBestEffort",
                      "Loading organization/project management",
                      "No visible organizations or projects",
                      "Management detail is not visible to the caller",

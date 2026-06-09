@@ -129,8 +129,11 @@ public sealed class ApiAdminProjectLifecycleSettingsTests
                     reason = "Unauthorized attempt",
                     auditEvidenceId = "opm03-denied-001"
                 }));
+            var body = await response.Content.ReadAsStringAsync();
 
-            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.DoesNotContain("Actor must", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("parent organization", body, StringComparison.OrdinalIgnoreCase);
 
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             Assert.Equal("active", await ReadProjectStatusAsync(dataSource));

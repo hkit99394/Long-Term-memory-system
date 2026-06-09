@@ -42,6 +42,7 @@ namespace. Request bodies include `roleId`, optional `presetId`, grant rows,
 All matrix reads and writes require the same project-management authorization as
 OPM-03 and OPM-04: active project admin access, or owner/admin access to the
 parent organization. Inactive projects require organization-level access.
+Missing or inaccessible projects return generic `404` responses.
 
 Matrix updates:
 

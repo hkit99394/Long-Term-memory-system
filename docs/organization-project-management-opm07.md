@@ -54,8 +54,8 @@ callers must have admin access to the organization.
 
 Project activity uses the existing project management boundary: callers must
 have admin access to the active project or owner/admin access to the parent
-organization. Missing scopes return `404`; unauthorized management scopes return
-the existing admin-management `403` response.
+organization. Missing or inaccessible project scopes return generic `404`
+responses so callers cannot infer hidden projects or parent organizations.
 
 Organization activity includes direct organization-scoped management events and
 project-scoped management events for projects under the organization. Project

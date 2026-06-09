@@ -7,6 +7,8 @@ interface AdminManagementRevocationTarget {
   accessRecordType: string;
   accessRecordId: string | null;
   principalId: string | null;
+  scopeType: AdminManagementAccessInventoryScope["scopeType"];
+  scopeId: string;
   title: string;
   meta: string;
   reviewPrompt: string | null;
@@ -578,13 +580,18 @@ async function loadSelectedManagementDetail(showBusy: boolean): Promise<void> {
       state.management.managementActivityDetail = managementActivity;
       state.management.evidencePayload = managementActivity;
     } else {
-      const [projectDetail, scopeSettings, accessInventory, roleDefinitions, grantMatrix, managementActivity] = await Promise.all([
-        apiFetch<AdminManagementProjectDetailResponse>(`/api/admin/projects/${selected.id}`),
-        apiFetch<AdminManagementScopeSettingsDetailResponse>(`/api/admin/projects/${selected.id}/scope-settings`),
-        apiFetch<AdminManagementAccessInventoryResponse>(`/api/admin/projects/${selected.id}/access-inventory`),
-        apiFetch<AdminManagementProjectRoleDefinitionListResponse>(`/api/admin/projects/${selected.id}/role-definitions`),
-        apiFetch<AdminManagementGrantMatrixResponse>(`/api/admin/projects/${selected.id}/grant-matrix`),
-        apiFetch<AdminManagementActivityResponse>(`/api/admin/projects/${selected.id}/management-activity?limit=20`)
+      const projectDetail = await apiFetch<AdminManagementProjectDetailResponse>(`/api/admin/projects/${selected.id}`);
+      const [scopeSettings, accessInventory, roleDefinitions, grantMatrix, managementActivity] = await Promise.all([
+        loadOptionalManagementDetail(
+          apiFetch<AdminManagementScopeSettingsDetailResponse>(`/api/admin/projects/${selected.id}/scope-settings`)),
+        loadOptionalManagementDetail(
+          apiFetch<AdminManagementAccessInventoryResponse>(`/api/admin/projects/${selected.id}/access-inventory`)),
+        loadOptionalManagementDetail(
+          apiFetch<AdminManagementProjectRoleDefinitionListResponse>(`/api/admin/projects/${selected.id}/role-definitions`)),
+        loadOptionalManagementDetail(
+          apiFetch<AdminManagementGrantMatrixResponse>(`/api/admin/projects/${selected.id}/grant-matrix`)),
+        loadOptionalManagementDetail(
+          apiFetch<AdminManagementActivityResponse>(`/api/admin/projects/${selected.id}/management-activity?limit=20`))
       ]);
       state.management.projectDetail = projectDetail;
       state.management.scopeSettingsDetail = scopeSettings;
@@ -592,7 +599,7 @@ async function loadSelectedManagementDetail(showBusy: boolean): Promise<void> {
       state.management.roleDefinitionsDetail = roleDefinitions;
       state.management.grantMatrixDetail = grantMatrix;
       state.management.managementActivityDetail = managementActivity;
-      state.management.evidencePayload = managementActivity;
+      state.management.evidencePayload = managementActivity ?? roleDefinitions ?? grantMatrix ?? accessInventory ?? scopeSettings ?? projectDetail;
     }
 
     markManagementDetailLoaded();
@@ -609,6 +616,14 @@ async function loadSelectedManagementDetail(showBusy: boolean): Promise<void> {
   }
 }
 
+async function loadOptionalManagementDetail<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request;
+  } catch {
+    return null;
+  }
+}
+
 async function refreshManagementActivityDetail(): Promise<void> {
   const selected = state.management.selectedItem;
   if (!selected) {
@@ -619,6 +634,14 @@ async function refreshManagementActivityDetail(): Promise<void> {
   state.management.managementActivityDetail = selected.type === "organization"
     ? await apiFetch<AdminManagementActivityResponse>(`/api/admin/organizations/${selected.id}/management-activity?limit=20`)
     : await apiFetch<AdminManagementActivityResponse>(`/api/admin/projects/${selected.id}/management-activity?limit=20`);
+}
+
+async function refreshManagementActivityDetailBestEffort(): Promise<void> {
+  try {
+    await refreshManagementActivityDetail();
+  } catch {
+    state.management.managementActivityDetail = null;
+  }
 }
 
 function renderManagementList(): void {
@@ -835,52 +858,55 @@ function managementAccessInventorySection(inventory: AdminManagementAccessInvent
         accessRecordType: row.accessRecordType,
         accessRecordId: null,
         principalId: row.principalId,
+        scopeType: "org",
+        scopeId: row.organizationId,
         title: row.principalDisplayName,
         meta: `${row.accessLevel} · ${row.principalStatus} · ${row.organizationName}`,
         reviewPrompt: row.reviewPrompt
-      })),
-      inventory.scope),
+      }))),
     managementAccessInventoryGroup(
       "Project memberships",
       inventory.projectMemberships.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: null,
         principalId: row.principalId,
+        scopeType: "project",
+        scopeId: row.projectId,
         title: row.principalDisplayName,
         meta: `${row.accessLevel} · ${row.principalStatus} · ${row.projectName} · ${row.projectStatus}`,
         reviewPrompt: row.reviewPrompt
-      })),
-      inventory.scope),
+      }))),
     managementAccessInventoryGroup(
       "Role assignments",
       inventory.roleAssignments.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: row.accessRecordId,
         principalId: row.principalId,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
         title: `${row.principalDisplayName} · ${row.roleId}`,
         meta: `${row.scopeName} · ${row.scopeType}${row.projectStatus ? ` · ${row.projectStatus}` : ""}`,
         reviewPrompt: row.reviewPrompt
-      })),
-      inventory.scope),
+      }))),
     managementAccessInventoryGroup(
       "Namespace grants",
       inventory.namespaceGrants.map(row => ({
         accessRecordType: row.accessRecordType,
         accessRecordId: row.accessRecordId,
         principalId: row.principalId,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
         title: row.principalDisplayName ?? `Role ${row.roleId ?? "target"}`,
         meta: `${row.permission} · ${row.namespacePrefix} · ${row.scopeName}`,
         reviewPrompt: row.reviewPrompt
-      })),
-      inventory.scope));
+      }))));
 
   return section;
 }
 
 function managementAccessInventoryGroup(
   title: string,
-  rows: AdminManagementRevocationTarget[],
-  scope: AdminManagementAccessInventoryScope): HTMLElement {
+  rows: AdminManagementRevocationTarget[]): HTMLElement {
   const group = document.createElement("section");
   group.className = "management-access-group";
   group.append(line(title, "management-section-title"));
@@ -891,15 +917,14 @@ function managementAccessInventoryGroup(
   }
 
   for (const row of rows) {
-    group.append(managementAccessInventoryRecord(row, scope));
+    group.append(managementAccessInventoryRecord(row));
   }
 
   return group;
 }
 
 function managementAccessInventoryRecord(
-  row: AdminManagementRevocationTarget,
-  scope: AdminManagementAccessInventoryScope): HTMLElement {
+  row: AdminManagementRevocationTarget): HTMLElement {
   const card = document.createElement("div");
   card.className = "management-access-record";
   card.append(
@@ -924,7 +949,7 @@ function managementAccessInventoryRecord(
   form.append(button);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    void revokeManagementAccess(scope, row, form);
+    void revokeManagementAccess(row, form);
   });
 
   card.append(form);
@@ -2032,10 +2057,10 @@ async function updateManagementLifecycle(projectId: string, form: HTMLFormElemen
           reason: formValue(form, "reason"),
           auditEvidenceId: formValue(form, "auditEvidenceId")
         })
-      });
+    });
 
     applyManagementLifecycleResponse(response);
-    await refreshManagementActivityDetail();
+    await refreshManagementActivityDetailBestEffort();
     markManagementModificationCompleted("project_lifecycle");
     state.management.evidencePayload = response;
     setStatus("Lifecycle updated");
@@ -2158,7 +2183,7 @@ async function updateManagementScopeSettings(projectId: string, form: HTMLFormEl
       payloadSafe: response.payloadSafe,
       rawSourcePayloadsIncluded: response.rawSourcePayloadsIncluded
     };
-    await refreshManagementActivityDetail();
+    await refreshManagementActivityDetailBestEffort();
     markManagementModificationCompleted("scope_settings");
     state.management.evidencePayload = response;
     setStatus("Settings updated");
@@ -2173,7 +2198,6 @@ async function updateManagementScopeSettings(projectId: string, form: HTMLFormEl
 }
 
 async function revokeManagementAccess(
-  scope: AdminManagementAccessInventoryScope,
   target: AdminManagementRevocationTarget,
   form: HTMLFormElement): Promise<void> {
   setBusy(true);
@@ -2188,8 +2212,8 @@ async function revokeManagementAccess(
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          scopeType: scope.scopeType,
-          scopeId: scope.scopeId,
+          scopeType: target.scopeType,
+          scopeId: target.scopeId,
           accessRecordType: target.accessRecordType,
           accessRecordId: target.accessRecordId,
           principalId: target.principalId,

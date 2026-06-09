@@ -126,19 +126,45 @@ public sealed class ApiAdminAccessInventoryTests
             Assert.Equal("namespace_grant", grantRevocationPayload.RootElement.GetProperty("revokedAccess").GetProperty("accessRecordType").GetString());
             Assert.Equal("namespace_grant_change", grantRevocationPayload.RootElement.GetProperty("auditEvidence").GetProperty("actionType").GetString());
 
+            using var projectMembershipRevocationResponse = await client.SendAsync(CreateAuthenticatedJsonRequest(
+                "/api/admin/access/revocations",
+                new
+                {
+                    scopeType = "project",
+                    scopeId = ProjectId,
+                    accessRecordType = "project_membership",
+                    accessRecordId = (Guid?)null,
+                    principalId = DisabledPrincipalId,
+                    reason = "OPM-04 removes stale project membership from organization inventory review.",
+                    auditEvidenceId = "opm04-project-membership-revoke-001"
+                }));
+            using var projectMembershipRevocationPayload = await ReadJsonAsync(projectMembershipRevocationResponse);
+
+            Assert.Equal(HttpStatusCode.OK, projectMembershipRevocationResponse.StatusCode);
+            Assert.Equal("project_membership", projectMembershipRevocationPayload.RootElement.GetProperty("revokedAccess").GetProperty("accessRecordType").GetString());
+            Assert.Equal("project_membership_change", projectMembershipRevocationPayload.RootElement.GetProperty("auditEvidence").GetProperty("actionType").GetString());
+
             await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
             Assert.False(await HasRoleAssignmentAsync(dataSource));
             Assert.False(await HasNamespaceGrantAsync(dataSource));
+            Assert.False(await HasProjectMembershipAsync(dataSource, DisabledPrincipalId));
             Assert.Equal(
                 ("revoked", "OPM-04", "opm04-role-revoke-001"),
                 await ReadAuditMetadataAsync(dataSource, AccessAuditActionTypes.RoleAssignmentChange, RoleAssignmentId.ToString("D")));
             Assert.Equal(
                 ("revoked", "OPM-04", "opm04-grant-revoke-001"),
                 await ReadAuditMetadataAsync(dataSource, AccessAuditActionTypes.NamespaceGrantChange, NamespaceGrantId.ToString("D")));
+            Assert.Equal(
+                ("revoked", "OPM-04", "opm04-project-membership-revoke-001"),
+                await ReadAuditMetadataAsync(
+                    dataSource,
+                    AccessAuditActionTypes.ProjectMembershipChange,
+                    $"{ProjectId:D}:{DisabledPrincipalId:D}"));
 
             using var refreshedInventoryResponse = await client.SendAsync(CreateAuthenticatedGetRequest($"/api/admin/projects/{ProjectId:D}/access-inventory"));
             using var refreshedInventoryPayload = await ReadJsonAsync(refreshedInventoryResponse);
             Assert.Equal(HttpStatusCode.OK, refreshedInventoryResponse.StatusCode);
+            Assert.Equal(1, refreshedInventoryPayload.RootElement.GetProperty("counts").GetProperty("projectMemberships").GetInt32());
             Assert.Equal(0, refreshedInventoryPayload.RootElement.GetProperty("counts").GetProperty("roleAssignments").GetInt32());
             Assert.Equal(0, refreshedInventoryPayload.RootElement.GetProperty("counts").GetProperty("namespaceGrants").GetInt32());
         }
@@ -329,6 +355,24 @@ public sealed class ApiAdminAccessInventoryTests
             );
             """);
         command.Parameters.AddWithValue("grant_id", NamespaceGrantId);
+        return await command.ExecuteScalarAsync() is true;
+    }
+
+    private static async Task<bool> HasProjectMembershipAsync(
+        NpgsqlDataSource dataSource,
+        Guid principalId)
+    {
+        await using var command = dataSource.CreateCommand(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM project_memberships
+                WHERE project_id = @project_id
+                    AND principal_id = @principal_id
+            );
+            """);
+        command.Parameters.AddWithValue("project_id", ProjectId);
+        command.Parameters.AddWithValue("principal_id", principalId);
         return await command.ExecuteScalarAsync() is true;
     }
 
