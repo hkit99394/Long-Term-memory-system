@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using MemorySystem.Application.Admin;
 using MemorySystem.Application.MemoryFacts;
 using MemorySystem.Application.Scopes;
+using MemorySystem.Infrastructure.Admin;
 using MemorySystem.Infrastructure.MemoryFacts;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
@@ -278,6 +280,82 @@ public sealed class ApiAdminGovernanceTests
             Assert.Equal("none", heldEvent.RedactionStatus);
             Assert.Contains(HeldSecret, heldEvent.ContentJson, StringComparison.Ordinal);
             Assert.Equal("active", (await ReadFactStateAsync(databaseConnectionString, fixture.HeldFactId)).Status);
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task CreateLegalHoldAsync_rolls_back_hold_when_idempotency_completion_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_legal_hold_idempotency_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareGovernanceFixtureAsync(databaseConnectionString);
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresAdminGovernanceStore(dataSource);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                store.CreateLegalHoldAsync(new AdminLegalHoldCreateCommand(
+                    PrincipalId,
+                    Guid.NewGuid(),
+                    "sha256:v2:" + new string('b', 64),
+                    "customer preservation request",
+                    new AdminGovernanceEventSelector(
+                        PrincipalId,
+                        10,
+                        [fixture.ErasableEventId]))));
+
+            Assert.Equal("standard", await ReadEventRetentionClassAsync(databaseConnectionString, fixture.ErasableEventId));
+            Assert.Equal(0L, await CountLegalHoldsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task ExecuteErasureAsync_rolls_back_redactions_when_idempotency_completion_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_admin_erasure_idempotency_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            var fixture = await PrepareGovernanceFixtureAsync(databaseConnectionString);
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresAdminGovernanceStore(dataSource);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                store.ExecuteErasureAsync(new AdminErasureExecutionCommand(
+                    PrincipalId,
+                    Guid.NewGuid(),
+                    "sha256:v2:" + new string('c', 64),
+                    "approved erasure request",
+                    new AdminGovernanceEventSelector(
+                        PrincipalId,
+                        MaxEvents: 20,
+                        [],
+                        NamespacePrefix: Namespace,
+                        Sensitivity: "secret"))));
+
+            var erasedEvent = await ReadEventGovernanceStateAsync(databaseConnectionString, fixture.ErasableEventId);
+            Assert.Equal("standard", erasedEvent.RetentionClass);
+            Assert.Equal("none", erasedEvent.RedactionStatus);
+            Assert.Contains(ErasableSecret, erasedEvent.ContentJson, StringComparison.Ordinal);
+
+            var erasedFact = await ReadFactStateAsync(databaseConnectionString, fixture.ErasableFactId);
+            Assert.Equal("active", erasedFact.Status);
+            Assert.Contains(ErasableSecret, erasedFact.ObjectValue, StringComparison.Ordinal);
         }
         finally
         {
@@ -582,6 +660,22 @@ public sealed class ApiAdminGovernanceTests
 
         return (long)(await command.ExecuteScalarAsync()
             ?? throw new InvalidOperationException("Legal hold release denied audit count was not returned."));
+    }
+
+    private static async Task<long> CountLegalHoldsAsync(string connectionString)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT count(*)
+            FROM governance_legal_holds;
+            """,
+            connection);
+
+        return (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Legal hold count was not returned."));
     }
 
     private static async Task<string> ReadEventRetentionClassAsync(string connectionString, Guid eventId)

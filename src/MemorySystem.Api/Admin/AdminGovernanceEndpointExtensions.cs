@@ -134,7 +134,12 @@ public static class AdminGovernanceEndpointExtensions
         try
         {
             result = await store.CreateLegalHoldAsync(
-                new AdminLegalHoldCreateCommand(idempotency.PrincipalId, reason, selector),
+                new AdminLegalHoldCreateCommand(
+                    idempotency.PrincipalId,
+                    idempotency.RecordId,
+                    idempotency.RequestHash,
+                    reason,
+                    selector),
                 cancellationToken);
         }
         catch
@@ -151,7 +156,8 @@ public static class AdminGovernanceEndpointExtensions
             StatusCodes.Status201Created,
             ToResponse(result),
             "legal_hold",
-            result.HoldId);
+            result.HoldId,
+            IdempotencyAlreadyCompleted: true);
     }
 
     private static async Task<ApiIdempotencyResponse> ReleaseLegalHoldAsync(
@@ -192,7 +198,12 @@ public static class AdminGovernanceEndpointExtensions
         try
         {
             result = await store.ReleaseLegalHoldAsync(
-                new AdminLegalHoldReleaseCommand(idempotency.PrincipalId, holdId, reason),
+                new AdminLegalHoldReleaseCommand(
+                    idempotency.PrincipalId,
+                    idempotency.RecordId,
+                    idempotency.RequestHash,
+                    holdId,
+                    reason),
                 cancellationToken);
         }
         catch
@@ -233,7 +244,8 @@ public static class AdminGovernanceEndpointExtensions
                 result.RestoredEvents,
                 result.ReleasedAt),
             "legal_hold",
-            holdId);
+            holdId,
+            IdempotencyAlreadyCompleted: true);
     }
 
     private static async Task<ApiIdempotencyResponse> ExecuteErasureAsync(
@@ -273,7 +285,12 @@ public static class AdminGovernanceEndpointExtensions
         try
         {
             result = await store.ExecuteErasureAsync(
-                new AdminErasureExecutionCommand(idempotency.PrincipalId, reason, selector),
+                new AdminErasureExecutionCommand(
+                    idempotency.PrincipalId,
+                    idempotency.RecordId,
+                    idempotency.RequestHash,
+                    reason,
+                    selector),
                 cancellationToken);
         }
         catch
@@ -291,7 +308,8 @@ public static class AdminGovernanceEndpointExtensions
             StatusCodes.Status200OK,
             ToResponse(result),
             "governance_erasure",
-            result.AuditEventId);
+            result.AuditEventId,
+            IdempotencyAlreadyCompleted: true);
     }
 
     private static async Task<IResult> ListLegalHoldsAsync(

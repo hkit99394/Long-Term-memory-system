@@ -8,6 +8,8 @@ namespace MemorySystem.Infrastructure.Migrations;
 public static class SqlMigrationRunner
 {
     private const long AdvisoryLockKey = 7_404_808_312_433_927_019;
+    private const string NoTransactionDirective = "-- memorysystem:migration-transaction=none";
+    private const string TransactionDirective = "-- memorysystem:migration-transaction=transaction";
 
     public static async Task<SqlMigrationRunResult> ApplyAsync(
         string connectionString,
@@ -68,11 +70,19 @@ public static class SqlMigrationRunner
                     continue;
                 }
 
-                await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+                if (migration.RunInTransaction)
+                {
+                    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-                await ExecuteAsync(connection, transaction, migration.Sql, cancellationToken);
-                await RecordMigrationAsync(connection, transaction, migration, cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
+                    await ExecuteAsync(connection, transaction, migration.Sql, cancellationToken);
+                    await RecordMigrationAsync(connection, transaction, migration, cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                else
+                {
+                    await ExecuteAsync(connection, transaction: null, migration.Sql, cancellationToken);
+                    await RecordMigrationAsync(connection, transaction: null, migration, cancellationToken);
+                }
 
                 appliedMigrations.Add(new AppliedSqlMigration(migration.Name, migration.ChecksumSha256));
             }
@@ -111,7 +121,54 @@ public static class SqlMigrationRunner
         var sql = Encoding.UTF8.GetString(bytes);
         var name = Path.GetFileName(path);
 
-        return new SqlMigration(name, ParseMigrationOrdinal(name), sql, checksum);
+        return new SqlMigration(name, ParseMigrationOrdinal(name), sql, checksum, ShouldRunInTransaction(sql));
+    }
+
+    internal static bool ShouldRunInTransaction(string sql)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+
+        bool? runInTransaction = null;
+        foreach (var line in sql.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            if (trimmed.StartsWith("--", StringComparison.Ordinal)
+                && !trimmed.StartsWith("-- memorysystem:migration-transaction=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (string.Equals(trimmed, NoTransactionDirective, StringComparison.OrdinalIgnoreCase))
+            {
+                runInTransaction = SetMigrationTransactionDirective(runInTransaction, false);
+                continue;
+            }
+
+            if (string.Equals(trimmed, TransactionDirective, StringComparison.OrdinalIgnoreCase))
+            {
+                runInTransaction = SetMigrationTransactionDirective(runInTransaction, true);
+                continue;
+            }
+
+            break;
+        }
+
+        return runInTransaction ?? true;
+    }
+
+    private static bool SetMigrationTransactionDirective(bool? currentValue, bool newValue)
+    {
+        if (currentValue.HasValue && currentValue.Value != newValue)
+        {
+            throw new InvalidOperationException("Migration transaction directives are conflicting.");
+        }
+
+        return newValue;
     }
 
     private static int ParseMigrationOrdinal(string migrationName)
@@ -328,7 +385,7 @@ public static class SqlMigrationRunner
 
     private static async Task RecordMigrationAsync(
         NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
+        NpgsqlTransaction? transaction,
         SqlMigration migration,
         CancellationToken cancellationToken)
     {
@@ -355,5 +412,10 @@ public static class SqlMigrationRunner
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private sealed record SqlMigration(string Name, int Ordinal, string Sql, string ChecksumSha256);
+    private sealed record SqlMigration(
+        string Name,
+        int Ordinal,
+        string Sql,
+        string ChecksumSha256,
+        bool RunInTransaction);
 }

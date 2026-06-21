@@ -134,6 +134,37 @@ public sealed class SqlMigrationRunnerOptionsTests
     }
 
     [Fact]
+    public void ShouldRunInTransaction_defaults_to_transactional_migrations()
+    {
+        Assert.True(SqlMigrationRunner.ShouldRunInTransaction("""
+            -- ordinary comment
+            SELECT 1;
+            """));
+    }
+
+    [Fact]
+    public void ShouldRunInTransaction_allows_explicit_non_transactional_directive()
+    {
+        Assert.False(SqlMigrationRunner.ShouldRunInTransaction("""
+            -- memorysystem:migration-transaction=none
+            CREATE INDEX CONCURRENTLY ix_example ON example_table (id);
+            """));
+    }
+
+    [Fact]
+    public void ShouldRunInTransaction_rejects_conflicting_directives()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SqlMigrationRunner.ShouldRunInTransaction("""
+                -- memorysystem:migration-transaction=none
+                -- memorysystem:migration-transaction=transaction
+                SELECT 1;
+                """));
+
+        Assert.Contains("conflicting", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ApplyAsync_rejects_over_padded_migration_ordinals_before_opening_connection()
     {
         var migrationsDirectory = Directory.CreateTempSubdirectory("memorysystem-over-padded-migrations-").FullName;

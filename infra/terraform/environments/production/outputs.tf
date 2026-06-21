@@ -12,3 +12,14 @@ output "observability_contract" {
   description = "External metric and alert-routing contract for PI-05 and PI-06."
   value       = module.observability.platform_contract
 }
+
+output "platform_deployment_boundary" {
+  description = "Explicit production deployment boundary for current Terraform coverage."
+  value = {
+    postgres_resources_provisioned      = true
+    runtime_resources_provisioned       = module.runtime.deployment_boundary.runtime_resources_provisioned
+    observability_resources_provisioned = module.observability.deployment_boundary.observability_resources_provisioned
+    runtime_contract_only               = module.runtime.deployment_boundary.contract_only
+    observability_contract_only         = module.observability.deployment_boundary.contract_only
+  }
+}

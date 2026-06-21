@@ -1,9 +1,11 @@
 using System.Globalization;
+using System.Text.Json;
 using MemorySystem.Application.Access;
 using MemorySystem.Application.AccessAuditing;
 using MemorySystem.Application.Admin;
 using MemorySystem.Domain.Roles;
 using MemorySystem.Infrastructure.AccessAuditing;
+using MemorySystem.Infrastructure.Idempotency;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -14,6 +16,8 @@ public sealed class PostgresAdminProjectRegistrationStore(
     PostgresAccessAuditEventStore accessAuditEventStore) : IAdminProjectRegistrationStore
 {
     private const int MaxAuditMetadataTextLength = 500;
+    private const string JsonContentType = "application/json; charset=utf-8";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private static readonly IReadOnlySet<string> ProjectStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -228,9 +232,7 @@ public sealed class PostgresAdminProjectRegistrationStore(
             transaction,
             cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
-
-        return new AdminProjectRegistrationRecord(
+        var record = new AdminProjectRegistrationRecord(
             "REG-02",
             "registered",
             organization,
@@ -252,6 +254,23 @@ public sealed class PostgresAdminProjectRegistrationStore(
             sourceHashCoveragePercent,
             PayloadSafe: true,
             RawSourcePayloadsIncluded: false);
+
+        await PostgresApiIdempotencyCompleter.CompleteAsync(
+            connection,
+            transaction,
+            command.IdempotencyRecordId,
+            registrationRequestHash,
+            200,
+            JsonSerializer.Serialize(record, JsonOptions),
+            JsonContentType,
+            "project_registration",
+            command.ProjectId,
+            "The project registration idempotency record could not be completed.",
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return record;
     }
 
     private static async Task EnsureProjectCanUseOrganizationAsync(

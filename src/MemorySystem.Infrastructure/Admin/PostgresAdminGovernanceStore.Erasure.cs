@@ -21,6 +21,7 @@ public sealed partial class PostgresAdminGovernanceStore
     {
         ArgumentNullException.ThrowIfNull(command);
         ValidateSelector(command.Selector);
+        ValidateIdempotency(command.IdempotencyRecordId, command.RequestHash);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Reason);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
@@ -35,9 +36,7 @@ public sealed partial class PostgresAdminGovernanceStore
 
         if (targetEventIds.Length == 0)
         {
-            await transaction.CommitAsync(cancellationToken);
-
-            return new AdminErasureExecutionResult(
+            var emptyResult = new AdminErasureExecutionResult(
                 candidates.Count,
                 ErasedEvents: 0,
                 candidates.Count(candidate => candidate.LegalHoldActive),
@@ -49,6 +48,22 @@ public sealed partial class PostgresAdminGovernanceStore
                 RedactionRecords: 0,
                 AuditEventId: null,
                 DateTimeOffset.UtcNow);
+
+            await CompleteIdempotencyAsync(
+                connection,
+                transaction,
+                command.IdempotencyRecordId,
+                command.RequestHash,
+                200,
+                emptyResult,
+                "governance_erasure",
+                emptyResult.AuditEventId,
+                "The governance erasure idempotency record could not be completed.",
+                cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return emptyResult;
         }
 
         var auditEventId = Guid.NewGuid();
@@ -157,9 +172,7 @@ public sealed partial class PostgresAdminGovernanceStore
             erasedPayload,
             cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
-
-        return new AdminErasureExecutionResult(
+        var result = new AdminErasureExecutionResult(
             candidates.Count,
             erasedEvents,
             candidates.Count(candidate => candidate.LegalHoldActive),
@@ -171,6 +184,22 @@ public sealed partial class PostgresAdminGovernanceStore
             redactionRecords,
             auditEventId,
             DateTimeOffset.UtcNow);
+
+        await CompleteIdempotencyAsync(
+            connection,
+            transaction,
+            command.IdempotencyRecordId,
+            command.RequestHash,
+            200,
+            result,
+            "governance_erasure",
+            result.AuditEventId,
+            "The governance erasure idempotency record could not be completed.",
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
     }
 
     private static async Task<IReadOnlyList<ErasureCandidate>> SelectErasureCandidatesAsync(

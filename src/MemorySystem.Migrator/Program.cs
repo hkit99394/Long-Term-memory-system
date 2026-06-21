@@ -24,6 +24,11 @@ public static class MigratorCli
                       --migrations-directory <path>    Directory containing ordered .sql migration files.
                       -h, --help                       Show help.
 
+                    Migration files run inside one transaction by default. Use
+                    `-- memorysystem:migration-transaction=none` as a leading
+                    SQL comment only for statements that PostgreSQL forbids
+                    inside a transaction, such as CREATE INDEX CONCURRENTLY.
+
                     Defaults:
                       --connection-string falls back to MEMORYSYSTEM_POSTGRES_CONNECTION_STRING, then local Docker Compose values only in Development/Testing.
                       --migrations-directory defaults to ./migrations from the current working directory.

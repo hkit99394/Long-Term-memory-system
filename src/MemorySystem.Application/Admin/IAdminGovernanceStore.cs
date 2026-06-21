@@ -37,6 +37,8 @@ public sealed record AdminGovernanceEventSelector(
 
 public sealed record AdminLegalHoldCreateCommand(
     Guid PrincipalId,
+    Guid IdempotencyRecordId,
+    string RequestHash,
     string Reason,
     AdminGovernanceEventSelector Selector);
 
@@ -51,6 +53,8 @@ public sealed record AdminLegalHoldResult(
 
 public sealed record AdminLegalHoldReleaseCommand(
     Guid PrincipalId,
+    Guid IdempotencyRecordId,
+    string RequestHash,
     Guid HoldId,
     string Reason);
 
@@ -118,6 +122,8 @@ public sealed record AdminLegalHoldRecord(
 
 public sealed record AdminErasureExecutionCommand(
     Guid PrincipalId,
+    Guid IdempotencyRecordId,
+    string RequestHash,
     string Reason,
     AdminGovernanceEventSelector Selector);
 

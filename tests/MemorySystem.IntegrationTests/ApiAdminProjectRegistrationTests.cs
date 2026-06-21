@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using MemorySystem.Application.Admin;
 using MemorySystem.Application.AccessAuditing;
+using MemorySystem.Infrastructure.AccessAuditing;
+using MemorySystem.Infrastructure.Admin;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 
@@ -308,6 +311,37 @@ public sealed class ApiAdminProjectRegistrationTests
         }
     }
 
+    [DatabaseFact]
+    [Trait("Category", "Database")]
+    public async Task RegisterAsync_rolls_back_project_changes_when_idempotency_completion_fails()
+    {
+        var adminConnectionString = PostgresTestDatabase.RequireAdminConnectionString();
+        var databaseName = $"memorysystem_project_registration_idempotency_rollback_test_{Guid.NewGuid():N}";
+        var databaseConnectionString = await PostgresTestDatabase.CreateAsync(adminConnectionString, databaseName);
+
+        try
+        {
+            await PrepareRegistrationFixtureAsync(databaseConnectionString);
+
+            await using var dataSource = NpgsqlDataSource.Create(databaseConnectionString);
+            var store = new PostgresAdminProjectRegistrationStore(
+                dataSource,
+                new PostgresAccessAuditEventStore(dataSource));
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                store.RegisterAsync(CreateRegistrationCommandWithMissingIdempotencyRecord()));
+
+            Assert.Null(await ReadProjectStatusAsync(dataSource));
+            Assert.False(await HasProjectRoleDefinitionAsync(dataSource, "research_lead"));
+            Assert.Equal(0L, await CountAuditEventsAsync(dataSource, AccessAuditActionTypes.ProjectRegistration));
+            Assert.Equal(0, await ApiDatabaseTestSupport.CountIdempotencyRecordsAsync(databaseConnectionString));
+        }
+        finally
+        {
+            await PostgresTestDatabase.DropAsync(adminConnectionString, databaseName);
+        }
+    }
+
     private static async Task PrepareRegistrationFixtureAsync(string connectionString)
     {
         await ApiDatabaseTestSupport.ApplyMigrationsAsync(connectionString);
@@ -446,6 +480,68 @@ public sealed class ApiAdminProjectRegistrationTests
                 sourceOwnerRoleId = "product_owner"
             }
         ];
+    }
+
+    private static AdminProjectRegistrationCommand CreateRegistrationCommandWithMissingIdempotencyRecord()
+    {
+        return new AdminProjectRegistrationCommand(
+            ActorPrincipalId,
+            Guid.NewGuid(),
+            "sha256:v2:" + new string('a', 64),
+            OrgId,
+            "Registered Memory Org",
+            ProjectId,
+            "Registered Memory Project",
+            "active",
+            [
+                new AdminProjectRegistrationRoleDefinitionCommand(
+                    "research_lead",
+                    "Research Lead",
+                    "Owns research interpretation during registration.",
+                    "developer",
+                    "active")
+            ],
+            [
+                new AdminProjectRegistrationOwnerAssignmentCommand(
+                    ProductOwnerPrincipalId,
+                    "product_owner",
+                    "reviewer",
+                    "product_owner"),
+                new AdminProjectRegistrationOwnerAssignmentCommand(
+                    KnowledgeStewardPrincipalId,
+                    "knowledge_steward",
+                    "reviewer",
+                    "knowledge_steward"),
+                new AdminProjectRegistrationOwnerAssignmentCommand(
+                    SecurityPrincipalId,
+                    "security_professional",
+                    "reviewer",
+                    "security_ops"),
+                new AdminProjectRegistrationOwnerAssignmentCommand(
+                    ResearchLeadPrincipalId,
+                    "research_lead",
+                    "contributor",
+                    "research_lead")
+            ],
+            [
+                new AdminProjectRegistrationNamespaceGrantCommand(
+                    null,
+                    "product_owner",
+                    $"/project/{ProjectId}/goals",
+                    "write")
+            ],
+            [
+                new AdminProjectRegistrationSourceDocumentCommand(
+                    "docs/project-registration-ux-plan.md",
+                    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    "product_owner")
+            ],
+            "preview-reg02-001",
+            "audit-export-reg02-001",
+            "Payload-safe registration test note.",
+            "POST",
+            "/api/admin/projects/register",
+            "registration-idempotency-rollback-test");
     }
 
     private static WebApplicationFactory<Program> CreateFactory(

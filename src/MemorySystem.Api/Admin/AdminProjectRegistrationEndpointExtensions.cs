@@ -72,7 +72,8 @@ public static class AdminProjectRegistrationEndpointExtensions
                 StatusCodes.Status200OK,
                 ToResponse(record),
                 ResourceType: "project_registration",
-                ResourceId: record.Project.ProjectId);
+                ResourceId: record.Project.ProjectId,
+                IdempotencyAlreadyCompleted: true);
         }
         catch (ArgumentException exception)
         {

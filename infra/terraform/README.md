@@ -14,7 +14,10 @@ contract visible in runtime outputs.
 
 This is still a staged platform baseline. Runtime ECS resources and managed
 collector/receiver resources remain future platform work, but the first local
-platform rehearsal path is now documented and smoke-tested.
+platform rehearsal path is now documented and smoke-tested. The runtime and
+observability modules also expose `deployment_boundary` outputs so release
+automation can distinguish contract outputs from resources that `terraform
+apply` actually provisions.
 
 ## Layout
 

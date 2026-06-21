@@ -18,6 +18,7 @@ public sealed partial class PostgresAdminGovernanceStore
     {
         ArgumentNullException.ThrowIfNull(command);
         ValidateSelector(command.Selector);
+        ValidateIdempotency(command.IdempotencyRecordId, command.RequestHash);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Reason);
 
         var holdId = Guid.NewGuid();
@@ -50,11 +51,9 @@ public sealed partial class PostgresAdminGovernanceStore
                 cancellationToken);
         }
 
-        await transaction.CommitAsync(cancellationToken);
-
         var alreadyHeldEvents = candidates.Count(candidate => candidate.AlreadyHeld);
 
-        return new AdminLegalHoldResult(
+        var result = new AdminLegalHoldResult(
             holdId,
             "active",
             candidates.Count,
@@ -62,6 +61,22 @@ public sealed partial class PostgresAdminGovernanceStore
             alreadyHeldEvents,
             command.Reason,
             createdAt);
+
+        await CompleteIdempotencyAsync(
+            connection,
+            transaction,
+            command.IdempotencyRecordId,
+            command.RequestHash,
+            201,
+            result,
+            "legal_hold",
+            result.HoldId,
+            "The legal hold idempotency record could not be completed.",
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
     }
 
     public async Task<AdminLegalHoldReleaseResult> ReleaseLegalHoldAsync(
@@ -69,6 +84,7 @@ public sealed partial class PostgresAdminGovernanceStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ValidateIdempotency(command.IdempotencyRecordId, command.RequestHash);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Reason);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
@@ -82,8 +98,7 @@ public sealed partial class PostgresAdminGovernanceStore
 
         if (!string.Equals(hold.Status, "active", StringComparison.Ordinal))
         {
-            await transaction.CommitAsync(cancellationToken);
-            return new AdminLegalHoldReleaseResult(
+            var inactiveResult = new AdminLegalHoldReleaseResult(
                 true,
                 0,
                 null,
@@ -92,6 +107,17 @@ public sealed partial class PostgresAdminGovernanceStore
                 ReleasedEvents: 0,
                 RestoredEvents: 0,
                 ReleasedAt: hold.ReleasedAt);
+
+            await CompleteLegalHoldReleaseIdempotencyAsync(
+                connection,
+                transaction,
+                command,
+                inactiveResult,
+                cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return inactiveResult;
         }
 
         var eventCount = await CountLegalHoldEventsAsync(connection, transaction, command.HoldId, cancellationToken);
@@ -112,9 +138,7 @@ public sealed partial class PostgresAdminGovernanceStore
         var releasedEvents = await MarkLegalHoldEventsReleasedAsync(connection, transaction, command.HoldId, cancellationToken);
         var restoredEvents = await RestoreReleasedEventsAsync(connection, transaction, command.HoldId, cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
-
-        return new AdminLegalHoldReleaseResult(
+        var result = new AdminLegalHoldReleaseResult(
             true,
             0,
             null,
@@ -123,6 +147,42 @@ public sealed partial class PostgresAdminGovernanceStore
             releasedEvents,
             restoredEvents,
             releasedAt);
+
+        await CompleteLegalHoldReleaseIdempotencyAsync(
+            connection,
+            transaction,
+            command,
+            result,
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
+    }
+
+    private static async Task CompleteLegalHoldReleaseIdempotencyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        AdminLegalHoldReleaseCommand command,
+        AdminLegalHoldReleaseResult result,
+        CancellationToken cancellationToken)
+    {
+        await CompleteIdempotencyAsync(
+            connection,
+            transaction,
+            command.IdempotencyRecordId,
+            command.RequestHash,
+            200,
+            new LegalHoldReleaseResponseBody(
+                result.HoldId,
+                result.Status,
+                result.ReleasedEvents,
+                result.RestoredEvents,
+                result.ReleasedAt),
+            "legal_hold",
+            result.HoldId,
+            "The legal hold release idempotency record could not be completed.",
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<AdminLegalHoldRecord>> ListLegalHoldsAsync(

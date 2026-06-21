@@ -6,6 +6,7 @@ using MemorySystem.Application.Access;
 using MemorySystem.Application.Admin;
 using MemorySystem.Application.Retention;
 using MemorySystem.Infrastructure.DomainMapping;
+using MemorySystem.Infrastructure.Idempotency;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -14,6 +15,7 @@ namespace MemorySystem.Infrastructure.Admin;
 public sealed partial class PostgresAdminGovernanceStore
 {
     private const int MaxGovernanceEventBatchSize = 500;
+    private const string JsonContentType = "application/json; charset=utf-8";
 
     private static void ValidateSelector(AdminGovernanceEventSelector selector)
     {
@@ -77,6 +79,54 @@ public sealed partial class PostgresAdminGovernanceStore
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(payloadJson));
         return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    private static async Task CompleteIdempotencyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid idempotencyRecordId,
+        string requestHash,
+        int statusCode,
+        object body,
+        string resourceType,
+        Guid? resourceId,
+        string failureMessage,
+        CancellationToken cancellationToken)
+    {
+        if (idempotencyRecordId == Guid.Empty)
+        {
+            throw new ArgumentException("Idempotency record id is required.", nameof(idempotencyRecordId));
+        }
+
+        await PostgresApiIdempotencyCompleter.CompleteAsync(
+            connection,
+            transaction,
+            idempotencyRecordId,
+            requestHash,
+            statusCode,
+            JsonSerializer.Serialize(body, JsonOptions),
+            JsonContentType,
+            resourceType,
+            resourceId,
+            failureMessage,
+            cancellationToken);
+    }
+
+    private static void ValidateIdempotency(Guid idempotencyRecordId, string requestHash)
+    {
+        if (idempotencyRecordId == Guid.Empty)
+        {
+            throw new ArgumentException("Idempotency record id is required.", nameof(idempotencyRecordId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestHash);
+    }
+
+    private sealed record LegalHoldReleaseResponseBody(
+        Guid HoldId,
+        string Status,
+        int ReleasedEvents,
+        int RestoredEvents,
+        DateTimeOffset? ReleasedAt);
 
     private static string GovernanceEventSelectionCtes => GovernanceNamespaceCtes + """
         , candidate_events AS MATERIALIZED (
